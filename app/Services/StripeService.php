@@ -1,0 +1,167 @@
+<?php
+
+namespace App\Services;
+
+use Stripe\StripeClient;
+use Stripe\Webhook;
+
+class StripeService
+{
+    public function __construct(private readonly StripeClient $client) {}
+
+    public function createPaymentIntent(
+        int $amountCents,
+        string $currency,
+        string $stripeAccount,
+        int $applicationFeeCents,
+        array $metadata = []
+    ): object {
+        return $this->client->paymentIntents->create([
+            'amount' => $amountCents,
+            'currency' => $currency,
+            'application_fee_amount' => $applicationFeeCents,
+            'metadata' => $metadata,
+        ], [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function createRefund(string $paymentIntentId): object
+    {
+        return $this->client->refunds->create([
+            'payment_intent' => $paymentIntentId,
+        ]);
+    }
+
+    public function createCustomer(string $email, string $name, string $stripeAccount): object
+    {
+        return $this->client->customers->create([
+            'email' => $email,
+            'name' => $name,
+        ], [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function createSetupIntent(string $stripeCustomerId, string $stripeAccount, array $metadata = []): object
+    {
+        return $this->client->setupIntents->create([
+            'customer' => $stripeCustomerId,
+            'metadata' => $metadata,
+        ], [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function createSubscription(
+        string $stripeCustomerId,
+        string $stripePriceId,
+        string $paymentMethodId,
+        string $stripeAccount,
+        float $applicationFeePercent,
+        array $metadata = []
+    ): object {
+        return $this->client->subscriptions->create([
+            'customer' => $stripeCustomerId,
+            'items' => [['price' => $stripePriceId]],
+            'default_payment_method' => $paymentMethodId,
+            'application_fee_percent' => $applicationFeePercent,
+            'metadata' => $metadata,
+        ], [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function cancelSubscriptionAtPeriodEnd(string $stripeSubId, string $stripeAccount): object
+    {
+        return $this->client->subscriptions->update($stripeSubId, [
+            'cancel_at_period_end' => true,
+        ], [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function retrieveSetupIntent(string $setupIntentId, string $stripeAccount): object
+    {
+        return $this->client->setupIntents->retrieve($setupIntentId, [], [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function createProduct(string $name, string $stripeAccount): object
+    {
+        return $this->client->products->create([
+            'name' => $name,
+        ], [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function createPrice(
+        string $productId,
+        int $unitAmountCents,
+        string $currency,
+        string $stripeAccount,
+        ?string $recurringInterval = null
+    ): object {
+        $payload = [
+            'product' => $productId,
+            'unit_amount' => $unitAmountCents,
+            'currency' => $currency,
+        ];
+
+        if ($recurringInterval !== null) {
+            $payload['recurring'] = ['interval' => $recurringInterval];
+        }
+
+        return $this->client->prices->create($payload, [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function archivePrice(string $priceId, string $stripeAccount): object
+    {
+        return $this->client->prices->update($priceId, ['active' => false], [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function archiveProduct(string $productId, string $stripeAccount): object
+    {
+        return $this->client->products->update($productId, ['active' => false], [
+            'stripe_account' => $stripeAccount,
+        ]);
+    }
+
+    public function createConnectAccount(string $email, string $businessName): object
+    {
+        return $this->client->accounts->create([
+            'type' => 'express',
+            'email' => $email,
+            'business_profile' => ['name' => $businessName],
+        ]);
+    }
+
+    public function createAccountLink(string $accountId, string $refreshUrl, string $returnUrl): object
+    {
+        return $this->client->accountLinks->create([
+            'account' => $accountId,
+            'refresh_url' => $refreshUrl,
+            'return_url' => $returnUrl,
+            'type' => 'account_onboarding',
+        ]);
+    }
+
+    public function createAccountSession(string $accountId, array $components): object
+    {
+        return $this->client->accountSessions->create([
+            'account' => $accountId,
+            'components' => $components,
+        ]);
+    }
+
+    public function constructWebhookEvent(string $payload, string $sigHeader, string $secret): object
+    {
+        return Webhook::constructEvent($payload, $sigHeader, $secret);
+    }
+}

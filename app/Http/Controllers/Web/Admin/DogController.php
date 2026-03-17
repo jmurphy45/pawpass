@@ -1,0 +1,147 @@
+<?php
+
+namespace App\Http\Controllers\Web\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Customer;
+use App\Models\Dog;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class DogController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        $query = Dog::with('customer')->latest();
+
+        if ($search = $request->query('search')) {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        $dogs = $query->paginate(20)->through(fn ($dog) => [
+            'id'             => $dog->id,
+            'name'           => $dog->name,
+            'breed'          => $dog->breed,
+            'credit_balance' => $dog->credit_balance,
+            'customer_name'  => $dog->customer?->name,
+            'customer_id'    => $dog->customer_id,
+        ]);
+
+        return Inertia::render('Admin/Dogs/Index', [
+            'dogs'    => $dogs,
+            'filters' => ['search' => $request->query('search', '')],
+        ]);
+    }
+
+    public function create(): Response
+    {
+        $customers = Customer::orderBy('name')->get(['id', 'name']);
+
+        return Inertia::render('Admin/Dogs/Create', [
+            'customers' => $customers,
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'customer_id' => ['required', 'string'],
+            'name'        => ['required', 'string', 'max:255'],
+            'breed'       => ['nullable', 'string', 'max:255'],
+            'dob'         => ['nullable', 'date'],
+            'sex'         => ['nullable', 'string', 'in:male,female,unknown'],
+            'vet_name'    => ['nullable', 'string', 'max:255'],
+            'vet_phone'   => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $customer = Customer::find($validated['customer_id']);
+
+        if (! $customer) {
+            return back()->withErrors(['customer_id' => 'Customer not found.']);
+        }
+
+        $dog = Dog::create([
+            'tenant_id'   => app('current.tenant.id'),
+            'customer_id' => $customer->id,
+            'name'        => $validated['name'],
+            'breed'       => $validated['breed'] ?? null,
+            'dob'         => $validated['dob'] ?? null,
+            'sex'         => $validated['sex'] ?? null,
+            'vet_name'    => $validated['vet_name'] ?? null,
+            'vet_phone'   => $validated['vet_phone'] ?? null,
+            'credit_balance' => 0,
+        ]);
+
+        return redirect()->route('admin.dogs.show', $dog)
+            ->with('success', 'Dog created successfully.');
+    }
+
+    public function show(Dog $dog): Response
+    {
+        $ledger = $dog->creditLedger()->orderByDesc('created_at')->limit(20)->get()->map(fn ($entry) => [
+            'id'            => $entry->id,
+            'type'          => $entry->type,
+            'amount'        => $entry->delta,
+            'balance_after' => $entry->balance_after,
+            'note'          => $entry->note,
+            'created_at'    => $entry->created_at->toIso8601String(),
+        ]);
+
+        $attendance = $dog->attendances()->orderByDesc('checked_in_at')->limit(20)->get()->map(fn ($a) => [
+            'id'             => $a->id,
+            'checked_in_at'  => $a->checked_in_at->toIso8601String(),
+            'checked_out_at' => $a->checked_out_at?->toIso8601String(),
+        ]);
+
+        return Inertia::render('Admin/Dogs/Show', [
+            'dog' => [
+                'id'             => $dog->id,
+                'name'           => $dog->name,
+                'breed'          => $dog->breed,
+                'dob'            => $dog->dob?->toDateString(),
+                'sex'            => $dog->sex,
+                'credit_balance' => $dog->credit_balance,
+                'vet_name'       => $dog->vet_name,
+                'vet_phone'      => $dog->vet_phone,
+                'customer_id'    => $dog->customer_id,
+                'customer_name'  => $dog->customer?->name,
+            ],
+            'ledger'     => $ledger,
+            'attendance' => $attendance,
+        ]);
+    }
+
+    public function edit(Dog $dog): Response
+    {
+        return Inertia::render('Admin/Dogs/Edit', [
+            'dog' => [
+                'id'       => $dog->id,
+                'name'     => $dog->name,
+                'breed'    => $dog->breed,
+                'dob'      => $dog->dob?->toDateString(),
+                'sex'      => $dog->sex,
+                'vet_name' => $dog->vet_name,
+                'vet_phone' => $dog->vet_phone,
+            ],
+        ]);
+    }
+
+    public function update(Request $request, Dog $dog): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name'      => ['required', 'string', 'max:255'],
+            'breed'     => ['nullable', 'string', 'max:255'],
+            'dob'       => ['nullable', 'date'],
+            'sex'       => ['nullable', 'string', 'in:male,female,unknown'],
+            'vet_name'  => ['nullable', 'string', 'max:255'],
+            'vet_phone' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $dog->update($validated);
+
+        return redirect()->route('admin.dogs.show', $dog)
+            ->with('success', 'Dog updated successfully.');
+    }
+}
