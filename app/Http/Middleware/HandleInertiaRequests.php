@@ -18,43 +18,52 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
-        $tenant = null;
-        $tenantId = app('current.tenant.id');
+        return [
+            ...parent::share($request),
+            'tenant'      => function () {
+                $tenantId = app('current.tenant.id');
+                if (! $tenantId) {
+                    return null;
+                }
+                $tenantModel = Tenant::find($tenantId);
+                if (! $tenantModel) {
+                    return null;
+                }
 
-        if ($tenantId) {
-            $tenantModel = Tenant::find($tenantId);
-            if ($tenantModel) {
-                $tenant = [
+                return [
                     'name'          => $tenantModel->name,
                     'slug'          => $tenantModel->slug,
                     'primary_color' => $tenantModel->primary_color ?? '#4f46e5',
                     'logo_url'      => null,
                 ];
-                $tenantPlan = $tenantModel->plan;
-            }
-        }
+            },
+            'tenantPlan'  => function () {
+                $tenantId = app('current.tenant.id');
+                if (! $tenantId) {
+                    return null;
+                }
+                $tenantModel = Tenant::find($tenantId);
 
-        $user = Auth::guard('web')->user();
-        $unreadCount = 0;
+                return $tenantModel?->plan;
+            },
+            'auth'        => function () {
+                $user = Auth::guard('web')->user();
 
-        if ($user) {
-            $unreadCount = $user->notifications()->whereNull('read_at')->count();
-        }
+                return [
+                    'user' => $user ? [
+                        'id'    => $user->id,
+                        'name'  => $user->name,
+                        'email' => $user->email,
+                        'phone' => $user->phone ?? null,
+                        'role'  => $user->role,
+                    ] : null,
+                ];
+            },
+            'unreadCount' => function () {
+                $user = Auth::guard('web')->user();
 
-        return [
-            ...parent::share($request),
-            'tenant'      => $tenant,
-            'tenantPlan'  => $tenantPlan ?? null,
-            'auth'        => [
-                'user' => $user ? [
-                    'id'    => $user->id,
-                    'name'  => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone ?? null,
-                    'role'  => $user->role,
-                ] : null,
-            ],
-            'unreadCount' => $unreadCount,
+                return $user ? $user->notifications()->whereNull('read_at')->count() : 0;
+            },
             'flash'       => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),

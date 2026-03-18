@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\V1\BillingController;
+use App\Http\Controllers\Admin\V1\BroadcastNotificationController;
 use App\Http\Controllers\Admin\V1\ReportController as AdminReportController;
 use App\Http\Controllers\Platform\V1\ReportController as PlatformReportController;
 use App\Http\Controllers\Platform\V1\PlatformPlanController;
@@ -132,6 +133,8 @@ Route::prefix('admin/v1')
 
         Route::get('payments', [PaymentController::class, 'index']);
         Route::post('payments/{order}/refund', [PaymentController::class, 'refund']);
+
+        Route::post('notifications/broadcast', [BroadcastNotificationController::class, 'store']);
 
         // Reports — Staff+ with basic_reporting
         Route::middleware(['role:staff,business_owner', 'plan:basic_reporting'])->group(function () {

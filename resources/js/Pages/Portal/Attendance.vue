@@ -2,11 +2,10 @@
   <PortalLayout>
     <div class="space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-900">Attendance</h1>
-
+        <h1 class="text-2xl font-bold text-text-body">Attendance</h1>
         <select
           v-model="selectedDog"
-          class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          class="input max-w-[180px]"
           @change="filterByDog"
         >
           <option value="">All dogs</option>
@@ -14,26 +13,33 @@
         </select>
       </div>
 
-      <div v-if="attendance.data.length === 0" class="rounded-2xl bg-white border border-dashed border-gray-200 p-12 text-center text-gray-500 text-sm">
-        No attendance records yet.
+      <div v-if="attendance.data.length === 0" class="card p-12 text-center">
+        <p class="text-4xl mb-3">📋</p>
+        <p class="font-semibold text-text-body">No attendance records yet</p>
+        <p class="text-sm text-text-muted mt-1">Records will appear here after your first check-in</p>
       </div>
 
-      <div v-else class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      <div v-else class="card overflow-hidden">
         <table class="w-full text-sm">
           <thead>
-            <tr class="border-b border-gray-100 bg-gray-50">
-              <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dog</th>
-              <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Check In</th>
-              <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Check Out</th>
+            <tr style="border-bottom: 1px solid #e5e0d8; background-color: #faf9f6;">
+              <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Dog</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Check In</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Check Out</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-50">
-            <tr v-for="a in attendance.data" :key="a.id" class="hover:bg-gray-50/50">
-              <td class="px-4 py-3 font-medium text-gray-900">{{ a.dog_name }}</td>
-              <td class="px-4 py-3 text-gray-600">{{ formatDatetime(a.checked_in_at) }}</td>
-              <td class="px-4 py-3 text-gray-600">
-                <span v-if="a.checked_out_at">{{ formatDatetime(a.checked_out_at) }}</span>
-                <span v-else class="inline-flex items-center rounded-full bg-green-100 text-green-700 px-2 py-0.5 text-xs">Here now</span>
+          <tbody>
+            <tr
+              v-for="a in attendance.data"
+              :key="a.id"
+              class="hover:bg-surface transition-colors"
+              style="border-bottom: 1px solid #f0ede8;"
+            >
+              <td class="px-4 py-3 font-medium text-text-body">{{ a.dog_name }}</td>
+              <td class="px-4 py-3 text-text-muted">{{ formatDatetime(a.checked_in_at) }}</td>
+              <td class="px-4 py-3">
+                <span v-if="a.checked_out_at" class="text-text-muted">{{ formatDatetime(a.checked_out_at) }}</span>
+                <span v-else class="badge badge-green animate-pulse">Here now</span>
               </td>
             </tr>
           </tbody>
@@ -42,19 +48,17 @@
 
       <!-- Pagination -->
       <div v-if="attendance.meta.last_page > 1" class="flex items-center justify-between text-sm">
-        <p class="text-gray-500">
-          Showing {{ attendance.data.length }} of {{ attendance.meta.total }}
-        </p>
+        <p class="text-text-muted">Showing {{ attendance.data.length }} of {{ attendance.meta.total }}</p>
         <div class="flex gap-2">
           <Link
             v-if="attendance.meta.current_page > 1"
             :href="route('portal.attendance', { page: attendance.meta.current_page - 1, dog_id: selectedDog || undefined })"
-            class="rounded-lg border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50"
+            class="btn-secondary text-xs py-1.5 px-3"
           >Previous</Link>
           <Link
             v-if="attendance.meta.current_page < attendance.meta.last_page"
             :href="route('portal.attendance', { page: attendance.meta.current_page + 1, dog_id: selectedDog || undefined })"
-            class="rounded-lg border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50"
+            class="btn-secondary text-xs py-1.5 px-3"
           >Next</Link>
         </div>
       </div>

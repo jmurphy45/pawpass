@@ -97,3 +97,87 @@
 - Platform report pages (web UI) deferred — platform admin uses the API directly
 - `WarmTenantReportCaches` uses a static plan feature cache; this is cleared between PHP processes (no inter-request state issue)
 - `tenantPlan` is not yet passed as a shared Inertia prop — Reports nav link in AdminLayout uses the page prop but it will be hidden until `tenantPlan` is added to `HandleInertiaRequests::share()`
+
+---
+
+## Phase 17: SMS Segment Quotas + Broadcast Notifications
+
+### Part 1 — SMS Segment Quotas
+
+- [x] Migration: `sms_segment_quota` column on `platform_plans`
+  - Verification: Migration runs cleanly
+
+- [x] Migration: `tenant_sms_usage` table
+  - Verification: Migration runs cleanly
+
+- [x] Model: `TenantSmsUsage`
+  - Verification: Unit tests pass
+
+- [x] Modify `PlatformPlan` (fillable + casts) and `PlanFeatureCache` (`smsSegmentQuota()`)
+  - Verification: SmsUsageServiceTest passes
+
+- [x] Update `PlatformPlanFactory` (add `sms_segment_quota: 0`)
+  - Verification: Factory works in tests
+
+- [x] Update `PlatformPlanSeeder` (add `sms_segment_quota` + `sms_notifications` to all plans)
+  - Verification: Seeder reviewed
+
+- [x] `TwilioService::send()` returns `int` segment count
+  - Verification: TwilioServiceTest (5 tests) passes
+
+- [x] Create `SmsUsageService` with 6 methods; register singleton
+  - Verification: SmsUsageServiceTest (11 tests) passes
+
+- [x] Update `SmsChannel` to inject `SmsUsageService` and call `track()` after successful send
+  - Verification: SmsChannelTest (3 tests) passes
+
+- [x] Add `createInvoiceItem()` and `createAndFinalizeInvoice()` to `StripeBillingService`
+  - Verification: BillSmsOverageJobTest relies on them
+
+- [x] Create `BillSmsOverageJob` — processes prior-month overages for active tenants
+  - Verification: BillSmsOverageJobTest (5 tests) passes
+
+- [x] Register `BillSmsOverageJob` in scheduler (`monthlyOn(1, '05:00')`)
+  - Verification: Scheduler entry added to bootstrap/app.php
+
+### Part 2 — Broadcast Notifications
+
+- [x] Add `announcement` type to `PawPassNotification::buildMessage()`
+  - Verification: PawPassNotificationTest (3 new tests) passes
+
+- [x] Create `SendBroadcastNotificationJob` — sends announcement to all tenant customers
+  - Verification: SendBroadcastNotificationJobTest (6 tests) passes
+
+- [x] Create `BroadcastNotificationController` and register route `POST /api/admin/v1/notifications/broadcast`
+  - Verification: BroadcastNotificationControllerTest (9 tests) passes
+
+## Review
+
+### Summary of Changes
+- Added `sms_segment_quota` column to `platform_plans` and `tenant_sms_usage` tracking table
+- New `TenantSmsUsage` model and `SmsUsageService` for tracking and querying segment usage
+- `TwilioService::send()` now returns segment count instead of void
+- `SmsChannel` tracks segments via `SmsUsageService` after each successful send
+- `BillSmsOverageJob` runs monthly to bill tenants for SMS overages at $0.04/segment
+- `PawPassNotification` supports new `announcement` type using subject/body from data
+- `SendBroadcastNotificationJob` dispatches per-channel notifications to all customer users of a tenant
+- `BroadcastNotificationController` validates and queues broadcast requests from admin API
+
+### Tests Added or Updated
+- `tests/Unit/Services/TwilioServiceTest.php`: 5 new tests (segment counting, failure handling)
+- `tests/Unit/Services/SmsUsageServiceTest.php`: 11 new tests (all 6 service methods)
+- `tests/Unit/Notifications/PawPassNotificationTest.php`: 3 new announcement type tests
+- `tests/Unit/Notifications/Channels/SmsChannelTest.php`: updated to pass SmsUsageService, return segment int
+- `tests/Feature/Jobs/BillSmsOverageJobTest.php`: 5 new tests
+- `tests/Feature/Jobs/SendBroadcastNotificationJobTest.php`: 6 new tests
+- `tests/Feature/Admin/BroadcastNotificationControllerTest.php`: 9 new tests
+
+### Build Status
+- Tests: 661 passed (0 failures)
+- Build: Not yet verified (npm run build)
+
+### Notes
+- `user_notification_preferences` table uses `type` and `is_enabled` (not `notification_type`/`enabled`)
+- `current.tenant` binding doesn't exist — `BroadcastNotificationController` uses `Tenant::find(app('current.tenant.id'))`
+- Plan slugs in `tenant_plan` PG enum are restricted to: `free`, `starter`, `pro`, `business`
+- `TenantSmsUsage` model explicitly sets `$table = 'tenant_sms_usage'` (avoids Laravel's default pluralization)

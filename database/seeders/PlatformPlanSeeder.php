@@ -18,8 +18,9 @@ class PlatformPlanSeeder extends Seeder
                 'description'         => 'Basic access with limited features.',
                 'monthly_price_cents' => 0,
                 'annual_price_cents'  => 0,
-                'features'            => [],
+                'features'            => ['sms_notifications'],
                 'staff_limit'         => 1,
+                'sms_segment_quota'   => 0,
                 'sort_order'          => 0,
             ],
             [
@@ -34,9 +35,11 @@ class PlatformPlanSeeder extends Seeder
                     'customer_portal',
                     'email_notifications',
                     'basic_reporting',
+                    'sms_notifications',
                 ],
-                'staff_limit' => 5,
-                'sort_order'  => 1,
+                'staff_limit'       => 5,
+                'sms_segment_quota' => 0,
+                'sort_order'        => 1,
             ],
             [
                 'slug'                => 'pro',
@@ -56,8 +59,9 @@ class PlatformPlanSeeder extends Seeder
                     'custom_branding',
                     'pwa',
                 ],
-                'staff_limit' => 15,
-                'sort_order'  => 2,
+                'staff_limit'       => 15,
+                'sms_segment_quota' => 500,
+                'sort_order'        => 2,
             ],
             [
                 'slug'                => 'business',
@@ -80,8 +84,9 @@ class PlatformPlanSeeder extends Seeder
                     'unlimited_staff',
                     'priority_support',
                 ],
-                'staff_limit' => 999999,
-                'sort_order'  => 3,
+                'staff_limit'       => 999999,
+                'sms_segment_quota' => 1000,
+                'sort_order'        => 3,
             ],
         ];
 

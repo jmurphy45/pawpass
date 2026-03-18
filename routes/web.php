@@ -14,6 +14,7 @@ use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
 use App\Http\Controllers\Web\Portal\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
@@ -102,6 +103,11 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/reports/customers', [AdminReportController::class, 'customers'])->name('admin.reports.customers');
         Route::get('/reports/attendance', [AdminReportController::class, 'attendance'])->name('admin.reports.attendance');
         Route::get('/reports/credit-status', [AdminReportController::class, 'creditStatus'])->name('admin.reports.credit-status');
+
+        // Notifications / Broadcast
+        Route::get('/notifications/broadcast', [AdminBroadcastController::class, 'index'])->name('admin.notifications.broadcast');
+        Route::post('/notifications/broadcast', [AdminBroadcastController::class, 'store'])->name('admin.notifications.broadcast.store');
+        Route::get('/notifications/sms-usage', [AdminBroadcastController::class, 'smsUsage'])->name('admin.notifications.sms-usage');
 
         // Billing (business_owner only enforced in controller)
         Route::get('/billing', [AdminBillingController::class, 'index'])->name('admin.billing.index');

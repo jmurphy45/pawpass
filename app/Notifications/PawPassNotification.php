@@ -70,6 +70,7 @@ class PawPassNotification extends Notification implements ShouldQueue
             'credits.empty' => ['Credits Empty', 'Your dog has no credits remaining. Please purchase more credits to continue.'],
             'auth.verify_email' => ['Verify Your Email', 'Please verify your email address to continue.'],
             'auth.password_reset' => ['Password Reset Requested', 'A password reset was requested for your account.'],
+            'announcement' => [$this->data['subject'] ?? 'Announcement', $this->data['body'] ?? ''],
             default => [$this->type, $this->type],
         };
     }

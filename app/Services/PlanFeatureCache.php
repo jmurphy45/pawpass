@@ -22,4 +22,9 @@ class PlanFeatureCache
     {
         return (int) ($this->plan($planSlug)?->staff_limit ?? 1);
     }
+
+    public function smsSegmentQuota(string $planSlug): int
+    {
+        return (int) ($this->plan($planSlug)?->sms_segment_quota ?? 0);
+    }
 }

@@ -7,25 +7,31 @@
       <section>
         <h2 class="text-lg font-semibold text-gray-700 mb-3">Operational</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <ReportCard
-            v-if="hasBasicReporting"
-            title="Attendance Summary"
-            description="Check-in counts and unique dogs over time."
-            :href="route('admin.reports.attendance')"
-          />
-          <ReportCard
-            v-if="hasBasicReporting"
-            title="Credit Status"
-            description="Dogs with zero or low credits."
-            :href="route('admin.reports.credit-status')"
-          />
-          <ReportCard
-            v-if="hasBasicReporting && isOwner"
-            title="Package Performance"
-            description="Revenue and orders per package."
-            :href="route('admin.reports.packages')"
-          />
-          <div v-if="!hasBasicReporting" class="col-span-full text-sm text-gray-500 italic">
+          <template v-if="hasBasicReporting">
+            <a
+              :href="route('admin.reports.attendance')"
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Attendance Summary</h3>
+              <p class="mt-1 text-xs text-gray-500">Check-in counts and unique dogs over time.</p>
+            </a>
+            <a
+              :href="route('admin.reports.credit-status')"
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Credit Status</h3>
+              <p class="mt-1 text-xs text-gray-500">Dogs with zero or low credits.</p>
+            </a>
+            <a
+              v-if="isOwner"
+              :href="route('admin.reports.packages')"
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Package Performance</h3>
+              <p class="mt-1 text-xs text-gray-500">Revenue and orders per package.</p>
+            </a>
+          </template>
+          <div v-else class="col-span-full text-sm text-gray-500 italic">
             Upgrade to Starter or higher to access operational reports.
           </div>
         </div>
@@ -36,21 +42,27 @@
         <h2 class="text-lg font-semibold text-gray-700 mb-3">Financial</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <template v-if="hasFinancialReports && isOwner">
-            <ReportCard
-              title="Revenue Summary"
-              description="Gross revenue, platform fees, and net payout by period."
+            <a
               :href="route('admin.reports.revenue')"
-            />
-            <ReportCard
-              title="Credit Issuance & Usage"
-              description="Credit ledger activity grouped by type."
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Revenue Summary</h3>
+              <p class="mt-1 text-xs text-gray-500">Gross revenue, platform fees, and net payout by period.</p>
+            </a>
+            <a
               :href="route('admin.reports.credits')"
-            />
-            <ReportCard
-              title="Customer Lifetime Value"
-              description="Total spend and order count per customer."
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Credit Issuance &amp; Usage</h3>
+              <p class="mt-1 text-xs text-gray-500">Credit ledger activity grouped by type.</p>
+            </a>
+            <a
               :href="route('admin.reports.customers')"
-            />
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Customer Lifetime Value</h3>
+              <p class="mt-1 text-xs text-gray-500">Total spend and order count per customer.</p>
+            </a>
           </template>
           <div v-else-if="!hasFinancialReports" class="col-span-full">
             <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
@@ -78,18 +90,4 @@ const isOwner = computed(() => auth.value.user?.role === 'business_owner');
 const tenantPlan = computed(() => page.props.tenantPlan);
 const hasBasicReporting = computed(() => ['starter', 'pro', 'business'].includes(tenantPlan.value ?? ''));
 const hasFinancialReports = computed(() => ['pro', 'business'].includes(tenantPlan.value ?? ''));
-
-const ReportCard = {
-  props: {
-    title: String,
-    description: String,
-    href: String,
-  },
-  template: `
-    <a :href="href" class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow">
-      <h3 class="font-semibold text-gray-900 text-sm">{{ title }}</h3>
-      <p class="mt-1 text-xs text-gray-500">{{ description }}</p>
-    </a>
-  `,
-};
 </script>

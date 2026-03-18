@@ -4,6 +4,7 @@ namespace Tests\Unit\Notifications\Channels;
 
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\PawPassNotification;
+use App\Services\SmsUsageService;
 use App\Services\TwilioService;
 use Tests\TestCase;
 
@@ -14,9 +15,13 @@ class SmsChannelTest extends TestCase
         $twilio = $this->mock(TwilioService::class);
         $twilio->shouldReceive('send')
             ->once()
-            ->with('+15005550007', \Mockery::type('string'));
+            ->with('+15005550007', \Mockery::type('string'))
+            ->andReturn(1);
 
-        $channel = new SmsChannel($twilio);
+        $smsUsage = $this->mock(SmsUsageService::class);
+        $smsUsage->shouldReceive('track')->once();
+
+        $channel = new SmsChannel($twilio, $smsUsage);
 
         $notifiable = new class
         {
@@ -33,7 +38,10 @@ class SmsChannelTest extends TestCase
         $twilio = $this->mock(TwilioService::class);
         $twilio->shouldNotReceive('send');
 
-        $channel = new SmsChannel($twilio);
+        $smsUsage = $this->mock(SmsUsageService::class);
+        $smsUsage->shouldNotReceive('track');
+
+        $channel = new SmsChannel($twilio, $smsUsage);
 
         $notifiable = new class
         {
@@ -50,7 +58,10 @@ class SmsChannelTest extends TestCase
         $twilio = $this->mock(TwilioService::class);
         $twilio->shouldNotReceive('send');
 
-        $channel = new SmsChannel($twilio);
+        $smsUsage = $this->mock(SmsUsageService::class);
+        $smsUsage->shouldNotReceive('track');
+
+        $channel = new SmsChannel($twilio, $smsUsage);
 
         $notifiable = new class
         {

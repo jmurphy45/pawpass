@@ -12,6 +12,7 @@ use App\Observers\PackageObserver;
 use App\Observers\PlatformPlanObserver;
 use App\Services\NotificationService;
 use App\Services\PlanFeatureCache;
+use App\Services\SmsUsageService;
 use App\Services\StripeBillingService;
 use App\Services\StripeService;
 use App\Services\TwilioService;
@@ -50,6 +51,7 @@ class AppServiceProvider extends ServiceProvider
                 sid: config('services.twilio.sid'),
                 token: config('services.twilio.token'),
                 from: config('services.twilio.from'),
+                fake: (bool) config('services.twilio.fake', false),
             );
         });
 
@@ -60,6 +62,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(PlanFeatureCache::class);
+        $this->app->singleton(SmsUsageService::class);
     }
 
     public function boot(): void
@@ -67,7 +70,10 @@ class AppServiceProvider extends ServiceProvider
         PlatformPlan::observe(PlatformPlanObserver::class);
         Package::observe(PackageObserver::class);
 
-        Notification::extend('sms', fn ($app) => new SmsChannel($app->make(TwilioService::class)));
+        Notification::extend('sms', fn ($app) => new SmsChannel(
+            $app->make(TwilioService::class),
+            $app->make(SmsUsageService::class),
+        ));
 
         Event::listen(NotificationSent::class, [LogNotificationSent::class, 'handleSent']);
         Event::listen(NotificationFailed::class, [LogNotificationSent::class, 'handleFailed']);

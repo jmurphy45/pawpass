@@ -153,4 +153,24 @@ class StripeBillingService
     {
         return \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);
     }
+
+    public function createInvoiceItem(string $customerId, int $amountCents, string $description): object
+    {
+        return (object) $this->client->invoiceItems->create([
+            'customer'    => $customerId,
+            'amount'      => $amountCents,
+            'currency'    => 'usd',
+            'description' => $description,
+        ]);
+    }
+
+    public function createAndFinalizeInvoice(string $customerId): object
+    {
+        $invoice = $this->client->invoices->create([
+            'customer'     => $customerId,
+            'auto_advance' => false,
+        ]);
+
+        return (object) $this->client->invoices->finalizeInvoice($invoice->id);
+    }
 }

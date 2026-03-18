@@ -40,7 +40,7 @@
             </select>
             <p v-if="businessForm.errors.payout_schedule" class="mt-1 text-sm text-red-600">{{ businessForm.errors.payout_schedule }}</p>
           </div>
-          <button type="submit" :disabled="businessForm.processing" class="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60">
+          <button type="submit" :disabled="businessForm.processing" class="btn-primary">
             Save
           </button>
         </form>
@@ -99,7 +99,7 @@
         </div>
 
         <div class="mt-4">
-          <button type="button" @click="submitNotifications" :disabled="notifForm.processing" class="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60">
+          <button type="button" @click="submitNotifications" :disabled="notifForm.processing" class="btn-primary">
             Save
           </button>
         </div>
@@ -134,7 +134,7 @@
                     type="button"
                     @click="deactivateStaff(member.id)"
                     :disabled="deactivatingId === member.id"
-                    class="text-xs text-red-600 hover:text-red-700 hover:underline disabled:opacity-50"
+                    class="btn-ghost-danger"
                   >Deactivate</button>
                 </td>
               </tr>
@@ -156,7 +156,7 @@
               <p v-if="inviteForm.errors.email" class="mt-1 text-sm text-red-600">{{ inviteForm.errors.email }}</p>
             </div>
           </div>
-          <button type="submit" :disabled="inviteForm.processing" class="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60">
+          <button type="submit" :disabled="inviteForm.processing" class="btn-primary">
             Send Invite
           </button>
         </form>

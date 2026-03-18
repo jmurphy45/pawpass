@@ -94,4 +94,41 @@ class PawPassNotificationTest extends TestCase
         $array = $notif->toArray(null);
         $this->assertSame('unknown.type', $array['subject']);
     }
+
+    public function test_announcement_type_uses_subject_from_data(): void
+    {
+        $notif = new PawPassNotification(
+            type: 'announcement',
+            tenantId: 'tenant123',
+            data: ['subject' => 'Big News', 'body' => 'Something happened.'],
+        );
+
+        $array = $notif->toArray(null);
+        $this->assertSame('Big News', $array['subject']);
+        $this->assertSame('Something happened.', $array['body']);
+    }
+
+    public function test_announcement_type_sms_returns_body(): void
+    {
+        $notif = new PawPassNotification(
+            type: 'announcement',
+            tenantId: 'tenant123',
+            data: ['subject' => 'Big News', 'body' => 'Something happened.'],
+        );
+
+        $this->assertSame('Something happened.', $notif->toSms(null));
+    }
+
+    public function test_announcement_type_falls_back_to_defaults_when_data_missing(): void
+    {
+        $notif = new PawPassNotification(
+            type: 'announcement',
+            tenantId: 'tenant123',
+            data: [],
+        );
+
+        $array = $notif->toArray(null);
+        $this->assertSame('Announcement', $array['subject']);
+        $this->assertSame('', $array['body']);
+    }
 }

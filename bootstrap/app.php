@@ -74,6 +74,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->job(new \App\Jobs\ExpireTrials)->dailyAt('01:30');
         $schedule->job(new \App\Jobs\SendUpgradeNudges)->dailyAt('09:00');
         $schedule->job(new \App\Jobs\ProcessDunning)->dailyAt('02:00');
+        $schedule->job(new \App\Jobs\BillSmsOverageJob)->monthlyOn(1, '05:00');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

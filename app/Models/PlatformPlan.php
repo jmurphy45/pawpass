@@ -23,6 +23,7 @@ class PlatformPlan extends Model
         'stripe_annual_price_id',
         'features',
         'staff_limit',
+        'sms_segment_quota',
         'is_active',
         'sort_order',
     ];
@@ -32,6 +33,7 @@ class PlatformPlan extends Model
         return [
             'features'            => 'array',
             'staff_limit'         => 'integer',
+            'sms_segment_quota'   => 'integer',
             'is_active'           => 'boolean',
             'monthly_price_cents' => 'integer',
             'annual_price_cents'  => 'integer',
