@@ -24,57 +24,54 @@ class SendBroadcastNotificationJob implements ShouldQueue
         $this->onQueue('notifications');
     }
 
+    public int $tries = 1;
+
     public function handle(): void
     {
         app()->instance('current.tenant.id', $this->tenantId);
 
-        $users = User::where('tenant_id', $this->tenantId)
+        User::where('tenant_id', $this->tenantId)
             ->where('role', 'customer')
             ->whereNull('deleted_at')
-            ->get();
+            ->chunkById(100, function ($chunk) {
+                $disabledPrefs = DB::table('user_notification_preferences')
+                    ->where('type', 'announcement')
+                    ->whereIn('user_id', $chunk->pluck('id'))
+                    ->where('is_enabled', false)
+                    ->get(['user_id', 'channel'])
+                    ->groupBy('user_id')
+                    ->map(fn ($rows) => $rows->pluck('channel')->all());
 
-        foreach ($users as $user) {
-            $channels = [];
+                foreach ($chunk as $user) {
+                    $disabled = $disabledPrefs[$user->id] ?? [];
+                    $channels = [];
 
-            if (in_array('in_app', $this->requestedChannels)) {
-                $channels[] = 'database';
-            }
+                    if (in_array('in_app', $this->requestedChannels)) {
+                        $channels[] = 'database';
+                    }
 
-            if (in_array('email', $this->requestedChannels)
-                && $this->userAllowsChannel($user, 'email', 'announcement')
-            ) {
-                $channels[] = 'mail';
-            }
+                    if (in_array('email', $this->requestedChannels) && ! in_array('email', $disabled)) {
+                        $channels[] = 'mail';
+                    }
 
-            if (in_array('sms', $this->requestedChannels)
-                && $user->phone
-                && $this->userAllowsChannel($user, 'sms', 'announcement')
-            ) {
-                $channels[] = 'sms';
-            }
+                    if (in_array('sms', $this->requestedChannels)
+                        && $user->phone
+                        && ! in_array('sms', $disabled)
+                    ) {
+                        $channels[] = 'sms';
+                    }
 
-            if (empty($channels)) {
-                continue;
-            }
+                    if (empty($channels)) {
+                        continue;
+                    }
 
-            $user->notify(new PawPassNotification(
-                'announcement',
-                $this->tenantId,
-                ['subject' => $this->subject, 'body' => $this->body],
-                $channels,
-            ));
-        }
-    }
-
-    private function userAllowsChannel(User $user, string $channel, string $type): bool
-    {
-        $disabled = DB::table('user_notification_preferences')
-            ->where('user_id', $user->id)
-            ->where('type', $type)
-            ->where('channel', $channel)
-            ->where('is_enabled', false)
-            ->exists();
-
-        return ! $disabled;
+                    $user->notify(new PawPassNotification(
+                        'announcement',
+                        $this->tenantId,
+                        ['subject' => $this->subject, 'body' => $this->body],
+                        $channels,
+                    ));
+                }
+            });
     }
 }

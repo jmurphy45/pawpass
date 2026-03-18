@@ -80,18 +80,19 @@ class DogCreditService
         }
 
         DB::transaction(function () use ($attendance, $dog) {
-            $newBalance = $dog->credit_balance - 1;
+            $locked     = Dog::lockForUpdate()->find($dog->id);
+            $newBalance = $locked->credit_balance - 1;
 
             CreditLedger::create([
-                'tenant_id' => $dog->tenant_id,
-                'dog_id' => $dog->id,
+                'tenant_id' => $locked->tenant_id,
+                'dog_id' => $locked->id,
                 'type' => 'deduction',
                 'delta' => -1,
                 'balance_after' => $newBalance,
                 'attendance_id' => $attendance->id,
             ]);
 
-            $dog->decrement('credit_balance', 1);
+            $locked->decrement('credit_balance', 1);
         });
 
         $this->dispatchCreditAlert($dog->fresh());
@@ -194,6 +195,10 @@ class DogCreditService
     {
         if ($from->customer_id !== $to->customer_id) {
             throw new InvalidArgumentException('Transfer only allowed within the same customer account.');
+        }
+
+        if ($from->credit_balance < $credits) {
+            throw new InsufficientCreditsException("Dog {$from->id} has insufficient credits for transfer.");
         }
 
         DB::transaction(function () use ($from, $to, $credits) {

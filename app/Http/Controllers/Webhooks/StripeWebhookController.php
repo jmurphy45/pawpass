@@ -144,6 +144,15 @@ class StripeWebhookController extends Controller
 
         $tenant = Tenant::find($subscription->tenant_id);
 
+        if (! $tenant) {
+            Log::error('setup_intent.succeeded: tenant not found', [
+                'subscription_id' => $subscription->id,
+                'tenant_id'       => $subscription->tenant_id,
+            ]);
+
+            return response()->json(['data' => 'tenant not found'], 422);
+        }
+
         $stripeSub = $this->stripe->createSubscription(
             $subscription->stripe_customer_id,
             $package->stripe_price_id,
@@ -193,7 +202,7 @@ class StripeWebhookController extends Controller
 
         $this->creditService->issueFromSubscription($subscription, $dog, $periodEnd);
 
-        $userId = $dog->customer->user_id;
+        $userId = $dog->customer?->user_id;
         if ($userId) {
             $this->notificationService->dispatch('subscription.renewed', $subscription->tenant_id, $userId, ['subscription_id' => $subscription->id]);
         }
@@ -217,7 +226,7 @@ class StripeWebhookController extends Controller
 
         $subscription->update(['status' => 'past_due']);
 
-        $userId = $subscription->dog->customer->user_id;
+        $userId = $subscription->dog->customer?->user_id;
         if ($userId) {
             $this->notificationService->dispatch('subscription.payment_failed', $subscription->tenant_id, $userId, ['subscription_id' => $subscription->id]);
         }
@@ -259,7 +268,7 @@ class StripeWebhookController extends Controller
             $this->creditService->expireCredits($dog);
         });
 
-        $userId = $subscription->dog->customer->user_id;
+        $userId = $subscription->dog->customer?->user_id;
         if ($userId) {
             $this->notificationService->dispatch('subscription.cancelled', $subscription->tenant_id, $userId, ['subscription_id' => $subscription->id]);
         }

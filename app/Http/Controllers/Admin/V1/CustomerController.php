@@ -24,7 +24,9 @@ class CustomerController extends Controller
     {
         $query = Customer::query();
 
-        if ($search = $request->query('search')) {
+        $search = $request->validate(['search' => ['nullable', 'string', 'max:100']])['search'] ?? null;
+
+        if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");

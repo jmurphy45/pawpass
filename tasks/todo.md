@@ -181,3 +181,33 @@
 - `current.tenant` binding doesn't exist — `BroadcastNotificationController` uses `Tenant::find(app('current.tenant.id'))`
 - Plan slugs in `tenant_plan` PG enum are restricted to: `free`, `starter`, `pro`, `business`
 - `TenantSmsUsage` model explicitly sets `$table = 'tenant_sms_usage'` (avoids Laravel's default pluralization)
+
+---
+
+## Task: Production Review — P0/P1/P2 Fixes
+
+### P0 — Breaking / Exploitable
+
+- [x] Fix idempotency cache key — include tenant_id + user_id
+- [x] Fix BillSmsOverageJob double-billing — ShouldBeUnique + Stripe idempotency keys
+- [x] Fix deductForAttendance() stale dog — lockForUpdate inside transaction
+- [x] Fix transfer() negative balance — InsufficientCreditsException guard
+- [x] Fix NotificationService::enqueueGrouped() race — lockForUpdate in transaction
+- [x] Fix ExpireSubscriptionCredits — eager-load customer, null guard, per-dog try-catch
+- [x] Fix StripeWebhookController — null check on $tenant after Tenant::find()
+- [x] Fix Admin/V1/BroadcastNotificationController — align validation with Web controller
+- [x] Fix TwilioService segment count — detect non-ASCII, use 70 chars/segment
+
+### P1 — Pre-scale
+
+- [x] Fix SendBroadcastNotificationJob — chunkById(100) + $tries = 1
+- [x] Add $tries/$backoff to DispatchGroupedAlertJob
+- [x] Fix SmsUsageService::track() — atomic SQL upsert
+- [x] Add throttle:30,1 to public API; throttle:5,1 to registration endpoint
+- [x] Fix HandleInertiaRequests logo_url — use actual column value
+- [x] Fix WarmTenantReportCaches — remove static from planHas cache
+- [x] Fix ProvisionStripeConnectAccountJob — null guard on $owner before try-catch
+
+### P2 — Quality
+
+- [x] Add max:100 on search in Admin/V1/CustomerController + Web/Admin/CustomerController

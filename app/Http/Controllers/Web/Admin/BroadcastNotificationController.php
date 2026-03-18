@@ -55,7 +55,7 @@ class BroadcastNotificationController extends Controller
 
         if (in_array('sms', $validated['channels'])) {
             $tenant = Tenant::find(app('current.tenant.id'));
-            if (! $tenant->platform_stripe_customer_id) {
+            if (! $tenant?->platform_stripe_customer_id) {
                 return back()->withErrors(['channels' => 'SMS broadcasts require billing to be configured.']);
             }
         }
@@ -77,8 +77,8 @@ class BroadcastNotificationController extends Controller
         $planSlug      = $tenant->plan ?? 'free';
         $currentPeriod = $this->smsUsage->currentPeriod();
         $smsQuota      = $this->planFeatureCache->smsSegmentQuota($planSlug);
-        $smsUsed       = $this->smsUsage->getUsage($tenantId, $currentPeriod);
-        $overage       = $this->smsUsage->getOverageSegments($tenantId, $planSlug, $currentPeriod);
+        $smsUsed = $this->smsUsage->getUsage($tenantId, $currentPeriod);
+        $overage = max(0, $smsUsed - $smsQuota);
 
         $history = TenantSmsUsage::where('tenant_id', $tenantId)
             ->orderByDesc('period')
@@ -88,8 +88,8 @@ class BroadcastNotificationController extends Controller
                 'period'        => $row->period,
                 'segments_used' => $row->segments_used,
                 'billed_at'     => $row->billed_at?->toDateTimeString(),
-                'overage'       => max(0, $row->segments_used - $smsQuota),
-                'overage_cents' => max(0, $row->segments_used - $smsQuota) * 4,
+                'overage'       => $rowOverage = max(0, $row->segments_used - $smsQuota),
+                'overage_cents' => $rowOverage * SmsUsageService::SMS_SEGMENT_RATE_CENTS,
             ])
             ->values()
             ->all();

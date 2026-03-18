@@ -13,9 +13,9 @@ class BroadcastNotificationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'subject'    => ['required', 'string'],
-            'body'       => ['required', 'string'],
-            'channels'   => ['required', 'array'],
+            'subject'    => ['required', 'string', 'max:255'],
+            'body'       => ['required', 'string', 'max:1600'],
+            'channels'   => ['required', 'array', 'min:1'],
             'channels.*' => ['string', 'in:email,sms,in_app'],
         ]);
 

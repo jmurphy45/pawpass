@@ -57,15 +57,15 @@ class WarmTenantReportCaches implements ShouldQueue
         });
     }
 
+    private array $planCache = [];
+
     private function planHas(string $planSlug, string $feature): bool
     {
-        static $cache = [];
-
-        if (! isset($cache[$planSlug])) {
+        if (! isset($this->planCache[$planSlug])) {
             $plan = \App\Models\PlatformPlan::where('slug', $planSlug)->first();
-            $cache[$planSlug] = $plan ? (array) $plan->features : [];
+            $this->planCache[$planSlug] = $plan ? (array) $plan->features : [];
         }
 
-        return in_array($feature, $cache[$planSlug], true);
+        return in_array($feature, $this->planCache[$planSlug], true);
     }
 }

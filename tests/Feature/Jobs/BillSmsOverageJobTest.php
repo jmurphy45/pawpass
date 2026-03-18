@@ -46,13 +46,16 @@ class BillSmsOverageJobTest extends TestCase
             'segments_used' => 600, // 100 over quota of 500
         ]);
 
-        $billing = $this->mock(StripeBillingService::class, function (MockInterface $mock) use ($period) {
+        $billing = $this->mock(StripeBillingService::class, function (MockInterface $mock) use ($period, $tenant) {
+            $itemKey    = "sms-overage-item-{$tenant->id}-{$period}";
+            $invoiceKey = "sms-overage-invoice-{$tenant->id}-{$period}";
+
             $mock->shouldReceive('createInvoiceItem')
                 ->once()
-                ->with('cus_overage', 400, "SMS overage: 100 segments for {$period}");
+                ->with('cus_overage', 400, "SMS overage: 100 segments for {$period}", $itemKey);
             $mock->shouldReceive('createAndFinalizeInvoice')
                 ->once()
-                ->with('cus_overage')
+                ->with('cus_overage', $invoiceKey)
                 ->andReturn((object) ['id' => 'in_test123']);
         });
 
@@ -154,18 +157,18 @@ class BillSmsOverageJobTest extends TestCase
             ]);
         }
 
-        $billing = $this->mock(StripeBillingService::class, function (MockInterface $mock) use ($period) {
+        $billing = $this->mock(StripeBillingService::class, function (MockInterface $mock) use ($period, $tenant1, $tenant2) {
             $mock->shouldReceive('createInvoiceItem')
-                ->with('cus_fail', 400, "SMS overage: 100 segments for {$period}")
+                ->with('cus_fail', 400, "SMS overage: 100 segments for {$period}", "sms-overage-item-{$tenant1->id}-{$period}")
                 ->once()
                 ->andThrow(new \RuntimeException('Stripe error'));
 
             $mock->shouldReceive('createInvoiceItem')
-                ->with('cus_success', 400, "SMS overage: 100 segments for {$period}")
+                ->with('cus_success', 400, "SMS overage: 100 segments for {$period}", "sms-overage-item-{$tenant2->id}-{$period}")
                 ->once();
 
             $mock->shouldReceive('createAndFinalizeInvoice')
-                ->with('cus_success')
+                ->with('cus_success', "sms-overage-invoice-{$tenant2->id}-{$period}")
                 ->once()
                 ->andReturn((object) ['id' => 'in_ok']);
         });

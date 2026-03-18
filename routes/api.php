@@ -37,10 +37,11 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::prefix('public/v1')
+    ->middleware(['throttle:30,1'])
     ->name('public.v1.')
     ->group(function () {
         Route::get('plans', [PlansController::class, 'index']);
-        Route::post('tenants/register', [PublicTenantRegistrationController::class, 'store']);
+        Route::post('tenants/register', [PublicTenantRegistrationController::class, 'store'])->middleware('throttle:5,1');
     });
 
 /*

@@ -20,7 +20,9 @@ class RequireIdempotencyKey
             ], 400);
         }
 
-        $cacheKey = "idempotency:{$key}";
+        $tenantId = app('current.tenant.id') ?? 'no-tenant';
+        $userId   = auth()->id() ?? 'no-user';
+        $cacheKey = "idempotency:{$tenantId}:{$userId}:{$key}";
 
         if ($cached = Cache::get($cacheKey)) {
             return response()->json($cached['body'], $cached['status']);

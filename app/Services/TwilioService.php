@@ -15,7 +15,7 @@ class TwilioService
 
     public function send(string $to, string $message): int
     {
-        $segments = (int) ceil(mb_strlen($message) / 160);
+        $segments = $this->countSegments($message);
 
         if ($this->fake) {
             return $segments;
@@ -33,5 +33,17 @@ class TwilioService
         }
 
         return $segments;
+    }
+
+    /**
+     * Count SMS segments. Non-ASCII characters force UCS-2 encoding (70 chars/segment).
+     * Pure ASCII/GSM-7-compatible messages use 160 chars/segment.
+     */
+    private function countSegments(string $message): int
+    {
+        $hasNonAscii    = strlen($message) !== mb_strlen($message);
+        $charsPerSegment = $hasNonAscii ? 70 : 160;
+
+        return (int) ceil(mb_strlen($message) / $charsPerSegment);
     }
 }

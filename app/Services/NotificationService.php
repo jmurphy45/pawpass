@@ -54,19 +54,31 @@ class NotificationService
 
     public function enqueueGrouped(string $type, string $tenantId, string $userId, string $dogId): void
     {
-        $pending = NotificationPending::allTenants()->firstOrCreate(
-            ['tenant_id' => $tenantId, 'user_id' => $userId, 'type' => $type, 'dispatched_at' => null],
-            ['dog_ids' => [$dogId]],
-        );
+        DB::transaction(function () use ($type, $tenantId, $userId, $dogId) {
+            $pending = NotificationPending::allTenants()
+                ->where('tenant_id', $tenantId)
+                ->where('user_id', $userId)
+                ->where('type', $type)
+                ->whereNull('dispatched_at')
+                ->lockForUpdate()
+                ->first();
 
-        if ($pending->wasRecentlyCreated) {
-            DispatchGroupedAlertJob::dispatch($pending->id)
-                ->onQueue('notifications')
-                ->delay(60);
-        } else {
-            $pending->dog_ids = array_values(array_unique(array_merge($pending->dog_ids ?? [], [$dogId])));
-            $pending->save();
-        }
+            if (! $pending) {
+                $pending = NotificationPending::create([
+                    'tenant_id' => $tenantId,
+                    'user_id'   => $userId,
+                    'type'      => $type,
+                    'dog_ids'   => [$dogId],
+                ]);
+
+                DispatchGroupedAlertJob::dispatch($pending->id)
+                    ->onQueue('notifications')
+                    ->delay(60);
+            } else {
+                $pending->dog_ids = array_values(array_unique(array_merge($pending->dog_ids ?? [], [$dogId])));
+                $pending->save();
+            }
+        });
     }
 
     private function resolveChannels(string $type, string $tenantId, string $userId): array

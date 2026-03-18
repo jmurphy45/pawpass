@@ -18,34 +18,34 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
+        $tenantModel  = null;
+        $tenantLoaded = false;
+        $getTenant    = function () use (&$tenantModel, &$tenantLoaded) {
+            if (! $tenantLoaded) {
+                $tenantLoaded = true;
+                $id           = app('current.tenant.id');
+                $tenantModel  = $id ? Tenant::find($id) : null;
+            }
+
+            return $tenantModel;
+        };
+
         return [
             ...parent::share($request),
-            'tenant'      => function () {
-                $tenantId = app('current.tenant.id');
-                if (! $tenantId) {
-                    return null;
-                }
-                $tenantModel = Tenant::find($tenantId);
-                if (! $tenantModel) {
+            'tenant'      => function () use ($getTenant) {
+                $t = $getTenant();
+                if (! $t) {
                     return null;
                 }
 
                 return [
-                    'name'          => $tenantModel->name,
-                    'slug'          => $tenantModel->slug,
-                    'primary_color' => $tenantModel->primary_color ?? '#4f46e5',
-                    'logo_url'      => null,
+                    'name'          => $t->name,
+                    'slug'          => $t->slug,
+                    'primary_color' => $t->primary_color ?? '#4f46e5',
+                    'logo_url'      => $t->logo_url ?? null,
                 ];
             },
-            'tenantPlan'  => function () {
-                $tenantId = app('current.tenant.id');
-                if (! $tenantId) {
-                    return null;
-                }
-                $tenantModel = Tenant::find($tenantId);
-
-                return $tenantModel?->plan;
-            },
+            'tenantPlan'  => fn () => $getTenant()?->plan,
             'auth'        => function () {
                 $user = Auth::guard('web')->user();
 

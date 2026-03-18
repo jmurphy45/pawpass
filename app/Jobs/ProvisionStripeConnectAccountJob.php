@@ -34,6 +34,12 @@ class ProvisionStripeConnectAccountJob implements ShouldQueue
 
         $owner = $tenant->owner;
 
+        if (! $owner) {
+            Log::error('stripe_connect.provision_failed: owner not found', ['tenant_id' => $tenant->id]);
+
+            return;
+        }
+
         try {
             $account = $stripe->createConnectAccount($owner->email, $tenant->name);
             $tenant->update(['stripe_account_id' => $account->id]);

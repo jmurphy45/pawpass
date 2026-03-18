@@ -154,22 +154,26 @@ class StripeBillingService
         return \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);
     }
 
-    public function createInvoiceItem(string $customerId, int $amountCents, string $description): object
+    public function createInvoiceItem(string $customerId, int $amountCents, string $description, ?string $idempotencyKey = null): object
     {
+        $opts = $idempotencyKey ? ['idempotency_key' => $idempotencyKey] : [];
+
         return (object) $this->client->invoiceItems->create([
             'customer'    => $customerId,
             'amount'      => $amountCents,
             'currency'    => 'usd',
             'description' => $description,
-        ]);
+        ], $opts);
     }
 
-    public function createAndFinalizeInvoice(string $customerId): object
+    public function createAndFinalizeInvoice(string $customerId, ?string $idempotencyKey = null): object
     {
+        $opts = $idempotencyKey ? ['idempotency_key' => $idempotencyKey] : [];
+
         $invoice = $this->client->invoices->create([
             'customer'     => $customerId,
             'auto_advance' => false,
-        ]);
+        ], $opts);
 
         return (object) $this->client->invoices->finalizeInvoice($invoice->id);
     }

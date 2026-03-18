@@ -3,9 +3,14 @@
 namespace App\Services;
 
 use App\Models\TenantSmsUsage;
+use Illuminate\Support\Facades\DB;
 
 class SmsUsageService
 {
+    public const SMS_SEGMENT_RATE_CENTS = 4;
+
+    public function __construct(private readonly PlanFeatureCache $planFeatureCache) {}
+
     public function currentPeriod(): string
     {
         return now()->format('Y-m');
@@ -13,11 +18,17 @@ class SmsUsageService
 
     public function track(string $tenantId, int $segments): void
     {
-        $usage = TenantSmsUsage::firstOrCreate(
-            ['tenant_id' => $tenantId, 'period' => $this->currentPeriod()],
-            ['segments_used' => 0],
+        $now    = now()->toDateTimeString();
+        $period = $this->currentPeriod();
+
+        DB::statement(
+            'INSERT INTO tenant_sms_usage (tenant_id, period, segments_used, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT (tenant_id, period)
+             DO UPDATE SET segments_used = tenant_sms_usage.segments_used + ?,
+                           updated_at = ?',
+            [$tenantId, $period, $segments, $now, $now, $segments, $now],
         );
-        $usage->increment('segments_used', $segments);
     }
 
     public function getUsage(string $tenantId, string $period): int
@@ -30,7 +41,7 @@ class SmsUsageService
     public function getOverageSegments(string $tenantId, string $planSlug, string $period): int
     {
         $used  = $this->getUsage($tenantId, $period);
-        $quota = app(PlanFeatureCache::class)->smsSegmentQuota($planSlug);
+        $quota = $this->planFeatureCache->smsSegmentQuota($planSlug);
 
         return max(0, $used - $quota);
     }
