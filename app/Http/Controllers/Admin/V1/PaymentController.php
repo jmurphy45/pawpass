@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
+use App\Models\Tenant;
 use App\Services\DogCreditService;
 use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
@@ -39,7 +40,8 @@ class PaymentController extends Controller
             ], 409);
         }
 
-        $this->stripe->createRefund($order->stripe_pi_id);
+        $stripeAccountId = Tenant::find($order->tenant_id)?->stripe_account_id;
+        $this->stripe->createRefund($order->stripe_pi_id, $stripeAccountId);
 
         DB::transaction(function () use ($order) {
             $order->load(['orderDogs.dog', 'package']);

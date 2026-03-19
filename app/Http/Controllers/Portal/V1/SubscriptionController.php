@@ -58,6 +58,7 @@ class SubscriptionController extends Controller
             $stripeCustomer = $this->stripe->createCustomer(
                 $customer->email ?? '',
                 $customer->name,
+                $tenant->stripe_account_id,
             );
             $stripeCustomerId = $stripeCustomer->id;
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
@@ -75,6 +76,7 @@ class SubscriptionController extends Controller
         $setupIntent = $this->stripe->createSetupIntent(
             $stripeCustomerId,
             ['local_subscription_id' => $subscription->id],
+            $tenant->stripe_account_id,
         );
 
         return response()->json([

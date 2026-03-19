@@ -86,9 +86,11 @@ class SubscribeControllerTest extends TestCase
         $stripe = $this->mock(StripeService::class);
         $stripe->shouldReceive('createCustomer')
             ->once()
+            ->with(\Mockery::any(), \Mockery::any(), 'acct_test123')
             ->andReturn((object) ['id' => 'cus_test123']);
         $stripe->shouldReceive('createSetupIntent')
             ->once()
+            ->with('cus_test123', \Mockery::any(), 'acct_test123')
             ->andReturn((object) ['client_secret' => 'seti_secret_test']);
 
         $this->actingAs($this->user);

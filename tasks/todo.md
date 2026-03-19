@@ -211,3 +211,37 @@
 ### P2 — Quality
 
 - [x] Add max:100 on search in Admin/V1/CustomerController + Web/Admin/CustomerController
+
+---
+
+## Task: Direct Charges — Stripe Connected Account Architecture
+
+Switch from destination charges (customer on platform) to direct charges (customer on connected
+account). All Stripe API calls for tenant payments go through `stripe_account` SDK option.
+
+### Step 1 — StripeService: update all methods to accept stripeAccountId
+
+- [x] Update `StripeServiceTest` — 10 new tests asserting `stripe_account` option
+- [x] Update `createCustomer`, `createPaymentIntent`, `createSetupIntent`, `createSubscription`,
+  `createRefund`, `createProduct`, `createPrice`, `archivePrice`, `archiveProduct`
+  — all accept `?stripeAccountId` and pass as `['stripe_account' => $id]` SDK option
+  - Verification: All 17 StripeServiceTest tests pass
+
+### Step 2 — Controllers: propagate stripe_account_id
+
+- [x] `Portal/V1/SubscriptionController` — createCustomer + createSetupIntent use account ID
+- [x] `Web/Portal/SubscribeController` — createCustomer + createSetupIntent use account ID
+- [x] `Web/Portal/PurchaseController` — createCustomer uses account ID; createPaymentIntent already did
+- [x] `Admin/V1/PaymentController` — createRefund passes tenant stripe_account_id
+- [x] `Web/Admin/PaymentController` — createRefund passes tenant stripe_account_id
+  - Verification: All updated controller tests pass
+
+### Step 3 — Jobs: propagate stripe_account_id
+
+- [x] `SyncPackageToStripe` — createProduct, createPrice, archivePrice use tenant stripe_account_id
+- [x] `ArchivePackageFromStripe` — archivePrice, archiveProduct use tenant stripe_account_id
+  - Verification: SyncPackageToStripeTest + ArchivePackageFromStripeTest pass (11 tests)
+
+### Step 4 — Final verification
+
+- [x] Run full test suite: 675 passed, 0 failures

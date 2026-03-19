@@ -83,7 +83,7 @@ class PurchaseController extends Controller
         if ($customer->stripe_customer_id) {
             $stripeCustomerId = $customer->stripe_customer_id;
         } else {
-            $stripeCustomer = $stripe->createCustomer($customer->email ?? '', $customer->name);
+            $stripeCustomer = $stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
             $stripeCustomerId = $stripeCustomer->id;
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }
@@ -109,7 +109,7 @@ class PurchaseController extends Controller
         $intent = $stripe->createPaymentIntent(
             amountCents: $amountCents,
             currency: 'usd',
-            transferDestination: $tenant->stripe_account_id,
+            stripeAccountId: $tenant->stripe_account_id,
             applicationFeeCents: $feeCents,
             metadata: [
                 'order_id'    => $order->id,

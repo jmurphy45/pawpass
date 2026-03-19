@@ -78,7 +78,7 @@ class SubscriptionControllerStripeTest extends TestCase
 
             $mock->shouldReceive('createSetupIntent')
                 ->once()
-                ->with('cus_existing', \Mockery::any())
+                ->with('cus_existing', \Mockery::any(), 'acct_substripe')
                 ->andReturn((object) ['id' => 'si_test', 'client_secret' => 'si_secret']);
         });
 
@@ -103,11 +103,12 @@ class SubscriptionControllerStripeTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')
                 ->once()
+                ->with('owner@example.com', 'Test Owner', 'acct_substripe')
                 ->andReturn((object) ['id' => 'cus_brand_new']);
 
             $mock->shouldReceive('createSetupIntent')
                 ->once()
-                ->with('cus_brand_new', \Mockery::any())
+                ->with('cus_brand_new', \Mockery::any(), 'acct_substripe')
                 ->andReturn((object) ['id' => 'si_new', 'client_secret' => 'si_new_secret']);
         });
 

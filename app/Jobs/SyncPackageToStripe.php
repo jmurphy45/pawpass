@@ -50,7 +50,8 @@ class SyncPackageToStripe implements ShouldQueue
 
     private function create(StripeService $stripe): void
     {
-        $product = $stripe->createProduct($this->package->name);
+        $accountId = $this->package->tenant->stripe_account_id;
+        $product   = $stripe->createProduct($this->package->name, $accountId);
 
         $priceId = null;
         if ($this->package->type !== 'unlimited') {
@@ -59,7 +60,8 @@ class SyncPackageToStripe implements ShouldQueue
                 $product->id,
                 (int) round($this->package->price * 100),
                 'usd',
-                $interval
+                $interval,
+                $accountId,
             );
             $priceId = $price->id;
         }
@@ -72,8 +74,10 @@ class SyncPackageToStripe implements ShouldQueue
 
     private function update(StripeService $stripe): void
     {
+        $accountId = $this->package->tenant->stripe_account_id;
+
         if ($this->package->stripe_price_id) {
-            $stripe->archivePrice($this->package->stripe_price_id);
+            $stripe->archivePrice($this->package->stripe_price_id, $accountId);
         }
 
         $interval = $this->package->type === 'subscription' ? 'month' : null;
@@ -81,7 +85,8 @@ class SyncPackageToStripe implements ShouldQueue
             $this->package->stripe_product_id,
             (int) round($this->package->price * 100),
             'usd',
-            $interval
+            $interval,
+            $accountId,
         );
 
         $this->package->updateQuietly(['stripe_price_id' => $price->id]);

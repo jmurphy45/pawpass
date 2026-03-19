@@ -47,12 +47,12 @@ class SyncPackageToStripeTest extends TestCase
         $stripe = $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createProduct')
                 ->once()
-                ->with('Monthly Plan')
+                ->with('Monthly Plan', 'acct_test123')
                 ->andReturn((object) ['id' => 'prod_sub']);
 
             $mock->shouldReceive('createPrice')
                 ->once()
-                ->with('prod_sub', 9900, 'usd', 'month')
+                ->with('prod_sub', 9900, 'usd', 'month', 'acct_test123')
                 ->andReturn((object) ['id' => 'price_sub']);
         });
 
@@ -78,11 +78,12 @@ class SyncPackageToStripeTest extends TestCase
         $stripe = $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createProduct')
                 ->once()
+                ->with('10-Day Pack', 'acct_test123')
                 ->andReturn((object) ['id' => 'prod_one']);
 
             $mock->shouldReceive('createPrice')
                 ->once()
-                ->with('prod_one', 8900, 'usd', null)
+                ->with('prod_one', 8900, 'usd', null, 'acct_test123')
                 ->andReturn((object) ['id' => 'price_one']);
         });
 
@@ -108,6 +109,7 @@ class SyncPackageToStripeTest extends TestCase
         $stripe = $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createProduct')
                 ->once()
+                ->with('30-Day Pass', 'acct_test123')
                 ->andReturn((object) ['id' => 'prod_unl']);
 
             $mock->shouldNotReceive('createPrice');
@@ -133,11 +135,11 @@ class SyncPackageToStripeTest extends TestCase
         $stripe = $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('archivePrice')
                 ->once()
-                ->with('price_old');
+                ->with('price_old', 'acct_test123');
 
             $mock->shouldReceive('createPrice')
                 ->once()
-                ->with('prod_existing', 10900, 'usd', 'month')
+                ->with('prod_existing', 10900, 'usd', 'month', 'acct_test123')
                 ->andReturn((object) ['id' => 'price_new']);
         });
 
@@ -174,6 +176,7 @@ class SyncPackageToStripeTest extends TestCase
 
         $stripe = $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createProduct')
+                ->with(\Mockery::any(), 'acct_test123')
                 ->andThrow(new class('Stripe error') extends ApiErrorException {});
         });
 

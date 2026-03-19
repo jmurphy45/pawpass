@@ -38,11 +38,13 @@ class ArchivePackageFromStripe implements ShouldQueue
         }
 
         try {
+            $accountId = $tenant->stripe_account_id;
+
             if ($this->package->stripe_price_id) {
-                $stripe->archivePrice($this->package->stripe_price_id);
+                $stripe->archivePrice($this->package->stripe_price_id, $accountId);
             }
 
-            $stripe->archiveProduct($this->package->stripe_product_id);
+            $stripe->archiveProduct($this->package->stripe_product_id, $accountId);
         } catch (ApiErrorException $e) {
             Log::error('ArchivePackageFromStripe failed', [
                 'package_id' => $this->package->id,

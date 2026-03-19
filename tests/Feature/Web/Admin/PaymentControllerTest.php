@@ -60,6 +60,7 @@ class PaymentControllerTest extends TestCase
         $this->mock(StripeService::class)
             ->shouldReceive('createRefund')
             ->once()
+            ->with('pi_test123', null)
             ->andReturn((object) ['id' => 're_test']);
 
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
@@ -98,5 +99,35 @@ class PaymentControllerTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
+    }
+
+    public function test_refund_passes_stripe_account_id_to_createRefund(): void
+    {
+        // Update tenant to have a stripe account AFTER packages are created (avoids SyncPackageToStripe)
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $package  = Package::factory()->create(['tenant_id' => $this->tenant->id]);
+        $order    = Order::factory()->create([
+            'tenant_id'    => $this->tenant->id,
+            'customer_id'  => $customer->id,
+            'package_id'   => $package->id,
+            'status'       => 'paid',
+            'stripe_pi_id' => 'pi_acct_test',
+        ]);
+
+        // Set stripe_account_id AFTER package creation so SyncPackageToStripe skipped it
+        $this->tenant->update(['stripe_account_id' => 'acct_webpay123']);
+
+        $this->mock(StripeService::class)
+            ->shouldReceive('createRefund')
+            ->once()
+            ->with('pi_acct_test', 'acct_webpay123')
+            ->andReturn((object) ['id' => 're_acct']);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post("/admin/payments/{$order->id}/refund");
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
     }
 }

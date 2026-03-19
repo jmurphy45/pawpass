@@ -43,11 +43,11 @@ class ArchivePackageFromStripeTest extends TestCase
         $stripe = $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('archivePrice')
                 ->once()
-                ->with('price_arc');
+                ->with('price_arc', 'acct_archive');
 
             $mock->shouldReceive('archiveProduct')
                 ->once()
-                ->with('prod_arc');
+                ->with('prod_arc', 'acct_archive');
         });
 
         (new ArchivePackageFromStripe($package))->handle($stripe);
@@ -66,7 +66,7 @@ class ArchivePackageFromStripeTest extends TestCase
 
             $mock->shouldReceive('archiveProduct')
                 ->once()
-                ->with('prod_noprice');
+                ->with('prod_noprice', 'acct_archive');
         });
 
         (new ArchivePackageFromStripe($package))->handle($stripe);
@@ -115,6 +115,7 @@ class ArchivePackageFromStripeTest extends TestCase
 
         $stripe = $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('archiveProduct')
+                ->with('prod_err', 'acct_archive')
                 ->andThrow(new class('Stripe error') extends ApiErrorException {});
         });
 

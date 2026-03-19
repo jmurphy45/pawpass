@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Tenant;
 use App\Services\DogCreditService;
 use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
@@ -50,7 +51,8 @@ class PaymentController extends Controller
         }
 
         try {
-            $this->stripe->createRefund($order->stripe_pi_id);
+            $stripeAccountId = Tenant::find($order->tenant_id)?->stripe_account_id;
+            $this->stripe->createRefund($order->stripe_pi_id, $stripeAccountId);
 
             DB::transaction(function () use ($order) {
                 $order->load(['orderDogs.dog', 'package']);

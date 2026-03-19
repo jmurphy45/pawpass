@@ -12,7 +12,7 @@ class StripeService
     public function createPaymentIntent(
         int $amountCents,
         string $currency,
-        string $transferDestination,
+        string $stripeAccountId,
         int $applicationFeeCents,
         array $metadata = [],
         ?string $stripeCustomerId = null,
@@ -21,43 +21,43 @@ class StripeService
             'amount' => $amountCents,
             'currency' => $currency,
             'application_fee_amount' => $applicationFeeCents,
-            'transfer_data' => ['destination' => $transferDestination],
             'metadata' => $metadata,
         ];
         if ($stripeCustomerId) {
             $payload['customer'] = $stripeCustomerId;
         }
-        return $this->client->paymentIntents->create($payload);
+        return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
     }
 
-    public function createRefund(string $paymentIntentId): object
+    public function createRefund(string $paymentIntentId, ?string $stripeAccountId = null): object
     {
-        return $this->client->refunds->create([
-            'payment_intent' => $paymentIntentId,
-        ]);
+        $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
+        return $this->client->refunds->create(['payment_intent' => $paymentIntentId], $opts);
     }
 
-    public function createCustomer(string $email, string $name): object
+    public function createCustomer(string $email, string $name, ?string $stripeAccountId = null): object
     {
-        return $this->client->customers->create([
-            'email' => $email,
-            'name' => $name,
-        ]);
+        $params = ['email' => $email, 'name' => $name];
+        if ($stripeAccountId) {
+            return $this->client->customers->create($params, ['stripe_account' => $stripeAccountId]);
+        }
+        return $this->client->customers->create($params);
     }
 
-    public function createSetupIntent(string $stripeCustomerId, array $metadata = []): object
+    public function createSetupIntent(string $stripeCustomerId, array $metadata = [], ?string $stripeAccountId = null): object
     {
-        return $this->client->setupIntents->create([
-            'customer' => $stripeCustomerId,
-            'metadata' => $metadata,
-        ]);
+        $payload = ['customer' => $stripeCustomerId, 'metadata' => $metadata];
+        if ($stripeAccountId) {
+            return $this->client->setupIntents->create($payload, ['stripe_account' => $stripeAccountId]);
+        }
+        return $this->client->setupIntents->create($payload);
     }
 
     public function createSubscription(
         string $stripeCustomerId,
         string $stripePriceId,
         string $paymentMethodId,
-        string $transferDestination,
+        string $stripeAccountId,
         float $applicationFeePercent,
         array $metadata = []
     ): object {
@@ -66,9 +66,8 @@ class StripeService
             'items' => [['price' => $stripePriceId]],
             'default_payment_method' => $paymentMethodId,
             'application_fee_percent' => $applicationFeePercent,
-            'transfer_data' => ['destination' => $transferDestination],
             'metadata' => $metadata,
-        ]);
+        ], ['stripe_account' => $stripeAccountId]);
     }
 
     public function cancelSubscriptionAtPeriodEnd(string $stripeSubId): object
@@ -88,18 +87,20 @@ class StripeService
         return $this->client->setupIntents->retrieve($setupIntentId);
     }
 
-    public function createProduct(string $name): object
+    public function createProduct(string $name, ?string $stripeAccountId = null): object
     {
-        return $this->client->products->create([
-            'name' => $name,
-        ]);
+        if ($stripeAccountId) {
+            return $this->client->products->create(['name' => $name], ['stripe_account' => $stripeAccountId]);
+        }
+        return $this->client->products->create(['name' => $name]);
     }
 
     public function createPrice(
         string $productId,
         int $unitAmountCents,
         string $currency,
-        ?string $recurringInterval = null
+        ?string $recurringInterval = null,
+        ?string $stripeAccountId = null,
     ): object {
         $payload = [
             'product' => $productId,
@@ -111,16 +112,25 @@ class StripeService
             $payload['recurring'] = ['interval' => $recurringInterval];
         }
 
+        if ($stripeAccountId) {
+            return $this->client->prices->create($payload, ['stripe_account' => $stripeAccountId]);
+        }
         return $this->client->prices->create($payload);
     }
 
-    public function archivePrice(string $priceId): object
+    public function archivePrice(string $priceId, ?string $stripeAccountId = null): object
     {
+        if ($stripeAccountId) {
+            return $this->client->prices->update($priceId, ['active' => false], ['stripe_account' => $stripeAccountId]);
+        }
         return $this->client->prices->update($priceId, ['active' => false]);
     }
 
-    public function archiveProduct(string $productId): object
+    public function archiveProduct(string $productId, ?string $stripeAccountId = null): object
     {
+        if ($stripeAccountId) {
+            return $this->client->products->update($productId, ['active' => false], ['stripe_account' => $stripeAccountId]);
+        }
         return $this->client->products->update($productId, ['active' => false]);
     }
 

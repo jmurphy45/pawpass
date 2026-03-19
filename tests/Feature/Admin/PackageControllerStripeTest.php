@@ -51,12 +51,12 @@ class PackageControllerStripeTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createProduct')
                 ->once()
-                ->with('Monthly Sub')
+                ->with('Monthly Sub', 'acct_stripe_test')
                 ->andReturn((object) ['id' => 'prod_sub123']);
 
             $mock->shouldReceive('createPrice')
                 ->once()
-                ->with('prod_sub123', 9900, 'usd', 'month')
+                ->with('prod_sub123', 9900, 'usd', 'month', 'acct_stripe_test')
                 ->andReturn((object) ['id' => 'price_sub123']);
         });
 
@@ -81,12 +81,12 @@ class PackageControllerStripeTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createProduct')
                 ->once()
-                ->with('10-Day Pack')
+                ->with('10-Day Pack', 'acct_stripe_test')
                 ->andReturn((object) ['id' => 'prod_onetime']);
 
             $mock->shouldReceive('createPrice')
                 ->once()
-                ->with('prod_onetime', 8900, 'usd', null)
+                ->with('prod_onetime', 8900, 'usd', null, 'acct_stripe_test')
                 ->andReturn((object) ['id' => 'price_onetime']);
         });
 
@@ -180,11 +180,11 @@ class PackageControllerStripeTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('archivePrice')
                 ->once()
-                ->with('price_old');
+                ->with('price_old', 'acct_stripe_test');
 
             $mock->shouldReceive('createPrice')
                 ->once()
-                ->with('prod_existing', 10900, 'usd', 'month')
+                ->with('prod_existing', 10900, 'usd', 'month', 'acct_stripe_test')
                 ->andReturn((object) ['id' => 'price_new_sub']);
         });
 
@@ -215,11 +215,11 @@ class PackageControllerStripeTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('archivePrice')
                 ->once()
-                ->with('price_onetime_old');
+                ->with('price_onetime_old', 'acct_stripe_test');
 
             $mock->shouldReceive('createPrice')
                 ->once()
-                ->with('prod_onetime_existing', 7900, 'usd', null)
+                ->with('prod_onetime_existing', 7900, 'usd', null, 'acct_stripe_test')
                 ->andReturn((object) ['id' => 'price_onetime_new']);
         });
 
@@ -277,11 +277,11 @@ class PackageControllerStripeTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('archivePrice')
                 ->once()
-                ->with('price_to_archive');
+                ->with('price_to_archive', 'acct_stripe_test');
 
             $mock->shouldReceive('archiveProduct')
                 ->once()
-                ->with('prod_to_archive');
+                ->with('prod_to_archive', 'acct_stripe_test');
         });
 
         $response = $this->withHeaders($this->ownerHeaders())
@@ -307,7 +307,7 @@ class PackageControllerStripeTest extends TestCase
 
             $mock->shouldReceive('archiveProduct')
                 ->once()
-                ->with('prod_unlimited_archive');
+                ->with('prod_unlimited_archive', 'acct_stripe_test');
         });
 
         $response = $this->withHeaders($this->ownerHeaders())

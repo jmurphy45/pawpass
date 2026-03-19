@@ -100,6 +100,168 @@ class StripeServiceTest extends TestCase
         $this->assertFalse($result->active);
     }
 
+    public function test_create_customer_without_account_calls_platform(): void
+    {
+        $customers = Mockery::mock();
+        $customers->shouldReceive('create')
+            ->once()
+            ->with(['email' => 'a@b.com', 'name' => 'Foo'])
+            ->andReturn((object) ['id' => 'cus_plat']);
+
+        $this->client->customers = $customers;
+
+        $result = $this->service->createCustomer('a@b.com', 'Foo');
+
+        $this->assertEquals('cus_plat', $result->id);
+    }
+
+    public function test_create_customer_with_account_passes_stripe_account_option(): void
+    {
+        $customers = Mockery::mock();
+        $customers->shouldReceive('create')
+            ->once()
+            ->with(['email' => 'a@b.com', 'name' => 'Foo'], ['stripe_account' => 'acct_123'])
+            ->andReturn((object) ['id' => 'cus_conn']);
+
+        $this->client->customers = $customers;
+
+        $result = $this->service->createCustomer('a@b.com', 'Foo', 'acct_123');
+
+        $this->assertEquals('cus_conn', $result->id);
+    }
+
+    public function test_create_payment_intent_uses_stripe_account_option_not_transfer_data(): void
+    {
+        $paymentIntents = Mockery::mock();
+        $paymentIntents->shouldReceive('create')
+            ->once()
+            ->with(
+                Mockery::on(fn ($p) => ! isset($p['transfer_data'])
+                    && $p['application_fee_amount'] === 500
+                    && $p['amount'] === 10000),
+                ['stripe_account' => 'acct_conn']
+            )
+            ->andReturn((object) ['id' => 'pi_test', 'client_secret' => 'sec']);
+
+        $this->client->paymentIntents = $paymentIntents;
+
+        $result = $this->service->createPaymentIntent(10000, 'usd', 'acct_conn', 500);
+
+        $this->assertEquals('pi_test', $result->id);
+    }
+
+    public function test_create_setup_intent_with_account_passes_stripe_account_option(): void
+    {
+        $setupIntents = Mockery::mock();
+        $setupIntents->shouldReceive('create')
+            ->once()
+            ->with(
+                Mockery::on(fn ($p) => $p['customer'] === 'cus_abc'),
+                ['stripe_account' => 'acct_conn']
+            )
+            ->andReturn((object) ['id' => 'si_conn', 'client_secret' => 'si_sec']);
+
+        $this->client->setupIntents = $setupIntents;
+
+        $result = $this->service->createSetupIntent('cus_abc', [], 'acct_conn');
+
+        $this->assertEquals('si_conn', $result->id);
+    }
+
+    public function test_create_subscription_uses_stripe_account_option_not_transfer_data(): void
+    {
+        $subscriptions = Mockery::mock();
+        $subscriptions->shouldReceive('create')
+            ->once()
+            ->with(
+                Mockery::on(fn ($p) => ! isset($p['transfer_data'])
+                    && $p['customer'] === 'cus_sub'
+                    && $p['application_fee_percent'] === 5.0),
+                ['stripe_account' => 'acct_sub']
+            )
+            ->andReturn((object) ['id' => 'sub_conn']);
+
+        $this->client->subscriptions = $subscriptions;
+
+        $result = $this->service->createSubscription('cus_sub', 'price_x', 'pm_x', 'acct_sub', 5.0);
+
+        $this->assertEquals('sub_conn', $result->id);
+    }
+
+    public function test_create_refund_with_account_passes_stripe_account_option(): void
+    {
+        $refunds = Mockery::mock();
+        $refunds->shouldReceive('create')
+            ->once()
+            ->with(['payment_intent' => 'pi_abc'], ['stripe_account' => 'acct_ref'])
+            ->andReturn((object) ['id' => 're_conn']);
+
+        $this->client->refunds = $refunds;
+
+        $result = $this->service->createRefund('pi_abc', 'acct_ref');
+
+        $this->assertEquals('re_conn', $result->id);
+    }
+
+    public function test_create_product_with_account_passes_stripe_account_option(): void
+    {
+        $products = Mockery::mock();
+        $products->shouldReceive('create')
+            ->once()
+            ->with(['name' => 'Test Pack'], ['stripe_account' => 'acct_prod'])
+            ->andReturn((object) ['id' => 'prod_conn']);
+
+        $this->client->products = $products;
+
+        $result = $this->service->createProduct('Test Pack', 'acct_prod');
+
+        $this->assertEquals('prod_conn', $result->id);
+    }
+
+    public function test_create_price_with_account_passes_stripe_account_option(): void
+    {
+        $prices = Mockery::mock();
+        $prices->shouldReceive('create')
+            ->once()
+            ->with(
+                Mockery::on(fn ($p) => $p['unit_amount'] === 5000),
+                ['stripe_account' => 'acct_price']
+            )
+            ->andReturn((object) ['id' => 'price_conn']);
+
+        $this->client->prices = $prices;
+
+        $result = $this->service->createPrice('prod_abc', 5000, 'usd', null, 'acct_price');
+
+        $this->assertEquals('price_conn', $result->id);
+    }
+
+    public function test_archive_price_with_account_passes_stripe_account_option(): void
+    {
+        $prices = Mockery::mock();
+        $prices->shouldReceive('update')
+            ->once()
+            ->with('price_abc', ['active' => false], ['stripe_account' => 'acct_arc'])
+            ->andReturn((object) ['id' => 'price_abc', 'active' => false]);
+
+        $this->client->prices = $prices;
+
+        $this->service->archivePrice('price_abc', 'acct_arc');
+    }
+
+    public function test_archive_product_with_account_passes_stripe_account_option(): void
+    {
+        $products = Mockery::mock();
+        $products->shouldReceive('update')
+            ->once()
+            ->with('prod_abc', ['active' => false], ['stripe_account' => 'acct_arc'])
+            ->andReturn((object) ['id' => 'prod_abc', 'active' => false]);
+
+        $this->client->products = $products;
+
+        $this->service->archiveProduct('prod_abc', 'acct_arc');
+    }
+
     public function test_create_connect_account_calls_stripe_without_stripe_account_header(): void
     {
         $accounts = Mockery::mock();

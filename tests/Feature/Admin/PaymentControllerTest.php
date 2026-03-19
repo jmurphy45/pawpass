@@ -118,7 +118,7 @@ class PaymentControllerTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createRefund')
                 ->once()
-                ->with('pi_refund123')
+                ->with('pi_refund123', 'acct_pay123')
                 ->andReturn((object) ['id' => 're_test123']);
         });
 
