@@ -137,8 +137,8 @@ class StripeWebhookController extends Controller
 
         $package = $subscription->package;
 
-        if (! $package->stripe_price_id) {
-            Log::error('setup_intent.succeeded: package has no stripe_price_id', [
+        if (! $package->stripe_price_id_monthly) {
+            Log::error('setup_intent.succeeded: package has no stripe_price_id_monthly', [
                 'subscription_id' => $subscription->id,
                 'package_id' => $package->id,
             ]);
@@ -159,7 +159,7 @@ class StripeWebhookController extends Controller
 
         $stripeSub = $this->stripe->createSubscription(
             $subscription->stripe_customer_id,
-            $package->stripe_price_id,
+            $package->stripe_price_id_monthly,
             $setupIntent->payment_method,
             $tenant->stripe_account_id ?? '',
             (float) $tenant->platform_fee_pct,

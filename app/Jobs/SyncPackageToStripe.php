@@ -53,7 +53,9 @@ class SyncPackageToStripe implements ShouldQueue
         $accountId = $this->package->tenant->stripe_account_id;
         $product   = $stripe->createProduct($this->package->name, $accountId);
 
-        $priceId = null;
+        $priceId        = null;
+        $monthlyPriceId = null;
+
         if ($this->package->type !== 'unlimited') {
             $interval = $this->package->type === 'subscription' ? 'month' : null;
             $price    = $stripe->createPrice(
@@ -64,11 +66,21 @@ class SyncPackageToStripe implements ShouldQueue
                 $accountId,
             );
             $priceId = $price->id;
+
+            $monthlyPrice   = $stripe->createPrice(
+                $product->id,
+                (int) round($this->package->price * 100),
+                'usd',
+                'month',
+                $accountId,
+            );
+            $monthlyPriceId = $monthlyPrice->id;
         }
 
         $this->package->updateQuietly([
-            'stripe_product_id' => $product->id,
-            'stripe_price_id'   => $priceId,
+            'stripe_product_id'       => $product->id,
+            'stripe_price_id'         => $priceId,
+            'stripe_price_id_monthly' => $monthlyPriceId,
         ]);
     }
 
@@ -80,15 +92,32 @@ class SyncPackageToStripe implements ShouldQueue
             $stripe->archivePrice($this->package->stripe_price_id, $accountId);
         }
 
-        $interval = $this->package->type === 'subscription' ? 'month' : null;
-        $price    = $stripe->createPrice(
-            $this->package->stripe_product_id,
-            (int) round($this->package->price * 100),
-            'usd',
-            $interval,
-            $accountId,
-        );
+        if ($this->package->stripe_price_id_monthly) {
+            $stripe->archivePrice($this->package->stripe_price_id_monthly, $accountId);
+        }
 
-        $this->package->updateQuietly(['stripe_price_id' => $price->id]);
+        if ($this->package->type !== 'unlimited') {
+            $interval = $this->package->type === 'subscription' ? 'month' : null;
+            $price    = $stripe->createPrice(
+                $this->package->stripe_product_id,
+                (int) round($this->package->price * 100),
+                'usd',
+                $interval,
+                $accountId,
+            );
+
+            $monthlyPrice = $stripe->createPrice(
+                $this->package->stripe_product_id,
+                (int) round($this->package->price * 100),
+                'usd',
+                'month',
+                $accountId,
+            );
+
+            $this->package->updateQuietly([
+                'stripe_price_id'         => $price->id,
+                'stripe_price_id_monthly' => $monthlyPrice->id,
+            ]);
+        }
     }
 }

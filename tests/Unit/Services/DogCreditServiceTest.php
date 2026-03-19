@@ -84,10 +84,10 @@ class DogCreditServiceTest extends TestCase
 
         $fresh = $dog->fresh();
         $this->assertSame(now()->daysInMonth, $fresh->credit_balance);
-        $this->assertNull($fresh->unlimited_pass_expires_at);
+        $this->assertNotNull($fresh->unlimited_pass_expires_at);
     }
 
-    public function test_issue_unlimited_pass_sets_credits_expire_at(): void
+    public function test_issue_unlimited_pass_sets_credits_expire_at_and_unlimited_pass_expires_at(): void
     {
         $dog = $this->makeDog(0);
         $order = $this->makeUnlimitedOrder($dog, 30);
@@ -96,7 +96,8 @@ class DogCreditServiceTest extends TestCase
 
         $fresh = $dog->fresh();
         $this->assertNotNull($fresh->credits_expire_at);
-        $this->assertEqualsWithDelta(now()->addMonth()->timestamp, $fresh->credits_expire_at->timestamp, 5);
+        $this->assertEqualsWithDelta(now()->addDays(30)->timestamp, $fresh->credits_expire_at->timestamp, 5);
+        $this->assertEqualsWithDelta(now()->addDays(30)->timestamp, $fresh->unlimited_pass_expires_at->timestamp, 5);
     }
 
     public function test_issue_unlimited_pass_creates_purchase_ledger_entry_with_days_in_month_delta(): void
@@ -118,14 +119,17 @@ class DogCreditServiceTest extends TestCase
     // revokeUnlimitedPass
     // -----------------------------------------------------------
 
-    public function test_revoke_unlimited_pass_zeros_credit_balance(): void
+    public function test_revoke_unlimited_pass_zeros_credit_balance_and_clears_unlimited_pass(): void
     {
         $dog = $this->makeDog(28);
+        $dog->update(['unlimited_pass_expires_at' => now()->addDays(20)]);
         $order = $this->makeUnlimitedOrder($dog, 30);
 
         $this->service->revokeUnlimitedPass($order, $dog);
 
-        $this->assertSame(0, $dog->fresh()->credit_balance);
+        $fresh = $dog->fresh();
+        $this->assertSame(0, $fresh->credit_balance);
+        $this->assertNull($fresh->unlimited_pass_expires_at);
     }
 
     public function test_revoke_unlimited_pass_creates_refund_entry_with_negative_delta(): void

@@ -20,7 +20,7 @@
             :style="selectedPackageId === pkg.id
               ? { borderColor: accentColor, boxShadow: `0 0 0 3px ${accentColor}22, 0 4px 12px rgba(0,0,0,0.08)` }
               : { borderColor: pkg.is_featured ? accentColor + '66' : '#e5e0d8' }"
-            @click="selectedPackageId = pkg.id"
+            @click="onPackageSelect(pkg.id)"
           >
             <!-- Popular banner -->
             <div
@@ -82,15 +82,40 @@
           <div class="card-padded sticky top-24 space-y-5">
             <h2 class="text-sm font-semibold text-text-body">Checkout</h2>
 
+            <!-- Billing mode toggle (only for packages that support monthly) -->
+            <div v-if="selectedPackage?.has_monthly_price">
+              <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Billing</label>
+              <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                <button
+                  type="button"
+                  class="flex-1 py-2 font-medium transition-colors"
+                  :class="billingMode === 'one_time' ? 'text-white' : 'text-text-muted bg-white hover:bg-gray-50'"
+                  :style="billingMode === 'one_time' ? { backgroundColor: accentColor } : {}"
+                  @click="billingMode = 'one_time'"
+                >Pay Once</button>
+                <button
+                  type="button"
+                  class="flex-1 py-2 font-medium transition-colors"
+                  :class="billingMode === 'subscription' ? 'text-white' : 'text-text-muted bg-white hover:bg-gray-50'"
+                  :style="billingMode === 'subscription' ? { backgroundColor: accentColor } : {}"
+                  @click="billingMode = 'subscription'"
+                >Subscribe Monthly</button>
+              </div>
+            </div>
+
             <!-- Dog selector -->
             <div>
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">For</label>
-              <!-- Single-dog: dropdown -->
-              <select v-if="!selectedPackage || selectedPackage.max_dogs === 1" v-model="selectedDogId" class="input">
+              <!-- Subscription mode or single-dog package: dropdown only -->
+              <select
+                v-if="billingMode === 'subscription' || !selectedPackage || selectedPackage.max_dogs === 1"
+                v-model="selectedDogId"
+                class="input"
+              >
                 <option value="">— choose a dog —</option>
                 <option v-for="dog in dogs" :key="dog.id" :value="dog.id">{{ dog.name }}</option>
               </select>
-              <!-- Multi-dog: checkboxes -->
+              <!-- Multi-dog one-time: checkboxes -->
               <div v-else class="space-y-2">
                 <label
                   v-for="dog in dogs"
@@ -122,8 +147,12 @@
             <div v-if="selectedPackage" class="rounded-lg bg-surface-subtle px-4 py-3 text-sm">
               <div class="flex items-center justify-between">
                 <span class="text-text-muted">{{ selectedPackage.name }}</span>
-                <span class="font-semibold text-text-body">${{ (selectedPackage.price_cents / 100).toFixed(2) }}</span>
+                <span class="font-semibold text-text-body">
+                  ${{ (selectedPackage.price_cents / 100).toFixed(2) }}
+                  <span v-if="billingMode === 'subscription'" class="text-xs font-normal text-text-muted">/mo</span>
+                </span>
               </div>
+              <p v-if="billingMode === 'subscription'" class="text-xs text-text-muted mt-1">Billed monthly · cancel anytime</p>
             </div>
 
             <button
@@ -136,7 +165,14 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
               </svg>
-              {{ paying ? 'Processing…' : selectedPackage ? `Pay $${(selectedPackage.price_cents / 100).toFixed(2)}` : 'Pay Now' }}
+              <template v-if="paying">Processing…</template>
+              <template v-else-if="selectedPackage && billingMode === 'subscription'">
+                Subscribe — ${{ (selectedPackage.price_cents / 100).toFixed(2) }}/mo
+              </template>
+              <template v-else-if="selectedPackage">
+                Pay ${{ (selectedPackage.price_cents / 100).toFixed(2) }}
+              </template>
+              <template v-else>Pay Now</template>
             </button>
 
             <!-- Trust indicator -->
@@ -151,7 +187,8 @@
               <svg class="h-4 w-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />
               </svg>
-              Payment successful! Credits will appear shortly.
+              <span v-if="billingMode === 'subscription'">Subscription activated! Redirecting…</span>
+              <span v-else>Payment successful! Credits will appear shortly.</span>
             </div>
           </div>
         </div>
@@ -169,9 +206,10 @@ import { loadStripe } from '@stripe/stripe-js';
 import type { Stripe, StripeCardElement } from '@stripe/stripe-js';
 
 interface DogOption { id: string; name: string; credits_expire_at: string | null; }
+interface PurchasePackage extends Package { has_monthly_price: boolean; }
 
 const props = defineProps<{
-  packages: Package[];
+  packages: PurchasePackage[];
   dogs: DogOption[];
   stripe_key: string;
   stripe_account_id: string | null;
@@ -183,14 +221,25 @@ const accentColor = computed(() => page.props.tenant?.primary_color ?? '#4f46e5'
 const selectedPackageId = ref('');
 const selectedDogId = ref('');
 const selectedDogIds = ref<string[]>([]);
+const billingMode = ref<'one_time' | 'subscription'>('one_time');
 const paying = ref(false);
 
 const selectedPackage = computed(() => props.packages.find(p => p.id === selectedPackageId.value) ?? null);
 const selectedDog = computed(() => props.dogs.find(d => d.id === selectedDogId.value) ?? null);
 
-// The dog IDs to actually submit — single-dog uses dropdown, multi-dog uses checkboxes
+// Reset billing mode to one_time when selecting a package without monthly price
+function onPackageSelect(id: string) {
+  selectedPackageId.value = id;
+  const pkg = props.packages.find(p => p.id === id);
+  if (!pkg?.has_monthly_price) billingMode.value = 'one_time';
+}
+
+// The dog IDs to actually submit
 const activeDogIds = computed(() => {
   if (!selectedPackage.value) return [];
+  if (billingMode.value === 'subscription') {
+    return selectedDogId.value ? [selectedDogId.value] : [];
+  }
   return selectedPackage.value.max_dogs === 1
     ? (selectedDogId.value ? [selectedDogId.value] : [])
     : selectedDogIds.value;
@@ -245,7 +294,11 @@ async function purchase() {
         'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
         'X-Inertia': '1',
       },
-      body: JSON.stringify({ package_id: selectedPackageId.value, dog_ids: activeDogIds.value }),
+      body: JSON.stringify({
+        package_id: selectedPackageId.value,
+        dog_ids: activeDogIds.value,
+        billing_mode: billingMode.value,
+      }),
     });
 
     if (!resp.ok) {
@@ -256,22 +309,35 @@ async function purchase() {
 
     const { client_secret } = await resp.json();
 
-    const result = await stripe.confirmCardPayment(client_secret, {
-      payment_method: { card: cardElement },
-    });
-
-    if (result.error) {
-      cardError.value = result.error.message ?? 'Payment failed.';
-    } else {
-      await fetch(route('portal.purchase.confirm'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
-        },
-        body: JSON.stringify({ payment_intent_id: result.paymentIntent.id }),
+    if (billingMode.value === 'subscription') {
+      const result = await stripe.confirmCardSetup(client_secret, {
+        payment_method: { card: cardElement },
       });
-      router.visit(route('portal.history'));
+
+      if (result.error) {
+        cardError.value = result.error.message ?? 'Setup failed.';
+      } else {
+        success.value = true;
+        setTimeout(() => router.visit(route('portal.history')), 3000);
+      }
+    } else {
+      const result = await stripe.confirmCardPayment(client_secret, {
+        payment_method: { card: cardElement },
+      });
+
+      if (result.error) {
+        cardError.value = result.error.message ?? 'Payment failed.';
+      } else {
+        await fetch(route('portal.purchase.confirm'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
+          },
+          body: JSON.stringify({ payment_intent_id: result.paymentIntent.id }),
+        });
+        router.visit(route('portal.history'));
+      }
     }
   } catch {
     cardError.value = 'An unexpected error occurred.';

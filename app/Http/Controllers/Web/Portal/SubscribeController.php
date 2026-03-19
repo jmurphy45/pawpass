@@ -69,10 +69,10 @@ class SubscribeController extends Controller
 
         $package = Package::findOrFail($validated['package_id']);
 
-        if ($package->type !== 'subscription') {
+        if (! $package->stripe_price_id_monthly) {
             return response()->json([
-                'message'    => 'Only subscription packages can be purchased via this endpoint.',
-                'error_code' => 'INVALID_PACKAGE_TYPE',
+                'message'    => 'This package is not available for monthly subscription billing.',
+                'error_code' => 'NO_MONTHLY_PRICE',
             ], 422);
         }
 

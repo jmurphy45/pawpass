@@ -26,6 +26,7 @@ class Package extends Model
         'is_active',
         'is_featured',
         'stripe_price_id',
+        'stripe_price_id_monthly',
         'stripe_product_id',
     ];
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
 use App\Services\NotificationService;
@@ -39,7 +40,8 @@ class PurchaseController extends Controller
                 'price_cents'      => (int) round((float) $p->price * 100),
                 'credits'          => $p->credit_count,
                 'max_dogs'         => $p->dog_limit,
-                'billing_interval' => $p->type === 'subscription' ? 'monthly' : null,
+                'billing_interval'  => $p->type === 'subscription' ? 'monthly' : null,
+                'has_monthly_price' => $p->stripe_price_id_monthly !== null,
                 'duration_days'    => $p->duration_days,
                 'is_featured'      => $p->is_featured,
             ]);
@@ -66,19 +68,73 @@ class PurchaseController extends Controller
     public function store(Request $request, StripeService $stripe): JsonResponse
     {
         $request->validate([
-            'package_id' => ['required', 'string'],
-            'dog_ids'    => ['required', 'array', 'min:1'],
-            'dog_ids.*'  => ['required', 'string'],
+            'package_id'   => ['required', 'string'],
+            'dog_ids'      => ['required', 'array', 'min:1'],
+            'dog_ids.*'    => ['required', 'string'],
+            'billing_mode' => ['sometimes', 'string', 'in:one_time,subscription'],
         ]);
 
-        $customer = Auth::user()->customer;
-        $tenantId = app('current.tenant.id');
-        $tenant = Tenant::find($tenantId);
+        $billingMode = $request->input('billing_mode', 'one_time');
+        $customer    = Auth::user()->customer;
+        $tenantId    = app('current.tenant.id');
+        $tenant      = Tenant::find($tenantId);
 
         abort_unless($tenant && $tenant->stripe_account_id, 422, 'Stripe not configured for this tenant.');
 
         $package = Package::findOrFail($request->package_id);
 
+        // --- Subscription billing mode ---
+        if ($billingMode === 'subscription') {
+            abort_unless(
+                $package->stripe_price_id_monthly,
+                422,
+                'This package is not available for monthly subscription billing.',
+            );
+
+            $dog = $customer->dogs()->findOrFail($request->dog_ids[0]);
+
+            $existingActive = Subscription::where('dog_id', $dog->id)
+                ->where('package_id', $package->id)
+                ->where('status', 'active')
+                ->first();
+
+            if ($existingActive) {
+                return response()->json([
+                    'message'    => 'This dog already has an active subscription for this package.',
+                    'error_code' => 'ALREADY_SUBSCRIBED',
+                ], 409);
+            }
+
+            if ($customer->stripe_customer_id) {
+                $stripeCustomerId = $customer->stripe_customer_id;
+            } else {
+                $stripeCustomer   = $stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
+                $stripeCustomerId = $stripeCustomer->id;
+                $customer->update(['stripe_customer_id' => $stripeCustomerId]);
+            }
+
+            $subscription = Subscription::create([
+                'tenant_id'          => $tenant->id,
+                'customer_id'        => $customer->id,
+                'package_id'         => $package->id,
+                'dog_id'             => $dog->id,
+                'status'             => 'active',
+                'stripe_customer_id' => $stripeCustomerId,
+            ]);
+
+            $setupIntent = $stripe->createSetupIntent(
+                $stripeCustomerId,
+                ['local_subscription_id' => $subscription->id],
+                $tenant->stripe_account_id,
+            );
+
+            return response()->json([
+                'client_secret'   => $setupIntent->client_secret,
+                'subscription_id' => $subscription->id,
+            ], 201);
+        }
+
+        // --- One-time purchase flow ---
         $request->validate([
             'dog_ids' => ['max:' . $package->dog_limit],
         ]);
@@ -86,13 +142,13 @@ class PurchaseController extends Controller
         $dogs = collect($request->dog_ids)->map(fn ($id) => $customer->dogs()->findOrFail($id));
 
         $amountCents = (int) round((float) $package->price * 100);
-        $feePct = (float) ($tenant->platform_fee_pct ?? 5);
-        $feeCents = (int) round($amountCents * $feePct / 100);
+        $feePct      = (float) ($tenant->platform_fee_pct ?? 5);
+        $feeCents    = (int) round($amountCents * $feePct / 100);
 
         if ($customer->stripe_customer_id) {
             $stripeCustomerId = $customer->stripe_customer_id;
         } else {
-            $stripeCustomer = $stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
+            $stripeCustomer   = $stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
             $stripeCustomerId = $stripeCustomer->id;
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }

@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\StripeService;
@@ -279,5 +280,100 @@ class PurchaseControllerStripeTest extends TestCase
         $fresh = $this->dog->fresh();
         $this->assertSame(now()->daysInMonth, $fresh->credit_balance);
         $this->assertNotNull($fresh->credits_expire_at);
+        $this->assertNotNull($fresh->unlimited_pass_expires_at);
+    }
+
+    public function test_store_subscription_billing_mode_returns_setup_intent_client_secret(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id'               => $this->tenant->id,
+            'type'                    => 'one_time',
+            'price'                   => '50.00',
+            'is_active'               => true,
+            'stripe_price_id_monthly' => 'price_monthly_test',
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')
+                ->once()
+                ->with('jane@example.com', 'Jane Buyer', 'acct_purchase123')
+                ->andReturn((object) ['id' => 'cus_sub_new']);
+
+            $mock->shouldReceive('createSetupIntent')
+                ->once()
+                ->with('cus_sub_new', \Mockery::any(), 'acct_purchase123')
+                ->andReturn((object) ['client_secret' => 'seti_secret_test']);
+
+            $mock->shouldNotReceive('createPaymentIntent');
+        });
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase', [
+            'package_id'   => $package->id,
+            'dog_ids'      => [$this->dog->id],
+            'billing_mode' => 'subscription',
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonStructure(['client_secret', 'subscription_id']);
+
+        $this->assertDatabaseHas('subscriptions', [
+            'dog_id'     => $this->dog->id,
+            'package_id' => $package->id,
+            'status'     => 'active',
+        ]);
+    }
+
+    public function test_store_subscription_billing_mode_rejects_package_without_monthly_price(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id'               => $this->tenant->id,
+            'type'                    => 'unlimited',
+            'price'                   => '150.00',
+            'is_active'               => true,
+            'stripe_price_id_monthly' => null,
+        ]);
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase', [
+            'package_id'   => $package->id,
+            'dog_ids'      => [$this->dog->id],
+            'billing_mode' => 'subscription',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_store_subscription_billing_mode_prevents_duplicate_active_subscription(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id'               => $this->tenant->id,
+            'type'                    => 'one_time',
+            'price'                   => '50.00',
+            'is_active'               => true,
+            'stripe_price_id_monthly' => 'price_monthly_dup',
+        ]);
+
+        Subscription::create([
+            'tenant_id'          => $this->tenant->id,
+            'customer_id'        => $this->customer->id,
+            'package_id'         => $package->id,
+            'dog_id'             => $this->dog->id,
+            'status'             => 'active',
+            'stripe_customer_id' => 'cus_existing',
+        ]);
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase', [
+            'package_id'   => $package->id,
+            'dog_ids'      => [$this->dog->id],
+            'billing_mode' => 'subscription',
+        ]);
+
+        $response->assertStatus(409);
+        $response->assertJson(['error_code' => 'ALREADY_SUBSCRIBED']);
     }
 }

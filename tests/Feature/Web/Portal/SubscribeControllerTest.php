@@ -81,7 +81,10 @@ class SubscribeControllerTest extends TestCase
 
     public function test_store_creates_subscription_and_returns_client_secret(): void
     {
-        $package = Package::factory()->subscription()->create(['tenant_id' => $this->tenant->id]);
+        $package = Package::factory()->subscription()->create([
+            'tenant_id'               => $this->tenant->id,
+            'stripe_price_id_monthly' => 'price_monthly_sub',
+        ]);
 
         $stripe = $this->mock(StripeService::class);
         $stripe->shouldReceive('createCustomer')
@@ -110,9 +113,14 @@ class SubscribeControllerTest extends TestCase
         ]);
     }
 
-    public function test_store_requires_subscription_package_type(): void
+    public function test_store_requires_stripe_price_id_monthly(): void
     {
-        $package = Package::factory()->create(['tenant_id' => $this->tenant->id, 'type' => 'one_time']);
+        // A package without stripe_price_id_monthly (including one_time) cannot be subscribed to
+        $package = Package::factory()->create([
+            'tenant_id'               => $this->tenant->id,
+            'type'                    => 'one_time',
+            'stripe_price_id_monthly' => null,
+        ]);
 
         $this->actingAs($this->user);
 
@@ -122,12 +130,42 @@ class SubscribeControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $response->assertJson(['error_code' => 'INVALID_PACKAGE_TYPE']);
+        $response->assertJson(['error_code' => 'NO_MONTHLY_PRICE']);
+    }
+
+    public function test_store_allows_any_package_type_with_monthly_price(): void
+    {
+        // A one_time package that has stripe_price_id_monthly can be subscribed to
+        $package = Package::factory()->create([
+            'tenant_id'               => $this->tenant->id,
+            'type'                    => 'one_time',
+            'stripe_price_id_monthly' => 'price_monthly_test',
+        ]);
+
+        $stripe = $this->mock(StripeService::class);
+        $stripe->shouldReceive('createCustomer')
+            ->andReturn((object) ['id' => 'cus_test456']);
+        $stripe->shouldReceive('createSetupIntent')
+            ->once()
+            ->andReturn((object) ['client_secret' => 'seti_secret_onetime']);
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/subscribe', [
+            'package_id' => $package->id,
+            'dog_id'     => $this->dog->id,
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonStructure(['client_secret', 'subscription_id']);
     }
 
     public function test_store_prevents_duplicate_active_subscription(): void
     {
-        $package = Package::factory()->subscription()->create(['tenant_id' => $this->tenant->id]);
+        $package = Package::factory()->subscription()->create([
+            'tenant_id'               => $this->tenant->id,
+            'stripe_price_id_monthly' => 'price_monthly_dup',
+        ]);
 
         Subscription::create([
             'tenant_id'  => $this->tenant->id,

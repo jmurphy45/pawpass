@@ -44,6 +44,10 @@ class ArchivePackageFromStripe implements ShouldQueue
                 $stripe->archivePrice($this->package->stripe_price_id, $accountId);
             }
 
+            if ($this->package->stripe_price_id_monthly) {
+                $stripe->archivePrice($this->package->stripe_price_id_monthly, $accountId);
+            }
+
             $stripe->archiveProduct($this->package->stripe_product_id, $accountId);
         } catch (ApiErrorException $e) {
             Log::error('ArchivePackageFromStripe failed', [

@@ -245,3 +245,27 @@ account). All Stripe API calls for tenant payments go through `stripe_account` S
 ### Step 4 — Final verification
 
 - [x] Run full test suite: 675 passed, 0 failures
+
+---
+
+## Task: Multi-Dog Package Purchases + Unlimited Credit Issuance
+
+### Change 1 — Unlimited Packages: Issue Credits Based on Days in Month
+
+- [x] Update `DogCreditService::issueUnlimitedPass()` — issues `now()->daysInMonth` credits, sets `credits_expire_at = now()->addMonth()`, writes ledger entry with real delta and `expires_at`; no longer sets `unlimited_pass_expires_at`
+- [x] Update `DogCreditService::revokeUnlimitedPass()` — removes all remaining credits (same logic as `removeAllOnRefund`), writes refund ledger entry with `delta = -remaining`
+- [x] Updated 4 existing unlimited tests in `DogCreditServiceTest` + added 3 new tests (7 total for unlimited)
+- [x] Updated `StripeWebhookController::handlePaymentIntentSucceeded()` — checks `$order->package->type === 'unlimited'` and dispatches `issueUnlimitedPass` vs `issueFromOrder`
+- [x] Updated `PurchaseController::confirm()` — same package type routing logic
+
+### Change 2 — Multi-Dog Web Purchase
+
+- [x] Update `PurchaseController::store()` — accepts `dog_ids[]` (array, min:1, max:dog_limit); validates each dog belongs to customer; creates one `OrderDog` per dog; metadata uses `dog_ids` (comma-separated)
+- [x] Updated all 3 existing `PurchaseControllerStripeTest` tests to use `dog_ids: [dog_id]`
+- [x] Added 4 new tests: multi-dog creates 2 OrderDogs, rejects count > dog_limit, rejects empty, confirm issues unlimited credits
+- [x] Updated `Purchase.vue` — single-dog (max_dogs=1) keeps dropdown; multi-dog shows checkboxes with max enforcement; submit sends `dog_ids: activeDogIds`
+
+### Final Verification
+
+- [x] 681 tests pass (0 failures)
+- [x] `npm run build` — successful, no TS errors

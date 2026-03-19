@@ -49,10 +49,11 @@ class StripeWebhookSubscriptionTest extends TestCase
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
         $dog = Dog::factory()->forCustomer($customer)->withCredits(0)->create();
         $package = Package::factory()->create([
-            'tenant_id' => $tenant->id,
-            'type' => 'subscription',
-            'credit_count' => 10,
-            'stripe_price_id' => 'price_webhooktest',
+            'tenant_id'               => $tenant->id,
+            'type'                    => 'subscription',
+            'credit_count'            => 10,
+            'stripe_price_id'         => 'price_webhooktest',
+            'stripe_price_id_monthly' => 'price_monthly_webhooktest',
         ]);
 
         return Subscription::factory()->create(array_merge([
@@ -83,6 +84,7 @@ class StripeWebhookSubscriptionTest extends TestCase
                 ]));
             $mock->shouldReceive('createSubscription')
                 ->once()
+                ->withArgs(fn ($customerId, $priceId) => $priceId === 'price_monthly_webhooktest')
                 ->andReturn((object) [
                     'id' => 'sub_new',
                     'current_period_start' => now()->timestamp,
