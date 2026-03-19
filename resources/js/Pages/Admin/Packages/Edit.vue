@@ -8,12 +8,20 @@
           <input v-model="form.name" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
         </div>
         <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Number of Dogs *</label>
+          <input v-model.number="form.dog_limit" type="number" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+        </div>
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Price ($) *</label>
           <input v-model.number="form.price" type="number" min="0" step="0.01" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
         </div>
-        <div>
+        <div v-if="props.package.type !== 'unlimited'">
           <label class="block text-sm font-medium text-gray-700 mb-1">Credits *</label>
           <input v-model.number="form.credit_count" type="number" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+        </div>
+        <div v-if="props.package.type === 'unlimited'">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Duration (days) *</label>
+          <input v-model.number="form.duration_days" type="number" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
         </div>
         <button type="submit" :disabled="form.processing" class="w-full rounded-lg bg-indigo-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60">
           Save Changes

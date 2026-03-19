@@ -16,12 +16,17 @@
           </select>
         </div>
         <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Number of Dogs *</label>
+          <input v-model.number="form.dog_limit" type="number" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+        </div>
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Price ($) *</label>
           <input v-model.number="form.price" type="number" min="0" step="0.01" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
         </div>
         <div v-if="form.type === 'one_time'">
           <label class="block text-sm font-medium text-gray-700 mb-1">Credits *</label>
           <input v-model.number="form.credit_count" type="number" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+          <p class="text-xs text-gray-500 mt-1">{{ form.credit_count * form.dog_limit }} total credits</p>
         </div>
         <div v-if="form.type === 'unlimited'">
           <label class="block text-sm font-medium text-gray-700 mb-1">Duration (days) *</label>

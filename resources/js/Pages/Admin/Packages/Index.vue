@@ -10,7 +10,7 @@
           <li v-for="pkg in packages" :key="pkg.id" class="list-row gap-3">
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-text-body truncate">{{ pkg.name }}</p>
-              <p class="text-xs text-text-muted">${{ Number(pkg.price).toFixed(2) }} · {{ pkg.credit_count }} credits</p>
+              <p class="text-xs text-text-muted">${{ Number(pkg.price).toFixed(2) }} · {{ pkg.type === 'unlimited' ? 'Unlimited pass' : `${pkg.credit_count} credits` }} · {{ pkg.dog_limit }} {{ pkg.dog_limit === 1 ? 'dog' : 'dogs' }}</p>
             </div>
             <div class="flex items-center gap-3 shrink-0">
               <span v-if="pkg.archived_at" class="badge badge-gray">Archived</span>
@@ -28,6 +28,6 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Link } from '@inertiajs/vue3';
 
 defineProps<{
-  packages: Array<{ id: string; name: string; type: string; price: number; credit_count: number; is_active: boolean; archived_at: string | null }>;
+  packages: Array<{ id: string; name: string; type: string; price: number; credit_count: number; dog_limit: number; is_active: boolean; archived_at: string | null }>;
 }>();
 </script>
