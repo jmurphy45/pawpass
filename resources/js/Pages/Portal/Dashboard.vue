@@ -93,18 +93,6 @@
           </Link>
 
           <Link
-            :href="route('portal.subscribe')"
-            class="card p-4 flex flex-col items-center justify-center gap-2.5 hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200 text-center"
-          >
-            <div class="h-10 w-10 rounded-xl bg-green-100 flex items-center justify-center">
-              <svg class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9-4.5h-9m9-4.5h-9m-3.75 9a2.25 2.25 0 0 1-2.25-2.25V5.25A2.25 2.25 0 0 1 5.25 3h13.5A2.25 2.25 0 0 1 21 5.25v11.25A2.25 2.25 0 0 1 18.75 19.5H5.25Z" />
-              </svg>
-            </div>
-            <span class="text-sm font-medium text-text-body">Subscribe</span>
-          </Link>
-
-          <Link
             :href="route('portal.attendance')"
             class="card p-4 flex flex-col items-center justify-center gap-2.5 hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200 text-center"
           >

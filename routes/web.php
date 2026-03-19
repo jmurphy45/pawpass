@@ -27,7 +27,6 @@ use App\Http\Controllers\Web\Portal\DogController;
 use App\Http\Controllers\Web\Portal\HistoryController;
 use App\Http\Controllers\Web\Portal\NotificationController;
 use App\Http\Controllers\Web\Portal\PurchaseController;
-use App\Http\Controllers\Web\Portal\SubscribeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
@@ -157,10 +156,6 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::get('/purchase', [PurchaseController::class, 'index'])->name('portal.purchase');
         Route::post('/purchase', [PurchaseController::class, 'store'])->name('portal.purchase.store');
         Route::post('/purchase/confirm', [PurchaseController::class, 'confirm'])->name('portal.purchase.confirm');
-
-        // Subscribe
-        Route::get('/subscribe', [SubscribeController::class, 'index'])->name('portal.subscribe');
-        Route::post('/subscribe', [SubscribeController::class, 'store'])->name('portal.subscribe.store');
 
         // History / Orders
         Route::get('/history', [HistoryController::class, 'index'])->name('portal.history');

@@ -31,11 +31,6 @@
             :class="isActive('portal.purchase') ? 'text-gray-900 font-semibold border-indigo-600' : 'text-gray-500 hover:text-gray-800 border-transparent'"
           >Buy Credits</Link>
           <Link
-            :href="route('portal.subscribe')"
-            class="text-sm font-medium border-b-2 pb-0.5 transition-colors"
-            :class="isActive('portal.subscribe') ? 'text-gray-900 font-semibold border-indigo-600' : 'text-gray-500 hover:text-gray-800 border-transparent'"
-          >Subscribe</Link>
-          <Link
             :href="route('portal.history')"
             class="text-sm font-medium border-b-2 pb-0.5 transition-colors"
             :class="isActive('portal.history') ? 'text-gray-900 font-semibold border-indigo-600' : 'text-gray-500 hover:text-gray-800 border-transparent'"
@@ -162,16 +157,6 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
         <span>Buy</span>
-      </Link>
-      <Link
-        :href="route('portal.subscribe')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs"
-        :class="isActive('portal.subscribe') ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-900'"
-      >
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9-4.5h-9m9-4.5h-9m-3.75 9a2.25 2.25 0 0 1-2.25-2.25V5.25A2.25 2.25 0 0 1 5.25 3h13.5A2.25 2.25 0 0 1 21 5.25v11.25A2.25 2.25 0 0 1 18.75 19.5H5.25Z" />
-        </svg>
-        <span>Subscribe</span>
       </Link>
       <Link
         :href="route('portal.history')"
