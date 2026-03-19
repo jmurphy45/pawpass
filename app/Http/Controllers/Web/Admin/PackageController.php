@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Package;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -47,7 +48,10 @@ class PackageController extends Controller
             'description'  => ['nullable', 'string'],
             'type'         => ['required', 'string', 'in:one_time,subscription,unlimited'],
             'price'        => ['required', 'numeric', 'min:0'],
-            'credit_count' => ['required', 'integer', 'min:1'],
+            'credit_count' => [
+                'required', 'integer',
+                Rule::when($request->input('type') === 'unlimited', ['min:0'], ['min:1']),
+            ],
             'dog_limit'    => ['nullable', 'integer', 'min:1'],
             'duration_days' => ['nullable', 'integer', 'min:1'],
             'is_active'    => ['boolean'],
@@ -96,7 +100,10 @@ class PackageController extends Controller
             'name'         => ['required', 'string', 'max:255'],
             'description'  => ['nullable', 'string'],
             'price'        => ['required', 'numeric', 'min:0'],
-            'credit_count' => ['required', 'integer', 'min:1'],
+            'credit_count' => [
+                'required', 'integer',
+                Rule::when($request->input('type') === 'unlimited', ['min:0'], ['min:1']),
+            ],
             'dog_limit'    => ['nullable', 'integer', 'min:1'],
             'duration_days' => ['nullable', 'integer', 'min:1'],
             'is_active'    => ['boolean'],
