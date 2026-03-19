@@ -103,6 +103,7 @@ class StripeService
         string $currency,
         ?string $recurringInterval = null,
         ?string $stripeAccountId = null,
+        int $intervalCount = 1,
     ): object {
         $payload = [
             'product' => $productId,
@@ -111,7 +112,10 @@ class StripeService
         ];
 
         if ($recurringInterval !== null) {
-            $payload['recurring'] = ['interval' => $recurringInterval];
+            $payload['recurring'] = [
+                'interval'       => $recurringInterval,
+                'interval_count' => $intervalCount,
+            ];
         }
 
         if ($stripeAccountId) {

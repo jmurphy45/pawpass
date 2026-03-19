@@ -245,6 +245,33 @@ class DogCreditService
         });
     }
 
+    public function issueUnlimitedPassFromSubscription(
+        Subscription $subscription,
+        Dog $dog,
+        \DateTimeInterface $expiresAt,
+    ): void {
+        DB::transaction(function () use ($subscription, $dog, $expiresAt) {
+            $credits    = now()->daysInMonth;
+            $newBalance = $dog->credit_balance + $credits;
+
+            CreditLedger::create([
+                'tenant_id'       => $dog->tenant_id,
+                'dog_id'          => $dog->id,
+                'type'            => 'subscription',
+                'delta'           => $credits,
+                'balance_after'   => $newBalance,
+                'subscription_id' => $subscription->id,
+                'expires_at'      => $expiresAt,
+            ]);
+
+            $dog->increment('credit_balance', $credits);
+            $dog->update([
+                'credits_expire_at'        => $expiresAt,
+                'unlimited_pass_expires_at' => $expiresAt,
+            ]);
+        });
+    }
+
     public function issueFromSubscription(Subscription $subscription, Dog $dog, DateTimeInterface $periodEnd): void
     {
         DB::transaction(function () use ($subscription, $dog, $periodEnd) {

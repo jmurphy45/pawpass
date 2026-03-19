@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Jobs\SyncPackageToStripe;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
@@ -109,6 +111,59 @@ class PackageControllerTest extends TestCase
 
         $response->assertRedirect(route('admin.packages.index'));
         $this->assertSoftDeleted('packages', ['id' => $package->id]);
+    }
+
+    public function test_owner_can_update_recurring_fields(): void
+    {
+        Queue::fake();
+
+        $package = Package::factory()->create([
+            'tenant_id'            => $this->tenant->id,
+            'type'                 => 'one_time',
+            'name'                 => 'Old',
+            'is_recurring_enabled' => false,
+            'stripe_product_id'    => 'prod_existing',
+        ]);
+
+        $this->actingAs($this->owner);
+
+        $response = $this->patch("/admin/packages/{$package->id}", [
+            'name'                    => 'Old',
+            'price'                   => $package->price,
+            'credit_count'            => $package->credit_count,
+            'dog_limit'               => 1,
+            'is_recurring_enabled'    => true,
+            'recurring_interval_days' => 14,
+        ]);
+
+        $response->assertRedirect(route('admin.packages.index'));
+
+        $this->assertDatabaseHas('packages', [
+            'id'                     => $package->id,
+            'is_recurring_enabled'   => true,
+            'recurring_interval_days' => 14,
+        ]);
+
+        Queue::assertPushed(SyncPackageToStripe::class, fn ($job) => $job->package->id === $package->id);
+    }
+
+    public function test_edit_page_includes_recurring_fields(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id'              => $this->tenant->id,
+            'is_recurring_enabled'   => true,
+            'recurring_interval_days' => 7,
+        ]);
+
+        $this->actingAs($this->owner);
+
+        $response = $this->get("/admin/packages/{$package->id}/edit");
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Packages/Edit')
+            ->where('package.is_recurring_enabled', true)
+            ->where('package.recurring_interval_days', 7)
+        );
     }
 
     public function test_cross_tenant_package_returns_404(): void

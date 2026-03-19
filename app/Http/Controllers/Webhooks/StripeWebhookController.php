@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\PlatformConfig;
 use App\Models\RawWebhook;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -137,10 +138,15 @@ class StripeWebhookController extends Controller
 
         $package = $subscription->package;
 
-        if (! $package->stripe_price_id_monthly) {
-            Log::error('setup_intent.succeeded: package has no stripe_price_id_monthly', [
+        $isNative  = ($package->type === 'subscription');
+        $priceId   = $isNative ? $package->stripe_price_id_monthly : $package->stripe_price_id_recurring;
+        $surcharge = $isNative ? 0.0 : (float) PlatformConfig::get('recurring_surcharge_pct', '1.0');
+
+        if (! $priceId) {
+            Log::error('setup_intent.succeeded: package has no applicable price id', [
                 'subscription_id' => $subscription->id,
-                'package_id' => $package->id,
+                'package_id'      => $package->id,
+                'is_native'       => $isNative,
             ]);
 
             return response()->json(['data' => 'ok']);
@@ -157,12 +163,14 @@ class StripeWebhookController extends Controller
             return response()->json(['data' => 'tenant not found'], 422);
         }
 
+        $feePercent = (float) $tenant->platform_fee_pct + $surcharge;
+
         $stripeSub = $this->stripe->createSubscription(
             $subscription->stripe_customer_id,
-            $package->stripe_price_id_monthly,
+            $priceId,
             $setupIntent->payment_method,
             $tenant->stripe_account_id ?? '',
-            (float) $tenant->platform_fee_pct,
+            $feePercent,
             ['local_subscription_id' => $subscription->id],
         );
 
@@ -204,7 +212,11 @@ class StripeWebhookController extends Controller
 
         $dog = $subscription->dog;
 
-        $this->creditService->issueFromSubscription($subscription, $dog, $periodEnd);
+        if ($subscription->package->type === 'unlimited') {
+            $this->creditService->issueUnlimitedPassFromSubscription($subscription, $dog, $periodEnd);
+        } else {
+            $this->creditService->issueFromSubscription($subscription, $dog, $periodEnd);
+        }
 
         $userId = $dog->customer?->user_id;
         if ($userId) {

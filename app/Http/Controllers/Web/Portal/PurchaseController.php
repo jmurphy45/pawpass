@@ -33,17 +33,19 @@ class PurchaseController extends Controller
             ->orderBy('price')
             ->get()
             ->map(fn ($p) => [
-                'id'               => $p->id,
-                'name'             => $p->name,
-                'description'      => $p->description,
-                'type'             => $p->type,
-                'price_cents'      => (int) round((float) $p->price * 100),
-                'credits'          => $p->credit_count,
-                'max_dogs'         => $p->dog_limit,
-                'billing_interval'  => $p->type === 'subscription' ? 'monthly' : null,
-                'has_monthly_price' => $p->stripe_price_id_monthly !== null,
-                'duration_days'    => $p->duration_days,
-                'is_featured'      => $p->is_featured,
+                'id'                     => $p->id,
+                'name'                   => $p->name,
+                'description'            => $p->description,
+                'type'                   => $p->type,
+                'price_cents'            => (int) round((float) $p->price * 100),
+                'credits'                => $p->credit_count,
+                'max_dogs'               => $p->dog_limit,
+                'billing_interval'       => $p->type === 'subscription' ? 'monthly' : null,
+                'has_monthly_price'      => $p->stripe_price_id_monthly !== null,
+                'duration_days'          => $p->duration_days,
+                'is_featured'            => $p->is_featured,
+                'is_recurring_enabled'   => $p->is_recurring_enabled,
+                'recurring_interval_days' => $p->recurring_interval_days,
             ]);
 
         $dogs = $customer->dogs()
@@ -71,7 +73,7 @@ class PurchaseController extends Controller
             'package_id'   => ['required', 'string'],
             'dog_ids'      => ['required', 'array', 'min:1'],
             'dog_ids.*'    => ['required', 'string'],
-            'billing_mode' => ['sometimes', 'string', 'in:one_time,subscription'],
+            'billing_mode' => ['sometimes', 'string', 'in:one_time,subscription,recurring'],
         ]);
 
         $billingMode = $request->input('billing_mode', 'one_time');
@@ -104,6 +106,45 @@ class PurchaseController extends Controller
                     'error_code' => 'ALREADY_SUBSCRIBED',
                 ], 409);
             }
+
+            if ($customer->stripe_customer_id) {
+                $stripeCustomerId = $customer->stripe_customer_id;
+            } else {
+                $stripeCustomer   = $stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
+                $stripeCustomerId = $stripeCustomer->id;
+                $customer->update(['stripe_customer_id' => $stripeCustomerId]);
+            }
+
+            $subscription = Subscription::create([
+                'tenant_id'          => $tenant->id,
+                'customer_id'        => $customer->id,
+                'package_id'         => $package->id,
+                'dog_id'             => $dog->id,
+                'status'             => 'active',
+                'stripe_customer_id' => $stripeCustomerId,
+            ]);
+
+            $setupIntent = $stripe->createSetupIntent(
+                $stripeCustomerId,
+                ['local_subscription_id' => $subscription->id],
+                $tenant->stripe_account_id,
+            );
+
+            return response()->json([
+                'client_secret'   => $setupIntent->client_secret,
+                'subscription_id' => $subscription->id,
+            ], 201);
+        }
+
+        // --- Recurring billing mode (non-native subscription using SetupIntent) ---
+        if ($billingMode === 'recurring') {
+            abort_unless(
+                $package->is_recurring_enabled && $package->stripe_price_id_recurring,
+                422,
+                'This package is not available for recurring billing.',
+            );
+
+            $dog = $customer->dogs()->findOrFail($request->dog_ids[0]);
 
             if ($customer->stripe_customer_id) {
                 $stripeCustomerId = $customer->stripe_customer_id;

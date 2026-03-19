@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SyncPackageToStripe;
 use App\Models\Package;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -79,15 +80,17 @@ class PackageController extends Controller
 
         return Inertia::render('Admin/Packages/Edit', [
             'package' => [
-                'id'           => $package->id,
-                'name'         => $package->name,
-                'description'  => $package->description,
-                'type'         => $package->type,
-                'price'        => $package->price,
-                'credit_count' => $package->credit_count,
-                'dog_limit'    => $package->dog_limit,
-                'duration_days' => $package->duration_days,
-                'is_active'    => $package->is_active,
+                'id'                     => $package->id,
+                'name'                   => $package->name,
+                'description'            => $package->description,
+                'type'                   => $package->type,
+                'price'                  => $package->price,
+                'credit_count'           => $package->credit_count,
+                'dog_limit'              => $package->dog_limit,
+                'duration_days'          => $package->duration_days,
+                'is_active'              => $package->is_active,
+                'is_recurring_enabled'   => $package->is_recurring_enabled,
+                'recurring_interval_days' => $package->recurring_interval_days,
             ],
         ]);
     }
@@ -97,19 +100,27 @@ class PackageController extends Controller
         $this->requireOwner();
 
         $validated = $request->validate([
-            'name'         => ['required', 'string', 'max:255'],
-            'description'  => ['nullable', 'string'],
-            'price'        => ['required', 'numeric', 'min:0'],
-            'credit_count' => [
+            'name'                    => ['required', 'string', 'max:255'],
+            'description'             => ['nullable', 'string'],
+            'price'                   => ['required', 'numeric', 'min:0'],
+            'credit_count'            => [
                 'required', 'integer',
                 Rule::when($request->input('type') === 'unlimited', ['min:0'], ['min:1']),
             ],
-            'dog_limit'    => ['nullable', 'integer', 'min:1'],
-            'duration_days' => ['nullable', 'integer', 'min:1'],
-            'is_active'    => ['boolean'],
+            'dog_limit'               => ['nullable', 'integer', 'min:1'],
+            'duration_days'           => ['nullable', 'integer', 'min:1'],
+            'is_active'               => ['boolean'],
+            'is_recurring_enabled'    => ['sometimes', 'boolean'],
+            'recurring_interval_days' => ['sometimes', 'nullable', 'integer', 'min:1'],
         ]);
 
+        $recurringChanged = $request->has('is_recurring_enabled') || $request->has('recurring_interval_days');
+
         $package->update($validated);
+
+        if ($recurringChanged) {
+            SyncPackageToStripe::dispatch($package->fresh());
+        }
 
         return redirect()->route('admin.packages.index')
             ->with('success', 'Package updated.');

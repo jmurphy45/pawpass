@@ -269,3 +269,95 @@ account). All Stripe API calls for tenant payments go through `stripe_account` S
 
 - [x] 681 tests pass (0 failures)
 - [x] `npm run build` — successful, no TS errors
+
+---
+
+## Phase 17: Make Package Recurring
+
+### Step 1 — Migration
+- [x] `2026_03_19_000001_add_recurring_fields_to_packages.php` — adds `is_recurring_enabled`, `recurring_interval_days`, `stripe_price_id_recurring` columns to `packages`
+
+### Step 2 — Package Model
+- [x] Added 3 new fields to `$fillable` + boolean/integer casts
+
+### Step 3 — DogCreditService: `issueUnlimitedPassFromSubscription`
+- [x] New method: subscription type ledger entry, sets `unlimited_pass_expires_at`, credits = `daysInMonth`
+- [x] 2 new tests in `DogCreditServiceTest`
+
+### Step 4 — StripeService: `createPrice` interval count
+- [x] Added `int $intervalCount = 1` param; included in `recurring.interval_count`
+- [x] 1 new test in `StripeServiceTest`
+
+### Step 5 — SyncPackageToStripe: recurring price branch
+- [x] `create()` + `update()` create/archive `stripe_price_id_recurring` when `is_recurring_enabled = true`
+- [x] 4 new tests in `SyncPackageToStripeRecurringTest`
+- [x] Also fixed pre-existing failing test in `PackageControllerStripeTest` (unlimited test expected no price but job creates one)
+
+### Step 6 — Admin API
+- [x] `UpdatePackageRequest` — added `is_recurring_enabled` + `recurring_interval_days`
+- [x] `PackageResource` — exposes both fields
+- [x] `Admin/V1/PackageController::update()` — dispatches `SyncPackageToStripe` when recurring fields change
+- [x] 3 new tests in `Admin/PackageControllerTest`
+
+### Step 7 — Admin Web
+- [x] `Web/Admin/PackageController::edit()` — passes recurring fields to Inertia
+- [x] `Web/Admin/PackageController::update()` — validates + saves recurring fields, dispatches sync job
+- [x] `Edit.vue` — "Allow recurring billing" checkbox; conditional interval input for `one_time`; note for `unlimited`
+- [x] 2 new tests in `Web/Admin/PackageControllerTest`
+
+### Step 8 — PurchaseController: `billing_mode = 'recurring'`
+- [x] `billing_mode` validation extended to accept `'recurring'`
+- [x] Recurring branch: SetupIntent flow using `stripe_price_id_recurring`, creates `Subscription`
+- [x] `index()` includes `is_recurring_enabled` + `recurring_interval_days` in package data
+- [x] 5 new tests in `WebPurchaseControllerRecurringTest`
+
+### Step 9 — Webhook: `setup_intent.succeeded` surcharge
+- [x] Native `subscription` → `stripe_price_id_monthly`, 0% surcharge
+- [x] Non-native (`one_time`/`unlimited` with recurring) → `stripe_price_id_recurring`, +1% surcharge from `PlatformConfig::get('recurring_surcharge_pct', '1.0')`
+- [x] 3 new tests in `StripeWebhookSubscriptionTest`
+
+### Step 10 — Webhook: `invoice.payment_succeeded` unlimited dispatch
+- [x] `unlimited` subscription invoice → `issueUnlimitedPassFromSubscription`
+- [x] Other types → `issueFromSubscription` (unchanged)
+- [x] 1 new test in `StripeWebhookSubscriptionTest`
+
+### Step 11 — Frontend: Purchase.vue recurring toggle
+- [x] `PurchasePackage` type extended with `is_recurring_enabled` + `recurring_interval_days`
+- [x] `billingMode` type extended with `'recurring'`
+- [x] Recurring toggle shown when `is_recurring_enabled && type !== 'subscription'`
+- [x] Summary text: "Billed every X days · cancel anytime"
+- [x] Button label: "Subscribe (every Xd)"
+- [x] `build` succeeds
+
+## Review
+
+### Summary of Changes
+- Migration adds 3 columns to `packages` table
+- `DogCreditService.issueUnlimitedPassFromSubscription()` — new method for subscription unlimited credit issuance
+- `StripeService.createPrice()` — new `$intervalCount` param for `recurring.interval_count`
+- `SyncPackageToStripe` — creates/archives `stripe_price_id_recurring` when `is_recurring_enabled`
+- Admin API `UpdatePackageRequest` + `PackageResource` + `PackageController` — recurring fields exposed
+- Admin Web `PackageController` + `Edit.vue` — recurring billing checkbox + interval input
+- `PurchaseController` — `recurring` billing mode creates Subscription via SetupIntent with `stripe_price_id_recurring`
+- `StripeWebhookController.handleSetupIntentSucceeded()` — routes to correct price ID with 1% surcharge for non-native recurring
+- `StripeWebhookController.handleInvoicePaymentSucceeded()` — routes to `issueUnlimitedPassFromSubscription` for unlimited packages
+
+### Tests Added or Updated
+- `tests/Unit/Services/DogCreditServiceTest.php`: 2 new tests
+- `tests/Unit/Services/StripeServiceTest.php`: 1 new test
+- `tests/Feature/Jobs/SyncPackageToStripeRecurringTest.php`: 4 new tests (new file)
+- `tests/Feature/Admin/PackageControllerTest.php`: 3 new tests
+- `tests/Feature/Admin/PackageControllerStripeTest.php`: updated unlimited test name/behavior
+- `tests/Feature/Web/Admin/PackageControllerTest.php`: 2 new tests
+- `tests/Feature/Portal/WebPurchaseControllerRecurringTest.php`: 5 new tests (new file)
+- `tests/Feature/Webhooks/StripeWebhookSubscriptionTest.php`: 4 new tests
+
+### Build Status
+- Tests: 707 passed (0 failures)
+- Build: Successful (`npm run build` — no TS errors)
+
+### Notes
+- `recurring_surcharge_pct` defaults to `'1.0'` (1%) if not set in `platform_config`
+- Dog-level `unlimited_pass_expires_at` is set by `issueUnlimitedPassFromSubscription` to the invoice period end
+- The recurring billing mode uses the same SetupIntent/Stripe Subscription flow as native subscriptions
+- Unlimited recurring packages use `duration_days` as the billing interval; one_time uses `recurring_interval_days`

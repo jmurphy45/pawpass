@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePackageRequest;
 use App\Http\Requests\Admin\UpdatePackageRequest;
 use App\Http\Resources\PackageResource;
+use App\Jobs\SyncPackageToStripe;
 use App\Models\Package;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -38,7 +39,13 @@ class PackageController extends Controller
 
     public function update(UpdatePackageRequest $request, Package $package): JsonResponse
     {
+        $recurringChanged = $request->has('is_recurring_enabled') || $request->has('recurring_interval_days');
+
         $package->update($request->validated());
+
+        if ($recurringChanged) {
+            SyncPackageToStripe::dispatch($package->fresh());
+        }
 
         return response()->json(['data' => new PackageResource($package->fresh())]);
     }

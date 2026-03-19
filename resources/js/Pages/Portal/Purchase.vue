@@ -82,7 +82,7 @@
           <div class="card-padded sticky top-24 space-y-5">
             <h2 class="text-sm font-semibold text-text-body">Checkout</h2>
 
-            <!-- Billing mode toggle (only for packages that support monthly) -->
+            <!-- Billing mode toggle (monthly subscription) -->
             <div v-if="selectedPackage?.has_monthly_price">
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Billing</label>
               <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
@@ -103,12 +103,33 @@
               </div>
             </div>
 
+            <!-- Recurring billing toggle (non-native, for one_time + unlimited packages) -->
+            <div v-if="selectedPackage?.is_recurring_enabled && selectedPackage?.type !== 'subscription'">
+              <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Recurring</label>
+              <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                <button
+                  type="button"
+                  class="flex-1 py-2 font-medium transition-colors"
+                  :class="billingMode !== 'recurring' ? 'text-white' : 'text-text-muted bg-white hover:bg-gray-50'"
+                  :style="billingMode !== 'recurring' ? { backgroundColor: accentColor } : {}"
+                  @click="billingMode = 'one_time'"
+                >Pay Once</button>
+                <button
+                  type="button"
+                  class="flex-1 py-2 font-medium transition-colors"
+                  :class="billingMode === 'recurring' ? 'text-white' : 'text-text-muted bg-white hover:bg-gray-50'"
+                  :style="billingMode === 'recurring' ? { backgroundColor: accentColor } : {}"
+                  @click="billingMode = 'recurring'"
+                >Make Recurring</button>
+              </div>
+            </div>
+
             <!-- Dog selector -->
             <div>
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">For</label>
-              <!-- Subscription mode or single-dog package: dropdown only -->
+              <!-- Subscription/recurring mode or single-dog package: dropdown only -->
               <select
-                v-if="billingMode === 'subscription' || !selectedPackage || selectedPackage.max_dogs === 1"
+                v-if="billingMode === 'subscription' || billingMode === 'recurring' || !selectedPackage || selectedPackage.max_dogs === 1"
                 v-model="selectedDogId"
                 class="input"
               >
@@ -153,6 +174,9 @@
                 </span>
               </div>
               <p v-if="billingMode === 'subscription'" class="text-xs text-text-muted mt-1">Billed monthly · cancel anytime</p>
+              <p v-if="billingMode === 'recurring' && selectedPackage.recurring_interval_days" class="text-xs text-text-muted mt-1">
+                Billed every {{ selectedPackage.recurring_interval_days }} days · cancel anytime
+              </p>
             </div>
 
             <button
@@ -168,6 +192,9 @@
               <template v-if="paying">Processing…</template>
               <template v-else-if="selectedPackage && billingMode === 'subscription'">
                 Subscribe — ${{ (selectedPackage.price_cents / 100).toFixed(2) }}/mo
+              </template>
+              <template v-else-if="selectedPackage && billingMode === 'recurring'">
+                Subscribe (every {{ selectedPackage.recurring_interval_days ?? selectedPackage.duration_days ?? 30 }}d) — ${{ (selectedPackage.price_cents / 100).toFixed(2) }}
               </template>
               <template v-else-if="selectedPackage">
                 Pay ${{ (selectedPackage.price_cents / 100).toFixed(2) }}
@@ -187,7 +214,7 @@
               <svg class="h-4 w-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />
               </svg>
-              <span v-if="billingMode === 'subscription'">Subscription activated! Redirecting…</span>
+              <span v-if="billingMode === 'subscription' || billingMode === 'recurring'">Subscription activated! Redirecting…</span>
               <span v-else>Payment successful! Credits will appear shortly.</span>
             </div>
           </div>
@@ -206,7 +233,11 @@ import { loadStripe } from '@stripe/stripe-js';
 import type { Stripe, StripeCardElement } from '@stripe/stripe-js';
 
 interface DogOption { id: string; name: string; credits_expire_at: string | null; }
-interface PurchasePackage extends Package { has_monthly_price: boolean; }
+interface PurchasePackage extends Package {
+  has_monthly_price: boolean;
+  is_recurring_enabled: boolean;
+  recurring_interval_days: number | null;
+}
 
 const props = defineProps<{
   packages: PurchasePackage[];
@@ -221,23 +252,25 @@ const accentColor = computed(() => page.props.tenant?.primary_color ?? '#4f46e5'
 const selectedPackageId = ref('');
 const selectedDogId = ref('');
 const selectedDogIds = ref<string[]>([]);
-const billingMode = ref<'one_time' | 'subscription'>('one_time');
+const billingMode = ref<'one_time' | 'subscription' | 'recurring'>('one_time');
 const paying = ref(false);
 
 const selectedPackage = computed(() => props.packages.find(p => p.id === selectedPackageId.value) ?? null);
 const selectedDog = computed(() => props.dogs.find(d => d.id === selectedDogId.value) ?? null);
 
-// Reset billing mode to one_time when selecting a package without monthly price
+// Reset billing mode to one_time when selecting a package without applicable recurring options
 function onPackageSelect(id: string) {
   selectedPackageId.value = id;
   const pkg = props.packages.find(p => p.id === id);
-  if (!pkg?.has_monthly_price) billingMode.value = 'one_time';
+  if (!pkg?.has_monthly_price && !pkg?.is_recurring_enabled) billingMode.value = 'one_time';
+  if (billingMode.value === 'recurring' && !pkg?.is_recurring_enabled) billingMode.value = 'one_time';
+  if (billingMode.value === 'subscription' && !pkg?.has_monthly_price) billingMode.value = 'one_time';
 }
 
 // The dog IDs to actually submit
 const activeDogIds = computed(() => {
   if (!selectedPackage.value) return [];
-  if (billingMode.value === 'subscription') {
+  if (billingMode.value === 'subscription' || billingMode.value === 'recurring') {
     return selectedDogId.value ? [selectedDogId.value] : [];
   }
   return selectedPackage.value.max_dogs === 1
@@ -309,7 +342,7 @@ async function purchase() {
 
     const { client_secret } = await resp.json();
 
-    if (billingMode.value === 'subscription') {
+    if (billingMode.value === 'subscription' || billingMode.value === 'recurring') {
       const result = await stripe.confirmCardSetup(client_secret, {
         payment_method: { card: cardElement },
       });

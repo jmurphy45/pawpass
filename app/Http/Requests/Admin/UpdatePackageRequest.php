@@ -37,6 +37,8 @@ class UpdatePackageRequest extends FormRequest
             ],
             'dog_limit' => ['sometimes', 'integer', 'min:1'],
             'is_active' => ['sometimes', 'boolean'],
+            'is_recurring_enabled' => ['sometimes', 'boolean'],
+            'recurring_interval_days' => ['sometimes', 'nullable', 'integer', 'min:1'],
         ];
     }
 }

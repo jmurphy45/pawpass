@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Jobs\SyncPackageToStripe;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithJwt;
@@ -249,6 +251,66 @@ class PackageControllerTest extends TestCase
             ->patchJson("/api/admin/v1/packages/{$package->id}", ['name' => 'Changed']);
 
         $response->assertStatus(403);
+    }
+
+    // --- recurring fields ---
+
+    public function test_update_exposes_recurring_fields_in_response(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id'            => $this->tenant->id,
+            'is_recurring_enabled' => false,
+        ]);
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->patchJson("/api/admin/v1/packages/{$package->id}", [
+                'is_recurring_enabled'    => true,
+                'recurring_interval_days' => 14,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.is_recurring_enabled', true)
+            ->assertJsonPath('data.recurring_interval_days', 14);
+
+        $this->assertDatabaseHas('packages', [
+            'id'                     => $package->id,
+            'is_recurring_enabled'   => true,
+            'recurring_interval_days' => 14,
+        ]);
+    }
+
+    public function test_update_dispatches_sync_job_when_recurring_fields_change(): void
+    {
+        Queue::fake();
+
+        $package = Package::factory()->create([
+            'tenant_id'            => $this->tenant->id,
+            'is_recurring_enabled' => false,
+            'stripe_product_id'    => 'prod_existing',
+        ]);
+
+        $this->withHeaders($this->ownerHeaders())
+            ->patchJson("/api/admin/v1/packages/{$package->id}", [
+                'is_recurring_enabled' => true,
+            ]);
+
+        Queue::assertPushed(SyncPackageToStripe::class, fn ($job) => $job->package->id === $package->id);
+    }
+
+    public function test_index_exposes_recurring_fields(): void
+    {
+        Package::factory()->create([
+            'tenant_id'              => $this->tenant->id,
+            'is_recurring_enabled'   => true,
+            'recurring_interval_days' => 30,
+        ]);
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->getJson('/api/admin/v1/packages');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.is_recurring_enabled', true)
+            ->assertJsonPath('data.0.recurring_interval_days', 30);
     }
 
     // --- archive ---

@@ -53,13 +53,20 @@ class SyncPackageToStripe implements ShouldQueue
         $accountId = $this->package->tenant->stripe_account_id;
         $product   = $stripe->createProduct($this->package->name, $accountId);
 
-        $priceId        = null;
-        $monthlyPriceId = null;
-        $priceCents     = (int) round($this->package->price * 100);
+        $priceId          = null;
+        $monthlyPriceId   = null;
+        $recurringPriceId = null;
+        $priceCents       = (int) round($this->package->price * 100);
 
         if ($this->package->type === 'unlimited') {
             $price   = $stripe->createPrice($product->id, $priceCents, 'usd', null, $accountId);
             $priceId = $price->id;
+
+            if ($this->package->is_recurring_enabled) {
+                $days = $this->package->duration_days ?? 30;
+                $recurringPrice   = $stripe->createPrice($product->id, $priceCents, 'usd', 'day', $accountId, $days);
+                $recurringPriceId = $recurringPrice->id;
+            }
         } else {
             $interval = $this->package->type === 'subscription' ? 'month' : null;
             $price    = $stripe->createPrice($product->id, $priceCents, 'usd', $interval, $accountId);
@@ -67,12 +74,19 @@ class SyncPackageToStripe implements ShouldQueue
 
             $monthlyPrice   = $stripe->createPrice($product->id, $priceCents, 'usd', 'month', $accountId);
             $monthlyPriceId = $monthlyPrice->id;
+
+            if ($this->package->is_recurring_enabled) {
+                $days = $this->package->recurring_interval_days ?? 30;
+                $recurringPrice   = $stripe->createPrice($product->id, $priceCents, 'usd', 'day', $accountId, $days);
+                $recurringPriceId = $recurringPrice->id;
+            }
         }
 
         $this->package->updateQuietly([
-            'stripe_product_id'       => $product->id,
-            'stripe_price_id'         => $priceId,
-            'stripe_price_id_monthly' => $monthlyPriceId,
+            'stripe_product_id'         => $product->id,
+            'stripe_price_id'           => $priceId,
+            'stripe_price_id_monthly'   => $monthlyPriceId,
+            'stripe_price_id_recurring' => $recurringPriceId,
         ]);
     }
 
@@ -88,7 +102,12 @@ class SyncPackageToStripe implements ShouldQueue
             $stripe->archivePrice($this->package->stripe_price_id_monthly, $accountId);
         }
 
-        $priceCents = (int) round($this->package->price * 100);
+        if ($this->package->stripe_price_id_recurring) {
+            $stripe->archivePrice($this->package->stripe_price_id_recurring, $accountId);
+        }
+
+        $priceCents       = (int) round($this->package->price * 100);
+        $recurringPriceId = null;
 
         if ($this->package->type === 'unlimited') {
             $price = $stripe->createPrice(
@@ -99,7 +118,16 @@ class SyncPackageToStripe implements ShouldQueue
                 $accountId,
             );
 
-            $this->package->updateQuietly(['stripe_price_id' => $price->id]);
+            if ($this->package->is_recurring_enabled) {
+                $days = $this->package->duration_days ?? 30;
+                $recurringPrice   = $stripe->createPrice($this->package->stripe_product_id, $priceCents, 'usd', 'day', $accountId, $days);
+                $recurringPriceId = $recurringPrice->id;
+            }
+
+            $this->package->updateQuietly([
+                'stripe_price_id'           => $price->id,
+                'stripe_price_id_recurring' => $recurringPriceId,
+            ]);
         } else {
             $interval = $this->package->type === 'subscription' ? 'month' : null;
             $price    = $stripe->createPrice(
@@ -118,9 +146,16 @@ class SyncPackageToStripe implements ShouldQueue
                 $accountId,
             );
 
+            if ($this->package->is_recurring_enabled) {
+                $days = $this->package->recurring_interval_days ?? 30;
+                $recurringPrice   = $stripe->createPrice($this->package->stripe_product_id, $priceCents, 'usd', 'day', $accountId, $days);
+                $recurringPriceId = $recurringPrice->id;
+            }
+
             $this->package->updateQuietly([
-                'stripe_price_id'         => $price->id,
-                'stripe_price_id_monthly' => $monthlyPrice->id,
+                'stripe_price_id'           => $price->id,
+                'stripe_price_id_monthly'   => $monthlyPrice->id,
+                'stripe_price_id_recurring' => $recurringPriceId,
             ]);
         }
     }

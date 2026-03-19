@@ -499,6 +499,56 @@ class DogCreditServiceTest extends TestCase
     }
 
     // -----------------------------------------------------------
+    // issueUnlimitedPassFromSubscription
+    // -----------------------------------------------------------
+
+    public function test_issue_unlimited_pass_from_subscription_creates_subscription_ledger_entry(): void
+    {
+        $dog = $this->makeDog(0);
+        $package = Package::factory()->unlimited(30)->create([
+            'tenant_id' => $dog->tenant_id,
+        ]);
+        $subscription = Subscription::factory()->create([
+            'tenant_id'   => $dog->tenant_id,
+            'customer_id' => $dog->customer_id,
+            'package_id'  => $package->id,
+            'dog_id'      => $dog->id,
+        ]);
+        $expiresAt = now()->addDays(30);
+
+        $this->service->issueUnlimitedPassFromSubscription($subscription, $dog, $expiresAt);
+
+        $entry = CreditLedger::allTenants()->first();
+        $this->assertSame('subscription', $entry->type);
+        $this->assertSame(now()->daysInMonth, $entry->delta);
+        $this->assertSame(now()->daysInMonth, $entry->balance_after);
+        $this->assertSame($subscription->id, $entry->subscription_id);
+        $this->assertNotNull($entry->expires_at);
+    }
+
+    public function test_issue_unlimited_pass_from_subscription_sets_unlimited_pass_expires_at(): void
+    {
+        $dog = $this->makeDog(0);
+        $package = Package::factory()->unlimited(30)->create([
+            'tenant_id' => $dog->tenant_id,
+        ]);
+        $subscription = Subscription::factory()->create([
+            'tenant_id'   => $dog->tenant_id,
+            'customer_id' => $dog->customer_id,
+            'package_id'  => $package->id,
+            'dog_id'      => $dog->id,
+        ]);
+        $expiresAt = now()->addDays(30);
+
+        $this->service->issueUnlimitedPassFromSubscription($subscription, $dog, $expiresAt);
+
+        $fresh = $dog->fresh();
+        $this->assertSame(now()->daysInMonth, $fresh->credit_balance);
+        $this->assertNotNull($fresh->unlimited_pass_expires_at);
+        $this->assertEqualsWithDelta($expiresAt->timestamp, $fresh->unlimited_pass_expires_at->timestamp, 5);
+    }
+
+    // -----------------------------------------------------------
     // expireCredits
     // -----------------------------------------------------------
 

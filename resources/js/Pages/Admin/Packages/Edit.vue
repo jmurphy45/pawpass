@@ -23,6 +23,27 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Duration (days) *</label>
           <input v-model.number="form.duration_days" type="number" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
         </div>
+        <!-- Recurring billing toggle -->
+        <div class="flex items-center gap-3">
+          <input
+            id="is_recurring_enabled"
+            v-model="form.is_recurring_enabled"
+            type="checkbox"
+            class="h-4 w-4 rounded border-gray-300"
+          />
+          <label for="is_recurring_enabled" class="text-sm font-medium text-gray-700">Allow recurring billing</label>
+        </div>
+
+        <!-- Billing interval — only for one_time packages -->
+        <div v-if="form.is_recurring_enabled && props.package.type === 'one_time'">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Billing interval (days) *</label>
+          <input v-model.number="form.recurring_interval_days" type="number" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+        </div>
+
+        <p v-if="form.is_recurring_enabled && props.package.type === 'unlimited'" class="text-xs text-gray-500">
+          Billing interval will use the package duration ({{ props.package.duration_days ?? 30 }} days).
+        </p>
+
         <button type="submit" :disabled="form.processing" class="w-full rounded-lg bg-indigo-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60">
           Save Changes
         </button>
@@ -36,7 +57,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm } from '@inertiajs/vue3';
 
 const props = defineProps<{
-  package: { id: string; name: string; description: string | null; type: string; price: number; credit_count: number; dog_limit: number; duration_days: number | null; is_active: boolean };
+  package: { id: string; name: string; description: string | null; type: string; price: number; credit_count: number; dog_limit: number; duration_days: number | null; is_active: boolean; is_recurring_enabled: boolean; recurring_interval_days: number | null };
 }>();
 
 const form = useForm({
@@ -47,6 +68,8 @@ const form = useForm({
   dog_limit: props.package.dog_limit,
   duration_days: props.package.duration_days,
   is_active: props.package.is_active,
+  is_recurring_enabled: props.package.is_recurring_enabled,
+  recurring_interval_days: props.package.recurring_interval_days,
 });
 
 function submit() {

@@ -262,6 +262,25 @@ class StripeServiceTest extends TestCase
         $this->service->archiveProduct('prod_abc', 'acct_arc');
     }
 
+    public function test_create_price_with_interval_count_includes_interval_count_in_recurring(): void
+    {
+        $prices = Mockery::mock();
+        $prices->shouldReceive('create')
+            ->once()
+            ->with(
+                Mockery::on(fn ($p) => isset($p['recurring'])
+                    && $p['recurring']['interval'] === 'day'
+                    && $p['recurring']['interval_count'] === 30)
+            )
+            ->andReturn((object) ['id' => 'price_30d']);
+
+        $this->client->prices = $prices;
+
+        $result = $this->service->createPrice('prod_abc', 9900, 'usd', 'day', null, 30);
+
+        $this->assertEquals('price_30d', $result->id);
+    }
+
     public function test_create_connect_account_calls_stripe_without_stripe_account_header(): void
     {
         $accounts = Mockery::mock();

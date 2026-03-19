@@ -118,14 +118,17 @@ class PackageControllerStripeTest extends TestCase
         ]);
     }
 
-    public function test_store_unlimited_package_creates_stripe_product_but_no_price(): void
+    public function test_store_unlimited_package_creates_stripe_product_and_one_time_price(): void
     {
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createProduct')
                 ->once()
                 ->andReturn((object) ['id' => 'prod_unlimited']);
 
-            $mock->shouldNotReceive('createPrice');
+            $mock->shouldReceive('createPrice')
+                ->once()
+                ->with('prod_unlimited', 15000, 'usd', null, 'acct_stripe_test')
+                ->andReturn((object) ['id' => 'price_unlimited']);
         });
 
         $response = $this->withHeaders($this->ownerHeaders())
@@ -139,9 +142,9 @@ class PackageControllerStripeTest extends TestCase
         $response->assertStatus(201);
 
         $this->assertDatabaseHas('packages', [
-            'name' => '30-Day Pass',
+            'name'              => '30-Day Pass',
             'stripe_product_id' => 'prod_unlimited',
-            'stripe_price_id' => null,
+            'stripe_price_id'   => 'price_unlimited',
         ]);
     }
 
