@@ -232,8 +232,15 @@ async function purchase() {
     if (result.error) {
       cardError.value = result.error.message ?? 'Payment failed.';
     } else {
-      success.value = true;
-      setTimeout(() => router.visit(route('portal.history')), 3000);
+      await fetch(route('portal.purchase.confirm'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
+        },
+        body: JSON.stringify({ payment_intent_id: result.paymentIntent.id }),
+      });
+      router.visit(route('portal.history'));
     }
   } catch {
     cardError.value = 'An unexpected error occurred.';

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Package;
 use App\Models\Tenant;
+use App\Services\DogCreditService;
+use App\Services\NotificationService;
 use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +18,11 @@ use Inertia\Response;
 
 class PurchaseController extends Controller
 {
+    public function __construct(
+        private readonly DogCreditService $creditService,
+        private readonly NotificationService $notificationService,
+    ) {}
+
     public function index(): Response
     {
         $customer = Auth::user()->customer;
@@ -117,5 +124,50 @@ class PurchaseController extends Controller
         $order->update(['stripe_pi_id' => $intent->id]);
 
         return response()->json(['client_secret' => $intent->client_secret]);
+    }
+
+    public function confirm(Request $request, StripeService $stripe): JsonResponse
+    {
+        $validated = $request->validate(['payment_intent_id' => ['required', 'string']]);
+
+        $customer = Auth::user()->customer;
+
+        $order = Order::where('stripe_pi_id', $validated['payment_intent_id'])
+            ->where('customer_id', $customer->id)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['status' => 'not_found'], 404);
+        }
+
+        if ($order->status === 'paid') {
+            return response()->json(['status' => 'paid']);
+        }
+
+        $pi = $stripe->retrievePaymentIntent($validated['payment_intent_id']);
+
+        if ($pi->status !== 'succeeded') {
+            return response()->json(['status' => $pi->status]);
+        }
+
+        DB::transaction(function () use ($order) {
+            $order->update(['status' => 'paid', 'paid_at' => now()]);
+            $order->load(['orderDogs.dog', 'package']);
+            foreach ($order->orderDogs as $orderDog) {
+                $this->creditService->issueFromOrder($order, $orderDog->dog);
+            }
+        });
+
+        $order->load('customer');
+        if ($order->customer?->user_id) {
+            $this->notificationService->dispatch(
+                'payment.confirmed',
+                $order->tenant_id,
+                $order->customer->user_id,
+                ['order_id' => $order->id]
+            );
+        }
+
+        return response()->json(['status' => 'paid']);
     }
 }

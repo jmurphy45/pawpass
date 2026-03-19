@@ -78,6 +78,11 @@ class StripeService
         ]);
     }
 
+    public function retrievePaymentIntent(string $id): object
+    {
+        return $this->client->paymentIntents->retrieve($id);
+    }
+
     public function retrieveSetupIntent(string $setupIntentId): object
     {
         return $this->client->setupIntents->retrieve($setupIntentId);
