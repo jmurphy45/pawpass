@@ -55,25 +55,17 @@ class SyncPackageToStripe implements ShouldQueue
 
         $priceId        = null;
         $monthlyPriceId = null;
+        $priceCents     = (int) round($this->package->price * 100);
 
-        if ($this->package->type !== 'unlimited') {
-            $interval = $this->package->type === 'subscription' ? 'month' : null;
-            $price    = $stripe->createPrice(
-                $product->id,
-                (int) round($this->package->price * 100),
-                'usd',
-                $interval,
-                $accountId,
-            );
+        if ($this->package->type === 'unlimited') {
+            $price   = $stripe->createPrice($product->id, $priceCents, 'usd', null, $accountId);
             $priceId = $price->id;
+        } else {
+            $interval = $this->package->type === 'subscription' ? 'month' : null;
+            $price    = $stripe->createPrice($product->id, $priceCents, 'usd', $interval, $accountId);
+            $priceId  = $price->id;
 
-            $monthlyPrice   = $stripe->createPrice(
-                $product->id,
-                (int) round($this->package->price * 100),
-                'usd',
-                'month',
-                $accountId,
-            );
+            $monthlyPrice   = $stripe->createPrice($product->id, $priceCents, 'usd', 'month', $accountId);
             $monthlyPriceId = $monthlyPrice->id;
         }
 
@@ -96,11 +88,23 @@ class SyncPackageToStripe implements ShouldQueue
             $stripe->archivePrice($this->package->stripe_price_id_monthly, $accountId);
         }
 
-        if ($this->package->type !== 'unlimited') {
+        $priceCents = (int) round($this->package->price * 100);
+
+        if ($this->package->type === 'unlimited') {
+            $price = $stripe->createPrice(
+                $this->package->stripe_product_id,
+                $priceCents,
+                'usd',
+                null,
+                $accountId,
+            );
+
+            $this->package->updateQuietly(['stripe_price_id' => $price->id]);
+        } else {
             $interval = $this->package->type === 'subscription' ? 'month' : null;
             $price    = $stripe->createPrice(
                 $this->package->stripe_product_id,
-                (int) round($this->package->price * 100),
+                $priceCents,
                 'usd',
                 $interval,
                 $accountId,
@@ -108,7 +112,7 @@ class SyncPackageToStripe implements ShouldQueue
 
             $monthlyPrice = $stripe->createPrice(
                 $this->package->stripe_product_id,
-                (int) round($this->package->price * 100),
+                $priceCents,
                 'usd',
                 'month',
                 $accountId,

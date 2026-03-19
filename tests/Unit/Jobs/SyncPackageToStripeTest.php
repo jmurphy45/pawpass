@@ -106,7 +106,7 @@ class SyncPackageToStripeTest extends TestCase
         $this->assertEquals('price_one_monthly', $package->stripe_price_id_monthly);
     }
 
-    public function test_create_path_for_unlimited_creates_product_but_no_price(): void
+    public function test_create_path_for_unlimited_creates_product_and_one_time_price(): void
     {
         $package = Package::factory()->create([
             'tenant_id'         => $this->tenant->id,
@@ -124,14 +124,17 @@ class SyncPackageToStripeTest extends TestCase
                 ->with('30-Day Pass', 'acct_test123')
                 ->andReturn((object) ['id' => 'prod_unl']);
 
-            $mock->shouldNotReceive('createPrice');
+            $mock->shouldReceive('createPrice')
+                ->once()
+                ->with('prod_unl', 15000, 'usd', null, 'acct_test123')
+                ->andReturn((object) ['id' => 'price_unl']);
         });
 
         (new SyncPackageToStripe($package))->handle($stripe);
 
         $package->refresh();
         $this->assertEquals('prod_unl', $package->stripe_product_id);
-        $this->assertNull($package->stripe_price_id);
+        $this->assertEquals('price_unl', $package->stripe_price_id);
         $this->assertNull($package->stripe_price_id_monthly);
     }
 

@@ -11,7 +11,6 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Type *</label>
           <select v-model="form.type" @change="onTypeChange" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm">
             <option value="one_time">One Time</option>
-            <option value="subscription">Subscription</option>
             <option value="unlimited">Unlimited</option>
           </select>
         </div>

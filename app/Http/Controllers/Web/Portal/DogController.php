@@ -26,6 +26,7 @@ class DogController extends Controller
                 'color'          => $d->color ?? null,
                 'credit_balance' => $d->credit_balance,
                 'credits_expire_at' => $d->credits_expire_at?->toIso8601String(),
+                'unlimited_pass_expires_at' => $d->unlimited_pass_expires_at?->toIso8601String(),
                 'deleted_at'     => $d->deleted_at?->toIso8601String(),
             ]);
 
@@ -75,6 +76,7 @@ class DogController extends Controller
                 'dob'            => $dog->dob?->toDateString(),
                 'credit_balance' => $dog->credit_balance,
                 'credits_expire_at' => $dog->credits_expire_at?->toIso8601String(),
+                'unlimited_pass_expires_at' => $dog->unlimited_pass_expires_at?->toIso8601String(),
             ],
             'ledger' => [
                 'data' => collect($ledger->items())->map(fn ($e) => [

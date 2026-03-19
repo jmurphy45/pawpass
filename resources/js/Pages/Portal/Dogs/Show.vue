@@ -27,6 +27,8 @@
           <div class="text-right shrink-0">
             <p class="text-4xl font-black text-white leading-none">{{ dog.credit_balance }}</p>
             <p class="text-xs text-white/70 mt-0.5">credits</p>
+            <p v-if="dog.unlimited_pass_expires_at" class="text-xs text-white/60 mt-0.5">pass expires {{ formatDate(dog.unlimited_pass_expires_at) }}</p>
+            <p v-else-if="dog.credits_expire_at" class="text-xs text-white/60 mt-0.5">expires {{ formatDate(dog.credits_expire_at) }}</p>
           </div>
           <Link
             :href="route('portal.dogs.edit', { dog: dog.id })"
@@ -60,6 +62,10 @@
         <div v-if="dog.credits_expire_at">
           <p class="text-xs font-semibold text-text-muted uppercase tracking-wide">Credits Expire</p>
           <p class="mt-1 font-medium text-amber-600">{{ formatDate(dog.credits_expire_at) }}</p>
+        </div>
+        <div v-if="dog.unlimited_pass_expires_at">
+          <p class="text-xs font-semibold text-text-muted uppercase tracking-wide">Pass Expires</p>
+          <p class="mt-1 font-medium text-indigo-600">{{ formatDate(dog.unlimited_pass_expires_at) }}</p>
         </div>
       </div>
 
@@ -140,6 +146,7 @@ interface DogDetail {
   dob: string | null;
   credit_balance: number;
   credits_expire_at: string | null;
+  unlimited_pass_expires_at: string | null;
 }
 
 defineProps<{

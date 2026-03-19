@@ -69,11 +69,17 @@
               </div>
             </div>
 
-            <div v-if="dog.credits_expire_at" class="mt-2.5 flex items-center gap-1 text-xs text-amber-600">
+            <div v-if="dog.unlimited_pass_expires_at" class="mt-2.5 flex items-center gap-1 text-xs text-indigo-600">
               <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
-              Expires {{ formatDate(dog.credits_expire_at) }}
+              Unlimited pass · expires {{ formatDate(dog.unlimited_pass_expires_at) }}
+            </div>
+            <div v-else-if="dog.credits_expire_at" class="mt-2.5 flex items-center gap-1 text-xs text-amber-600">
+              <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              {{ dog.credit_balance }} credits expire {{ formatDate(dog.credits_expire_at) }}
             </div>
 
             <div class="mt-3 flex items-center gap-1.5 text-xs text-indigo-600 font-medium">

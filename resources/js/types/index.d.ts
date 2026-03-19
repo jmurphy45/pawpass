@@ -26,6 +26,7 @@ export interface Dog {
     color: string | null;
     credit_balance: number;
     credits_expire_at: string | null;
+    unlimited_pass_expires_at: string | null;
     deleted_at: string | null;
 }
 
