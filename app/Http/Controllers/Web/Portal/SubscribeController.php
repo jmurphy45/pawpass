@@ -47,9 +47,10 @@ class SubscribeController extends Controller
             ]);
 
         return Inertia::render('Portal/Subscribe', [
-            'packages'   => $packages,
-            'dogs'       => $dogs,
-            'stripe_key' => config('services.stripe.key'),
+            'packages'          => $packages,
+            'dogs'              => $dogs,
+            'stripe_key'        => config('services.stripe.key'),
+            'stripe_account_id' => $customer->tenant->stripe_account_id,
         ]);
     }
 
