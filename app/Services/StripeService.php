@@ -77,14 +77,16 @@ class StripeService
         ]);
     }
 
-    public function retrievePaymentIntent(string $id): object
+    public function retrievePaymentIntent(string $id, ?string $stripeAccountId = null): object
     {
-        return $this->client->paymentIntents->retrieve($id);
+        $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
+        return $this->client->paymentIntents->retrieve($id, [], $opts);
     }
 
-    public function retrieveSetupIntent(string $setupIntentId): object
+    public function retrieveSetupIntent(string $setupIntentId, ?string $stripeAccountId = null): object
     {
-        return $this->client->setupIntents->retrieve($setupIntentId);
+        $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
+        return $this->client->setupIntents->retrieve($setupIntentId, [], $opts);
     }
 
     public function createProduct(string $name, ?string $stripeAccountId = null): object

@@ -144,7 +144,8 @@ class PurchaseController extends Controller
             return response()->json(['status' => 'paid']);
         }
 
-        $pi = $stripe->retrievePaymentIntent($validated['payment_intent_id']);
+        $stripeAccountId = Tenant::find($order->tenant_id)?->stripe_account_id;
+        $pi = $stripe->retrievePaymentIntent($validated['payment_intent_id'], $stripeAccountId);
 
         if ($pi->status !== 'succeeded') {
             return response()->json(['status' => $pi->status]);
