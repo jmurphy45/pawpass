@@ -25,7 +25,8 @@ class PackageController extends Controller
             'credit_count'     => $p->credit_count,
             'dog_limit'        => $p->dog_limit,
             'is_active'        => $p->is_active,
-            'archived_at'      => $p->deleted_at?->toIso8601String(),
+            'archived_at'           => $p->deleted_at?->toIso8601String(),
+            'is_recurring_enabled'  => (bool) $p->is_recurring_enabled,
         ]);
 
         return Inertia::render('Admin/Packages/Index', [
@@ -105,7 +106,7 @@ class PackageController extends Controller
             'price'                   => ['required', 'numeric', 'min:0'],
             'credit_count'            => [
                 'required', 'integer',
-                Rule::when($request->input('type') === 'unlimited', ['min:0'], ['min:1']),
+                Rule::when($package->type === 'unlimited', ['min:0'], ['min:1']),
             ],
             'dog_limit'               => ['nullable', 'integer', 'min:1'],
             'duration_days'           => ['nullable', 'integer', 'min:1'],

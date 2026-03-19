@@ -3,6 +3,9 @@
     <div class="max-w-lg">
       <h1 class="text-2xl font-bold text-gray-900 mb-6">Edit Package</h1>
       <form @submit.prevent="submit" class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <div v-if="Object.keys(form.errors).length" class="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+          <p v-for="(msg, field) in form.errors" :key="field">{{ msg }}</p>
+        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
           <input v-model="form.name" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
