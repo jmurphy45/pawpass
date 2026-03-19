@@ -46,10 +46,13 @@ class SubscribeController extends Controller
                 'credits_expire_at' => $d->credits_expire_at?->toIso8601String(),
             ]);
 
+        $tenant = Tenant::find(app('current.tenant.id'));
+
         return Inertia::render('Portal/Subscribe', [
-            'packages'   => $packages,
-            'dogs'       => $dogs,
-            'stripe_key' => config('services.stripe.key'),
+            'packages'          => $packages,
+            'dogs'              => $dogs,
+            'stripe_key'        => config('services.stripe.key'),
+            'stripe_account_id' => $tenant?->stripe_account_id,
         ]);
     }
 
