@@ -65,9 +65,10 @@ class PurchaseController extends Controller
 
     public function store(Request $request, StripeService $stripe): JsonResponse
     {
-        $validated = $request->validate([
+        $request->validate([
             'package_id' => ['required', 'string'],
-            'dog_id'     => ['required', 'string'],
+            'dog_ids'    => ['required', 'array', 'min:1'],
+            'dog_ids.*'  => ['required', 'string'],
         ]);
 
         $customer = Auth::user()->customer;
@@ -76,8 +77,13 @@ class PurchaseController extends Controller
 
         abort_unless($tenant && $tenant->stripe_account_id, 422, 'Stripe not configured for this tenant.');
 
-        $package = Package::findOrFail($validated['package_id']);
-        $dog = $customer->dogs()->findOrFail($validated['dog_id']);
+        $package = Package::findOrFail($request->package_id);
+
+        $request->validate([
+            'dog_ids' => ['max:' . $package->dog_limit],
+        ]);
+
+        $dogs = collect($request->dog_ids)->map(fn ($id) => $customer->dogs()->findOrFail($id));
 
         $amountCents = (int) round((float) $package->price * 100);
         $feePct = (float) ($tenant->platform_fee_pct ?? 5);
@@ -91,7 +97,7 @@ class PurchaseController extends Controller
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }
 
-        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dog) {
+        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs) {
             $order = Order::create([
                 'tenant_id'        => $tenantId,
                 'customer_id'      => $customer->id,
@@ -101,10 +107,12 @@ class PurchaseController extends Controller
                 'platform_fee_pct' => $customer->tenant->platform_fee_pct,
             ]);
 
-            $order->orderDogs()->create([
-                'dog_id'         => $dog->id,
-                'credits_issued' => 0,
-            ]);
+            foreach ($dogs as $dog) {
+                $order->orderDogs()->create([
+                    'dog_id'         => $dog->id,
+                    'credits_issued' => 0,
+                ]);
+            }
 
             return $order;
         });
@@ -119,7 +127,7 @@ class PurchaseController extends Controller
                 'tenant_id'   => $tenantId,
                 'customer_id' => $customer->id,
                 'package_id'  => $package->id,
-                'dog_id'      => $dog->id,
+                'dog_ids'     => $dogs->pluck('id')->implode(','),
             ],
             stripeCustomerId: $stripeCustomerId,
         );
@@ -158,7 +166,11 @@ class PurchaseController extends Controller
             $order->update(['status' => 'paid', 'paid_at' => now()]);
             $order->load(['orderDogs.dog', 'package']);
             foreach ($order->orderDogs as $orderDog) {
-                $this->creditService->issueFromOrder($order, $orderDog->dog);
+                if ($order->package->type === 'unlimited') {
+                    $this->creditService->issueUnlimitedPass($order, $orderDog->dog);
+                } else {
+                    $this->creditService->issueFromOrder($order, $orderDog->dog);
+                }
             }
         });
 

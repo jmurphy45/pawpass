@@ -76,7 +76,11 @@ class StripeWebhookController extends Controller
             $order->load(['orderDogs.dog', 'package']);
 
             foreach ($order->orderDogs as $orderDog) {
-                $this->creditService->issueFromOrder($order, $orderDog->dog);
+                if ($order->package->type === 'unlimited') {
+                    $this->creditService->issueUnlimitedPass($order, $orderDog->dog);
+                } else {
+                    $this->creditService->issueFromOrder($order, $orderDog->dog);
+                }
             }
         });
 

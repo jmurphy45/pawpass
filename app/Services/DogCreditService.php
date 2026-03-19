@@ -37,33 +37,44 @@ class DogCreditService
     public function issueUnlimitedPass(Order $order, Dog $dog): void
     {
         DB::transaction(function () use ($order, $dog) {
-            $days = $order->package->duration_days;
-            $dog->update(['unlimited_pass_expires_at' => now()->addDays($days)]);
+            $credits = now()->daysInMonth;
+            $newBalance = $dog->credit_balance + $credits;
+            $expiresAt = now()->addMonth();
 
             CreditLedger::create([
-                'tenant_id' => $dog->tenant_id,
-                'dog_id' => $dog->id,
-                'type' => 'purchase',
-                'delta' => 0,
-                'balance_after' => $dog->credit_balance,
-                'order_id' => $order->id,
+                'tenant_id'    => $dog->tenant_id,
+                'dog_id'       => $dog->id,
+                'type'         => 'purchase',
+                'delta'        => $credits,
+                'balance_after' => $newBalance,
+                'order_id'     => $order->id,
+                'expires_at'   => $expiresAt,
             ]);
+
+            $dog->increment('credit_balance', $credits);
+            $dog->update(['credits_expire_at' => $expiresAt]);
         });
     }
 
     public function revokeUnlimitedPass(Order $order, Dog $dog): void
     {
         DB::transaction(function () use ($order, $dog) {
-            $dog->update(['unlimited_pass_expires_at' => null]);
+            $remaining = $dog->credit_balance;
+
+            if ($remaining <= 0) {
+                return;
+            }
 
             CreditLedger::create([
-                'tenant_id' => $dog->tenant_id,
-                'dog_id' => $dog->id,
-                'type' => 'refund',
-                'delta' => 0,
-                'balance_after' => $dog->credit_balance,
-                'order_id' => $order->id,
+                'tenant_id'    => $dog->tenant_id,
+                'dog_id'       => $dog->id,
+                'type'         => 'refund',
+                'delta'        => -$remaining,
+                'balance_after' => 0,
+                'order_id'     => $order->id,
             ]);
+
+            $dog->update(['credit_balance' => 0]);
         });
     }
 

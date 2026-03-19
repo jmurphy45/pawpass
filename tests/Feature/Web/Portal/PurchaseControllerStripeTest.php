@@ -4,6 +4,7 @@ namespace Tests\Feature\Web\Portal;
 
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\Order;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
@@ -84,7 +85,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response = $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_id'     => $this->dog->id,
+            'dog_ids'    => [$this->dog->id],
         ]);
 
         $response->assertStatus(200);
@@ -127,7 +128,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response = $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_id'     => $this->dog->id,
+            'dog_ids'    => [$this->dog->id],
         ]);
 
         $response->assertStatus(200);
@@ -160,10 +161,123 @@ class PurchaseControllerStripeTest extends TestCase
 
         $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_id'     => $this->dog->id,
+            'dog_ids'    => [$this->dog->id],
         ]);
 
         // 3rd positional arg is stripeAccountId (not transferDestination)
         $this->assertEquals('acct_purchase123', $capturedPayload[2]);
+    }
+
+    public function test_store_multi_dog_creates_order_with_multiple_order_dogs(): void
+    {
+        $dog2 = Dog::factory()->forCustomer($this->customer)->create();
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '99.00',
+            'dog_limit' => 2,
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')->andReturn((object) ['id' => 'cus_multi']);
+            $mock->shouldReceive('createPaymentIntent')->once()->andReturn((object) ['id' => 'pi_multi', 'client_secret' => 'secret_multi']);
+        });
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id, $dog2->id],
+        ]);
+
+        $response->assertStatus(200);
+
+        $order = Order::where('package_id', $package->id)->first();
+        $this->assertNotNull($order);
+        $this->assertCount(2, $order->orderDogs);
+    }
+
+    public function test_store_rejects_dog_ids_exceeding_dog_limit(): void
+    {
+        $dog2 = Dog::factory()->forCustomer($this->customer)->create();
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '49.00',
+            'dog_limit' => 1,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id, $dog2->id],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['dog_ids']);
+    }
+
+    public function test_store_rejects_empty_dog_ids(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['dog_ids']);
+    }
+
+    public function test_confirm_issues_unlimited_credits_for_unlimited_package(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id'  => $this->tenant->id,
+            'type'       => 'unlimited',
+            'price'      => '199.00',
+            'is_active'  => true,
+            'dog_limit'  => 1,
+        ]);
+
+        $this->dog->update(['credit_balance' => 0]);
+
+        $order = Order::factory()->create([
+            'tenant_id'   => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'package_id'  => $package->id,
+            'status'      => 'pending',
+            'stripe_pi_id' => 'pi_unlimited_test',
+        ]);
+        $order->orderDogs()->create(['dog_id' => $this->dog->id, 'credits_issued' => 0]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('retrievePaymentIntent')
+                ->once()
+                ->andReturn((object) ['status' => 'succeeded']);
+        });
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase/confirm', [
+            'payment_intent_id' => 'pi_unlimited_test',
+        ]);
+
+        $response->assertStatus(200)->assertJson(['status' => 'paid']);
+
+        $fresh = $this->dog->fresh();
+        $this->assertSame(now()->daysInMonth, $fresh->credit_balance);
+        $this->assertNotNull($fresh->credits_expire_at);
     }
 }

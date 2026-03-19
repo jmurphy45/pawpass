@@ -75,7 +75,7 @@ class DogCreditServiceTest extends TestCase
     // issueUnlimitedPass
     // -----------------------------------------------------------
 
-    public function test_issue_unlimited_pass_sets_expiry_date(): void
+    public function test_issue_unlimited_pass_issues_days_in_month_credits(): void
     {
         $dog = $this->makeDog(0);
         $order = $this->makeUnlimitedOrder($dog, 30);
@@ -83,16 +83,23 @@ class DogCreditServiceTest extends TestCase
         $this->service->issueUnlimitedPass($order, $dog);
 
         $fresh = $dog->fresh();
-        $this->assertNotNull($fresh->unlimited_pass_expires_at);
-        $this->assertTrue($fresh->unlimited_pass_expires_at->isFuture());
-        $this->assertEqualsWithDelta(
-            now()->addDays(30)->timestamp,
-            $fresh->unlimited_pass_expires_at->timestamp,
-            5
-        );
+        $this->assertSame(now()->daysInMonth, $fresh->credit_balance);
+        $this->assertNull($fresh->unlimited_pass_expires_at);
     }
 
-    public function test_issue_unlimited_pass_creates_delta_zero_purchase_entry(): void
+    public function test_issue_unlimited_pass_sets_credits_expire_at(): void
+    {
+        $dog = $this->makeDog(0);
+        $order = $this->makeUnlimitedOrder($dog, 30);
+
+        $this->service->issueUnlimitedPass($order, $dog);
+
+        $fresh = $dog->fresh();
+        $this->assertNotNull($fresh->credits_expire_at);
+        $this->assertEqualsWithDelta(now()->addMonth()->timestamp, $fresh->credits_expire_at->timestamp, 5);
+    }
+
+    public function test_issue_unlimited_pass_creates_purchase_ledger_entry_with_days_in_month_delta(): void
     {
         $dog = $this->makeDog(5);
         $order = $this->makeUnlimitedOrder($dog, 30);
@@ -101,38 +108,48 @@ class DogCreditServiceTest extends TestCase
 
         $entry = CreditLedger::allTenants()->first();
         $this->assertSame('purchase', $entry->type);
-        $this->assertSame(0, $entry->delta);
-        $this->assertSame(5, $entry->balance_after);
+        $this->assertSame(now()->daysInMonth, $entry->delta);
+        $this->assertSame(5 + now()->daysInMonth, $entry->balance_after);
         $this->assertSame($order->id, $entry->order_id);
+        $this->assertNotNull($entry->expires_at);
     }
 
     // -----------------------------------------------------------
     // revokeUnlimitedPass
     // -----------------------------------------------------------
 
-    public function test_revoke_unlimited_pass_clears_expiry_date(): void
+    public function test_revoke_unlimited_pass_zeros_credit_balance(): void
     {
-        $dog = $this->makeDog(0);
-        $dog->update(['unlimited_pass_expires_at' => now()->addDays(30)]);
+        $dog = $this->makeDog(28);
         $order = $this->makeUnlimitedOrder($dog, 30);
 
         $this->service->revokeUnlimitedPass($order, $dog);
 
-        $this->assertNull($dog->fresh()->unlimited_pass_expires_at);
+        $this->assertSame(0, $dog->fresh()->credit_balance);
     }
 
-    public function test_revoke_unlimited_pass_creates_delta_zero_refund_entry(): void
+    public function test_revoke_unlimited_pass_creates_refund_entry_with_negative_delta(): void
     {
         $dog = $this->makeDog(5);
-        $dog->update(['unlimited_pass_expires_at' => now()->addDays(30)]);
         $order = $this->makeUnlimitedOrder($dog, 30);
 
         $this->service->revokeUnlimitedPass($order, $dog);
 
         $entry = CreditLedger::allTenants()->first();
         $this->assertSame('refund', $entry->type);
-        $this->assertSame(0, $entry->delta);
+        $this->assertSame(-5, $entry->delta);
+        $this->assertSame(0, $entry->balance_after);
         $this->assertSame($order->id, $entry->order_id);
+    }
+
+    public function test_revoke_unlimited_pass_does_nothing_when_balance_zero(): void
+    {
+        $dog = $this->makeDog(0);
+        $order = $this->makeUnlimitedOrder($dog, 30);
+
+        $this->service->revokeUnlimitedPass($order, $dog);
+
+        $this->assertDatabaseCount('credit_ledger', 0);
     }
 
     // -----------------------------------------------------------

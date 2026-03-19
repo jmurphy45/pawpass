@@ -85,10 +85,30 @@
             <!-- Dog selector -->
             <div>
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">For</label>
-              <select v-model="selectedDogId" class="input">
+              <!-- Single-dog: dropdown -->
+              <select v-if="!selectedPackage || selectedPackage.max_dogs === 1" v-model="selectedDogId" class="input">
                 <option value="">— choose a dog —</option>
                 <option v-for="dog in dogs" :key="dog.id" :value="dog.id">{{ dog.name }}</option>
               </select>
+              <!-- Multi-dog: checkboxes -->
+              <div v-else class="space-y-2">
+                <label
+                  v-for="dog in dogs"
+                  :key="dog.id"
+                  class="flex items-center gap-2 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    :value="dog.id"
+                    v-model="selectedDogIds"
+                    :disabled="!selectedDogIds.includes(dog.id) && selectedDogIds.length >= selectedPackage.max_dogs"
+                    class="h-4 w-4 rounded border-gray-300"
+                    :style="{ accentColor: accentColor }"
+                  />
+                  <span class="text-sm text-text-body">{{ dog.name }}</span>
+                </label>
+                <p v-if="selectedPackage" class="text-xs text-text-muted">Select up to {{ selectedPackage.max_dogs }} dogs</p>
+              </div>
             </div>
 
             <!-- Card element -->
@@ -108,7 +128,7 @@
 
             <button
               @click="purchase"
-              :disabled="!selectedPackageId || !selectedDogId || paying"
+              :disabled="!selectedPackageId || activeDogIds.length === 0 || paying"
               class="btn-primary w-full justify-center py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
               :style="{ backgroundColor: accentColor }"
             >
@@ -162,10 +182,19 @@ const accentColor = computed(() => page.props.tenant?.primary_color ?? '#4f46e5'
 
 const selectedPackageId = ref('');
 const selectedDogId = ref('');
+const selectedDogIds = ref<string[]>([]);
 const paying = ref(false);
 
 const selectedPackage = computed(() => props.packages.find(p => p.id === selectedPackageId.value) ?? null);
 const selectedDog = computed(() => props.dogs.find(d => d.id === selectedDogId.value) ?? null);
+
+// The dog IDs to actually submit — single-dog uses dropdown, multi-dog uses checkboxes
+const activeDogIds = computed(() => {
+  if (!selectedPackage.value) return [];
+  return selectedPackage.value.max_dogs === 1
+    ? (selectedDogId.value ? [selectedDogId.value] : [])
+    : selectedDogIds.value;
+});
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -203,7 +232,7 @@ onMounted(async () => {
 });
 
 async function purchase() {
-  if (!selectedPackageId.value || !selectedDogId.value || !stripe || !cardElement) return;
+  if (!selectedPackageId.value || activeDogIds.value.length === 0 || !stripe || !cardElement) return;
 
   paying.value = true;
   cardError.value = '';
@@ -216,7 +245,7 @@ async function purchase() {
         'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
         'X-Inertia': '1',
       },
-      body: JSON.stringify({ package_id: selectedPackageId.value, dog_id: selectedDogId.value }),
+      body: JSON.stringify({ package_id: selectedPackageId.value, dog_ids: activeDogIds.value }),
     });
 
     if (!resp.ok) {
