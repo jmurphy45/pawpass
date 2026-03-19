@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Web\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -44,13 +46,10 @@ class PurchaseController extends Controller
                 'credits_expire_at' => $d->credits_expire_at?->toIso8601String(),
             ]);
 
-        $tenant = Tenant::find(app('current.tenant.id'));
-
         return Inertia::render('Portal/Purchase', [
-            'packages'          => $packages,
-            'dogs'              => $dogs,
-            'stripe_key'        => config('services.stripe.key'),
-            'stripe_account_id' => $tenant?->stripe_account_id,
+            'packages'   => $packages,
+            'dogs'       => $dogs,
+            'stripe_key' => config('services.stripe.key'),
         ]);
     }
 
@@ -74,18 +73,39 @@ class PurchaseController extends Controller
         $feePct = (float) ($tenant->platform_fee_pct ?? 5);
         $feeCents = (int) round($amountCents * $feePct / 100);
 
+        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dog) {
+            $order = Order::create([
+                'tenant_id'        => $tenantId,
+                'customer_id'      => $customer->id,
+                'package_id'       => $package->id,
+                'status'           => 'pending',
+                'total_amount'     => $package->price,
+                'platform_fee_pct' => $customer->tenant->platform_fee_pct,
+            ]);
+
+            $order->orderDogs()->create([
+                'dog_id'         => $dog->id,
+                'credits_issued' => 0,
+            ]);
+
+            return $order;
+        });
+
         $intent = $stripe->createPaymentIntent(
             amountCents: $amountCents,
             currency: 'usd',
-            stripeAccount: $tenant->stripe_account_id,
+            transferDestination: $tenant->stripe_account_id,
             applicationFeeCents: $feeCents,
             metadata: [
+                'order_id'    => $order->id,
                 'tenant_id'   => $tenantId,
                 'customer_id' => $customer->id,
                 'package_id'  => $package->id,
                 'dog_id'      => $dog->id,
             ]
         );
+
+        $order->update(['stripe_pi_id' => $intent->id]);
 
         return response()->json(['client_secret' => $intent->client_secret]);
     }

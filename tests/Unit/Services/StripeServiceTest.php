@@ -26,12 +26,12 @@ class StripeServiceTest extends TestCase
         $products = Mockery::mock();
         $products->shouldReceive('create')
             ->once()
-            ->with(['name' => 'Test Pack'], ['stripe_account' => 'acct_123'])
+            ->with(['name' => 'Test Pack'])
             ->andReturn((object) ['id' => 'prod_abc']);
 
         $this->client->products = $products;
 
-        $result = $this->service->createProduct('Test Pack', 'acct_123');
+        $result = $this->service->createProduct('Test Pack');
 
         $this->assertEquals('prod_abc', $result->id);
     }
@@ -42,14 +42,13 @@ class StripeServiceTest extends TestCase
         $prices->shouldReceive('create')
             ->once()
             ->with(
-                Mockery::on(fn ($payload) => ! isset($payload['recurring']) && $payload['unit_amount'] === 5000),
-                ['stripe_account' => 'acct_123']
+                Mockery::on(fn ($payload) => ! isset($payload['recurring']) && $payload['unit_amount'] === 5000)
             )
             ->andReturn((object) ['id' => 'price_onetime']);
 
         $this->client->prices = $prices;
 
-        $result = $this->service->createPrice('prod_abc', 5000, 'usd', 'acct_123', null);
+        $result = $this->service->createPrice('prod_abc', 5000, 'usd', null);
 
         $this->assertEquals('price_onetime', $result->id);
     }
@@ -60,14 +59,13 @@ class StripeServiceTest extends TestCase
         $prices->shouldReceive('create')
             ->once()
             ->with(
-                Mockery::on(fn ($payload) => isset($payload['recurring']) && $payload['recurring']['interval'] === 'month'),
-                ['stripe_account' => 'acct_123']
+                Mockery::on(fn ($payload) => isset($payload['recurring']) && $payload['recurring']['interval'] === 'month')
             )
             ->andReturn((object) ['id' => 'price_monthly']);
 
         $this->client->prices = $prices;
 
-        $result = $this->service->createPrice('prod_abc', 9900, 'usd', 'acct_123', 'month');
+        $result = $this->service->createPrice('prod_abc', 9900, 'usd', 'month');
 
         $this->assertEquals('price_monthly', $result->id);
     }
@@ -77,12 +75,12 @@ class StripeServiceTest extends TestCase
         $prices = Mockery::mock();
         $prices->shouldReceive('update')
             ->once()
-            ->with('price_abc', ['active' => false], ['stripe_account' => 'acct_123'])
+            ->with('price_abc', ['active' => false])
             ->andReturn((object) ['id' => 'price_abc', 'active' => false]);
 
         $this->client->prices = $prices;
 
-        $result = $this->service->archivePrice('price_abc', 'acct_123');
+        $result = $this->service->archivePrice('price_abc');
 
         $this->assertFalse($result->active);
     }
@@ -92,12 +90,12 @@ class StripeServiceTest extends TestCase
         $products = Mockery::mock();
         $products->shouldReceive('update')
             ->once()
-            ->with('prod_abc', ['active' => false], ['stripe_account' => 'acct_123'])
+            ->with('prod_abc', ['active' => false])
             ->andReturn((object) ['id' => 'prod_abc', 'active' => false]);
 
         $this->client->products = $products;
 
-        $result = $this->service->archiveProduct('prod_abc', 'acct_123');
+        $result = $this->service->archiveProduct('prod_abc');
 
         $this->assertFalse($result->active);
     }
@@ -111,6 +109,10 @@ class StripeServiceTest extends TestCase
                 'type' => 'express',
                 'email' => 'owner@example.com',
                 'business_profile' => ['name' => 'My Daycare'],
+                'capabilities' => [
+                    'card_payments' => ['requested' => true],
+                    'transfers'     => ['requested' => true],
+                ],
             ])
             ->andReturn((object) ['id' => 'acct_new']);
 

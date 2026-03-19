@@ -154,7 +154,6 @@ const props = defineProps<{
   packages: Package[];
   dogs: DogOption[];
   stripe_key: string;
-  stripe_account_id: string | null;
 }>();
 
 const page = usePage<PageProps>();
@@ -192,7 +191,7 @@ let cardElement: StripeCardElement | null = null;
 
 onMounted(async () => {
   if (!props.stripe_key) return;
-  stripe = await loadStripe(props.stripe_key, props.stripe_account_id ? { stripeAccount: props.stripe_account_id } : undefined);
+  stripe = await loadStripe(props.stripe_key);
   if (!stripe) return;
   const elements = stripe.elements();
   cardElement = elements.create('card', {

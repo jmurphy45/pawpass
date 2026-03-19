@@ -157,7 +157,7 @@ class StripeWebhookController extends Controller
             $subscription->stripe_customer_id,
             $package->stripe_price_id,
             $setupIntent->payment_method,
-            $tenant->stripe_account_id,
+            $tenant->stripe_account_id ?? '',
             (float) $tenant->platform_fee_pct,
             ['local_subscription_id' => $subscription->id],
         );

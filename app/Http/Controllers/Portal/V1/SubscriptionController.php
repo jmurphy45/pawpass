@@ -58,7 +58,6 @@ class SubscriptionController extends Controller
             $stripeCustomer = $this->stripe->createCustomer(
                 $customer->email ?? '',
                 $customer->name,
-                $tenant->stripe_account_id,
             );
             $stripeCustomerId = $stripeCustomer->id;
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
@@ -75,7 +74,6 @@ class SubscriptionController extends Controller
 
         $setupIntent = $this->stripe->createSetupIntent(
             $stripeCustomerId,
-            $tenant->stripe_account_id,
             ['local_subscription_id' => $subscription->id],
         );
 
@@ -102,11 +100,8 @@ class SubscriptionController extends Controller
             ], 409);
         }
 
-        $tenant = $customer->tenant;
-
         $this->stripe->cancelSubscriptionAtPeriodEnd(
             $subscription->stripe_sub_id,
-            $tenant->stripe_account_id,
         );
 
         $subscription->update(['cancelled_at' => now()]);

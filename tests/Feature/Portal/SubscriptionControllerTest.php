@@ -111,7 +111,7 @@ class SubscriptionControllerTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')
                 ->once()
-                ->with('owner@example.com', 'Test Owner', 'acct_subtest')
+                ->with('owner@example.com', 'Test Owner')
                 ->andReturn((object) ['id' => 'cus_check']);
             $mock->shouldReceive('createSetupIntent')
                 ->once()
@@ -210,7 +210,7 @@ class SubscriptionControllerTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('cancelSubscriptionAtPeriodEnd')
                 ->once()
-                ->with('sub_cancel_test', 'acct_subtest')
+                ->with('sub_cancel_test')
                 ->andReturn((object) ['id' => 'sub_cancel_test', 'cancel_at_period_end' => true]);
         });
 

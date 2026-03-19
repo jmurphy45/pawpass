@@ -46,13 +46,10 @@ class SubscribeController extends Controller
                 'credits_expire_at' => $d->credits_expire_at?->toIso8601String(),
             ]);
 
-        $tenant = Tenant::find(app('current.tenant.id'));
-
         return Inertia::render('Portal/Subscribe', [
-            'packages'          => $packages,
-            'dogs'              => $dogs,
-            'stripe_key'        => config('services.stripe.key'),
-            'stripe_account_id' => $tenant?->stripe_account_id,
+            'packages'   => $packages,
+            'dogs'       => $dogs,
+            'stripe_key' => config('services.stripe.key'),
         ]);
     }
 
@@ -98,7 +95,6 @@ class SubscribeController extends Controller
             $stripeCustomer = $stripe->createCustomer(
                 $customer->email ?? '',
                 $customer->name,
-                $tenant->stripe_account_id,
             );
             $stripeCustomerId = $stripeCustomer->id;
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
@@ -115,7 +111,6 @@ class SubscribeController extends Controller
 
         $setupIntent = $stripe->createSetupIntent(
             $stripeCustomerId,
-            $tenant->stripe_account_id,
             ['local_subscription_id' => $subscription->id],
         );
 

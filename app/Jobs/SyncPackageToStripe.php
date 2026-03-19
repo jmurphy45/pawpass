@@ -29,20 +29,15 @@ class SyncPackageToStripe implements ShouldQueue
     {
         $tenant = $this->package->tenant;
 
-        if (! $tenant->stripe_account_id) {
-            Log::warning('SyncPackageToStripe skipped: tenant has no stripe_account_id', [
-                'package_id' => $this->package->id,
-                'tenant_id'  => $this->package->tenant_id,
-            ]);
-
+        if (! $tenant?->stripe_account_id) {
             return;
         }
 
         try {
             if ($this->package->stripe_product_id === null) {
-                $this->create($stripe, $tenant->stripe_account_id);
+                $this->create($stripe);
             } else {
-                $this->update($stripe, $tenant->stripe_account_id);
+                $this->update($stripe);
             }
         } catch (ApiErrorException $e) {
             Log::error('SyncPackageToStripe failed', [
@@ -53,9 +48,9 @@ class SyncPackageToStripe implements ShouldQueue
         }
     }
 
-    private function create(StripeService $stripe, string $accountId): void
+    private function create(StripeService $stripe): void
     {
-        $product = $stripe->createProduct($this->package->name, $accountId);
+        $product = $stripe->createProduct($this->package->name);
 
         $priceId = null;
         if ($this->package->type !== 'unlimited') {
@@ -64,7 +59,6 @@ class SyncPackageToStripe implements ShouldQueue
                 $product->id,
                 (int) round($this->package->price * 100),
                 'usd',
-                $accountId,
                 $interval
             );
             $priceId = $price->id;
@@ -76,10 +70,10 @@ class SyncPackageToStripe implements ShouldQueue
         ]);
     }
 
-    private function update(StripeService $stripe, string $accountId): void
+    private function update(StripeService $stripe): void
     {
         if ($this->package->stripe_price_id) {
-            $stripe->archivePrice($this->package->stripe_price_id, $accountId);
+            $stripe->archivePrice($this->package->stripe_price_id);
         }
 
         $interval = $this->package->type === 'subscription' ? 'month' : null;
@@ -87,7 +81,6 @@ class SyncPackageToStripe implements ShouldQueue
             $this->package->stripe_product_id,
             (int) round($this->package->price * 100),
             'usd',
-            $accountId,
             $interval
         );
 

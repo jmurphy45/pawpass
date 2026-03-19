@@ -12,7 +12,7 @@ class StripeService
     public function createPaymentIntent(
         int $amountCents,
         string $currency,
-        string $stripeAccount,
+        string $transferDestination,
         int $applicationFeeCents,
         array $metadata = []
     ): object {
@@ -20,9 +20,8 @@ class StripeService
             'amount' => $amountCents,
             'currency' => $currency,
             'application_fee_amount' => $applicationFeeCents,
+            'transfer_data' => ['destination' => $transferDestination],
             'metadata' => $metadata,
-        ], [
-            'stripe_account' => $stripeAccount,
         ]);
     }
 
@@ -33,23 +32,19 @@ class StripeService
         ]);
     }
 
-    public function createCustomer(string $email, string $name, string $stripeAccount): object
+    public function createCustomer(string $email, string $name): object
     {
         return $this->client->customers->create([
             'email' => $email,
             'name' => $name,
-        ], [
-            'stripe_account' => $stripeAccount,
         ]);
     }
 
-    public function createSetupIntent(string $stripeCustomerId, string $stripeAccount, array $metadata = []): object
+    public function createSetupIntent(string $stripeCustomerId, array $metadata = []): object
     {
         return $this->client->setupIntents->create([
             'customer' => $stripeCustomerId,
             'metadata' => $metadata,
-        ], [
-            'stripe_account' => $stripeAccount,
         ]);
     }
 
@@ -57,7 +52,7 @@ class StripeService
         string $stripeCustomerId,
         string $stripePriceId,
         string $paymentMethodId,
-        string $stripeAccount,
+        string $transferDestination,
         float $applicationFeePercent,
         array $metadata = []
     ): object {
@@ -66,34 +61,27 @@ class StripeService
             'items' => [['price' => $stripePriceId]],
             'default_payment_method' => $paymentMethodId,
             'application_fee_percent' => $applicationFeePercent,
+            'transfer_data' => ['destination' => $transferDestination],
             'metadata' => $metadata,
-        ], [
-            'stripe_account' => $stripeAccount,
         ]);
     }
 
-    public function cancelSubscriptionAtPeriodEnd(string $stripeSubId, string $stripeAccount): object
+    public function cancelSubscriptionAtPeriodEnd(string $stripeSubId): object
     {
         return $this->client->subscriptions->update($stripeSubId, [
             'cancel_at_period_end' => true,
-        ], [
-            'stripe_account' => $stripeAccount,
         ]);
     }
 
-    public function retrieveSetupIntent(string $setupIntentId, string $stripeAccount): object
+    public function retrieveSetupIntent(string $setupIntentId): object
     {
-        return $this->client->setupIntents->retrieve($setupIntentId, [], [
-            'stripe_account' => $stripeAccount,
-        ]);
+        return $this->client->setupIntents->retrieve($setupIntentId);
     }
 
-    public function createProduct(string $name, string $stripeAccount): object
+    public function createProduct(string $name): object
     {
         return $this->client->products->create([
             'name' => $name,
-        ], [
-            'stripe_account' => $stripeAccount,
         ]);
     }
 
@@ -101,7 +89,6 @@ class StripeService
         string $productId,
         int $unitAmountCents,
         string $currency,
-        string $stripeAccount,
         ?string $recurringInterval = null
     ): object {
         $payload = [
@@ -114,23 +101,17 @@ class StripeService
             $payload['recurring'] = ['interval' => $recurringInterval];
         }
 
-        return $this->client->prices->create($payload, [
-            'stripe_account' => $stripeAccount,
-        ]);
+        return $this->client->prices->create($payload);
     }
 
-    public function archivePrice(string $priceId, string $stripeAccount): object
+    public function archivePrice(string $priceId): object
     {
-        return $this->client->prices->update($priceId, ['active' => false], [
-            'stripe_account' => $stripeAccount,
-        ]);
+        return $this->client->prices->update($priceId, ['active' => false]);
     }
 
-    public function archiveProduct(string $productId, string $stripeAccount): object
+    public function archiveProduct(string $productId): object
     {
-        return $this->client->products->update($productId, ['active' => false], [
-            'stripe_account' => $stripeAccount,
-        ]);
+        return $this->client->products->update($productId, ['active' => false]);
     }
 
     public function createConnectAccount(string $email, string $businessName): object
@@ -139,6 +120,10 @@ class StripeService
             'type' => 'express',
             'email' => $email,
             'business_profile' => ['name' => $businessName],
+            'capabilities' => [
+                'card_payments' => ['requested' => true],
+                'transfers'     => ['requested' => true],
+            ],
         ]);
     }
 

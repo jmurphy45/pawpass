@@ -33,21 +33,16 @@ class ArchivePackageFromStripe implements ShouldQueue
 
         $tenant = $this->package->tenant;
 
-        if (! $tenant->stripe_account_id) {
-            Log::warning('ArchivePackageFromStripe skipped: tenant has no stripe_account_id', [
-                'package_id' => $this->package->id,
-                'tenant_id'  => $this->package->tenant_id,
-            ]);
-
+        if (! $tenant?->stripe_account_id) {
             return;
         }
 
         try {
             if ($this->package->stripe_price_id) {
-                $stripe->archivePrice($this->package->stripe_price_id, $tenant->stripe_account_id);
+                $stripe->archivePrice($this->package->stripe_price_id);
             }
 
-            $stripe->archiveProduct($this->package->stripe_product_id, $tenant->stripe_account_id);
+            $stripe->archiveProduct($this->package->stripe_product_id);
         } catch (ApiErrorException $e) {
             Log::error('ArchivePackageFromStripe failed', [
                 'package_id' => $this->package->id,
