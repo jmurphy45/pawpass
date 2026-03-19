@@ -73,6 +73,14 @@ class PurchaseController extends Controller
         $feePct = (float) ($tenant->platform_fee_pct ?? 5);
         $feeCents = (int) round($amountCents * $feePct / 100);
 
+        if ($customer->stripe_customer_id) {
+            $stripeCustomerId = $customer->stripe_customer_id;
+        } else {
+            $stripeCustomer = $stripe->createCustomer($customer->email ?? '', $customer->name);
+            $stripeCustomerId = $stripeCustomer->id;
+            $customer->update(['stripe_customer_id' => $stripeCustomerId]);
+        }
+
         $order = DB::transaction(function () use ($tenantId, $customer, $package, $dog) {
             $order = Order::create([
                 'tenant_id'        => $tenantId,
@@ -102,7 +110,8 @@ class PurchaseController extends Controller
                 'customer_id' => $customer->id,
                 'package_id'  => $package->id,
                 'dog_id'      => $dog->id,
-            ]
+            ],
+            stripeCustomerId: $stripeCustomerId,
         );
 
         $order->update(['stripe_pi_id' => $intent->id]);

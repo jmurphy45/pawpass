@@ -14,15 +14,20 @@ class StripeService
         string $currency,
         string $transferDestination,
         int $applicationFeeCents,
-        array $metadata = []
+        array $metadata = [],
+        ?string $stripeCustomerId = null,
     ): object {
-        return $this->client->paymentIntents->create([
+        $payload = [
             'amount' => $amountCents,
             'currency' => $currency,
             'application_fee_amount' => $applicationFeeCents,
             'transfer_data' => ['destination' => $transferDestination],
             'metadata' => $metadata,
-        ]);
+        ];
+        if ($stripeCustomerId) {
+            $payload['customer'] = $stripeCustomerId;
+        }
+        return $this->client->paymentIntents->create($payload);
     }
 
     public function createRefund(string $paymentIntentId): object
