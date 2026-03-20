@@ -379,7 +379,6 @@ async function purchase() {
       headers: {
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
-        'X-Inertia': '1',
       },
       body: JSON.stringify({
         package_id: selectedPackageId.value,

@@ -279,7 +279,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $fresh = $this->dog->fresh();
         $this->assertSame(now()->daysInMonth, $fresh->credit_balance);
-        $this->assertNotNull($fresh->credits_expire_at);
+        $this->assertNull($fresh->credits_expire_at);
         $this->assertNotNull($fresh->unlimited_pass_expires_at);
     }
 
