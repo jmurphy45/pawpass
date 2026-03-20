@@ -104,6 +104,7 @@ class SubscriptionController extends Controller
 
         $this->stripe->cancelSubscriptionAtPeriodEnd(
             $subscription->stripe_sub_id,
+            $subscription->tenant->stripe_account_id,
         );
 
         $subscription->update(['cancelled_at' => now()]);

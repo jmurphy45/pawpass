@@ -25,6 +25,7 @@ use App\Http\Controllers\Web\Portal\AttendanceController;
 use App\Http\Controllers\Web\Portal\DashboardController;
 use App\Http\Controllers\Web\Portal\DogController;
 use App\Http\Controllers\Web\Portal\HistoryController;
+use App\Http\Controllers\Web\Portal\SubscriptionController;
 use App\Http\Controllers\Web\Portal\NotificationController;
 use App\Http\Controllers\Web\Portal\PurchaseController;
 use Illuminate\Support\Facades\Route;
@@ -151,6 +152,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::get('/dogs/{dog}', [DogController::class, 'show'])->name('portal.dogs.show');
         Route::get('/dogs/{dog}/edit', [DogController::class, 'edit'])->name('portal.dogs.edit');
         Route::patch('/dogs/{dog}', [DogController::class, 'update'])->name('portal.dogs.update');
+        Route::post('/dogs/{dog}/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('portal.subscriptions.cancel');
 
         // Purchase
         Route::get('/purchase', [PurchaseController::class, 'index'])->name('portal.purchase');

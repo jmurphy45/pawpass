@@ -69,6 +69,28 @@
         </div>
       </div>
 
+      <!-- Recurring Plans -->
+      <div v-if="subscriptions.length > 0">
+        <h2 class="text-base font-semibold text-text-body mb-3">Recurring Plans</h2>
+        <div class="card divide-y divide-border-warm">
+          <div v-for="s in subscriptions" :key="s.id" class="px-4 py-3 flex items-center justify-between gap-4">
+            <div>
+              <p class="font-medium text-text-body">{{ s.package.name }}</p>
+              <p v-if="s.cancelled_at" class="text-xs text-amber-600 mt-0.5">Cancels at end of period</p>
+              <p v-else-if="s.current_period_end" class="text-xs text-text-muted mt-0.5">Renews {{ formatDate(s.current_period_end) }}</p>
+            </div>
+            <button
+              v-if="!s.cancelled_at"
+              type="button"
+              class="btn-secondary text-xs py-1.5 px-3 text-red-600 border-red-200 hover:bg-red-50"
+              :disabled="cancelling === s.id"
+              @click="cancelSubscription(s.id)"
+            >{{ cancelling === s.id ? 'Cancelling…' : 'Cancel Plan' }}</button>
+            <span v-else class="text-xs text-amber-600 font-medium">Pending Cancel</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Credit ledger -->
       <div>
         <h2 class="text-base font-semibold text-text-body mb-3">Credit History</h2>
@@ -133,8 +155,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Link, usePage, router } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 import type { CreditLedger, PaginatedResponse, PageProps } from '@/types';
 
@@ -149,10 +171,33 @@ interface DogDetail {
   unlimited_pass_expires_at: string | null;
 }
 
-defineProps<{
+interface Subscription {
+  id: string;
+  status: string;
+  cancelled_at: string | null;
+  current_period_end: string | null;
+  package: { id: string; name: string };
+}
+
+const props = defineProps<{
   dog: DogDetail;
+  subscriptions: Subscription[];
   ledger: PaginatedResponse<CreditLedger>;
 }>();
+
+const cancelling = ref<string | null>(null);
+
+function cancelSubscription(subscriptionId: string) {
+  if (!confirm('Are you sure you want to cancel this plan? It will remain active until the end of the current period.')) {
+    return;
+  }
+  cancelling.value = subscriptionId;
+  router.post(
+    route('portal.subscriptions.cancel', { dog: props.dog.id, subscription: subscriptionId }),
+    {},
+    { onFinish: () => { cancelling.value = null; } },
+  );
+}
 
 const page = usePage<PageProps>();
 const accentColor = computed(() => page.props.tenant?.primary_color ?? '#4f46e5');

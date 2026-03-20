@@ -70,11 +70,11 @@ class StripeService
         ], ['stripe_account' => $stripeAccountId]);
     }
 
-    public function cancelSubscriptionAtPeriodEnd(string $stripeSubId): object
+    public function cancelSubscriptionAtPeriodEnd(string $stripeSubId, string $stripeAccountId): object
     {
         return $this->client->subscriptions->update($stripeSubId, [
             'cancel_at_period_end' => true,
-        ]);
+        ], ['stripe_account' => $stripeAccountId]);
     }
 
     public function retrievePaymentIntent(string $id, ?string $stripeAccountId = null): object

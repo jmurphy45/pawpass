@@ -210,7 +210,7 @@ class SubscriptionControllerTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('cancelSubscriptionAtPeriodEnd')
                 ->once()
-                ->with('sub_cancel_test')
+                ->with('sub_cancel_test', 'acct_subtest')
                 ->andReturn((object) ['id' => 'sub_cancel_test', 'cancel_at_period_end' => true]);
         });
 

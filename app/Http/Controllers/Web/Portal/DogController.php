@@ -78,6 +78,17 @@ class DogController extends Controller
                 'credits_expire_at' => $dog->credits_expire_at?->toIso8601String(),
                 'unlimited_pass_expires_at' => $dog->unlimited_pass_expires_at?->toIso8601String(),
             ],
+            'subscriptions' => $dog->subscriptions()
+                ->where('status', 'active')
+                ->with('package')
+                ->get()
+                ->map(fn ($s) => [
+                    'id'                 => $s->id,
+                    'status'             => $s->status,
+                    'cancelled_at'       => $s->cancelled_at?->toIso8601String(),
+                    'current_period_end' => $s->current_period_end?->toIso8601String(),
+                    'package'            => ['id' => $s->package->id, 'name' => $s->package->name],
+                ]),
             'ledger' => [
                 'data' => collect($ledger->items())->map(fn ($e) => [
                     'id'            => $e->id,
