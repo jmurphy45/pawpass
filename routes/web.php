@@ -27,6 +27,7 @@ use App\Http\Controllers\Web\Portal\DogController;
 use App\Http\Controllers\Web\Portal\HistoryController;
 use App\Http\Controllers\Web\Portal\SubscriptionController;
 use App\Http\Controllers\Web\Portal\NotificationController;
+use App\Http\Controllers\Web\Portal\OrderReceiptController;
 use App\Http\Controllers\Web\Portal\PurchaseController;
 use Illuminate\Support\Facades\Route;
 
@@ -161,6 +162,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
 
         // History / Orders
         Route::get('/history', [HistoryController::class, 'index'])->name('portal.history');
+        Route::get('/orders/{order}/receipt', OrderReceiptController::class)->name('portal.orders.receipt');
 
         // Attendance
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('portal.attendance');

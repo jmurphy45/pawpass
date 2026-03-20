@@ -48,6 +48,7 @@ export interface Order {
     amount_cents: number;
     status: string;
     created_at: string;
+    has_receipt: boolean;
 }
 
 export interface Attendance {

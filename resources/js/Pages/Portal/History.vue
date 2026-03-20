@@ -46,6 +46,12 @@
             <div class="text-right shrink-0">
               <p class="font-semibold text-text-body">${{ (order.amount_cents / 100).toFixed(2) }}</p>
               <span class="badge mt-1" :class="statusClasses(order.status)">{{ order.status }}</span>
+              <a
+                v-if="order.has_receipt"
+                :href="route('portal.orders.receipt', { order: order.id })"
+                target="_blank"
+                class="text-xs text-link mt-1 inline-block"
+              >Receipt ↗</a>
             </div>
           </li>
         </ul>

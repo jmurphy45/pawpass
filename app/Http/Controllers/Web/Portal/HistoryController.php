@@ -28,6 +28,7 @@ class HistoryController extends Controller
                     'amount_cents' => (int) round((float) $o->total_amount * 100),
                     'status'       => $o->status,
                     'created_at'   => $o->created_at->toIso8601String(),
+                    'has_receipt'  => $o->status === 'paid' && (bool) $o->stripe_pi_id,
                 ]),
                 'meta' => [
                     'total'        => $orders->total(),

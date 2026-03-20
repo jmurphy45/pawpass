@@ -83,6 +83,16 @@ class StripeService
         return $this->client->paymentIntents->retrieve($id, [], $opts);
     }
 
+    public function retrieveReceiptUrl(string $paymentIntentId, string $stripeAccountId): ?string
+    {
+        $pi = $this->client->paymentIntents->retrieve(
+            $paymentIntentId,
+            ['expand' => ['latest_charge']],
+            ['stripe_account' => $stripeAccountId]
+        );
+        return $pi->latest_charge?->receipt_url ?? null;
+    }
+
     public function retrievePaymentMethod(string $pmId, ?string $stripeAccountId = null): object
     {
         $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];

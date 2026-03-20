@@ -93,9 +93,10 @@ class DogController extends Controller
                 'data' => collect($ledger->items())->map(fn ($e) => [
                     'id'            => $e->id,
                     'type'          => $e->type,
-                    'amount'        => $e->amount,
+                    'amount'        => $e->delta,
                     'balance_after' => $e->balance_after,
                     'note'          => $e->note,
+                    'expires_at'    => $e->expires_at?->toIso8601String(),
                     'created_at'    => $e->created_at->toIso8601String(),
                 ]),
                 'meta' => [
