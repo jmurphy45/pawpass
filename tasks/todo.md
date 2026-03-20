@@ -361,3 +361,82 @@ account). All Stripe API calls for tenant payments go through `stripe_account` S
 - Dog-level `unlimited_pass_expires_at` is set by `issueUnlimitedPassFromSubscription` to the invoice period end
 - The recurring billing mode uses the same SetupIntent/Stripe Subscription flow as native subscriptions
 - Unlimited recurring packages use `duration_days` as the billing interval; one_time uses `recurring_interval_days`
+
+---
+
+# Phase 17: Recurring Checkout Feature Flag + Card on File
+
+## Task 1 — Migration: card-on-file columns
+
+- [x] `2026_03_19_000002_add_payment_method_to_customers.php` — adds `stripe_payment_method_id`, `stripe_pm_last4`, `stripe_pm_brand` to `customers`
+- [x] Add all three to `Customer::$fillable`
+  - Verification: migration runs; test asserting column existence passes
+
+## Task 2 — Pennant: `recurring_checkout` feature
+
+- [x] `2026_03_19_000003_add_recurring_checkout_to_platform_plans.php` — seeds `recurring_checkout` feature to starter/growth/professional plans
+- [x] Add `'recurring_checkout'` to `FeaturesServiceProvider::$features`
+  - Verification: `Feature::active('recurring_checkout')` returns false without plan, true with plan
+
+## Task 3 — StripeService: `retrievePaymentMethod()`
+
+- [x] Added `retrievePaymentMethod(string $pmId, ?string $stripeAccountId = null): object`
+  - Verification: method exists and passes opts to Stripe SDK
+
+## Task 4 — PurchaseController::index()
+
+- [x] Passes `recurring_checkout_enabled` and `saved_card` to `Purchase.vue`
+  - Verification: Inertia props test passes
+
+## Task 5 — PurchaseController::store() — fast recurring path
+
+- [x] When `billing_mode=recurring` AND `$customer->stripe_payment_method_id` set → creates Stripe subscription directly, returns `{fast: true}`
+- [x] Falls through to SetupIntent if no saved PM
+- [x] SetupIntent metadata includes `save_card`
+  - Verification: fast path test passes; setup intent test passes
+
+## Task 6 — PurchaseController::confirm() — save card
+
+- [x] Validates `save_card` boolean
+- [x] After successful PI → retrieves PM from Stripe, saves to customer
+  - Verification: confirm save_card=true test saves PM; save_card=false test does not
+
+## Task 7 — StripeWebhookController: save PM on setup_intent.succeeded
+
+- [x] After creating Stripe subscription, if `save_card=true` in SI metadata → save PM to customer
+  - Verification: existing webhook tests still pass
+
+## Task 8 — Purchase.vue
+
+- [x] New props: `recurring_checkout_enabled`, `saved_card`
+- [x] Billing toggles gated behind `recurringCheckoutEnabled`
+- [x] Card-on-file badge when saved card + recurring/subscription billing mode
+- [x] Save-card checkbox when card element is visible
+- [x] `purchase()` handles fast path, sends `save_card`, skips `confirmCardSetup` on fast response
+- [x] `onMounted` conditionally mounts card element; `watch(useNewCard)` mounts lazily
+  - Verification: `npm run build` succeeds
+
+## Review
+
+### Summary of Changes
+- Migration: 3 new nullable columns on `customers` (`stripe_payment_method_id`, `stripe_pm_last4`, `stripe_pm_brand`)
+- Migration: `recurring_checkout` feature seeded to starter/growth/professional plans
+- `FeaturesServiceProvider`: `recurring_checkout` added to Pennant feature list
+- `StripeService`: `retrievePaymentMethod()` added
+- `PurchaseController::index()`: passes `recurring_checkout_enabled` + `saved_card` props
+- `PurchaseController::store()`: fast path for recurring with card on file; `save_card` in SetupIntent metadata
+- `PurchaseController::confirm()`: saves PM to customer when `save_card=true`
+- `StripeWebhookController::handleSetupIntentSucceeded()`: saves PM after subscription creation when `save_card=true`
+- `Purchase.vue`: feature-gated toggles, card-on-file badge, save-card checkbox, fast-path handling
+
+### Tests Added or Updated
+- `tests/Feature/Web/Portal/PurchaseRecurringCardOnFileTest.php`: 8 new tests (new file)
+
+### Build Status
+- Tests: 708 passed (7 pre-existing failures in SubscribeControllerTest unrelated to this phase)
+- Build: Successful (`npm run build` — no TS errors)
+
+### Notes
+- Pre-existing SubscribeControllerTest failures (7 tests, `/my/subscribe` route 404) existed before this phase
+- `PlanFeatureCache` in-memory cache must be flushed via `app()->forgetInstance(PlanFeatureCache::class)` in tests that modify plan features
+- Stripe `metadata` is a `stdClass` object — use `->property` not `['key']` syntax

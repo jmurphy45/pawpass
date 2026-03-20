@@ -22,6 +22,9 @@ class Customer extends Model
         'phone',
         'notes',
         'stripe_customer_id',
+        'stripe_payment_method_id',
+        'stripe_pm_last4',
+        'stripe_pm_brand',
     ];
 
     protected function casts(): array

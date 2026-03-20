@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\PlatformConfig;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Pennant\Feature;
 
 class PurchaseController extends Controller
 {
@@ -60,10 +62,14 @@ class PurchaseController extends Controller
         $tenant = Tenant::find(app('current.tenant.id'));
 
         return Inertia::render('Portal/Purchase', [
-            'packages'          => $packages,
-            'dogs'              => $dogs,
-            'stripe_key'        => config('services.stripe.key'),
-            'stripe_account_id' => $tenant?->stripe_account_id,
+            'packages'                   => $packages,
+            'dogs'                       => $dogs,
+            'stripe_key'                 => config('services.stripe.key'),
+            'stripe_account_id'          => $tenant?->stripe_account_id,
+            'recurring_checkout_enabled' => Feature::active('recurring_checkout'),
+            'saved_card'                 => $customer->stripe_payment_method_id
+                ? ['last4' => $customer->stripe_pm_last4, 'brand' => $customer->stripe_pm_brand]
+                : null,
         ]);
     }
 
@@ -74,6 +80,7 @@ class PurchaseController extends Controller
             'dog_ids'      => ['required', 'array', 'min:1'],
             'dog_ids.*'    => ['required', 'string'],
             'billing_mode' => ['sometimes', 'string', 'in:one_time,subscription,recurring'],
+            'save_card'    => ['sometimes', 'boolean'],
         ]);
 
         $billingMode = $request->input('billing_mode', 'one_time');
@@ -126,7 +133,7 @@ class PurchaseController extends Controller
 
             $setupIntent = $stripe->createSetupIntent(
                 $stripeCustomerId,
-                ['local_subscription_id' => $subscription->id],
+                ['local_subscription_id' => $subscription->id, 'save_card' => $request->boolean('save_card')],
                 $tenant->stripe_account_id,
             );
 
@@ -163,9 +170,32 @@ class PurchaseController extends Controller
                 'stripe_customer_id' => $stripeCustomerId,
             ]);
 
+            // Fast path: if customer already has a saved PM, skip SetupIntent
+            if ($customer->stripe_payment_method_id) {
+                $feePct    = (float) ($tenant->platform_fee_pct ?? 5);
+                $surcharge = (float) PlatformConfig::get('recurring_surcharge_pct', 0);
+
+                $stripeSub = $stripe->createSubscription(
+                    $stripeCustomerId,
+                    $package->stripe_price_id_recurring,
+                    $customer->stripe_payment_method_id,
+                    $tenant->stripe_account_id,
+                    $feePct + $surcharge,
+                    ['local_subscription_id' => $subscription->id],
+                );
+
+                $subscription->update([
+                    'stripe_sub_id'        => $stripeSub->id,
+                    'current_period_start' => \Carbon\Carbon::createFromTimestamp($stripeSub->current_period_start),
+                    'current_period_end'   => \Carbon\Carbon::createFromTimestamp($stripeSub->current_period_end),
+                ]);
+
+                return response()->json(['subscription_id' => $subscription->id, 'fast' => true], 201);
+            }
+
             $setupIntent = $stripe->createSetupIntent(
                 $stripeCustomerId,
-                ['local_subscription_id' => $subscription->id],
+                ['local_subscription_id' => $subscription->id, 'save_card' => $request->boolean('save_card')],
                 $tenant->stripe_account_id,
             );
 
@@ -236,7 +266,10 @@ class PurchaseController extends Controller
 
     public function confirm(Request $request, StripeService $stripe): JsonResponse
     {
-        $validated = $request->validate(['payment_intent_id' => ['required', 'string']]);
+        $validated = $request->validate([
+            'payment_intent_id' => ['required', 'string'],
+            'save_card'         => ['sometimes', 'boolean'],
+        ]);
 
         $customer = Auth::user()->customer;
 
@@ -270,6 +303,15 @@ class PurchaseController extends Controller
                 }
             }
         });
+
+        if ($request->boolean('save_card') && $pi->payment_method) {
+            $pm = $stripe->retrievePaymentMethod($pi->payment_method, $stripeAccountId);
+            $customer->update([
+                'stripe_payment_method_id' => $pm->id,
+                'stripe_pm_last4'          => $pm->card?->last4,
+                'stripe_pm_brand'          => $pm->card?->brand,
+            ]);
+        }
 
         $order->load('customer');
         if ($order->customer?->user_id) {

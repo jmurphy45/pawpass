@@ -83,7 +83,7 @@
             <h2 class="text-sm font-semibold text-text-body">Checkout</h2>
 
             <!-- Billing mode toggle (monthly subscription) -->
-            <div v-if="selectedPackage?.has_monthly_price">
+            <div v-if="recurringCheckoutEnabled && selectedPackage?.has_monthly_price">
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Billing</label>
               <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
                 <button
@@ -104,7 +104,7 @@
             </div>
 
             <!-- Recurring billing toggle (non-native, for one_time + unlimited packages) -->
-            <div v-if="selectedPackage?.is_recurring_enabled && selectedPackage?.type !== 'subscription'">
+            <div v-if="recurringCheckoutEnabled && selectedPackage?.is_recurring_enabled && selectedPackage?.type !== 'subscription'">
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Recurring</label>
               <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
                 <button
@@ -157,11 +157,31 @@
               </div>
             </div>
 
-            <!-- Card element -->
+            <!-- Card element / card on file -->
             <div>
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Payment</label>
-              <div id="card-element" class="input py-3" />
+              <!-- Card-on-file badge (shown when recurring/subscription and saved card exists and user hasn't clicked "Change") -->
+              <div
+                v-if="savedCard && (billingMode === 'recurring' || billingMode === 'subscription') && !useNewCard"
+                class="rounded-lg bg-surface-subtle border border-gray-200 px-3 py-2 text-sm flex items-center gap-2"
+              >
+                <svg class="h-4 w-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                </svg>
+                <span>{{ capitalize(savedCard.brand) }} ····{{ savedCard.last4 }}</span>
+                <button type="button" @click="useNewCard = true" class="ml-auto text-xs text-indigo-600 hover:underline">Change</button>
+              </div>
+              <!-- Card element (shown when no saved card, or user clicked "Change", or one-time purchase) -->
+              <div v-else id="card-element" class="input py-3" />
               <p v-if="cardError" class="mt-1.5 text-xs text-red-600">{{ cardError }}</p>
+              <!-- Save card checkbox (shown whenever card element is visible) -->
+              <label
+                v-if="!savedCard || useNewCard || billingMode === 'one_time'"
+                class="mt-2 flex items-center gap-2 text-sm text-text-muted cursor-pointer"
+              >
+                <input type="checkbox" v-model="saveCard" class="h-4 w-4 rounded border-gray-300" />
+                Save card for future purchases
+              </label>
             </div>
 
             <!-- Summary -->
@@ -225,7 +245,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 import type { Package, PageProps } from '@/types';
@@ -244,16 +264,26 @@ const props = defineProps<{
   dogs: DogOption[];
   stripe_key: string;
   stripe_account_id: string | null;
+  recurring_checkout_enabled: boolean;
+  saved_card: { last4: string; brand: string } | null;
 }>();
 
 const page = usePage<PageProps>();
 const accentColor = computed(() => page.props.tenant?.primary_color ?? '#4f46e5');
+const recurringCheckoutEnabled = computed(() => props.recurring_checkout_enabled);
+const savedCard = computed(() => props.saved_card);
 
 const selectedPackageId = ref('');
 const selectedDogId = ref('');
 const selectedDogIds = ref<string[]>([]);
 const billingMode = ref<'one_time' | 'subscription' | 'recurring'>('one_time');
 const paying = ref(false);
+const saveCard = ref(false);
+const useNewCard = ref(false);
+
+function capitalize(str: string): string {
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+}
 
 const selectedPackage = computed(() => props.packages.find(p => p.id === selectedPackageId.value) ?? null);
 const selectedDog = computed(() => props.dogs.find(d => d.id === selectedDogId.value) ?? null);
@@ -301,20 +331,44 @@ const cardError = ref('');
 let stripe: Stripe | null = null;
 let cardElement: StripeCardElement | null = null;
 
-onMounted(async () => {
-  if (!props.stripe_key) return;
-  const opts = props.stripe_account_id ? { stripeAccount: props.stripe_account_id } : {};
-  stripe = await loadStripe(props.stripe_key, opts);
+function mountCardElement() {
   if (!stripe) return;
+  const el = document.getElementById('card-element');
+  if (!el) return;
+  if (cardElement) {
+    cardElement.mount('#card-element');
+    return;
+  }
   const elements = stripe.elements();
   cardElement = elements.create('card', {
     style: { base: { fontSize: '14px', color: '#2a2522', fontFamily: 'Instrument Sans, sans-serif' } },
   });
   cardElement.mount('#card-element');
+}
+
+onMounted(async () => {
+  if (!props.stripe_key) return;
+  const opts = props.stripe_account_id ? { stripeAccount: props.stripe_account_id } : {};
+  stripe = await loadStripe(props.stripe_key, opts);
+  if (!stripe) return;
+  // Only mount immediately if card element should be visible
+  if (!savedCard.value || billingMode.value === 'one_time') {
+    mountCardElement();
+  }
+});
+
+// When user clicks "Change card", lazily mount the card element
+watch(useNewCard, (val) => {
+  if (val) {
+    // Wait for DOM to update
+    setTimeout(() => mountCardElement(), 0);
+  }
 });
 
 async function purchase() {
-  if (!selectedPackageId.value || activeDogIds.value.length === 0 || !stripe || !cardElement) return;
+  // Allow purchase without cardElement when using card on file
+  const usingCardOnFile = savedCard.value && (billingMode.value === 'recurring' || billingMode.value === 'subscription') && !useNewCard.value;
+  if (!selectedPackageId.value || activeDogIds.value.length === 0 || !stripe || (!cardElement && !usingCardOnFile)) return;
 
   paying.value = true;
   cardError.value = '';
@@ -331,6 +385,7 @@ async function purchase() {
         package_id: selectedPackageId.value,
         dog_ids: activeDogIds.value,
         billing_mode: billingMode.value,
+        save_card: saveCard.value,
       }),
     });
 
@@ -340,11 +395,20 @@ async function purchase() {
       return;
     }
 
-    const { client_secret } = await resp.json();
+    const data = await resp.json();
+
+    // Fast path: server created subscription directly (card on file)
+    if (data.fast) {
+      success.value = true;
+      setTimeout(() => router.visit(route('portal.history')), 3000);
+      return;
+    }
+
+    const { client_secret } = data;
 
     if (billingMode.value === 'subscription' || billingMode.value === 'recurring') {
       const result = await stripe.confirmCardSetup(client_secret, {
-        payment_method: { card: cardElement },
+        payment_method: { card: cardElement! },
       });
 
       if (result.error) {
@@ -355,7 +419,7 @@ async function purchase() {
       }
     } else {
       const result = await stripe.confirmCardPayment(client_secret, {
-        payment_method: { card: cardElement },
+        payment_method: { card: cardElement! },
       });
 
       if (result.error) {
@@ -367,7 +431,7 @@ async function purchase() {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
           },
-          body: JSON.stringify({ payment_intent_id: result.paymentIntent.id }),
+          body: JSON.stringify({ payment_intent_id: result.paymentIntent.id, save_card: saveCard.value }),
         });
         router.visit(route('portal.history'));
       }

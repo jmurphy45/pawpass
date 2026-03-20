@@ -83,6 +83,12 @@ class StripeService
         return $this->client->paymentIntents->retrieve($id, [], $opts);
     }
 
+    public function retrievePaymentMethod(string $pmId, ?string $stripeAccountId = null): object
+    {
+        $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
+        return $this->client->paymentMethods->retrieve($pmId, [], $opts);
+    }
+
     public function retrieveSetupIntent(string $setupIntentId, ?string $stripeAccountId = null): object
     {
         $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];

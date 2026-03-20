@@ -180,6 +180,16 @@ class StripeWebhookController extends Controller
             'current_period_end' => Carbon::createFromTimestamp($stripeSub->current_period_end),
         ]);
 
+        if (($setupIntent->metadata->save_card ?? false) && $setupIntent->payment_method && $subscription->customer) {
+            $stripeAccountId = $tenant->stripe_account_id ?? null;
+            $pm = $this->stripe->retrievePaymentMethod($setupIntent->payment_method, $stripeAccountId);
+            $subscription->customer->update([
+                'stripe_payment_method_id' => $pm->id,
+                'stripe_pm_last4'          => $pm->card?->last4,
+                'stripe_pm_brand'          => $pm->card?->brand,
+            ]);
+        }
+
         return response()->json(['data' => 'ok']);
     }
 

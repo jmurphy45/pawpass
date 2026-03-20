@@ -17,6 +17,7 @@ class FeaturesServiceProvider extends ServiceProvider
             'sms_notifications', 'financial_reports',
             'weekly_daily_payouts', 'custom_branding', 'pwa',
             'white_label', 'unlimited_staff', 'priority_support',
+            'recurring_checkout',
         ];
 
         foreach ($features as $feature) {
