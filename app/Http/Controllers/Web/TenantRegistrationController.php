@@ -68,7 +68,7 @@ class TenantRegistrationController extends Controller
 
         return Inertia::render('Registration/Success', [
             'slug'       => $slug,
-            'adminUrl'   => 'https://'.$slug.'.pawpass.com/admin',
+            'adminUrl'   => 'https://'.$slug.'.'.config('app.domain').'/admin',
         ]);
     }
 }

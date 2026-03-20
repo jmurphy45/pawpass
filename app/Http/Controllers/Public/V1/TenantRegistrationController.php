@@ -46,7 +46,7 @@ class TenantRegistrationController extends Controller
                 'slug'         => $tenant->slug,
                 'trial_ends_at' => $tenant->trial_ends_at?->toIso8601String(),
                 'access_token' => $result['access_token'],
-                'portal_url'   => 'https://'.$tenant->slug.'.pawpass.com/admin',
+                'portal_url'   => 'https://'.$tenant->slug.'.'.config('app.domain').'/admin',
             ],
         ], 201);
     }
