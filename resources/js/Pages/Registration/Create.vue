@@ -117,9 +117,9 @@
                 class="flex-1 border border-gray-300 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="happy-paws"
               />
-              <span class="bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg px-3 py-2 text-sm text-gray-500">.pawpass.com</span>
+              <span class="bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg px-3 py-2 text-sm text-gray-500">.{{ appDomain }}</span>
             </div>
-            <p class="mt-1 text-xs text-gray-400">{{ form.slug ? form.slug + '.pawpass.com' : 'yourname.pawpass.com' }}</p>
+            <p class="mt-1 text-xs text-gray-400">{{ form.slug ? form.slug + '.' + appDomain : 'yourname.' + appDomain }}</p>
             <p v-if="errors.slug" class="mt-1 text-xs text-red-600">{{ errors.slug }}</p>
           </div>
         </div>
@@ -206,6 +206,8 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
 import { ref, reactive } from 'vue'
+
+const appDomain = import.meta.env.VITE_APP_DOMAIN as string
 
 const props = defineProps<{
   plans: Array<{

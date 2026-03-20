@@ -63,7 +63,7 @@
                   class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   @keydown.enter="goToLogin"
                 />
-                <span class="text-xs text-gray-400 whitespace-nowrap">.pawpass.com</span>
+                <span class="text-xs text-gray-400 whitespace-nowrap">.{{ appDomain }}</span>
               </div>
               <button
                 class="mt-3 w-full rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors"
@@ -512,6 +512,8 @@ interface Plan {
 const props = defineProps<{ plans: Plan[] }>()
 
 // ── Nav state ────────────────────────────────────────────────
+const appDomain = import.meta.env.VITE_APP_DOMAIN as string
+
 const navScrolled = ref(false)
 const heroSentinel = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
@@ -524,7 +526,7 @@ const loginDropdownRef = ref<HTMLElement | null>(null)
 function goToLogin() {
   const slug = loginSlug.value.trim()
   if (!slug) return
-  window.location.href = `https://${slug}.pawpass.com/admin/login`
+  window.location.href = `https://${slug}.${appDomain}/admin/login`
 }
 
 function handleOutsideClick(e: MouseEvent) {
