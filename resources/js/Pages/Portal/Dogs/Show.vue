@@ -59,7 +59,7 @@
             <p class="font-medium text-text-body">{{ dog.color ?? '—' }}</p>
           </div>
         </div>
-        <div v-if="dog.credits_expire_at">
+        <div v-if="dog.credits_expire_at && !dog.unlimited_pass_expires_at">
           <p class="text-xs font-semibold text-text-muted uppercase tracking-wide">Credits Expire</p>
           <p class="mt-1 font-medium text-amber-600">{{ formatDate(dog.credits_expire_at) }}</p>
         </div>
