@@ -18,8 +18,7 @@ class PackageResource extends JsonResource
             'dog_limit' => $this->dog_limit,
             'duration_days' => $this->duration_days,
             'is_active' => $this->is_active,
-            'is_recurring_enabled' => $this->is_recurring_enabled,
-            'recurring_interval_days' => $this->recurring_interval_days,
+            'is_auto_replenish_eligible' => (bool) $this->is_auto_replenish_eligible,
         ];
     }
 }

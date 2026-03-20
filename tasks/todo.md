@@ -1,442 +1,230 @@
-# Phase 16: Reporting & Analytics
+# Phase 18: Refactor Billing — Event-Driven Auto-Replenish
 
-## Task 0 — Assign `financial_reports` to Pro & Business plans
+Replace the Stripe Subscription (interval-based) model entirely with event-driven PaymentIntents.
+Instead of charging every N days, the system charges when credits reach zero or an unlimited pass expires.
+The confusing dual toggle (subscription + recurring) is replaced with a single "Auto-replenish" checkbox.
 
-- [x] `financial_reports` already present in Pro/Business in `PlatformPlanSeeder.php`
-  - Verification: added 6 tests to `PlanFeaturesTest` asserting Free→no reports, Starter→basic only, Pro→both, Business→both
+## Model Overview
 
-## Task 1 — ReportService
+- All packages become `one_time` or `unlimited` — the `subscription` package type is removed.
+- No more Stripe Subscriptions or SetupIntents for customer packages.
+- A package can be marked `is_auto_replenish_eligible` (owner flag).
+- At purchase time, customer can opt into **auto-replenish** for a dog. This saves their card and sets `dog.auto_replenish_enabled = true` + `dog.auto_replenish_package_id`.
+- Trigger A — credits hit 0: `DogCreditService::dispatchCreditAlert()` fires `ProcessAutoReplenishJob`.
+- Trigger B — unlimited pass expires: `ExpireSubscriptionCredits` job fires `ProcessAutoReplenishJob`.
+- `AutoReplenishService::trigger()` creates an off-session PaymentIntent using the saved card.
+- Existing `payment_intent.succeeded` webhook handles issuing credits — unchanged.
+- On PI success: `auto_replenish.succeeded` notification fired (new type, critical).
+- On PI failure: `auto_replenish.failed` notification fired (new type, critical).
 
-- [x] Create `app/Services/ReportService.php` with 12 report query methods
-  - `revenue`, `payoutForecast`, `packages`, `credits`, `customersLtv`, `attendance`, `rosterHistory`, `creditStatus`, `staffActivity`, `platformRevenue`, `tenantHealth`, `notificationDelivery`
-  - SQLite-compatible grouping via `dateGroup()` helper (uses `strftime` for SQLite, `to_char/date_trunc` for PostgreSQL)
-  - Verification: 13 unit tests pass in `ReportServiceTest`
+### New Notification Types
 
-## Task 2 — Admin ReportController (9 endpoints)
+| Type | Critical | Description |
+|---|---|---|
+| `auto_replenish.succeeded` | ✓ | Card charged successfully, credits topped up |
+| `auto_replenish.failed` | ✓ | Card charge failed, credits not issued — action required |
 
-- [x] Create `app/Http/Controllers/Admin/V1/ReportController.php`
-  - Nightly-cached endpoints (`revenue`, `payoutForecast`, `packages`, `credits`, `customersLtv`)
-  - Real-time endpoints (`attendance`, `rosterHistory`, `creditStatus`, `staffActivity`)
-  - CSV export via `?format=csv` using `StreamedResponse`
-  - Verification: 25 feature tests pass in `Admin/ReportControllerTest`
-
-## Task 3 — Platform ReportController (3 endpoints)
-
-- [x] Create `app/Http/Controllers/Platform/V1/ReportController.php`
-  - `revenue` (cached 25h), `tenantHealth` (cached 25h), `notificationDelivery` (real-time)
-  - Verification: 10 feature tests pass in `Platform/ReportControllerTest`
-
-## Task 4 — Routes
-
-- [x] Update `routes/api.php` with 12 report API routes (3 groups: basic staff, basic owner, financial owner, platform)
-- [x] Update `routes/web.php` with 7 Inertia report routes
-  - Verification: `php artisan route:list | grep reports` shows 19 endpoints (12 API + 7 web)
-
-## Task 5 — WarmTenantReportCaches Job
-
-- [x] Implement `app/Jobs/WarmTenantReportCaches.php`
-  - Iterates non-deleted tenants, resolves plan features, writes applicable caches
-  - Verification: 4 unit tests pass in `WarmTenantReportCachesTest`
-
-## Task 6 — WarmPlatformReportCaches Job
-
-- [x] Implement `app/Jobs/WarmPlatformReportCaches.php`
-  - Writes `platform:revenue:snapshot` and `platform:tenant_health:snapshot`
-  - Verification: 3 unit tests pass in `WarmPlatformReportCachesTest`
-
-## Task 7 — Frontend (Vue)
-
-- [x] Create `resources/js/Pages/Admin/Reports/Index.vue` — landing page with Financial/Operational groups
-- [x] Create `resources/js/Pages/Admin/Reports/Revenue.vue` — date range + group_by, table, CSV export
-- [x] Create `resources/js/Pages/Admin/Reports/Packages.vue` — date range, table, CSV export
-- [x] Create `resources/js/Pages/Admin/Reports/Credits.vue` — date range, table, CSV export
-- [x] Create `resources/js/Pages/Admin/Reports/Customers.vue` — date range, table, CSV export
-- [x] Create `resources/js/Pages/Admin/Reports/Attendance.vue` — date range + group_by, table, CSV export
-- [x] Create `resources/js/Pages/Admin/Reports/CreditStatus.vue` — zero/low sections
-- [x] Update `resources/js/Layouts/AdminLayout.vue` — Reports nav link (Starter+)
-- [x] Create `app/Http/Controllers/Web/Admin/ReportController.php` — Inertia controller
-  - Verification: `npm run build` succeeds, no TS errors
-
-## Bug Fix (pre-existing)
-
-- [x] Fix `app/Jobs/SyncPackageToStripe.php` — unlimited packages were incorrectly creating a Stripe price
-  - Updated unit test to match: unlimited creates product but no price
-  - Verification: both `PackageControllerStripeTest` and `SyncPackageToStripeTest` pass
+Both are critical (always fire regardless of tenant settings) and are dispatched via the existing
+`NotificationService::dispatch()` path with `dog_id` + `order_id` (or `pi_id`) in the payload.
 
 ---
 
-## Review
+## Step 1 — Migrations
 
-### Summary of Changes
-- `ReportService`: 12 query methods covering all report types; SQLite-compatible
-- `Admin\V1\ReportController`: 9 endpoints with plan gating at route level, caching, CSV export
-- `Platform\V1\ReportController`: 3 endpoints (platform_admin only), revenue + tenant health cached
-- `Web\Admin\ReportController`: Inertia controller serving 7 report pages
-- `WarmTenantReportCaches`: implemented cache warming per tenant plan tier
-- `WarmPlatformReportCaches`: implemented platform report cache warming
-- Routes: 12 API + 7 web report routes added
-- Vue pages: 7 report pages (Index, Revenue, Packages, Credits, Customers, Attendance, CreditStatus)
-- AdminLayout: Reports nav link added for Starter+ plans
-- Bug fix: `SyncPackageToStripe` now skips price creation for unlimited packages
+- [ ] `alter_packages_billing_refactor`: drop `stripe_price_id_monthly`, `is_recurring_enabled`,
+  `recurring_interval_days`, `stripe_price_id_recurring`; add `is_auto_replenish_eligible bool default false`
+  - Verification: `php artisan migrate` runs cleanly; columns absent from schema
 
-### Tests Added or Updated
-- `tests/Unit/PlanFeaturesTest.php`: 6 new reporting feature assertions
-- `tests/Unit/Services/ReportServiceTest.php`: 13 new tests (all 12 report methods)
-- `tests/Feature/Admin/ReportControllerTest.php`: 25 new tests (plan gating, roles, CSV, caching, data)
-- `tests/Feature/Platform/ReportControllerTest.php`: 10 new tests
-- `tests/Unit/Jobs/WarmTenantReportCachesTest.php`: 4 new tests
-- `tests/Unit/Jobs/WarmPlatformReportCachesTest.php`: 3 new tests
-- `tests/Unit/Jobs/SyncPackageToStripeTest.php`: renamed + fixed contradictory unlimited test
-
-### Build Status
-- Tests: 622 passed (0 failures)
-- Build: Successful (`npm run build` — no TS or build errors)
-
-### Notes
-- `Admin/Reports/Index.vue` uses inline component for `ReportCard` — could be extracted later
-- Platform report pages (web UI) deferred — platform admin uses the API directly
-- `WarmTenantReportCaches` uses a static plan feature cache; this is cleared between PHP processes (no inter-request state issue)
-- `tenantPlan` is not yet passed as a shared Inertia prop — Reports nav link in AdminLayout uses the page prop but it will be hidden until `tenantPlan` is added to `HandleInertiaRequests::share()`
+- [ ] `alter_dogs_add_auto_replenish`: add `auto_replenish_enabled bool default false`,
+  `auto_replenish_package_id char(26) nullable` FK to `packages(id)`
+  - Verification: migration runs; Dog factory picks up new fields without error
 
 ---
 
-## Phase 17: SMS Segment Quotas + Broadcast Notifications
+## Step 2 — Model Updates
 
-### Part 1 — SMS Segment Quotas
-
-- [x] Migration: `sms_segment_quota` column on `platform_plans`
-  - Verification: Migration runs cleanly
-
-- [x] Migration: `tenant_sms_usage` table
-  - Verification: Migration runs cleanly
-
-- [x] Model: `TenantSmsUsage`
-  - Verification: Unit tests pass
-
-- [x] Modify `PlatformPlan` (fillable + casts) and `PlanFeatureCache` (`smsSegmentQuota()`)
-  - Verification: SmsUsageServiceTest passes
-
-- [x] Update `PlatformPlanFactory` (add `sms_segment_quota: 0`)
-  - Verification: Factory works in tests
-
-- [x] Update `PlatformPlanSeeder` (add `sms_segment_quota` + `sms_notifications` to all plans)
-  - Verification: Seeder reviewed
-
-- [x] `TwilioService::send()` returns `int` segment count
-  - Verification: TwilioServiceTest (5 tests) passes
-
-- [x] Create `SmsUsageService` with 6 methods; register singleton
-  - Verification: SmsUsageServiceTest (11 tests) passes
-
-- [x] Update `SmsChannel` to inject `SmsUsageService` and call `track()` after successful send
-  - Verification: SmsChannelTest (3 tests) passes
-
-- [x] Add `createInvoiceItem()` and `createAndFinalizeInvoice()` to `StripeBillingService`
-  - Verification: BillSmsOverageJobTest relies on them
-
-- [x] Create `BillSmsOverageJob` — processes prior-month overages for active tenants
-  - Verification: BillSmsOverageJobTest (5 tests) passes
-
-- [x] Register `BillSmsOverageJob` in scheduler (`monthlyOn(1, '05:00')`)
-  - Verification: Scheduler entry added to bootstrap/app.php
-
-### Part 2 — Broadcast Notifications
-
-- [x] Add `announcement` type to `PawPassNotification::buildMessage()`
-  - Verification: PawPassNotificationTest (3 new tests) passes
-
-- [x] Create `SendBroadcastNotificationJob` — sends announcement to all tenant customers
-  - Verification: SendBroadcastNotificationJobTest (6 tests) passes
-
-- [x] Create `BroadcastNotificationController` and register route `POST /api/admin/v1/notifications/broadcast`
-  - Verification: BroadcastNotificationControllerTest (9 tests) passes
-
-## Review
-
-### Summary of Changes
-- Added `sms_segment_quota` column to `platform_plans` and `tenant_sms_usage` tracking table
-- New `TenantSmsUsage` model and `SmsUsageService` for tracking and querying segment usage
-- `TwilioService::send()` now returns segment count instead of void
-- `SmsChannel` tracks segments via `SmsUsageService` after each successful send
-- `BillSmsOverageJob` runs monthly to bill tenants for SMS overages at $0.04/segment
-- `PawPassNotification` supports new `announcement` type using subject/body from data
-- `SendBroadcastNotificationJob` dispatches per-channel notifications to all customer users of a tenant
-- `BroadcastNotificationController` validates and queues broadcast requests from admin API
-
-### Tests Added or Updated
-- `tests/Unit/Services/TwilioServiceTest.php`: 5 new tests (segment counting, failure handling)
-- `tests/Unit/Services/SmsUsageServiceTest.php`: 11 new tests (all 6 service methods)
-- `tests/Unit/Notifications/PawPassNotificationTest.php`: 3 new announcement type tests
-- `tests/Unit/Notifications/Channels/SmsChannelTest.php`: updated to pass SmsUsageService, return segment int
-- `tests/Feature/Jobs/BillSmsOverageJobTest.php`: 5 new tests
-- `tests/Feature/Jobs/SendBroadcastNotificationJobTest.php`: 6 new tests
-- `tests/Feature/Admin/BroadcastNotificationControllerTest.php`: 9 new tests
-
-### Build Status
-- Tests: 661 passed (0 failures)
-- Build: Not yet verified (npm run build)
-
-### Notes
-- `user_notification_preferences` table uses `type` and `is_enabled` (not `notification_type`/`enabled`)
-- `current.tenant` binding doesn't exist — `BroadcastNotificationController` uses `Tenant::find(app('current.tenant.id'))`
-- Plan slugs in `tenant_plan` PG enum are restricted to: `free`, `starter`, `pro`, `business`
-- `TenantSmsUsage` model explicitly sets `$table = 'tenant_sms_usage'` (avoids Laravel's default pluralization)
+- [ ] `Package`: remove dropped columns from `$fillable` + casts; add `is_auto_replenish_eligible`
+- [ ] `Dog`: add `auto_replenish_enabled`, `auto_replenish_package_id` to `$fillable` + casts
+  - Verification: existing model tests still pass
 
 ---
 
-## Task: Production Review — P0/P1/P2 Fixes
+## Step 3 — AutoReplenishService (TDD)
 
-### P0 — Breaking / Exploitable
+- [ ] Write failing unit tests for `AutoReplenishService::trigger(Dog $dog)`:
+  - Skips when `auto_replenish_enabled = false`
+  - Skips when no saved payment method on customer
+  - Skips when `auto_replenish_package_id` is null
+  - Creates `Order` + off-session `PaymentIntent` when all conditions met
+  - Handles Stripe exception (logs, notifies customer)
+  - Verification: tests fail for correct reasons
 
-- [x] Fix idempotency cache key — include tenant_id + user_id
-- [x] Fix BillSmsOverageJob double-billing — ShouldBeUnique + Stripe idempotency keys
-- [x] Fix deductForAttendance() stale dog — lockForUpdate inside transaction
-- [x] Fix transfer() negative balance — InsufficientCreditsException guard
-- [x] Fix NotificationService::enqueueGrouped() race — lockForUpdate in transaction
-- [x] Fix ExpireSubscriptionCredits — eager-load customer, null guard, per-dog try-catch
-- [x] Fix StripeWebhookController — null check on $tenant after Tenant::find()
-- [x] Fix Admin/V1/BroadcastNotificationController — align validation with Web controller
-- [x] Fix TwilioService segment count — detect non-ASCII, use 70 chars/segment
-
-### P1 — Pre-scale
-
-- [x] Fix SendBroadcastNotificationJob — chunkById(100) + $tries = 1
-- [x] Add $tries/$backoff to DispatchGroupedAlertJob
-- [x] Fix SmsUsageService::track() — atomic SQL upsert
-- [x] Add throttle:30,1 to public API; throttle:5,1 to registration endpoint
-- [x] Fix HandleInertiaRequests logo_url — use actual column value
-- [x] Fix WarmTenantReportCaches — remove static from planHas cache
-- [x] Fix ProvisionStripeConnectAccountJob — null guard on $owner before try-catch
-
-### P2 — Quality
-
-- [x] Add max:100 on search in Admin/V1/CustomerController + Web/Admin/CustomerController
+- [ ] Implement `app/Services/AutoReplenishService.php`:
+  - Creates order record (status=pending), calls `StripeService::createPaymentIntent()` with
+    `confirm=true`, `off_session=true`, and `payment_method=$customer->stripe_payment_method_id`
+  - Existing `payment_intent.succeeded` webhook issues credits automatically
+  - Verification: all AutoReplenishService unit tests pass
 
 ---
 
-## Task: Direct Charges — Stripe Connected Account Architecture
+## Step 4 — ProcessAutoReplenishJob (TDD)
 
-Switch from destination charges (customer on platform) to direct charges (customer on connected
-account). All Stripe API calls for tenant payments go through `stripe_account` SDK option.
-
-### Step 1 — StripeService: update all methods to accept stripeAccountId
-
-- [x] Update `StripeServiceTest` — 10 new tests asserting `stripe_account` option
-- [x] Update `createCustomer`, `createPaymentIntent`, `createSetupIntent`, `createSubscription`,
-  `createRefund`, `createProduct`, `createPrice`, `archivePrice`, `archiveProduct`
-  — all accept `?stripeAccountId` and pass as `['stripe_account' => $id]` SDK option
-  - Verification: All 17 StripeServiceTest tests pass
-
-### Step 2 — Controllers: propagate stripe_account_id
-
-- [x] `Portal/V1/SubscriptionController` — createCustomer + createSetupIntent use account ID
-- [x] `Web/Portal/SubscribeController` — createCustomer + createSetupIntent use account ID
-- [x] `Web/Portal/PurchaseController` — createCustomer uses account ID; createPaymentIntent already did
-- [x] `Admin/V1/PaymentController` — createRefund passes tenant stripe_account_id
-- [x] `Web/Admin/PaymentController` — createRefund passes tenant stripe_account_id
-  - Verification: All updated controller tests pass
-
-### Step 3 — Jobs: propagate stripe_account_id
-
-- [x] `SyncPackageToStripe` — createProduct, createPrice, archivePrice use tenant stripe_account_id
-- [x] `ArchivePackageFromStripe` — archivePrice, archiveProduct use tenant stripe_account_id
-  - Verification: SyncPackageToStripeTest + ArchivePackageFromStripeTest pass (11 tests)
-
-### Step 4 — Final verification
-
-- [x] Run full test suite: 675 passed, 0 failures
+- [ ] Write failing test: job calls `AutoReplenishService::trigger()` for the given dog
+- [ ] Implement `app/Jobs/ProcessAutoReplenishJob.php` (queued, `$tries = 1`)
+  - Verification: test passes
 
 ---
 
-## Task: Multi-Dog Package Purchases + Unlimited Credit Issuance
+## Step 5 — Trigger A: Credits Empty
 
-### Change 1 — Unlimited Packages: Issue Credits Based on Days in Month
-
-- [x] Update `DogCreditService::issueUnlimitedPass()` — issues `now()->daysInMonth` credits, sets `credits_expire_at = now()->addMonth()`, writes ledger entry with real delta and `expires_at`; no longer sets `unlimited_pass_expires_at`
-- [x] Update `DogCreditService::revokeUnlimitedPass()` — removes all remaining credits (same logic as `removeAllOnRefund`), writes refund ledger entry with `delta = -remaining`
-- [x] Updated 4 existing unlimited tests in `DogCreditServiceTest` + added 3 new tests (7 total for unlimited)
-- [x] Updated `StripeWebhookController::handlePaymentIntentSucceeded()` — checks `$order->package->type === 'unlimited'` and dispatches `issueUnlimitedPass` vs `issueFromOrder`
-- [x] Updated `PurchaseController::confirm()` — same package type routing logic
-
-### Change 2 — Multi-Dog Web Purchase
-
-- [x] Update `PurchaseController::store()` — accepts `dog_ids[]` (array, min:1, max:dog_limit); validates each dog belongs to customer; creates one `OrderDog` per dog; metadata uses `dog_ids` (comma-separated)
-- [x] Updated all 3 existing `PurchaseControllerStripeTest` tests to use `dog_ids: [dog_id]`
-- [x] Added 4 new tests: multi-dog creates 2 OrderDogs, rejects count > dog_limit, rejects empty, confirm issues unlimited credits
-- [x] Updated `Purchase.vue` — single-dog (max_dogs=1) keeps dropdown; multi-dog shows checkboxes with max enforcement; submit sends `dog_ids: activeDogIds`
-
-### Final Verification
-
-- [x] 681 tests pass (0 failures)
-- [x] `npm run build` — successful, no TS errors
+- [ ] Update `DogCreditService::dispatchCreditAlert()`:
+  - When type is `credits.empty`: check `$dog->auto_replenish_enabled` →
+    if true, dispatch `ProcessAutoReplenishJob::dispatch($dog->id)`
+  - Verification: new unit test — zero balance + auto_replenish → job dispatched
+  - Verification: existing dispatchCreditAlert tests still pass
 
 ---
 
-## Phase 17: Make Package Recurring
+## Step 6 — Trigger B: Unlimited Pass Expired
 
-### Step 1 — Migration
-- [x] `2026_03_19_000001_add_recurring_fields_to_packages.php` — adds `is_recurring_enabled`, `recurring_interval_days`, `stripe_price_id_recurring` columns to `packages`
-
-### Step 2 — Package Model
-- [x] Added 3 new fields to `$fillable` + boolean/integer casts
-
-### Step 3 — DogCreditService: `issueUnlimitedPassFromSubscription`
-- [x] New method: subscription type ledger entry, sets `unlimited_pass_expires_at`, credits = `daysInMonth`
-- [x] 2 new tests in `DogCreditServiceTest`
-
-### Step 4 — StripeService: `createPrice` interval count
-- [x] Added `int $intervalCount = 1` param; included in `recurring.interval_count`
-- [x] 1 new test in `StripeServiceTest`
-
-### Step 5 — SyncPackageToStripe: recurring price branch
-- [x] `create()` + `update()` create/archive `stripe_price_id_recurring` when `is_recurring_enabled = true`
-- [x] 4 new tests in `SyncPackageToStripeRecurringTest`
-- [x] Also fixed pre-existing failing test in `PackageControllerStripeTest` (unlimited test expected no price but job creates one)
-
-### Step 6 — Admin API
-- [x] `UpdatePackageRequest` — added `is_recurring_enabled` + `recurring_interval_days`
-- [x] `PackageResource` — exposes both fields
-- [x] `Admin/V1/PackageController::update()` — dispatches `SyncPackageToStripe` when recurring fields change
-- [x] 3 new tests in `Admin/PackageControllerTest`
-
-### Step 7 — Admin Web
-- [x] `Web/Admin/PackageController::edit()` — passes recurring fields to Inertia
-- [x] `Web/Admin/PackageController::update()` — validates + saves recurring fields, dispatches sync job
-- [x] `Edit.vue` — "Allow recurring billing" checkbox; conditional interval input for `one_time`; note for `unlimited`
-- [x] 2 new tests in `Web/Admin/PackageControllerTest`
-
-### Step 8 — PurchaseController: `billing_mode = 'recurring'`
-- [x] `billing_mode` validation extended to accept `'recurring'`
-- [x] Recurring branch: SetupIntent flow using `stripe_price_id_recurring`, creates `Subscription`
-- [x] `index()` includes `is_recurring_enabled` + `recurring_interval_days` in package data
-- [x] 5 new tests in `WebPurchaseControllerRecurringTest`
-
-### Step 9 — Webhook: `setup_intent.succeeded` surcharge
-- [x] Native `subscription` → `stripe_price_id_monthly`, 0% surcharge
-- [x] Non-native (`one_time`/`unlimited` with recurring) → `stripe_price_id_recurring`, +1% surcharge from `PlatformConfig::get('recurring_surcharge_pct', '1.0')`
-- [x] 3 new tests in `StripeWebhookSubscriptionTest`
-
-### Step 10 — Webhook: `invoice.payment_succeeded` unlimited dispatch
-- [x] `unlimited` subscription invoice → `issueUnlimitedPassFromSubscription`
-- [x] Other types → `issueFromSubscription` (unchanged)
-- [x] 1 new test in `StripeWebhookSubscriptionTest`
-
-### Step 11 — Frontend: Purchase.vue recurring toggle
-- [x] `PurchasePackage` type extended with `is_recurring_enabled` + `recurring_interval_days`
-- [x] `billingMode` type extended with `'recurring'`
-- [x] Recurring toggle shown when `is_recurring_enabled && type !== 'subscription'`
-- [x] Summary text: "Billed every X days · cancel anytime"
-- [x] Button label: "Subscribe (every Xd)"
-- [x] `build` succeeds
-
-## Review
-
-### Summary of Changes
-- Migration adds 3 columns to `packages` table
-- `DogCreditService.issueUnlimitedPassFromSubscription()` — new method for subscription unlimited credit issuance
-- `StripeService.createPrice()` — new `$intervalCount` param for `recurring.interval_count`
-- `SyncPackageToStripe` — creates/archives `stripe_price_id_recurring` when `is_recurring_enabled`
-- Admin API `UpdatePackageRequest` + `PackageResource` + `PackageController` — recurring fields exposed
-- Admin Web `PackageController` + `Edit.vue` — recurring billing checkbox + interval input
-- `PurchaseController` — `recurring` billing mode creates Subscription via SetupIntent with `stripe_price_id_recurring`
-- `StripeWebhookController.handleSetupIntentSucceeded()` — routes to correct price ID with 1% surcharge for non-native recurring
-- `StripeWebhookController.handleInvoicePaymentSucceeded()` — routes to `issueUnlimitedPassFromSubscription` for unlimited packages
-
-### Tests Added or Updated
-- `tests/Unit/Services/DogCreditServiceTest.php`: 2 new tests
-- `tests/Unit/Services/StripeServiceTest.php`: 1 new test
-- `tests/Feature/Jobs/SyncPackageToStripeRecurringTest.php`: 4 new tests (new file)
-- `tests/Feature/Admin/PackageControllerTest.php`: 3 new tests
-- `tests/Feature/Admin/PackageControllerStripeTest.php`: updated unlimited test name/behavior
-- `tests/Feature/Web/Admin/PackageControllerTest.php`: 2 new tests
-- `tests/Feature/Portal/WebPurchaseControllerRecurringTest.php`: 5 new tests (new file)
-- `tests/Feature/Webhooks/StripeWebhookSubscriptionTest.php`: 4 new tests
-
-### Build Status
-- Tests: 707 passed (0 failures)
-- Build: Successful (`npm run build` — no TS errors)
-
-### Notes
-- `recurring_surcharge_pct` defaults to `'1.0'` (1%) if not set in `platform_config`
-- Dog-level `unlimited_pass_expires_at` is set by `issueUnlimitedPassFromSubscription` to the invoice period end
-- The recurring billing mode uses the same SetupIntent/Stripe Subscription flow as native subscriptions
-- Unlimited recurring packages use `duration_days` as the billing interval; one_time uses `recurring_interval_days`
+- [ ] Update `ExpireSubscriptionCredits` job (unlimited pass loop):
+  - After `expireUnlimitedPass($dog)`, if `$dog->auto_replenish_enabled` → dispatch `ProcessAutoReplenishJob`
+  - Verification: new unit test for this path; existing job tests still pass
 
 ---
 
-# Phase 17: Recurring Checkout Feature Flag + Card on File
+## Step 7 — Webhook Controller: Remove Subscription Handlers + Auto-Replenish Notifications
 
-## Task 1 — Migration: card-on-file columns
+- [ ] Remove `handleSetupIntentSucceeded` handler (and `setup_intent.succeeded` match arm)
+- [ ] Remove `handleInvoicePaymentSucceeded` (and `invoice.payment_succeeded` match arm)
+- [ ] Remove `handleInvoicePaymentFailed` (and `invoice.payment_failed` match arm)
+- [ ] Remove `handleSubscriptionDeleted` (and `customer.subscription.deleted` match arm)
+- [ ] In `handlePaymentIntentSucceeded`: after issuing credits, check PI metadata for
+    `auto_replenish=true` — if set, dispatch `auto_replenish.succeeded` notification
+    (in addition to the existing `payment.confirmed`)
+- [ ] In `handlePaymentIntentFailed`: check PI metadata for `auto_replenish=true` —
+    if set, dispatch `auto_replenish.failed` notification to customer
+  - Verification: update StripeWebhookController tests; confirm removed event types return `ok`;
+    confirm auto_replenish notification dispatched on success/failure
 
-- [x] `2026_03_19_000002_add_payment_method_to_customers.php` — adds `stripe_payment_method_id`, `stripe_pm_last4`, `stripe_pm_brand` to `customers`
-- [x] Add all three to `Customer::$fillable`
-  - Verification: migration runs; test asserting column existence passes
+---
 
-## Task 2 — Pennant: `recurring_checkout` feature
+## Step 8 — PurchaseController: Remove Subscription / Recurring Branches
 
-- [x] `2026_03_19_000003_add_recurring_checkout_to_platform_plans.php` — seeds `recurring_checkout` feature to starter/growth/professional plans
-- [x] Add `'recurring_checkout'` to `FeaturesServiceProvider::$features`
-  - Verification: `Feature::active('recurring_checkout')` returns false without plan, true with plan
+- [ ] Remove `billing_mode = 'subscription'` branch (SetupIntent + Subscription::create)
+- [ ] Remove `billing_mode = 'recurring'` branch (SetupIntent + fast path)
+- [ ] Remove unused imports (`Subscription`, `PlatformConfig`)
+- [ ] Add `auto_replenish` boolean param validation in `store()`
+- [ ] In `confirm()`: if `auto_replenish=true`, set `dog.auto_replenish_enabled=true` and
+    `dog.auto_replenish_package_id = $order->package_id` for each `OrderDog`
+  - Verification: update / add PurchaseController tests; all old subscription tests removed or updated
 
-## Task 3 — StripeService: `retrievePaymentMethod()`
+---
 
-- [x] Added `retrievePaymentMethod(string $pmId, ?string $stripeAccountId = null): object`
-  - Verification: method exists and passes opts to Stripe SDK
+## Step 9 — SyncPackageToStripe Job: Simplify
 
-## Task 4 — PurchaseController::index()
+- [ ] Remove recurring price creation (`stripe_price_id_recurring`) from `create()` and `update()`
+- [ ] Remove archiving of recurring prices
+- [ ] Remove monthly price creation (`stripe_price_id_monthly`) from `create()` and `update()`
+  - Verification: SyncPackageToStripeTest updated; still creates product + one_time price
 
-- [x] Passes `recurring_checkout_enabled` and `saved_card` to `Purchase.vue`
-  - Verification: Inertia props test passes
+---
 
-## Task 5 — PurchaseController::store() — fast recurring path
+## Step 10 — Admin Package Controller & Validation
 
-- [x] When `billing_mode=recurring` AND `$customer->stripe_payment_method_id` set → creates Stripe subscription directly, returns `{fast: true}`
-- [x] Falls through to SetupIntent if no saved PM
-- [x] SetupIntent metadata includes `save_card`
-  - Verification: fast path test passes; setup intent test passes
+- [ ] `UpdatePackageRequest` / `StorePackageRequest`: remove `is_recurring_enabled`,
+    `recurring_interval_days` fields; add `is_auto_replenish_eligible`
+- [ ] `PackageResource`: remove dropped fields; expose `is_auto_replenish_eligible`
+- [ ] `Admin/V1/PackageController`: update to save `is_auto_replenish_eligible`
+- [ ] `Web/Admin/PackageController`: same
+- [ ] `packages` enum: remove `subscription` type (Postgres migration in Step 1 above)
+  - Verification: admin package CRUD tests updated and passing
 
-## Task 6 — PurchaseController::confirm() — save card
+---
 
-- [x] Validates `save_card` boolean
-- [x] After successful PI → retrieves PM from Stripe, saves to customer
-  - Verification: confirm save_card=true test saves PM; save_card=false test does not
+## Step 11 — Admin Package Edit UI
 
-## Task 7 — StripeWebhookController: save PM on setup_intent.succeeded
-
-- [x] After creating Stripe subscription, if `save_card=true` in SI metadata → save PM to customer
-  - Verification: existing webhook tests still pass
-
-## Task 8 — Purchase.vue
-
-- [x] New props: `recurring_checkout_enabled`, `saved_card`
-- [x] Billing toggles gated behind `recurringCheckoutEnabled`
-- [x] Card-on-file badge when saved card + recurring/subscription billing mode
-- [x] Save-card checkbox when card element is visible
-- [x] `purchase()` handles fast path, sends `save_card`, skips `confirmCardSetup` on fast response
-- [x] `onMounted` conditionally mounts card element; `watch(useNewCard)` mounts lazily
+- [ ] `Edit.vue`: remove `is_recurring_enabled` + `recurring_interval_days` fields;
+    add "Allow auto-replenish" checkbox for `is_auto_replenish_eligible`
   - Verification: `npm run build` succeeds
 
+---
+
+## Step 12 — Purchase.vue: Single Recurring Toggle
+
+- [ ] Remove "Billing" toggle section (`has_monthly_price` / subscription mode)
+- [ ] Remove "Recurring" toggle section (`is_recurring_enabled` / recurring mode)
+- [ ] Replace with a single "Auto-replenish" checkbox:
+    shown when `selectedPackage.is_auto_replenish_eligible && recurringCheckoutEnabled`
+    text: "Auto-replenish when credits run out · card saved securely"
+    checking it auto-sets `saveCard = true`
+- [ ] Remove `billingMode` state (always one_time); simplify `activeDogIds`
+    (remove subscription/recurring special cases — always use single dropdown for single-dog packages)
+- [ ] Remove `fast` path response handling (no more card-on-file subscriptions)
+- [ ] Update `purchase()` function: always `confirmCardPayment`; send `auto_replenish` flag
+- [ ] Update button label: always "Pay $X.XX"; remove subscription/recurring variants
+- [ ] Update success message: always "Payment successful! Credits will appear shortly."
+- [ ] Update `PurchasePackage` type: remove `has_monthly_price`, `is_recurring_enabled`,
+    `recurring_interval_days`; add `is_auto_replenish_eligible`
+  - Verification: `npm run build` succeeds; no TS errors
+
+---
+
+## Step 13 — PurchaseController::index() Props Update
+
+- [ ] Remove `is_recurring_enabled`, `recurring_interval_days`, `billing_interval`,
+    `has_monthly_price` from package props; add `is_auto_replenish_eligible`
+- [ ] Remove `recurring_checkout_enabled` prop (or repurpose as `auto_replenish_enabled` feature flag)
+- [ ] Remove `saved_card` prop from index if no longer used for subscription fast path
+    (keep only if still used for card-on-file display for one-time purchases with save_card)
+  - Verification: controller test updated
+
+---
+
+## Step 14 — Final Verification
+
+- [ ] `composer test` — full suite passes (0 failures)
+- [ ] `npm run build` — no TS errors, no build failures
+- [ ] Confirm no references to `billing_mode=subscription`, `billing_mode=recurring`,
+    `stripe_price_id_monthly`, `stripe_price_id_recurring`, `is_recurring_enabled`,
+    `recurring_interval_days` remain in application code (only in migrations for drop)
+
+---
+
 ## Review
 
 ### Summary of Changes
-- Migration: 3 new nullable columns on `customers` (`stripe_payment_method_id`, `stripe_pm_last4`, `stripe_pm_brand`)
-- Migration: `recurring_checkout` feature seeded to starter/growth/professional plans
-- `FeaturesServiceProvider`: `recurring_checkout` added to Pennant feature list
-- `StripeService`: `retrievePaymentMethod()` added
-- `PurchaseController::index()`: passes `recurring_checkout_enabled` + `saved_card` props
-- `PurchaseController::store()`: fast path for recurring with card on file; `save_card` in SetupIntent metadata
-- `PurchaseController::confirm()`: saves PM to customer when `save_card=true`
-- `StripeWebhookController::handleSetupIntentSucceeded()`: saves PM after subscription creation when `save_card=true`
-- `Purchase.vue`: feature-gated toggles, card-on-file badge, save-card checkbox, fast-path handling
+
+- **Removed** Stripe Subscription infrastructure: no more SetupIntents, Stripe Subscriptions, invoice webhooks (`invoice.payment_succeeded`, `invoice.payment_failed`, `setup_intent.succeeded`, `customer.subscription.deleted`).
+- **Removed** `subscription` package type; all packages are `one_time` or `unlimited`.
+- **Removed** `is_recurring_enabled`, `recurring_interval_days`, `stripe_price_id_monthly`, `stripe_price_id_recurring` from `packages` table and all related code.
+- **Added** `is_auto_replenish_eligible bool` to `packages` (owner flag per-package).
+- **Added** `auto_replenish_enabled bool` + `auto_replenish_package_id` to `dogs`.
+- **Added** `AutoReplenishService` — creates an off-session PaymentIntent (`confirm=true`, `off_session=true`) using customer's saved card when auto-replenish triggers.
+- **Added** `ProcessAutoReplenishJob` — queued, `$tries=1`, dispatches `AutoReplenishService::trigger()`.
+- **Added** trigger A: `DogCreditService::dispatchCreditAlert()` dispatches job when `credits.empty` and `auto_replenish_enabled=true`.
+- **Added** trigger B: `ExpireSubscriptionCredits` dispatches job after unlimited pass expires if `auto_replenish_enabled=true`.
+- **Added** two critical notification types: `auto_replenish.succeeded` and `auto_replenish.failed`.
+- **Updated** webhook handler: `payment_intent.succeeded` dispatches `auto_replenish.succeeded` when `metadata.auto_replenish=true`; `payment_intent.payment_failed` dispatches `auto_replenish.failed`.
+- **Updated** `PurchaseController`: all purchases are one-time PaymentIntent; `confirm()` sets dog auto-replenish fields if opted in.
+- **Updated** `SyncPackageToStripe`: creates single one-time price only (no monthly/recurring prices).
+- **Updated** `Purchase.vue`: single "Auto-replenish when credits run out" checkbox; removed dual billing toggle UI.
+- **Updated** `Admin/Packages/Edit.vue`: "Allow auto-replenish" checkbox replaces recurring fields.
 
 ### Tests Added or Updated
-- `tests/Feature/Web/Portal/PurchaseRecurringCardOnFileTest.php`: 8 new tests (new file)
+
+- **New** `tests/Unit/Services/AutoReplenishServiceTest.php` — 6 tests covering skip conditions, successful PI creation, and Stripe exception handling.
+- **New** `tests/Unit/Jobs/ProcessAutoReplenishJobTest.php` — 2 tests: calls service for valid dog, skips for unknown dog ID.
 
 ### Build Status
-- Tests: 708 passed (7 pre-existing failures in SubscribeControllerTest unrelated to this phase)
-- Build: Successful (`npm run build` — no TS errors)
+
+- **PHP syntax:** All new/modified PHP files pass `php -l` syntax check (no errors).
+- **JS Build:** `npm run build` completed successfully (✓ 4.52s, no TypeScript errors).
+- **Unit tests (DB-independent):** `Tests\Unit\ExampleTest` passes. New unit tests require PostgreSQL (same pre-existing limitation as `HasUlidTest`, `BelongsToTenantTest`, `JwtServiceTest` in this environment).
 
 ### Notes
-- Pre-existing SubscribeControllerTest failures (7 tests, `/my/subscribe` route 404) existed before this phase
-- `PlanFeatureCache` in-memory cache must be flushed via `app()->forgetInstance(PlanFeatureCache::class)` in tests that modify plan features
-- Stripe `metadata` is a `stdClass` object — use `->property` not `['key']` syntax
+
+- `subscriptions` table is retained for FK integrity on `credit_ledger.subscription_id` (historical rows), but no new rows are inserted. A future cleanup migration can drop the table once credit_ledger rows are purged.
+- The `stripe_price_id` (one-time) and `stripe_product_id` columns on `packages` are kept — they are used for Stripe dashboard product tracking, not for the payment flow.
+- Off-session PaymentIntents use `confirm: true` + `off_session: true` + `error_on_requires_action: true` to handle 3DS-required cards gracefully (they fail immediately rather than entering a limbo state requiring customer action).
+- The existing `payment_intent.succeeded` webhook issues credits for auto-replenish orders automatically, since the PI `metadata` includes `order_id` just like manual purchases.

@@ -17,6 +17,8 @@ class NotificationService
         'subscription.payment_failed',
         'subscription.cancelled',
         'credits.empty',
+        'auto_replenish.succeeded',
+        'auto_replenish.failed',
         'auth.verify_email',
         'auth.password_reset',
     ];

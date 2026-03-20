@@ -4,14 +4,11 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\PlatformConfig;
 use App\Models\RawWebhook;
-use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
 use App\Services\NotificationService;
 use App\Services\StripeService;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -46,16 +43,12 @@ class StripeWebhookController extends Controller
         ]);
 
         return match ($event->type) {
-            'payment_intent.succeeded' => $this->handlePaymentIntentSucceeded($event->data->object),
+            'payment_intent.succeeded'      => $this->handlePaymentIntentSucceeded($event->data->object),
             'payment_intent.payment_failed' => $this->handlePaymentIntentFailed($event->data->object),
-            'charge.dispute.created' => $this->handleDisputeCreated($event->data->object),
-            'charge.dispute.closed' => $this->handleDisputeClosed($event->data->object),
-            'setup_intent.succeeded' => $this->handleSetupIntentSucceeded($event->data->object),
-            'invoice.payment_succeeded' => $this->handleInvoicePaymentSucceeded($event->data->object),
-            'invoice.payment_failed' => $this->handleInvoicePaymentFailed($event->data->object),
-            'customer.subscription.deleted' => $this->handleSubscriptionDeleted($event->data->object),
-            'account.updated' => $this->handleAccountUpdated($event->data->object),
-            default => response()->json(['data' => 'ok']),
+            'charge.dispute.created'        => $this->handleDisputeCreated($event->data->object),
+            'charge.dispute.closed'         => $this->handleDisputeClosed($event->data->object),
+            'account.updated'               => $this->handleAccountUpdated($event->data->object),
+            default                         => response()->json(['data' => 'ok']),
         };
     }
 
@@ -86,8 +79,15 @@ class StripeWebhookController extends Controller
         });
 
         $order->load('customer');
-        if ($order->customer?->user_id) {
-            $this->notificationService->dispatch('payment.confirmed', $order->tenant_id, $order->customer->user_id, ['order_id' => $order->id]);
+        $userId = $order->customer?->user_id;
+
+        if ($userId) {
+            $this->notificationService->dispatch('payment.confirmed', $order->tenant_id, $userId, ['order_id' => $order->id]);
+
+            $isAutoReplenish = ($pi->metadata->auto_replenish ?? null) === 'true';
+            if ($isAutoReplenish) {
+                $this->notificationService->dispatch('auto_replenish.succeeded', $order->tenant_id, $userId, ['order_id' => $order->id]);
+            }
         }
 
         return response()->json(['data' => 'ok']);
@@ -100,6 +100,15 @@ class StripeWebhookController extends Controller
         if ($order) {
             Log::warning('payment_intent.failed', ['order_id' => $order->id, 'pi_id' => $pi->id]);
             $order->update(['status' => 'failed']);
+
+            $isAutoReplenish = ($pi->metadata->auto_replenish ?? null) === 'true';
+            if ($isAutoReplenish) {
+                $order->load('customer');
+                $userId = $order->customer?->user_id;
+                if ($userId) {
+                    $this->notificationService->dispatch('auto_replenish.failed', $order->tenant_id, $userId, ['order_id' => $order->id]);
+                }
+            }
         }
 
         return response()->json(['data' => 'ok']);
@@ -122,144 +131,6 @@ class StripeWebhookController extends Controller
         return response()->json(['data' => 'ok']);
     }
 
-    private function handleSetupIntentSucceeded(object $setupIntent): JsonResponse
-    {
-        $localSubId = $setupIntent->metadata->local_subscription_id ?? null;
-
-        if (! $localSubId) {
-            return response()->json(['data' => 'ok']);
-        }
-
-        $subscription = Subscription::allTenants()->find($localSubId);
-
-        if (! $subscription) {
-            return response()->json(['data' => 'ok']);
-        }
-
-        $package = $subscription->package;
-
-        $isNative  = ($package->type === 'subscription');
-        $priceId   = $isNative ? $package->stripe_price_id_monthly : $package->stripe_price_id_recurring;
-        $surcharge = $isNative ? 0.0 : (float) PlatformConfig::get('recurring_surcharge_pct', '1.0');
-
-        if (! $priceId) {
-            Log::error('setup_intent.succeeded: package has no applicable price id', [
-                'subscription_id' => $subscription->id,
-                'package_id'      => $package->id,
-                'is_native'       => $isNative,
-            ]);
-
-            return response()->json(['data' => 'ok']);
-        }
-
-        $tenant = Tenant::find($subscription->tenant_id);
-
-        if (! $tenant) {
-            Log::error('setup_intent.succeeded: tenant not found', [
-                'subscription_id' => $subscription->id,
-                'tenant_id'       => $subscription->tenant_id,
-            ]);
-
-            return response()->json(['data' => 'tenant not found'], 422);
-        }
-
-        $feePercent = (float) $tenant->platform_fee_pct + $surcharge;
-
-        $stripeSub = $this->stripe->createSubscription(
-            $subscription->stripe_customer_id,
-            $priceId,
-            $setupIntent->payment_method,
-            $tenant->stripe_account_id ?? '',
-            $feePercent,
-            ['local_subscription_id' => $subscription->id],
-        );
-
-        $subscription->update([
-            'stripe_sub_id' => $stripeSub->id,
-            'current_period_start' => Carbon::createFromTimestamp($stripeSub->current_period_start),
-            'current_period_end' => Carbon::createFromTimestamp($stripeSub->current_period_end),
-        ]);
-
-        if (($setupIntent->metadata->save_card ?? false) && $setupIntent->payment_method && $subscription->customer) {
-            $stripeAccountId = $tenant->stripe_account_id ?? null;
-            $pm = $this->stripe->retrievePaymentMethod($setupIntent->payment_method, $stripeAccountId);
-            $subscription->customer->update([
-                'stripe_payment_method_id' => $pm->id,
-                'stripe_pm_last4'          => $pm->card?->last4,
-                'stripe_pm_brand'          => $pm->card?->brand,
-            ]);
-        }
-
-        return response()->json(['data' => 'ok']);
-    }
-
-    private function handleInvoicePaymentSucceeded(object $invoice): JsonResponse
-    {
-        if (! ($invoice->subscription ?? null)) {
-            return response()->json(['data' => 'ok']);
-        }
-
-        $subscription = Subscription::allTenants()
-            ->where('stripe_sub_id', $invoice->subscription)
-            ->first();
-
-        if (! $subscription) {
-            return response()->json(['data' => 'ok']);
-        }
-
-        if ($subscription->status !== 'active') {
-            return response()->json(['data' => 'ok']);
-        }
-
-        $period = $invoice->lines->data[0]->period ?? null;
-        $periodStart = $period ? Carbon::createFromTimestamp($period->start) : now();
-        $periodEnd = $period ? Carbon::createFromTimestamp($period->end) : now()->addMonth();
-
-        $subscription->update([
-            'current_period_start' => $periodStart,
-            'current_period_end' => $periodEnd,
-        ]);
-
-        $dog = $subscription->dog;
-
-        if ($subscription->package->type === 'unlimited') {
-            $this->creditService->issueUnlimitedPassFromSubscription($subscription, $dog, $periodEnd);
-        } else {
-            $this->creditService->issueFromSubscription($subscription, $dog, $periodEnd);
-        }
-
-        $userId = $dog->customer?->user_id;
-        if ($userId) {
-            $this->notificationService->dispatch('subscription.renewed', $subscription->tenant_id, $userId, ['subscription_id' => $subscription->id]);
-        }
-
-        return response()->json(['data' => 'ok']);
-    }
-
-    private function handleInvoicePaymentFailed(object $invoice): JsonResponse
-    {
-        if (! ($invoice->subscription ?? null)) {
-            return response()->json(['data' => 'ok']);
-        }
-
-        $subscription = Subscription::allTenants()
-            ->where('stripe_sub_id', $invoice->subscription)
-            ->first();
-
-        if (! $subscription) {
-            return response()->json(['data' => 'ok']);
-        }
-
-        $subscription->update(['status' => 'past_due']);
-
-        $userId = $subscription->dog->customer?->user_id;
-        if ($userId) {
-            $this->notificationService->dispatch('subscription.payment_failed', $subscription->tenant_id, $userId, ['subscription_id' => $subscription->id]);
-        }
-
-        return response()->json(['data' => 'ok']);
-    }
-
     private function handleAccountUpdated(object $account): JsonResponse
     {
         if (! ($account->charges_enabled ?? false)) {
@@ -269,34 +140,6 @@ class StripeWebhookController extends Controller
         $tenant = Tenant::where('stripe_account_id', $account->id)->first();
         if ($tenant && ! $tenant->stripe_onboarded_at) {
             $tenant->update(['stripe_onboarded_at' => now()]);
-        }
-
-        return response()->json(['data' => 'ok']);
-    }
-
-    private function handleSubscriptionDeleted(object $stripeSub): JsonResponse
-    {
-        $subscription = Subscription::allTenants()
-            ->where('stripe_sub_id', $stripeSub->id)
-            ->first();
-
-        if (! $subscription) {
-            return response()->json(['data' => 'ok']);
-        }
-
-        DB::transaction(function () use ($subscription) {
-            $subscription->update([
-                'status' => 'cancelled',
-                'cancelled_at' => now(),
-            ]);
-
-            $dog = $subscription->dog;
-            $this->creditService->expireCredits($dog);
-        });
-
-        $userId = $subscription->dog->customer?->user_id;
-        if ($userId) {
-            $this->notificationService->dispatch('subscription.cancelled', $subscription->tenant_id, $userId, ['subscription_id' => $subscription->id]);
         }
 
         return response()->json(['data' => 'ok']);

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\InsufficientCreditsException;
+use App\Jobs\ProcessAutoReplenishJob;
 use App\Models\Attendance;
 use App\Models\CreditLedger;
 use App\Models\Dog;
@@ -140,6 +141,10 @@ class DogCreditService
         app(NotificationService::class)->enqueueGrouped($type, $dog->tenant_id, $userId, $dog->id);
 
         $dog->update(['credits_alert_sent_at' => now()]);
+
+        if ($type === 'credits.empty' && $dog->auto_replenish_enabled) {
+            ProcessAutoReplenishJob::dispatch($dog->id);
+        }
     }
 
     public function removeAllOnRefund(Order $order, Dog $dog): void

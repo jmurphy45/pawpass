@@ -67,6 +67,10 @@ class ExpireSubscriptionCredits implements ShouldQueue
         foreach ($passDogs as $dog) {
             try {
                 $creditService->expireUnlimitedPass($dog);
+
+                if ($dog->auto_replenish_enabled) {
+                    \App\Jobs\ProcessAutoReplenishJob::dispatch($dog->id);
+                }
             } catch (\Throwable $e) {
                 Log::error('ExpireSubscriptionCredits (unlimited pass) failed for dog', [
                     'dog_id' => $dog->id,

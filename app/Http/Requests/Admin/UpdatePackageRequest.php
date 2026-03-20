@@ -19,26 +19,25 @@ class UpdatePackageRequest extends FormRequest
         return [
             'name' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'type' => ['sometimes', Rule::in(['one_time', 'subscription', 'unlimited'])],
+            'type' => ['sometimes', Rule::in(['one_time', 'unlimited'])],
             'price' => ['sometimes', 'numeric', 'min:0'],
             'credit_count' => [
                 'sometimes',
                 'nullable',
                 'integer',
                 'min:1',
-                Rule::prohibitedIf(fn () => in_array($type, ['subscription', 'unlimited'])),
+                Rule::prohibitedIf(fn () => $type === 'unlimited'),
             ],
             'duration_days' => [
                 'sometimes',
                 'nullable',
                 'integer',
                 'min:1',
-                Rule::prohibitedIf(fn () => in_array($type, ['one_time', 'subscription'])),
+                Rule::prohibitedIf(fn () => $type === 'one_time'),
             ],
             'dog_limit' => ['sometimes', 'integer', 'min:1'],
             'is_active' => ['sometimes', 'boolean'],
-            'is_recurring_enabled' => ['sometimes', 'boolean'],
-            'recurring_interval_days' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'is_auto_replenish_eligible' => ['sometimes', 'boolean'],
         ];
     }
 }
