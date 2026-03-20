@@ -14,6 +14,7 @@ class CreditLedgerResource extends JsonResource
             'delta' => $this->delta,
             'balance_after' => $this->balance_after,
             'note' => $this->note,
+            'expires_at' => $this->expires_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

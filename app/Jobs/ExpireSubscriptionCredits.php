@@ -15,17 +15,18 @@ class ExpireSubscriptionCredits implements ShouldQueue
 
     public function handle(): void
     {
-        $dogs = Dog::allTenants()
+        $creditService       = app(DogCreditService::class);
+        $notificationService = app(NotificationService::class);
+
+        // Expire subscription credits (wipes entire balance)
+        $subscriptionDogs = Dog::allTenants()
             ->with(['customer'])
             ->whereNotNull('credits_expire_at')
             ->where('credits_expire_at', '<=', now())
             ->whereNull('deleted_at')
             ->get();
 
-        $creditService       = app(DogCreditService::class);
-        $notificationService = app(NotificationService::class);
-
-        foreach ($dogs as $dog) {
+        foreach ($subscriptionDogs as $dog) {
             try {
                 $creditService->expireCredits($dog);
 
@@ -49,6 +50,25 @@ class ExpireSubscriptionCredits implements ShouldQueue
                 );
             } catch (\Throwable $e) {
                 Log::error('ExpireSubscriptionCredits failed for dog', [
+                    'dog_id' => $dog->id,
+                    'error'  => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Expire unlimited pass credits only (preserves non-expiring purchase credits)
+        $passDogs = Dog::allTenants()
+            ->with(['customer'])
+            ->whereNotNull('unlimited_pass_expires_at')
+            ->where('unlimited_pass_expires_at', '<=', now())
+            ->whereNull('deleted_at')
+            ->get();
+
+        foreach ($passDogs as $dog) {
+            try {
+                $creditService->expireUnlimitedPass($dog);
+            } catch (\Throwable $e) {
+                Log::error('ExpireSubscriptionCredits (unlimited pass) failed for dog', [
                     'dog_id' => $dog->id,
                     'error'  => $e->getMessage(),
                 ]);

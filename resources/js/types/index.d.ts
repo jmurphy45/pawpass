@@ -72,6 +72,7 @@ export interface CreditLedger {
     amount: number;
     balance_after: number;
     note: string | null;
+    expires_at: string | null;
     created_at: string;
 }
 

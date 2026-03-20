@@ -122,6 +122,7 @@
                     <span class="capitalize text-text-body">{{ formatType(entry.type) }}</span>
                   </span>
                   <p v-if="entry.note" class="text-xs text-text-muted mt-0.5">{{ entry.note }}</p>
+                  <p v-if="entry.expires_at" class="text-xs text-amber-600 mt-0.5">expires {{ formatDate(entry.expires_at) }}</p>
                 </td>
                 <td class="px-4 py-3 text-right font-semibold" :class="entry.amount < 0 ? 'text-red-600' : 'text-green-600'">
                   {{ entry.amount > 0 ? '+' : '' }}{{ entry.amount }}

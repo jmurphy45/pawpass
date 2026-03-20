@@ -54,7 +54,6 @@ class DogCreditService
 
             $dog->increment('credit_balance', $credits);
             $dog->update([
-                'credits_expire_at'        => $expiresAt,
                 'unlimited_pass_expires_at' => $expiresAt,
             ]);
         });
@@ -266,7 +265,6 @@ class DogCreditService
 
             $dog->increment('credit_balance', $credits);
             $dog->update([
-                'credits_expire_at'        => $expiresAt,
                 'unlimited_pass_expires_at' => $expiresAt,
             ]);
         });
@@ -311,6 +309,39 @@ class DogCreditService
             ]);
 
             $dog->update(['credit_balance' => 0]);
+        });
+    }
+
+    public function expireUnlimitedPass(Dog $dog): void
+    {
+        DB::transaction(function () use ($dog) {
+            $passEntry = CreditLedger::allTenants()
+                ->where('dog_id', $dog->id)
+                ->where('expires_at', $dog->unlimited_pass_expires_at)
+                ->orderByDesc('created_at')
+                ->first();
+
+            $passCredits = $passEntry ? min($dog->credit_balance, $passEntry->delta) : 0;
+
+            if ($passCredits <= 0) {
+                $dog->update(['unlimited_pass_expires_at' => null]);
+                return;
+            }
+
+            $newBalance = $dog->credit_balance - $passCredits;
+
+            CreditLedger::create([
+                'tenant_id'     => $dog->tenant_id,
+                'dog_id'        => $dog->id,
+                'type'          => 'expiry_removal',
+                'delta'         => -$passCredits,
+                'balance_after' => $newBalance,
+            ]);
+
+            $dog->update([
+                'credit_balance'           => $newBalance,
+                'unlimited_pass_expires_at' => null,
+            ]);
         });
     }
 }
