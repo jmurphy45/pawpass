@@ -20,6 +20,12 @@ class AutoReplenishServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Queue::fake(); // prevent SyncPackageToStripe from running during package creation
+    }
+
     private function makeDog(array $dogOverrides = [], array $customerOverrides = []): Dog
     {
         $tenant = Tenant::factory()->create(['stripe_account_id' => 'acct_test']);

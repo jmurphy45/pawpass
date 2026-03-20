@@ -46,42 +46,7 @@ class PackageControllerStripeTest extends TestCase
 
     // --- store ---
 
-    public function test_store_subscription_package_creates_stripe_product_and_both_prices(): void
-    {
-        $this->mock(StripeService::class, function (MockInterface $mock) {
-            $mock->shouldReceive('createProduct')
-                ->once()
-                ->with('Monthly Sub', 'acct_stripe_test')
-                ->andReturn((object) ['id' => 'prod_sub123']);
-
-            // Primary price (monthly for subscription) + stripe_price_id_monthly
-            $mock->shouldReceive('createPrice')
-                ->twice()
-                ->with('prod_sub123', 9900, 'usd', 'month', 'acct_stripe_test')
-                ->andReturn(
-                    (object) ['id' => 'price_sub123'],
-                    (object) ['id' => 'price_sub123_monthly'],
-                );
-        });
-
-        $response = $this->withHeaders($this->ownerHeaders())
-            ->postJson('/api/admin/v1/packages', [
-                'name' => 'Monthly Sub',
-                'type' => 'subscription',
-                'price' => '99.00',
-            ]);
-
-        $response->assertStatus(201);
-
-        $this->assertDatabaseHas('packages', [
-            'name'                    => 'Monthly Sub',
-            'stripe_product_id'       => 'prod_sub123',
-            'stripe_price_id'         => 'price_sub123',
-            'stripe_price_id_monthly' => 'price_sub123_monthly',
-        ]);
-    }
-
-    public function test_store_one_time_package_creates_stripe_product_and_both_prices(): void
+    public function test_store_one_time_package_creates_stripe_product_and_price(): void
     {
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createProduct')
@@ -93,11 +58,6 @@ class PackageControllerStripeTest extends TestCase
                 ->once()
                 ->with('prod_onetime', 8900, 'usd', null, 'acct_stripe_test')
                 ->andReturn((object) ['id' => 'price_onetime']);
-
-            $mock->shouldReceive('createPrice')
-                ->once()
-                ->with('prod_onetime', 8900, 'usd', 'month', 'acct_stripe_test')
-                ->andReturn((object) ['id' => 'price_onetime_monthly']);
         });
 
         $response = $this->withHeaders($this->ownerHeaders())
@@ -111,10 +71,9 @@ class PackageControllerStripeTest extends TestCase
         $response->assertStatus(201);
 
         $this->assertDatabaseHas('packages', [
-            'name'                    => '10-Day Pack',
-            'stripe_product_id'       => 'prod_onetime',
-            'stripe_price_id'         => 'price_onetime',
-            'stripe_price_id_monthly' => 'price_onetime_monthly',
+            'name'              => '10-Day Pack',
+            'stripe_product_id' => 'prod_onetime',
+            'stripe_price_id'   => 'price_onetime',
         ]);
     }
 
@@ -180,56 +139,15 @@ class PackageControllerStripeTest extends TestCase
 
     // --- update ---
 
-    public function test_update_price_on_subscription_package_archives_old_and_creates_new_recurring(): void
+    public function test_update_price_on_one_time_package_archives_old_and_creates_new(): void
     {
         $package = Package::factory()->create([
-            'tenant_id'               => $this->tenant->id,
-            'type'                    => 'subscription',
-            'price'                   => '99.00',
-            'credit_count'            => 20,
-            'stripe_product_id'       => 'prod_existing',
-            'stripe_price_id'         => 'price_old',
-            'stripe_price_id_monthly' => null,
-        ]);
-
-        $this->mock(StripeService::class, function (MockInterface $mock) {
-            $mock->shouldReceive('archivePrice')
-                ->once()
-                ->with('price_old', 'acct_stripe_test');
-
-            $mock->shouldReceive('createPrice')
-                ->twice()
-                ->with('prod_existing', 10900, 'usd', 'month', 'acct_stripe_test')
-                ->andReturn(
-                    (object) ['id' => 'price_new_sub'],
-                    (object) ['id' => 'price_new_sub_monthly'],
-                );
-        });
-
-        $response = $this->withHeaders($this->ownerHeaders())
-            ->patchJson("/api/admin/v1/packages/{$package->id}", [
-                'price' => '109.00',
-            ]);
-
-        $response->assertStatus(200);
-
-        $this->assertDatabaseHas('packages', [
-            'id'                      => $package->id,
-            'stripe_price_id'         => 'price_new_sub',
-            'stripe_price_id_monthly' => 'price_new_sub_monthly',
-        ]);
-    }
-
-    public function test_update_price_on_one_time_package_archives_old_and_creates_new_onetime(): void
-    {
-        $package = Package::factory()->create([
-            'tenant_id'               => $this->tenant->id,
-            'type'                    => 'one_time',
-            'price'                   => '89.00',
-            'credit_count'            => 10,
-            'stripe_product_id'       => 'prod_onetime_existing',
-            'stripe_price_id'         => 'price_onetime_old',
-            'stripe_price_id_monthly' => null,
+            'tenant_id'         => $this->tenant->id,
+            'type'              => 'one_time',
+            'price'             => '89.00',
+            'credit_count'      => 10,
+            'stripe_product_id' => 'prod_onetime_existing',
+            'stripe_price_id'   => 'price_onetime_old',
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -241,11 +159,6 @@ class PackageControllerStripeTest extends TestCase
                 ->once()
                 ->with('prod_onetime_existing', 7900, 'usd', null, 'acct_stripe_test')
                 ->andReturn((object) ['id' => 'price_onetime_new']);
-
-            $mock->shouldReceive('createPrice')
-                ->once()
-                ->with('prod_onetime_existing', 7900, 'usd', 'month', 'acct_stripe_test')
-                ->andReturn((object) ['id' => 'price_onetime_monthly_new']);
         });
 
         $response = $this->withHeaders($this->ownerHeaders())
@@ -256,9 +169,8 @@ class PackageControllerStripeTest extends TestCase
         $response->assertStatus(200);
 
         $this->assertDatabaseHas('packages', [
-            'id'                      => $package->id,
-            'stripe_price_id'         => 'price_onetime_new',
-            'stripe_price_id_monthly' => 'price_onetime_monthly_new',
+            'id'              => $package->id,
+            'stripe_price_id' => 'price_onetime_new',
         ]);
     }
 

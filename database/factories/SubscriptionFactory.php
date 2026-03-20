@@ -24,7 +24,7 @@ class SubscriptionFactory extends Factory
         return [
             'tenant_id' => $tenant,
             'customer_id' => Customer::factory()->state(['tenant_id' => $tenant]),
-            'package_id' => Package::factory()->subscription()->state(['tenant_id' => $tenant]),
+            'package_id' => Package::factory()->state(['type' => 'subscription', 'tenant_id' => $tenant]),
             'dog_id' => Dog::factory()->state(['tenant_id' => $tenant]),
             'status' => 'active',
             'stripe_sub_id' => 'sub_'.Str::random(24),

@@ -253,64 +253,59 @@ class PackageControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
-    // --- recurring fields ---
+    // --- auto_replenish_eligible field ---
 
-    public function test_update_exposes_recurring_fields_in_response(): void
+    public function test_update_exposes_auto_replenish_eligible_in_response(): void
     {
         $package = Package::factory()->create([
-            'tenant_id'            => $this->tenant->id,
-            'is_recurring_enabled' => false,
+            'tenant_id'                 => $this->tenant->id,
+            'is_auto_replenish_eligible' => false,
         ]);
 
         $response = $this->withHeaders($this->ownerHeaders())
             ->patchJson("/api/admin/v1/packages/{$package->id}", [
-                'is_recurring_enabled'    => true,
-                'recurring_interval_days' => 14,
+                'is_auto_replenish_eligible' => true,
             ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.is_recurring_enabled', true)
-            ->assertJsonPath('data.recurring_interval_days', 14);
+            ->assertJsonPath('data.is_auto_replenish_eligible', true);
 
         $this->assertDatabaseHas('packages', [
-            'id'                     => $package->id,
-            'is_recurring_enabled'   => true,
-            'recurring_interval_days' => 14,
+            'id'                        => $package->id,
+            'is_auto_replenish_eligible' => true,
         ]);
     }
 
-    public function test_update_dispatches_sync_job_when_recurring_fields_change(): void
+    public function test_update_dispatches_sync_job_when_price_changes(): void
     {
         Queue::fake();
 
         $package = Package::factory()->create([
-            'tenant_id'            => $this->tenant->id,
-            'is_recurring_enabled' => false,
-            'stripe_product_id'    => 'prod_existing',
+            'tenant_id'         => $this->tenant->id,
+            'price'             => '89.00',
+            'stripe_product_id' => 'prod_existing',
         ]);
 
         $this->withHeaders($this->ownerHeaders())
             ->patchJson("/api/admin/v1/packages/{$package->id}", [
-                'is_recurring_enabled' => true,
+                'price' => '99.00',
             ]);
 
         Queue::assertPushed(SyncPackageToStripe::class, fn ($job) => $job->package->id === $package->id);
     }
 
-    public function test_index_exposes_recurring_fields(): void
+    public function test_index_exposes_auto_replenish_eligible(): void
     {
         Package::factory()->create([
-            'tenant_id'              => $this->tenant->id,
-            'is_recurring_enabled'   => true,
-            'recurring_interval_days' => 30,
+            'tenant_id'                 => $this->tenant->id,
+            'is_auto_replenish_eligible' => true,
         ]);
 
         $response = $this->withHeaders($this->ownerHeaders())
             ->getJson('/api/admin/v1/packages');
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.0.is_recurring_enabled', true)
-            ->assertJsonPath('data.0.recurring_interval_days', 30);
+            ->assertJsonPath('data.0.is_auto_replenish_eligible', true);
     }
 
     // --- archive ---
