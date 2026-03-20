@@ -390,7 +390,7 @@
 
         <div class="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
           <div
-            v-for="plan in plans"
+            v-for="plan in props.plans"
             :key="plan.name"
             class="relative flex flex-col rounded-2xl border p-8 transition-all"
             :class="plan.featured
@@ -499,6 +499,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+
+// ── Props ─────────────────────────────────────────────────────
+interface Plan {
+  name: string
+  price: string
+  featured: boolean
+  cta: string
+  features: string[]
+}
+
+const props = defineProps<{ plans: Plan[] }>()
 
 // ── Nav state ────────────────────────────────────────────────
 const navScrolled = ref(false)
@@ -661,54 +672,7 @@ const testimonials = [
   },
 ]
 
-// ── Pricing ──────────────────────────────────────────────────
-interface Plan {
-  name: string
-  price: string
-  featured?: boolean
-  cta: string
-  features: string[]
-}
-
-const plans: Plan[] = [
-  {
-    name: 'Starter',
-    price: '$29',
-    cta: 'Start free trial',
-    features: [
-      'Unlimited customers & dogs',
-      'Customer portal',
-      'Check-in roster',
-      'Day pack credits',
-      'Email notifications',
-      'Basic reports',
-    ],
-  },
-  {
-    name: 'Pro',
-    price: '$79',
-    featured: true,
-    cta: 'Start free trial',
-    features: [
-      'Everything in Starter',
-      'SMS notifications',
-      'Advanced financial reports',
-      'White-label branding',
-      'Priority support',
-    ],
-  },
-  {
-    name: 'Business',
-    price: '$149',
-    cta: 'Contact sales',
-    features: [
-      'Everything in Pro',
-      'Dedicated onboarding',
-      'SLA support',
-      'Custom integrations',
-    ],
-  },
-]
+// Plans are passed from the server via props (see HomeController)
 </script>
 
 <style scoped>
