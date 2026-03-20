@@ -14,6 +14,18 @@ The confusing dual toggle (subscription + recurring) is replaced with a single "
 - Trigger B — unlimited pass expires: `ExpireSubscriptionCredits` job fires `ProcessAutoReplenishJob`.
 - `AutoReplenishService::trigger()` creates an off-session PaymentIntent using the saved card.
 - Existing `payment_intent.succeeded` webhook handles issuing credits — unchanged.
+- On PI success: `auto_replenish.succeeded` notification fired (new type, critical).
+- On PI failure: `auto_replenish.failed` notification fired (new type, critical).
+
+### New Notification Types
+
+| Type | Critical | Description |
+|---|---|---|
+| `auto_replenish.succeeded` | ✓ | Card charged successfully, credits topped up |
+| `auto_replenish.failed` | ✓ | Card charge failed, credits not issued — action required |
+
+Both are critical (always fire regardless of tenant settings) and are dispatched via the existing
+`NotificationService::dispatch()` path with `dog_id` + `order_id` (or `pi_id`) in the payload.
 
 ---
 
@@ -81,15 +93,19 @@ The confusing dual toggle (subscription + recurring) is replaced with a single "
 
 ---
 
-## Step 7 — Webhook Controller: Remove Subscription Handlers
+## Step 7 — Webhook Controller: Remove Subscription Handlers + Auto-Replenish Notifications
 
 - [ ] Remove `handleSetupIntentSucceeded` handler (and `setup_intent.succeeded` match arm)
 - [ ] Remove `handleInvoicePaymentSucceeded` (and `invoice.payment_succeeded` match arm)
 - [ ] Remove `handleInvoicePaymentFailed` (and `invoice.payment_failed` match arm)
 - [ ] Remove `handleSubscriptionDeleted` (and `customer.subscription.deleted` match arm)
-- [ ] In `handlePaymentIntentFailed`: if PI metadata contains `auto_replenish=true`,
-    dispatch `subscription.payment_failed` notification to customer
-  - Verification: update StripeWebhookController tests; confirm removed event types return `ok`
+- [ ] In `handlePaymentIntentSucceeded`: after issuing credits, check PI metadata for
+    `auto_replenish=true` — if set, dispatch `auto_replenish.succeeded` notification
+    (in addition to the existing `payment.confirmed`)
+- [ ] In `handlePaymentIntentFailed`: check PI metadata for `auto_replenish=true` —
+    if set, dispatch `auto_replenish.failed` notification to customer
+  - Verification: update StripeWebhookController tests; confirm removed event types return `ok`;
+    confirm auto_replenish notification dispatched on success/failure
 
 ---
 
