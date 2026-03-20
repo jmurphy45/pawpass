@@ -29,14 +29,9 @@ class PackageFactory extends Factory
         ];
     }
 
-    public function subscription(): static
+    public function autoReplenish(): static
     {
-        return $this->state([
-            'type' => 'subscription',
-            'name' => 'Monthly Unlimited',
-            'credit_count' => null,
-            'price' => '199.00',
-        ]);
+        return $this->state(['is_auto_replenish_eligible' => true]);
     }
 
     public function multiDog(int $limit): static

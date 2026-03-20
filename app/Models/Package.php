@@ -26,11 +26,8 @@ class Package extends Model
         'is_active',
         'is_featured',
         'stripe_price_id',
-        'stripe_price_id_monthly',
         'stripe_product_id',
-        'is_recurring_enabled',
-        'recurring_interval_days',
-        'stripe_price_id_recurring',
+        'is_auto_replenish_eligible',
     ];
 
     protected function casts(): array
@@ -42,8 +39,7 @@ class Package extends Model
             'duration_days' => 'integer',
             'is_active' => 'boolean',
             'is_featured' => 'boolean',
-            'is_recurring_enabled' => 'boolean',
-            'recurring_interval_days' => 'integer',
+            'is_auto_replenish_eligible' => 'boolean',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',

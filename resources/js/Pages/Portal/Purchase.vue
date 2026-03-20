@@ -47,7 +47,7 @@
                   <p class="font-bold text-text-body text-lg">{{ pkg.name }}</p>
                   <p class="text-2xl font-black text-text-body">
                     ${{ (pkg.price_cents / 100).toFixed(2) }}
-                    <span class="text-sm font-normal text-text-muted">{{ pkg.billing_interval ? `/ ${pkg.billing_interval}` : 'one-time' }}</span>
+                    <span class="text-sm font-normal text-text-muted">one-time</span>
                   </p>
                 </div>
 
@@ -56,20 +56,19 @@
                     <svg class="h-4 w-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />
                     </svg>
-                    <template v-if="pkg.billing_interval">
-                      <template v-if="selectedDogExpiry && selectedPackageId === pkg.id">
-                        <span class="text-amber-600">{{ pkg.credits }} credits (expiring {{ selectedDogExpiry }})</span>
-                        <span class="text-gray-400">+ {{ pkg.credits }} more on {{ selectedDogRenewal }}</span>
-                      </template>
-                      <template v-else>{{ pkg.credits }} credits / month</template>
-                    </template>
-                    <template v-else>{{ pkg.credits }} credits</template>
+                    {{ pkg.credits }} credits
                   </li>
                   <li v-if="pkg.max_dogs > 1" class="flex items-center gap-2 text-sm text-text-muted">
                     <svg class="h-4 w-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />
                     </svg>
                     Up to {{ pkg.max_dogs }} dogs
+                  </li>
+                  <li v-if="pkg.is_auto_replenish_eligible" class="flex items-center gap-2 text-sm text-text-muted">
+                    <svg class="h-4 w-4 text-indigo-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Auto-replenish available
                   </li>
                 </ul>
               </div>
@@ -82,61 +81,19 @@
           <div class="card-padded sticky top-24 space-y-5">
             <h2 class="text-sm font-semibold text-text-body">Checkout</h2>
 
-            <!-- Billing mode toggle (monthly subscription) -->
-            <div v-if="recurringCheckoutEnabled && selectedPackage?.has_monthly_price">
-              <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Billing</label>
-              <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-                <button
-                  type="button"
-                  class="flex-1 py-2 font-medium transition-colors"
-                  :class="billingMode === 'one_time' ? 'text-white' : 'text-text-muted bg-white hover:bg-gray-50'"
-                  :style="billingMode === 'one_time' ? { backgroundColor: accentColor } : {}"
-                  @click="billingMode = 'one_time'"
-                >Pay Once</button>
-                <button
-                  type="button"
-                  class="flex-1 py-2 font-medium transition-colors"
-                  :class="billingMode === 'subscription' ? 'text-white' : 'text-text-muted bg-white hover:bg-gray-50'"
-                  :style="billingMode === 'subscription' ? { backgroundColor: accentColor } : {}"
-                  @click="billingMode = 'subscription'"
-                >Subscribe Monthly</button>
-              </div>
-            </div>
-
-            <!-- Recurring billing toggle (non-native, for one_time + unlimited packages) -->
-            <div v-if="recurringCheckoutEnabled && selectedPackage?.is_recurring_enabled && selectedPackage?.type !== 'subscription'">
-              <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Recurring</label>
-              <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
-                <button
-                  type="button"
-                  class="flex-1 py-2 font-medium transition-colors"
-                  :class="billingMode !== 'recurring' ? 'text-white' : 'text-text-muted bg-white hover:bg-gray-50'"
-                  :style="billingMode !== 'recurring' ? { backgroundColor: accentColor } : {}"
-                  @click="billingMode = 'one_time'"
-                >Pay Once</button>
-                <button
-                  type="button"
-                  class="flex-1 py-2 font-medium transition-colors"
-                  :class="billingMode === 'recurring' ? 'text-white' : 'text-text-muted bg-white hover:bg-gray-50'"
-                  :style="billingMode === 'recurring' ? { backgroundColor: accentColor } : {}"
-                  @click="billingMode = 'recurring'"
-                >Make Recurring</button>
-              </div>
-            </div>
-
             <!-- Dog selector -->
             <div>
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">For</label>
-              <!-- Subscription/recurring mode or single-dog package: dropdown only -->
+              <!-- Single-dog package: dropdown -->
               <select
-                v-if="billingMode === 'subscription' || billingMode === 'recurring' || !selectedPackage || selectedPackage.max_dogs === 1"
+                v-if="!selectedPackage || selectedPackage.max_dogs === 1"
                 v-model="selectedDogId"
                 class="input"
               >
                 <option value="">— choose a dog —</option>
                 <option v-for="dog in dogs" :key="dog.id" :value="dog.id">{{ dog.name }}</option>
               </select>
-              <!-- Multi-dog one-time: checkboxes -->
+              <!-- Multi-dog: checkboxes -->
               <div v-else class="space-y-2">
                 <label
                   v-for="dog in dogs"
@@ -160,27 +117,35 @@
             <!-- Card element / card on file -->
             <div>
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Payment</label>
-              <!-- Card-on-file badge (shown when recurring/subscription and saved card exists and user hasn't clicked "Change") -->
-              <div
-                v-if="savedCard && (billingMode === 'recurring' || billingMode === 'subscription') && !useNewCard"
-                class="rounded-lg bg-surface-subtle border border-gray-200 px-3 py-2 text-sm flex items-center gap-2"
-              >
+              <div v-if="savedCard && !useNewCard" class="rounded-lg bg-surface-subtle border border-gray-200 px-3 py-2 text-sm flex items-center gap-2">
                 <svg class="h-4 w-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                 </svg>
                 <span>{{ capitalize(savedCard.brand) }} ····{{ savedCard.last4 }}</span>
                 <button type="button" @click="useNewCard = true" class="ml-auto text-xs text-indigo-600 hover:underline">Change</button>
               </div>
-              <!-- Card element (shown when no saved card, or user clicked "Change", or one-time purchase) -->
               <div v-else id="card-element" class="input py-3" />
               <p v-if="cardError" class="mt-1.5 text-xs text-red-600">{{ cardError }}</p>
-              <!-- Save card checkbox (shown whenever card element is visible) -->
-              <label
-                v-if="!savedCard || useNewCard || billingMode === 'one_time'"
-                class="mt-2 flex items-center gap-2 text-sm text-text-muted cursor-pointer"
-              >
+              <label class="mt-2 flex items-center gap-2 text-sm text-text-muted cursor-pointer">
                 <input type="checkbox" v-model="saveCard" class="h-4 w-4 rounded border-gray-300" />
                 Save card for future purchases
+              </label>
+            </div>
+
+            <!-- Auto-replenish toggle -->
+            <div v-if="autoReplenishEnabled && selectedPackage?.is_auto_replenish_eligible && activeDogIds.length === 1">
+              <label class="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  v-model="autoReplenish"
+                  class="mt-0.5 h-4 w-4 rounded border-gray-300 shrink-0"
+                  :style="{ accentColor: accentColor }"
+                  @change="onAutoReplenishChange"
+                />
+                <span class="text-sm text-text-body">
+                  Auto-replenish when credits run out
+                  <span class="block text-xs text-text-muted mt-0.5">Card saved securely · cancel anytime from your account</span>
+                </span>
               </label>
             </div>
 
@@ -188,15 +153,9 @@
             <div v-if="selectedPackage" class="rounded-lg bg-surface-subtle px-4 py-3 text-sm">
               <div class="flex items-center justify-between">
                 <span class="text-text-muted">{{ selectedPackage.name }}</span>
-                <span class="font-semibold text-text-body">
-                  ${{ (selectedPackage.price_cents / 100).toFixed(2) }}
-                  <span v-if="billingMode === 'subscription'" class="text-xs font-normal text-text-muted">/mo</span>
-                </span>
+                <span class="font-semibold text-text-body">${{ (selectedPackage.price_cents / 100).toFixed(2) }}</span>
               </div>
-              <p v-if="billingMode === 'subscription'" class="text-xs text-text-muted mt-1">Billed monthly · cancel anytime</p>
-              <p v-if="billingMode === 'recurring' && selectedPackage.recurring_interval_days" class="text-xs text-text-muted mt-1">
-                Billed every {{ selectedPackage.recurring_interval_days }} days · cancel anytime
-              </p>
+              <p v-if="autoReplenish" class="text-xs text-text-muted mt-1">Re-purchased automatically when credits reach zero · cancel anytime</p>
             </div>
 
             <button
@@ -210,15 +169,7 @@
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
               </svg>
               <template v-if="paying">Processing…</template>
-              <template v-else-if="selectedPackage && billingMode === 'subscription'">
-                Subscribe — ${{ (selectedPackage.price_cents / 100).toFixed(2) }}/mo
-              </template>
-              <template v-else-if="selectedPackage && billingMode === 'recurring'">
-                Subscribe (every {{ selectedPackage.recurring_interval_days ?? selectedPackage.duration_days ?? 30 }}d) — ${{ (selectedPackage.price_cents / 100).toFixed(2) }}
-              </template>
-              <template v-else-if="selectedPackage">
-                Pay ${{ (selectedPackage.price_cents / 100).toFixed(2) }}
-              </template>
+              <template v-else-if="selectedPackage">Pay ${{ (selectedPackage.price_cents / 100).toFixed(2) }}</template>
               <template v-else>Pay Now</template>
             </button>
 
@@ -234,8 +185,7 @@
               <svg class="h-4 w-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />
               </svg>
-              <span v-if="billingMode === 'subscription' || billingMode === 'recurring'">Subscription activated! Redirecting…</span>
-              <span v-else>Payment successful! Credits will appear shortly.</span>
+              Payment successful! Credits will appear shortly.
             </div>
           </div>
         </div>
@@ -252,11 +202,9 @@ import type { Package, PageProps } from '@/types';
 import { loadStripe } from '@stripe/stripe-js';
 import type { Stripe, StripeCardElement } from '@stripe/stripe-js';
 
-interface DogOption { id: string; name: string; credits_expire_at: string | null; }
+interface DogOption { id: string; name: string; credits_expire_at: string | null; auto_replenish_enabled: boolean; auto_replenish_package_id: string | null; }
 interface PurchasePackage extends Package {
-  has_monthly_price: boolean;
-  is_recurring_enabled: boolean;
-  recurring_interval_days: number | null;
+  is_auto_replenish_eligible: boolean;
 }
 
 const props = defineProps<{
@@ -264,65 +212,46 @@ const props = defineProps<{
   dogs: DogOption[];
   stripe_key: string;
   stripe_account_id: string | null;
-  recurring_checkout_enabled: boolean;
+  auto_replenish_enabled: boolean;
   saved_card: { last4: string; brand: string } | null;
 }>();
 
 const page = usePage<PageProps>();
 const accentColor = computed(() => page.props.tenant?.primary_color ?? '#4f46e5');
-const recurringCheckoutEnabled = computed(() => props.recurring_checkout_enabled);
+const autoReplenishEnabled = computed(() => props.auto_replenish_enabled);
 const savedCard = computed(() => props.saved_card);
 
 const selectedPackageId = ref('');
 const selectedDogId = ref('');
 const selectedDogIds = ref<string[]>([]);
-const billingMode = ref<'one_time' | 'subscription' | 'recurring'>('one_time');
 const paying = ref(false);
 const saveCard = ref(false);
 const useNewCard = ref(false);
+const autoReplenish = ref(false);
 
 function capitalize(str: string): string {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
 }
 
 const selectedPackage = computed(() => props.packages.find(p => p.id === selectedPackageId.value) ?? null);
-const selectedDog = computed(() => props.dogs.find(d => d.id === selectedDogId.value) ?? null);
 
-// Reset billing mode to one_time when selecting a package without applicable recurring options
 function onPackageSelect(id: string) {
   selectedPackageId.value = id;
-  const pkg = props.packages.find(p => p.id === id);
-  if (!pkg?.has_monthly_price && !pkg?.is_recurring_enabled) billingMode.value = 'one_time';
-  if (billingMode.value === 'recurring' && !pkg?.is_recurring_enabled) billingMode.value = 'one_time';
-  if (billingMode.value === 'subscription' && !pkg?.has_monthly_price) billingMode.value = 'one_time';
+  autoReplenish.value = false;
 }
 
-// The dog IDs to actually submit
+// When auto-replenish is checked, ensure card will be saved
+function onAutoReplenishChange() {
+  if (autoReplenish.value) {
+    saveCard.value = true;
+  }
+}
+
 const activeDogIds = computed(() => {
   if (!selectedPackage.value) return [];
-  if (billingMode.value === 'subscription' || billingMode.value === 'recurring') {
-    return selectedDogId.value ? [selectedDogId.value] : [];
-  }
   return selectedPackage.value.max_dogs === 1
     ? (selectedDogId.value ? [selectedDogId.value] : [])
     : selectedDogIds.value;
-});
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-const selectedDogExpiry = computed(() => {
-  const exp = selectedDog.value?.credits_expire_at;
-  return exp ? fmtDate(exp) : null;
-});
-
-const selectedDogRenewal = computed(() => {
-  const exp = selectedDog.value?.credits_expire_at;
-  if (!exp) return null;
-  const d = new Date(exp);
-  d.setDate(d.getDate() + 30);
-  return fmtDate(d.toISOString());
 });
 
 const success = ref(false);
@@ -351,23 +280,19 @@ onMounted(async () => {
   const opts = props.stripe_account_id ? { stripeAccount: props.stripe_account_id } : {};
   stripe = await loadStripe(props.stripe_key, opts);
   if (!stripe) return;
-  // Only mount immediately if card element should be visible
-  if (!savedCard.value || billingMode.value === 'one_time') {
+  if (!savedCard.value) {
     mountCardElement();
   }
 });
 
-// When user clicks "Change card", lazily mount the card element
 watch(useNewCard, (val) => {
   if (val) {
-    // Wait for DOM to update
     setTimeout(() => mountCardElement(), 0);
   }
 });
 
 async function purchase() {
-  // Allow purchase without cardElement when using card on file
-  const usingCardOnFile = savedCard.value && (billingMode.value === 'recurring' || billingMode.value === 'subscription') && !useNewCard.value;
+  const usingCardOnFile = savedCard.value && !useNewCard.value;
   if (!selectedPackageId.value || activeDogIds.value.length === 0 || !stripe || (!cardElement && !usingCardOnFile)) return;
 
   paying.value = true;
@@ -383,7 +308,6 @@ async function purchase() {
       body: JSON.stringify({
         package_id: selectedPackageId.value,
         dog_ids: activeDogIds.value,
-        billing_mode: billingMode.value,
         save_card: saveCard.value,
       }),
     });
@@ -395,45 +319,33 @@ async function purchase() {
     }
 
     const data = await resp.json();
-
-    // Fast path: server created subscription directly (card on file)
-    if (data.fast) {
-      success.value = true;
-      setTimeout(() => router.visit(route('portal.history')), 3000);
-      return;
-    }
-
     const { client_secret } = data;
 
-    if (billingMode.value === 'subscription' || billingMode.value === 'recurring') {
-      const result = await stripe.confirmCardSetup(client_secret, {
-        payment_method: { card: cardElement! },
-      });
+    const paymentMethod = usingCardOnFile
+      ? savedCard.value?.last4 // will use customer's default PM server-side
+      : { card: cardElement! };
 
-      if (result.error) {
-        cardError.value = result.error.message ?? 'Setup failed.';
-      } else {
-        success.value = true;
-        setTimeout(() => router.visit(route('portal.history')), 3000);
-      }
+    const result = await stripe.confirmCardPayment(client_secret, {
+      payment_method: usingCardOnFile ? undefined : { card: cardElement! },
+    });
+
+    if (result.error) {
+      cardError.value = result.error.message ?? 'Payment failed.';
     } else {
-      const result = await stripe.confirmCardPayment(client_secret, {
-        payment_method: { card: cardElement! },
+      await fetch(route('portal.purchase.confirm'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
+        },
+        body: JSON.stringify({
+          payment_intent_id: result.paymentIntent.id,
+          save_card: saveCard.value,
+          auto_replenish: autoReplenish.value,
+        }),
       });
-
-      if (result.error) {
-        cardError.value = result.error.message ?? 'Payment failed.';
-      } else {
-        await fetch(route('portal.purchase.confirm'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
-          },
-          body: JSON.stringify({ payment_intent_id: result.paymentIntent.id, save_card: saveCard.value }),
-        });
-        router.visit(route('portal.history'));
-      }
+      success.value = true;
+      setTimeout(() => router.visit(route('portal.history')), 2000);
     }
   } catch {
     cardError.value = 'An unexpected error occurred.';

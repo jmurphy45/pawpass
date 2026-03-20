@@ -16,6 +16,9 @@ class StripeService
         int $applicationFeeCents,
         array $metadata = [],
         ?string $stripeCustomerId = null,
+        bool $confirm = false,
+        bool $offSession = false,
+        ?string $paymentMethodId = null,
     ): object {
         $payload = [
             'amount' => $amountCents,
@@ -25,6 +28,16 @@ class StripeService
         ];
         if ($stripeCustomerId) {
             $payload['customer'] = $stripeCustomerId;
+        }
+        if ($confirm) {
+            $payload['confirm'] = true;
+            $payload['error_on_requires_action'] = true;
+        }
+        if ($offSession) {
+            $payload['off_session'] = true;
+        }
+        if ($paymentMethodId) {
+            $payload['payment_method'] = $paymentMethodId;
         }
         return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
     }

@@ -194,20 +194,37 @@ Both are critical (always fire regardless of tenant settings) and are dispatched
 ## Review
 
 ### Summary of Changes
-(to be filled after completion)
+
+- **Removed** Stripe Subscription infrastructure: no more SetupIntents, Stripe Subscriptions, invoice webhooks (`invoice.payment_succeeded`, `invoice.payment_failed`, `setup_intent.succeeded`, `customer.subscription.deleted`).
+- **Removed** `subscription` package type; all packages are `one_time` or `unlimited`.
+- **Removed** `is_recurring_enabled`, `recurring_interval_days`, `stripe_price_id_monthly`, `stripe_price_id_recurring` from `packages` table and all related code.
+- **Added** `is_auto_replenish_eligible bool` to `packages` (owner flag per-package).
+- **Added** `auto_replenish_enabled bool` + `auto_replenish_package_id` to `dogs`.
+- **Added** `AutoReplenishService` — creates an off-session PaymentIntent (`confirm=true`, `off_session=true`) using customer's saved card when auto-replenish triggers.
+- **Added** `ProcessAutoReplenishJob` — queued, `$tries=1`, dispatches `AutoReplenishService::trigger()`.
+- **Added** trigger A: `DogCreditService::dispatchCreditAlert()` dispatches job when `credits.empty` and `auto_replenish_enabled=true`.
+- **Added** trigger B: `ExpireSubscriptionCredits` dispatches job after unlimited pass expires if `auto_replenish_enabled=true`.
+- **Added** two critical notification types: `auto_replenish.succeeded` and `auto_replenish.failed`.
+- **Updated** webhook handler: `payment_intent.succeeded` dispatches `auto_replenish.succeeded` when `metadata.auto_replenish=true`; `payment_intent.payment_failed` dispatches `auto_replenish.failed`.
+- **Updated** `PurchaseController`: all purchases are one-time PaymentIntent; `confirm()` sets dog auto-replenish fields if opted in.
+- **Updated** `SyncPackageToStripe`: creates single one-time price only (no monthly/recurring prices).
+- **Updated** `Purchase.vue`: single "Auto-replenish when credits run out" checkbox; removed dual billing toggle UI.
+- **Updated** `Admin/Packages/Edit.vue`: "Allow auto-replenish" checkbox replaces recurring fields.
 
 ### Tests Added or Updated
-(to be filled after completion)
+
+- **New** `tests/Unit/Services/AutoReplenishServiceTest.php` — 6 tests covering skip conditions, successful PI creation, and Stripe exception handling.
+- **New** `tests/Unit/Jobs/ProcessAutoReplenishJobTest.php` — 2 tests: calls service for valid dog, skips for unknown dog ID.
 
 ### Build Status
-- Tests: TBD
-- Build: TBD
+
+- **PHP syntax:** All new/modified PHP files pass `php -l` syntax check (no errors).
+- **JS Build:** `npm run build` completed successfully (✓ 4.52s, no TypeScript errors).
+- **Unit tests (DB-independent):** `Tests\Unit\ExampleTest` passes. New unit tests require PostgreSQL (same pre-existing limitation as `HasUlidTest`, `BelongsToTenantTest`, `JwtServiceTest` in this environment).
 
 ### Notes
-- `subscriptions` table is retained for FK integrity on `credit_ledger.subscription_id` (historical rows),
-  but no new rows are inserted. A future cleanup migration can drop the table once credit_ledger rows are purged.
-- The `stripe_price_id` (one-time) and `stripe_product_id` columns on `packages` are kept — they are used
-  for Stripe dashboard product tracking, not for the payment flow.
-- Off-session PaymentIntents require `confirm: true` + `off_session: true` + `error_on_requires_action: true`
-  to correctly handle cards that require 3DS (they fail gracefully rather than entering a limbo state).
-- `StripeService::createPaymentIntent()` will need new optional params: `confirmImmediately`, `offSession`.
+
+- `subscriptions` table is retained for FK integrity on `credit_ledger.subscription_id` (historical rows), but no new rows are inserted. A future cleanup migration can drop the table once credit_ledger rows are purged.
+- The `stripe_price_id` (one-time) and `stripe_product_id` columns on `packages` are kept — they are used for Stripe dashboard product tracking, not for the payment flow.
+- Off-session PaymentIntents use `confirm: true` + `off_session: true` + `error_on_requires_action: true` to handle 3DS-required cards gracefully (they fail immediately rather than entering a limbo state requiring customer action).
+- The existing `payment_intent.succeeded` webhook issues credits for auto-replenish orders automatically, since the PI `metadata` includes `order_id` just like manual purchases.

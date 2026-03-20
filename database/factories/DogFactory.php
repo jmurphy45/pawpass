@@ -42,6 +42,8 @@ class DogFactory extends Factory
             'credit_balance' => fake()->numberBetween(0, 20),
             'credits_expire_at' => null,
             'credits_alert_sent_at' => null,
+            'auto_replenish_enabled' => false,
+            'auto_replenish_package_id' => null,
         ];
     }
 

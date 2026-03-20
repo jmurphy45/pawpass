@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Web\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Package;
-use App\Models\PlatformConfig;
-use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
 use App\Services\NotificationService;
@@ -35,28 +33,27 @@ class PurchaseController extends Controller
             ->orderBy('price')
             ->get()
             ->map(fn ($p) => [
-                'id'                     => $p->id,
-                'name'                   => $p->name,
-                'description'            => $p->description,
-                'type'                   => $p->type,
-                'price_cents'            => (int) round((float) $p->price * 100),
-                'credits'                => $p->credit_count,
-                'max_dogs'               => $p->dog_limit,
-                'billing_interval'       => $p->type === 'subscription' ? 'monthly' : null,
-                'has_monthly_price'      => $p->stripe_price_id_monthly !== null,
-                'duration_days'          => $p->duration_days,
-                'is_featured'            => $p->is_featured,
-                'is_recurring_enabled'   => $p->is_recurring_enabled,
-                'recurring_interval_days' => $p->recurring_interval_days,
+                'id'                         => $p->id,
+                'name'                       => $p->name,
+                'description'                => $p->description,
+                'type'                       => $p->type,
+                'price_cents'                => (int) round((float) $p->price * 100),
+                'credits'                    => $p->credit_count,
+                'max_dogs'                   => $p->dog_limit,
+                'duration_days'              => $p->duration_days,
+                'is_featured'                => $p->is_featured,
+                'is_auto_replenish_eligible' => (bool) $p->is_auto_replenish_eligible,
             ]);
 
         $dogs = $customer->dogs()
             ->orderBy('name')
             ->get()
             ->map(fn ($d) => [
-                'id'               => $d->id,
-                'name'             => $d->name,
-                'credits_expire_at' => $d->credits_expire_at?->toIso8601String(),
+                'id'                        => $d->id,
+                'name'                      => $d->name,
+                'credits_expire_at'         => $d->credits_expire_at?->toIso8601String(),
+                'auto_replenish_enabled'    => (bool) $d->auto_replenish_enabled,
+                'auto_replenish_package_id' => $d->auto_replenish_package_id,
             ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
@@ -66,7 +63,7 @@ class PurchaseController extends Controller
             'dogs'                       => $dogs,
             'stripe_key'                 => config('services.stripe.key'),
             'stripe_account_id'          => $tenant?->stripe_account_id,
-            'recurring_checkout_enabled' => Feature::active('recurring_checkout'),
+            'auto_replenish_enabled'     => Feature::active('recurring_checkout'),
             'saved_card'                 => $customer->stripe_payment_method_id
                 ? ['last4' => $customer->stripe_pm_last4, 'brand' => $customer->stripe_pm_brand]
                 : null,
@@ -76,136 +73,21 @@ class PurchaseController extends Controller
     public function store(Request $request, StripeService $stripe): JsonResponse
     {
         $request->validate([
-            'package_id'   => ['required', 'string'],
-            'dog_ids'      => ['required', 'array', 'min:1'],
-            'dog_ids.*'    => ['required', 'string'],
-            'billing_mode' => ['sometimes', 'string', 'in:one_time,subscription,recurring'],
-            'save_card'    => ['sometimes', 'boolean'],
+            'package_id'     => ['required', 'string'],
+            'dog_ids'        => ['required', 'array', 'min:1'],
+            'dog_ids.*'      => ['required', 'string'],
+            'save_card'      => ['sometimes', 'boolean'],
+            'auto_replenish' => ['sometimes', 'boolean'],
         ]);
 
-        $billingMode = $request->input('billing_mode', 'one_time');
-        $customer    = Auth::user()->customer;
-        $tenantId    = app('current.tenant.id');
-        $tenant      = Tenant::find($tenantId);
+        $customer = Auth::user()->customer;
+        $tenantId = app('current.tenant.id');
+        $tenant   = Tenant::find($tenantId);
 
         abort_unless($tenant && $tenant->stripe_account_id, 422, 'Stripe not configured for this tenant.');
 
         $package = Package::findOrFail($request->package_id);
 
-        // --- Subscription billing mode ---
-        if ($billingMode === 'subscription') {
-            abort_unless(
-                $package->stripe_price_id_monthly,
-                422,
-                'This package is not available for monthly subscription billing.',
-            );
-
-            $dog = $customer->dogs()->findOrFail($request->dog_ids[0]);
-
-            $existingActive = Subscription::where('dog_id', $dog->id)
-                ->where('package_id', $package->id)
-                ->where('status', 'active')
-                ->first();
-
-            if ($existingActive) {
-                return response()->json([
-                    'message'    => 'This dog already has an active subscription for this package.',
-                    'error_code' => 'ALREADY_SUBSCRIBED',
-                ], 409);
-            }
-
-            if ($customer->stripe_customer_id) {
-                $stripeCustomerId = $customer->stripe_customer_id;
-            } else {
-                $stripeCustomer   = $stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
-                $stripeCustomerId = $stripeCustomer->id;
-                $customer->update(['stripe_customer_id' => $stripeCustomerId]);
-            }
-
-            $subscription = Subscription::create([
-                'tenant_id'          => $tenant->id,
-                'customer_id'        => $customer->id,
-                'package_id'         => $package->id,
-                'dog_id'             => $dog->id,
-                'status'             => 'active',
-                'stripe_customer_id' => $stripeCustomerId,
-            ]);
-
-            $setupIntent = $stripe->createSetupIntent(
-                $stripeCustomerId,
-                ['local_subscription_id' => $subscription->id, 'save_card' => $request->boolean('save_card')],
-                $tenant->stripe_account_id,
-            );
-
-            return response()->json([
-                'client_secret'   => $setupIntent->client_secret,
-                'subscription_id' => $subscription->id,
-            ], 201);
-        }
-
-        // --- Recurring billing mode (non-native subscription using SetupIntent) ---
-        if ($billingMode === 'recurring') {
-            abort_unless(
-                $package->is_recurring_enabled && $package->stripe_price_id_recurring,
-                422,
-                'This package is not available for recurring billing.',
-            );
-
-            $dog = $customer->dogs()->findOrFail($request->dog_ids[0]);
-
-            if ($customer->stripe_customer_id) {
-                $stripeCustomerId = $customer->stripe_customer_id;
-            } else {
-                $stripeCustomer   = $stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
-                $stripeCustomerId = $stripeCustomer->id;
-                $customer->update(['stripe_customer_id' => $stripeCustomerId]);
-            }
-
-            $subscription = Subscription::create([
-                'tenant_id'          => $tenant->id,
-                'customer_id'        => $customer->id,
-                'package_id'         => $package->id,
-                'dog_id'             => $dog->id,
-                'status'             => 'active',
-                'stripe_customer_id' => $stripeCustomerId,
-            ]);
-
-            // Fast path: if customer already has a saved PM, skip SetupIntent
-            if ($customer->stripe_payment_method_id) {
-                $feePct    = (float) ($tenant->platform_fee_pct ?? 5);
-                $surcharge = (float) PlatformConfig::get('recurring_surcharge_pct', 0);
-
-                $stripeSub = $stripe->createSubscription(
-                    $stripeCustomerId,
-                    $package->stripe_price_id_recurring,
-                    $customer->stripe_payment_method_id,
-                    $tenant->stripe_account_id,
-                    $feePct + $surcharge,
-                    ['local_subscription_id' => $subscription->id],
-                );
-
-                $subscription->update([
-                    'stripe_sub_id'        => $stripeSub->id,
-                    'current_period_start' => \Carbon\Carbon::createFromTimestamp($stripeSub->current_period_start),
-                    'current_period_end'   => \Carbon\Carbon::createFromTimestamp($stripeSub->current_period_end),
-                ]);
-
-                return response()->json(['subscription_id' => $subscription->id, 'fast' => true], 201);
-            }
-
-            $setupIntent = $stripe->createSetupIntent(
-                $stripeCustomerId,
-                ['local_subscription_id' => $subscription->id, 'save_card' => $request->boolean('save_card')],
-                $tenant->stripe_account_id,
-            );
-
-            return response()->json([
-                'client_secret'   => $setupIntent->client_secret,
-                'subscription_id' => $subscription->id,
-            ], 201);
-        }
-
-        // --- One-time purchase flow ---
         $request->validate([
             'dog_ids' => ['max:' . $package->dog_limit],
         ]);
@@ -269,6 +151,7 @@ class PurchaseController extends Controller
         $validated = $request->validate([
             'payment_intent_id' => ['required', 'string'],
             'save_card'         => ['sometimes', 'boolean'],
+            'auto_replenish'    => ['sometimes', 'boolean'],
         ]);
 
         $customer = Auth::user()->customer;
@@ -292,7 +175,7 @@ class PurchaseController extends Controller
             return response()->json(['status' => $pi->status]);
         }
 
-        DB::transaction(function () use ($order) {
+        DB::transaction(function () use ($order, $validated, $request) {
             $order->update(['status' => 'paid', 'paid_at' => now()]);
             $order->load(['orderDogs.dog', 'package']);
             foreach ($order->orderDogs as $orderDog) {
@@ -300,6 +183,13 @@ class PurchaseController extends Controller
                     $this->creditService->issueUnlimitedPass($order, $orderDog->dog);
                 } else {
                     $this->creditService->issueFromOrder($order, $orderDog->dog);
+                }
+
+                if ($request->boolean('auto_replenish') && $order->package->is_auto_replenish_eligible) {
+                    $orderDog->dog->update([
+                        'auto_replenish_enabled'    => true,
+                        'auto_replenish_package_id' => $order->package_id,
+                    ]);
                 }
             }
         });

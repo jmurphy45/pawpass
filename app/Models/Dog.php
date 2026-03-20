@@ -28,6 +28,8 @@ class Dog extends Model
         'credits_expire_at',
         'unlimited_pass_expires_at',
         'credits_alert_sent_at',
+        'auto_replenish_enabled',
+        'auto_replenish_package_id',
     ];
 
     protected function casts(): array
@@ -38,6 +40,7 @@ class Dog extends Model
             'credits_expire_at' => 'immutable_datetime',
             'unlimited_pass_expires_at' => 'immutable_datetime',
             'credits_alert_sent_at' => 'immutable_datetime',
+            'auto_replenish_enabled' => 'boolean',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',
