@@ -19,7 +19,7 @@
         <p class="text-sm text-text-muted mt-1">Records will appear here after your first check-in</p>
       </div>
 
-      <div v-else class="card overflow-hidden">
+      <div v-else class="card overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr style="border-bottom: 1px solid #e5e0d8; background-color: #faf9f6;">
