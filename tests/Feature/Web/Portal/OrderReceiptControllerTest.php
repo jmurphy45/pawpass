@@ -48,7 +48,17 @@ class OrderReceiptControllerTest extends TestCase
         ]);
     }
 
-    public function test_authenticated_customer_is_redirected_to_receipt_url(): void
+    private function chargeDetails(): array
+    {
+        return [
+            'charge_id'      => 'ch_test123',
+            'receipt_number' => '1234-5678',
+            'card_brand'     => 'visa',
+            'card_last4'     => '4242',
+        ];
+    }
+
+    public function test_streams_pdf_for_paid_order(): void
     {
         $order = Order::factory()->create([
             'tenant_id'    => $this->tenant->id,
@@ -59,16 +69,40 @@ class OrderReceiptControllerTest extends TestCase
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
-            $mock->shouldReceive('retrieveReceiptUrl')
+            $mock->shouldReceive('retrieveChargeDetails')
                 ->once()
                 ->with('pi_abc123', 'acct_receipt123')
-                ->andReturn('https://pay.stripe.com/receipts/test_receipt_url');
+                ->andReturn($this->chargeDetails());
         });
 
         $response = $this->actingAs($this->user)
             ->get(route('portal.orders.receipt', $order));
 
-        $response->assertRedirect('https://pay.stripe.com/receipts/test_receipt_url');
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_pdf_still_generated_when_stripe_returns_no_charge(): void
+    {
+        $order = Order::factory()->create([
+            'tenant_id'    => $this->tenant->id,
+            'customer_id'  => $this->customer->id,
+            'package_id'   => $this->package->id,
+            'status'       => 'paid',
+            'stripe_pi_id' => 'pi_abc123',
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('retrieveChargeDetails')
+                ->once()
+                ->andReturn(null);
+        });
+
+        $response = $this->actingAs($this->user)
+            ->get(route('portal.orders.receipt', $order));
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/pdf');
     }
 
     public function test_returns_403_if_order_belongs_to_different_customer(): void
@@ -83,7 +117,7 @@ class OrderReceiptControllerTest extends TestCase
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
-            $mock->shouldNotReceive('retrieveReceiptUrl');
+            $mock->shouldNotReceive('retrieveChargeDetails');
         });
 
         $response = $this->actingAs($this->user)
@@ -103,7 +137,7 @@ class OrderReceiptControllerTest extends TestCase
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
-            $mock->shouldNotReceive('retrieveReceiptUrl');
+            $mock->shouldNotReceive('retrieveChargeDetails');
         });
 
         $response = $this->actingAs($this->user)
@@ -123,29 +157,7 @@ class OrderReceiptControllerTest extends TestCase
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
-            $mock->shouldNotReceive('retrieveReceiptUrl');
-        });
-
-        $response = $this->actingAs($this->user)
-            ->get(route('portal.orders.receipt', $order));
-
-        $response->assertStatus(404);
-    }
-
-    public function test_returns_404_if_stripe_returns_no_receipt_url(): void
-    {
-        $order = Order::factory()->create([
-            'tenant_id'    => $this->tenant->id,
-            'customer_id'  => $this->customer->id,
-            'package_id'   => $this->package->id,
-            'status'       => 'paid',
-            'stripe_pi_id' => 'pi_abc123',
-        ]);
-
-        $this->mock(StripeService::class, function (MockInterface $mock) {
-            $mock->shouldReceive('retrieveReceiptUrl')
-                ->once()
-                ->andReturn(null);
+            $mock->shouldNotReceive('retrieveChargeDetails');
         });
 
         $response = $this->actingAs($this->user)

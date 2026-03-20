@@ -49,9 +49,8 @@
               <a
                 v-if="order.has_receipt"
                 :href="route('portal.orders.receipt', { order: order.id })"
-                target="_blank"
                 class="text-xs text-link mt-1 inline-block"
-              >Receipt ↗</a>
+              >Download receipt</a>
             </div>
           </li>
         </ul>
