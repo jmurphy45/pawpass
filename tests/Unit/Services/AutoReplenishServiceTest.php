@@ -117,6 +117,8 @@ class AutoReplenishServiceTest extends TestCase
     public function test_handles_stripe_card_exception_and_notifies(): void
     {
         $dog = $this->makeDog();
+        $user = \App\Models\User::factory()->create(['tenant_id' => $dog->tenant_id]);
+        $dog->customer->update(['user_id' => $user->id]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createPaymentIntent')
