@@ -258,8 +258,7 @@ const success = ref(false);
 const cardError = ref('');
 
 function getCsrfToken(): string {
-  const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '';
+  return (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '';
 }
 
 let stripe: Stripe | null = null;
