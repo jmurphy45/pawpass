@@ -186,3 +186,34 @@ html {
         padding: 0.75rem 0.75rem 0.25rem;
     }
 }
+
+/*
+ * iOS Safari < 15.4 fallback: Tailwind v4 uses CSS logical properties
+ * (padding-inline, margin-inline, inset-inline) which require iOS 15.4+.
+ * Unlayered rules override @layer utilities, so these provide physical
+ * property equivalents for older devices without affecting modern browsers.
+ */
+@supports not (padding-inline: 1px) {
+    .px-1   { padding-left: 0.25rem;  padding-right: 0.25rem; }
+    .px-2   { padding-left: 0.5rem;   padding-right: 0.5rem; }
+    .px-2\.5{ padding-left: 0.625rem; padding-right: 0.625rem; }
+    .px-3   { padding-left: 0.75rem;  padding-right: 0.75rem; }
+    .px-4   { padding-left: 1rem;     padding-right: 1rem; }
+    .px-5   { padding-left: 1.25rem;  padding-right: 1.25rem; }
+    .px-6   { padding-left: 1.5rem;   padding-right: 1.5rem; }
+    .px-8   { padding-left: 2rem;     padding-right: 2rem; }
+    .px-12  { padding-left: 3rem;     padding-right: 3rem; }
+
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .mx-4    { margin-left: 1rem; margin-right: 1rem; }
+
+    .inset-x-0 { left: 0; right: 0; }
+    .inset-y-0 { top: 0; bottom: 0; }
+
+    @media (min-width: 40rem) {
+        .sm\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+    }
+    @media (min-width: 64rem) {
+        .lg\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+    }
+}
