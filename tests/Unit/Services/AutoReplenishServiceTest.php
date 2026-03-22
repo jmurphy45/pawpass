@@ -98,8 +98,8 @@ class AutoReplenishServiceTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeIntent) {
             $mock->shouldReceive('createPaymentIntent')
                 ->once()
-                ->withArgs(function ($amount, $currency, $accountId, $fee, $metadata, $customerId, $confirm, $offSession, $pmId) {
-                    return $confirm === true && $offSession === true;
+                ->withArgs(function ($amount, $currency, $accountId, $fee, $metadata, $customerId, $confirm, $offSession, $pmId, $pmTypes) {
+                    return $confirm === true && $offSession === true && $pmTypes === ['card'];
                 })
                 ->andReturn($fakeIntent);
         });

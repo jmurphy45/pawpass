@@ -19,6 +19,7 @@ class StripeService
         bool $confirm = false,
         bool $offSession = false,
         ?string $paymentMethodId = null,
+        array $paymentMethodTypes = [],
     ): object {
         $payload = [
             'amount' => $amountCents,
@@ -28,6 +29,9 @@ class StripeService
         ];
         if ($stripeCustomerId) {
             $payload['customer'] = $stripeCustomerId;
+        }
+        if ($paymentMethodTypes) {
+            $payload['payment_method_types'] = $paymentMethodTypes;
         }
         if ($confirm) {
             $payload['confirm'] = true;

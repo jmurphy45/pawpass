@@ -40,7 +40,7 @@ class LoginController extends Controller
 
             $request->session()->regenerate();
 
-            return redirect()->intended(route('admin.dashboard'));
+            return Inertia::location(redirect()->intended(route('admin.dashboard'))->getTargetUrl());
         }
 
         return back()->withErrors([

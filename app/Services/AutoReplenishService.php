@@ -83,6 +83,7 @@ class AutoReplenishService
                 confirm: true,
                 offSession: true,
                 paymentMethodId: $customer->stripe_payment_method_id,
+                paymentMethodTypes: ['card'],
             );
 
             $order->update(['stripe_pi_id' => $intent->id]);

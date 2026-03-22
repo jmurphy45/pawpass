@@ -257,6 +257,11 @@ const activeDogIds = computed(() => {
 const success = ref(false);
 const cardError = ref('');
 
+function getCsrfToken(): string {
+  const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '';
+}
+
 let stripe: Stripe | null = null;
 let cardElement: StripeCardElement | null = null;
 
@@ -303,7 +308,7 @@ async function purchase() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
+        'X-CSRF-TOKEN': getCsrfToken(),
       },
       body: JSON.stringify({
         package_id: selectedPackageId.value,
@@ -313,8 +318,16 @@ async function purchase() {
     });
 
     if (!resp.ok) {
-      const data = await resp.json();
-      cardError.value = data.message ?? 'Something went wrong.';
+      if (resp.status === 419) {
+        cardError.value = 'Session expired — please refresh the page and try again.';
+      } else {
+        try {
+          const data = await resp.json();
+          cardError.value = data.message ?? 'Something went wrong.';
+        } catch {
+          cardError.value = 'Something went wrong.';
+        }
+      }
       return;
     }
 
@@ -336,7 +349,7 @@ async function purchase() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
+          'X-CSRF-TOKEN': getCsrfToken(),
         },
         body: JSON.stringify({
           payment_intent_id: result.paymentIntent.id,
