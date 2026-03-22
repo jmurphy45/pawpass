@@ -196,7 +196,7 @@
     <div class="md:ml-60 flex-1 min-w-0 flex flex-col min-h-screen overflow-x-clip">
       <!-- Top bar (mobile) -->
       <header
-        class="md:hidden sticky top-0 z-20 flex items-center justify-between h-14 px-4"
+        class="md:hidden fixed top-0 left-0 right-0 z-20 flex items-center justify-between h-14 px-4"
         style="background-color: #0f0e0d;"
       >
         <Link :href="route('admin.dashboard')" class="text-white text-lg font-bold">
@@ -212,7 +212,7 @@
       <!-- Mobile menu -->
       <div
         v-if="mobileMenuOpen"
-        class="md:hidden px-4 py-3 space-y-1 z-20"
+        class="md:hidden fixed top-14 left-0 right-0 z-20 px-4 py-3 space-y-1 overflow-y-auto max-h-[calc(100vh-3.5rem)]"
         style="background-color: #0f0e0d; border-bottom: 1px solid rgba(255,255,255,0.06);"
       >
         <Link
@@ -230,6 +230,9 @@
           <button type="submit" class="text-sm px-3 py-2 text-white/40">Sign out</button>
         </form>
       </div>
+
+      <!-- Spacer for fixed mobile header -->
+      <div class="md:hidden h-14" />
 
       <!-- Flash messages -->
       <div v-if="flash.success || flash.error" class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4">
