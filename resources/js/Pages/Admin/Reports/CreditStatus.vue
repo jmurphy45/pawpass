@@ -10,6 +10,7 @@
           <span class="ml-2 text-sm font-normal text-gray-500">({{ data.zero.length }} dogs)</span>
         </h2>
         <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50">
               <tr>
@@ -29,6 +30,7 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </section>
 
@@ -39,6 +41,7 @@
           <span class="ml-2 text-sm font-normal text-gray-500">({{ data.low.length }} dogs)</span>
         </h2>
         <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-50">
               <tr>
@@ -58,6 +61,7 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </section>
     </div>

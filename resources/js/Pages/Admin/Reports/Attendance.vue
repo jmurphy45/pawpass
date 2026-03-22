@@ -31,6 +31,7 @@
 
       <!-- Table -->
       <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 text-sm">
           <thead class="bg-gray-50">
             <tr>
@@ -57,6 +58,7 @@
             </tr>
           </tfoot>
         </table>
+        </div>
       </div>
     </div>
   </AdminLayout>

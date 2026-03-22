@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-surface flex">
+  <div class="min-h-screen bg-surface flex overflow-x-clip">
     <!-- Sidebar (desktop) -->
     <aside
       class="hidden md:flex md:flex-col w-60 fixed inset-y-0 z-30"
@@ -260,6 +260,8 @@
       <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
         <slot />
       </main>
+      <!-- Mobile bottom padding -->
+      <div class="md:hidden h-16" />
     </div>
 
     <!-- Mobile bottom nav -->
@@ -305,8 +307,6 @@
         <span>Dogs</span>
       </Link>
     </nav>
-    <!-- Mobile bottom padding -->
-    <div class="md:hidden h-16" />
   </div>
 </template>
 

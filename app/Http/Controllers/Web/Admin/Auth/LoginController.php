@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,7 +17,7 @@ class LoginController extends Controller
         return Inertia::render('Auth/AdminLogin');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|HttpResponse
     {
         $credentials = $request->validate([
             'email'    => ['required', 'email'],
