@@ -338,7 +338,13 @@ async function purchase() {
     });
 
     if (result.error) {
-      cardError.value = result.error.message ?? 'Payment failed.';
+      if (usingCardOnFile) {
+        cardError.value = 'Your saved card could not be charged. Please enter a new card.';
+        useNewCard.value = true;
+        setTimeout(() => mountCardElement(), 0);
+      } else {
+        cardError.value = result.error.message ?? 'Payment failed.';
+      }
     } else {
       await fetch(route('portal.purchase.confirm'), {
         method: 'POST',

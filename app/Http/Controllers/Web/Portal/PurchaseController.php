@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Stripe\Exception\ApiErrorException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Pennant\Feature;
@@ -126,29 +127,55 @@ class PurchaseController extends Controller
             return $order;
         });
 
-        $savedPaymentMethodId = $customer->stripe_payment_method_id ?? null;
+        // Validate the saved PM is still usable by ensuring it's attached to the customer.
+        // If it's not (e.g., was saved without attachment), clear it so the frontend
+        // falls back to the card element.
+        $savedPmId = $customer->stripe_payment_method_id;
+        if ($savedPmId && $stripeCustomerId) {
+            try {
+                $stripe->attachPaymentMethod($savedPmId, $stripeCustomerId, $tenant->stripe_account_id);
+            } catch (ApiErrorException $e) {
+                if (str_contains($e->getMessage(), 'already been attached')) {
+                    // Already attached — PM is valid, no action needed
+                } else {
+                    // PM is permanently unusable; clear it so the user is shown the card input
+                    $customer->update([
+                        'stripe_payment_method_id' => null,
+                        'stripe_pm_last4'           => null,
+                        'stripe_pm_brand'           => null,
+                    ]);
+                    $savedPmId = null;
+                }
+            }
+        }
 
-        $intent = $stripe->createPaymentIntent(
-            amountCents: $amountCents,
-            currency: 'usd',
-            stripeAccountId: $tenant->stripe_account_id,
-            applicationFeeCents: $feeCents,
-            metadata: [
-                'order_id'    => $order->id,
-                'tenant_id'   => $tenantId,
-                'customer_id' => $customer->id,
-                'package_id'  => $package->id,
-                'dog_ids'     => $dogs->pluck('id')->implode(','),
-            ],
-            stripeCustomerId: $stripeCustomerId,
-            paymentMethodId: $savedPaymentMethodId,
-        );
+        $saveCard = $request->boolean('save_card');
+
+        try {
+            $intent = $stripe->createPaymentIntent(
+                amountCents: $amountCents,
+                currency: 'usd',
+                stripeAccountId: $tenant->stripe_account_id,
+                applicationFeeCents: $feeCents,
+                metadata: [
+                    'order_id'    => $order->id,
+                    'tenant_id'   => $tenantId,
+                    'customer_id' => $customer->id,
+                    'package_id'  => $package->id,
+                    'dog_ids'     => $dogs->pluck('id')->implode(','),
+                ],
+                stripeCustomerId: $stripeCustomerId,
+                setupFutureUsage: $saveCard ? 'off_session' : null,
+            );
+        } catch (ApiErrorException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         $order->update(['stripe_pi_id' => $intent->id]);
 
         return response()->json([
-            'client_secret'      => $intent->client_secret,
-            'payment_method_id'  => $savedPaymentMethodId,
+            'client_secret'     => $intent->client_secret,
+            'payment_method_id' => $savedPmId,
         ]);
     }
 
@@ -202,6 +229,13 @@ class PurchaseController extends Controller
 
         if ($request->boolean('save_card') && $pi->payment_method) {
             $pm = $stripe->retrievePaymentMethod($pi->payment_method, $stripeAccountId);
+            if ($customer->stripe_customer_id) {
+                try {
+                    $stripe->attachPaymentMethod($pm->id, $customer->stripe_customer_id, $stripeAccountId);
+                } catch (ApiErrorException) {
+                    // Already attached — safe to ignore
+                }
+            }
             $customer->update([
                 'stripe_payment_method_id' => $pm->id,
                 'stripe_pm_last4'          => $pm->card?->last4,

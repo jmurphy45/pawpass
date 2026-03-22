@@ -20,6 +20,7 @@ class StripeService
         bool $offSession = false,
         ?string $paymentMethodId = null,
         array $paymentMethodTypes = [],
+        ?string $setupFutureUsage = null,
     ): object {
         $payload = [
             'amount' => $amountCents,
@@ -43,7 +44,19 @@ class StripeService
         if ($paymentMethodId) {
             $payload['payment_method'] = $paymentMethodId;
         }
+        if ($setupFutureUsage) {
+            $payload['setup_future_usage'] = $setupFutureUsage;
+        }
         return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
+    }
+
+    public function attachPaymentMethod(string $pmId, string $stripeCustomerId, string $stripeAccountId): object
+    {
+        return $this->client->paymentMethods->attach(
+            $pmId,
+            ['customer' => $stripeCustomerId],
+            ['stripe_account' => $stripeAccountId],
+        );
     }
 
     public function createRefund(string $paymentIntentId, ?string $stripeAccountId = null): object
