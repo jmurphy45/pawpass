@@ -331,14 +331,10 @@ async function purchase() {
     }
 
     const data = await resp.json();
-    const { client_secret } = data;
-
-    const paymentMethod = usingCardOnFile
-      ? savedCard.value?.last4 // will use customer's default PM server-side
-      : { card: cardElement! };
+    const { client_secret, payment_method_id } = data;
 
     const result = await stripe.confirmCardPayment(client_secret, {
-      payment_method: usingCardOnFile ? undefined : { card: cardElement! },
+      payment_method: usingCardOnFile ? payment_method_id : { card: cardElement! },
     });
 
     if (result.error) {

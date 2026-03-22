@@ -126,6 +126,8 @@ class PurchaseController extends Controller
             return $order;
         });
 
+        $savedPaymentMethodId = $customer->stripe_payment_method_id ?? null;
+
         $intent = $stripe->createPaymentIntent(
             amountCents: $amountCents,
             currency: 'usd',
@@ -139,11 +141,15 @@ class PurchaseController extends Controller
                 'dog_ids'     => $dogs->pluck('id')->implode(','),
             ],
             stripeCustomerId: $stripeCustomerId,
+            paymentMethodId: $savedPaymentMethodId,
         );
 
         $order->update(['stripe_pi_id' => $intent->id]);
 
-        return response()->json(['client_secret' => $intent->client_secret]);
+        return response()->json([
+            'client_secret'      => $intent->client_secret,
+            'payment_method_id'  => $savedPaymentMethodId,
+        ]);
     }
 
     public function confirm(Request $request, StripeService $stripe): JsonResponse
