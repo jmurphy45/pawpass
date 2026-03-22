@@ -21,6 +21,7 @@ class NotificationService
         'auto_replenish.failed',
         'auth.verify_email',
         'auth.password_reset',
+        'staff.invite',
     ];
 
     public function dispatch(string $type, string $tenantId, string $userId, array $data = []): void

@@ -13,7 +13,7 @@ class StaffPortalWebMiddleware
     {
         $user = Auth::guard('web')->user();
 
-        if (! $user || ! in_array($user->role, ['staff', 'business_owner'])) {
+        if (! $user || ! in_array($user->role, ['staff', 'business_owner']) || $user->status !== 'active') {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

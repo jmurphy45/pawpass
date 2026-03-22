@@ -86,7 +86,10 @@ class SettingsController extends Controller
             'staff.invite',
             $tenantId,
             $user->id,
-            ['invite_token' => $user->invite_token]
+            [
+                'invite_token' => $user->invite_token,
+                'invite_url'   => route('admin.invite.show', ['token' => $user->invite_token]),
+            ]
         );
 
         return response()->json(['data' => [

@@ -46,9 +46,15 @@ class PawPassNotification extends Notification implements ShouldQueue
     {
         [$subject, $body] = $this->buildMessage();
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject($subject)
             ->line($body);
+
+        if ($this->type === 'staff.invite' && isset($this->data['invite_url'])) {
+            $message->action('Set Up Your Account', $this->data['invite_url']);
+        }
+
+        return $message;
     }
 
     public function toSms($notifiable): string
@@ -70,6 +76,7 @@ class PawPassNotification extends Notification implements ShouldQueue
             'credits.empty' => ['Credits Empty', 'Your dog has no credits remaining. Please purchase more credits to continue.'],
             'auth.verify_email' => ['Verify Your Email', 'Please verify your email address to continue.'],
             'auth.password_reset' => ['Password Reset Requested', 'A password reset was requested for your account.'],
+            'staff.invite' => ['You\'ve been invited to join the staff portal', 'You\'ve been invited as a staff member. Click the button below to set your password and get started.'],
             'auto_replenish.succeeded' => ['Credits Auto-Renewed', 'Your credits have been automatically topped up.'],
             'auto_replenish.failed' => ['Auto-Replenish Failed', 'We couldn\'t charge your card to top up credits. Please update your payment method.'],
             'announcement' => [$this->data['subject'] ?? 'Announcement', $this->data['body'] ?? ''],

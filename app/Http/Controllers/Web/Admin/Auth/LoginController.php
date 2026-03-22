@@ -27,8 +27,12 @@ class LoginController extends Controller
             $user = Auth::user();
             $tenantId = app('current.tenant.id');
 
-            // Reject customers and wrong-tenant users
-            if (! in_array($user->role, ['staff', 'business_owner']) || $user->tenant_id !== $tenantId) {
+            // Reject customers, wrong-tenant users, suspended or pending-invite users
+            $invalidRole   = ! in_array($user->role, ['staff', 'business_owner']);
+            $wrongTenant   = $user->tenant_id !== $tenantId;
+            $inactiveStatus = ! in_array($user->status, ['active']);
+
+            if ($invalidRole || $wrongTenant || $inactiveStatus) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
