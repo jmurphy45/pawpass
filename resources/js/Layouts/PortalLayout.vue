@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-surface flex flex-col">
+  <div class="min-h-screen bg-surface flex flex-col overflow-x-clip">
     <!-- Top Navbar -->
     <nav class="bg-white shadow-sm border-b border-border-warm sticky top-0 z-30">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">

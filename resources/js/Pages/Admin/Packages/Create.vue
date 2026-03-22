@@ -1,6 +1,6 @@
 <template>
   <AdminLayout>
-    <div class="max-w-lg">
+    <div class="max-w-lg w-full">
       <h1 class="text-2xl font-bold text-gray-900 mb-6">Add Package</h1>
       <form @submit.prevent="submit" class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
         <div>
