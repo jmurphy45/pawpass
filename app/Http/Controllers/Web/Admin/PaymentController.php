@@ -32,7 +32,7 @@ class PaymentController extends Controller
             'id'           => $order->id,
             'customer_name' => $order->customer?->name,
             'package_name' => $order->package?->name,
-            'total_amount' => $order->total_amount,
+            'amount_cents'  => (int) round((float) $order->total_amount * 100),
             'status'       => $order->status,
             'created_at'   => $order->created_at->toIso8601String(),
             'refunded_at'  => $order->refunded_at?->toIso8601String(),
