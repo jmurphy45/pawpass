@@ -22,13 +22,14 @@ class KennelUnitController extends Controller
     public function store(StoreKennelUnitRequest $request): JsonResponse
     {
         $unit = KennelUnit::create([
-            'tenant_id'   => app('current.tenant.id'),
-            'name'        => $request->name,
-            'type'        => $request->type,
-            'capacity'    => $request->capacity ?? 1,
-            'description' => $request->description,
-            'is_active'   => $request->boolean('is_active', true),
-            'sort_order'  => $request->sort_order ?? 0,
+            'tenant_id'          => app('current.tenant.id'),
+            'name'               => $request->name,
+            'type'               => $request->type,
+            'capacity'           => $request->capacity ?? 1,
+            'description'        => $request->description,
+            'is_active'          => $request->boolean('is_active', true),
+            'sort_order'         => $request->sort_order ?? 0,
+            'nightly_rate_cents' => $request->nightly_rate_cents,
         ]);
 
         return response()->json(['data' => new KennelUnitResource($unit)], 201);
@@ -36,7 +37,7 @@ class KennelUnitController extends Controller
 
     public function update(UpdateKennelUnitRequest $request, KennelUnit $kennelUnit): JsonResponse
     {
-        $kennelUnit->update($request->only(['name', 'type', 'capacity', 'description', 'is_active', 'sort_order']));
+        $kennelUnit->update($request->only(['name', 'type', 'capacity', 'description', 'is_active', 'sort_order', 'nightly_rate_cents']));
 
         return response()->json(['data' => new KennelUnitResource($kennelUnit->fresh())]);
     }

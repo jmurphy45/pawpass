@@ -21,16 +21,18 @@ class KennelUnit extends Model
         'description',
         'is_active',
         'sort_order',
+        'nightly_rate_cents',
     ];
 
     protected function casts(): array
     {
         return [
-            'capacity'   => 'integer',
-            'is_active'  => 'boolean',
-            'sort_order' => 'integer',
-            'created_at' => 'immutable_datetime',
-            'updated_at' => 'immutable_datetime',
+            'capacity'           => 'integer',
+            'is_active'          => 'boolean',
+            'sort_order'         => 'integer',
+            'nightly_rate_cents' => 'integer',
+            'created_at'         => 'immutable_datetime',
+            'updated_at'         => 'immutable_datetime',
         ];
     }
 

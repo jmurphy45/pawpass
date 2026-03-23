@@ -32,6 +32,15 @@
             <label for="checkin_block" class="text-sm font-medium text-gray-700">Block check-in when credits reach zero</label>
           </div>
           <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
+            <select v-model="businessForm.business_type" class="w-48 rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white">
+              <option value="daycare">Daycare Only</option>
+              <option value="kennel">Kennel / Boarding Only</option>
+              <option value="hybrid">Daycare + Boarding</option>
+            </select>
+            <p v-if="businessForm.errors.business_type" class="mt-1 text-sm text-red-600">{{ businessForm.errors.business_type }}</p>
+          </div>
+          <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Payout Schedule</label>
             <select v-model="businessForm.payout_schedule" class="w-48 rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white">
               <option value="daily">Daily</option>
@@ -171,7 +180,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm } from '@inertiajs/vue3';
 
 const props = defineProps<{
-  business: { name: string; timezone: string; primary_color: string; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string };
+  business: { name: string; timezone: string; primary_color: string; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string; business_type: string };
   notificationSettings: Array<{ type: string; is_enabled: boolean }>;
   staff: Array<{ id: string; name: string; email: string; role: string; status: string }>;
 }>();
@@ -185,6 +194,7 @@ const businessForm = useForm({
   low_credit_threshold:  props.business.low_credit_threshold,
   checkin_block_at_zero: props.business.checkin_block_at_zero,
   payout_schedule:       props.business.payout_schedule,
+  business_type:         props.business.business_type,
 });
 
 function submitBusiness() {

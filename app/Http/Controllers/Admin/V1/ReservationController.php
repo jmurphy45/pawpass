@@ -52,6 +52,8 @@ class ReservationController extends Controller
         $startsAt = now()->parse($request->starts_at);
         $endsAt = now()->parse($request->ends_at);
 
+        $unit = null;
+
         if ($request->filled('kennel_unit_id')) {
             $unit = KennelUnit::findOrFail($request->kennel_unit_id);
 
@@ -70,6 +72,10 @@ class ReservationController extends Controller
             }
         }
 
+        $nightlyRate = $request->filled('nightly_rate_cents')
+            ? $request->nightly_rate_cents
+            : $unit?->nightly_rate_cents;
+
         $reservation = Reservation::create([
             'tenant_id'          => $tenantId,
             'dog_id'             => $dog->id,
@@ -78,7 +84,7 @@ class ReservationController extends Controller
             'status'             => 'pending',
             'starts_at'          => $startsAt,
             'ends_at'            => $endsAt,
-            'nightly_rate_cents' => $request->nightly_rate_cents,
+            'nightly_rate_cents' => $nightlyRate,
             'notes'              => $request->notes,
             'created_by'         => auth()->id(),
         ]);

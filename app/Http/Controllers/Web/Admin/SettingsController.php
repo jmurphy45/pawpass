@@ -38,6 +38,7 @@ class SettingsController extends Controller
                 'low_credit_threshold' => $tenant->low_credit_threshold,
                 'checkin_block_at_zero' => $tenant->checkin_block_at_zero,
                 'payout_schedule'      => $tenant->payout_schedule,
+                'business_type'        => $tenant->business_type ?? 'daycare',
             ],
             'notificationSettings' => $notificationSettings,
             'staff'                => $staffList,
@@ -55,6 +56,7 @@ class SettingsController extends Controller
             'low_credit_threshold' => ['sometimes', 'integer', 'min:0'],
             'checkin_block_at_zero' => ['sometimes', 'boolean'],
             'payout_schedule'      => ['sometimes', 'string'],
+            'business_type'        => ['sometimes', 'string', 'in:daycare,kennel,hybrid'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));

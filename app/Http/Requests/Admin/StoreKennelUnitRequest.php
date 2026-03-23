@@ -18,9 +18,10 @@ class StoreKennelUnitRequest extends FormRequest
             'name'        => ['required', 'string', 'max:255'],
             'type'        => ['required', Rule::in(['standard', 'suite', 'large', 'run'])],
             'capacity'    => ['nullable', 'integer', 'min:1', 'max:100'],
-            'description' => ['nullable', 'string', 'max:2000'],
-            'is_active'   => ['nullable', 'boolean'],
-            'sort_order'  => ['nullable', 'integer', 'min:0'],
+            'description'        => ['nullable', 'string', 'max:2000'],
+            'is_active'          => ['nullable', 'boolean'],
+            'sort_order'         => ['nullable', 'integer', 'min:0'],
+            'nightly_rate_cents' => ['nullable', 'integer', 'min:0'],
         ];
     }
 }
