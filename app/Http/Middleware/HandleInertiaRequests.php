@@ -43,6 +43,7 @@ class HandleInertiaRequests extends Middleware
                     'slug'          => $t->slug,
                     'primary_color' => $t->primary_color ?? '#4f46e5',
                     'logo_url'      => $t->logo_url ?? null,
+                    'business_type' => $t->business_type ?? 'daycare',
                 ];
             },
             'tenantPlan'  => fn () => $getTenant()?->plan,

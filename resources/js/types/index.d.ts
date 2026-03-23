@@ -9,6 +9,7 @@ export interface Tenant {
     slug: string;
     primary_color: string;
     logo_url: string | null;
+    business_type: 'daycare' | 'kennel' | 'hybrid';
 }
 
 export interface AuthUser {

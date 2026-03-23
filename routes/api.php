@@ -102,6 +102,8 @@ Route::prefix('portal/v1')
             Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
             Route::patch('notifications/{id}/read', [NotificationController::class, 'markRead']);
 
+            Route::get('kennel-units/available', [PortalKennelUnitController::class, 'available']);
+
             Route::get('reservations', [PortalReservationController::class, 'index']);
             Route::post('reservations', [PortalReservationController::class, 'store']);
             Route::get('reservations/{id}', [PortalReservationController::class, 'show']);

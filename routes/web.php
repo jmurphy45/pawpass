@@ -30,6 +30,7 @@ use App\Http\Controllers\Web\Portal\HistoryController;
 use App\Http\Controllers\Web\Portal\SubscriptionController;
 use App\Http\Controllers\Web\Portal\NotificationController;
 use App\Http\Controllers\Web\Portal\OrderReceiptController;
+use App\Http\Controllers\Web\Portal\BoardingController as PortalBoardingController;
 use App\Http\Controllers\Web\Portal\PurchaseController;
 use Illuminate\Support\Facades\Route;
 
@@ -185,6 +186,11 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index'])->name('portal.notifications');
         Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('portal.notifications.read');
         Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('portal.notifications.read-all');
+
+        // Boarding
+        Route::get('/boarding', [PortalBoardingController::class, 'index'])->name('portal.boarding.index');
+        Route::get('/boarding/create', [PortalBoardingController::class, 'create'])->name('portal.boarding.create');
+        Route::get('/boarding/{id}', [PortalBoardingController::class, 'show'])->name('portal.boarding.show');
 
         // Account
         Route::get('/account', [AccountController::class, 'index'])->name('portal.account');
