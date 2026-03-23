@@ -76,6 +76,10 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/boarding/reservations', [AdminBoardingController::class, 'reservations'])->name('admin.boarding.reservations');
         Route::get('/boarding/reservations/{reservation}', [AdminBoardingController::class, 'showReservation'])->name('admin.boarding.reservations.show');
         Route::get('/boarding/occupancy', [AdminBoardingController::class, 'occupancy'])->name('admin.boarding.occupancy');
+        Route::get('/boarding/units', [AdminBoardingController::class, 'kennelUnits'])->name('admin.boarding.units');
+        Route::post('/boarding/units', [AdminBoardingController::class, 'storeKennelUnit'])->name('admin.boarding.units.store');
+        Route::patch('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'updateKennelUnit'])->name('admin.boarding.units.update');
+        Route::delete('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'destroyKennelUnit'])->name('admin.boarding.units.destroy');
 
         // Roster
         Route::get('/roster', [AdminRosterController::class, 'index'])->name('admin.roster.index');

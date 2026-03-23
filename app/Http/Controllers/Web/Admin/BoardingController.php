@@ -7,7 +7,9 @@ use App\Models\AddonType;
 use App\Models\KennelUnit;
 use App\Models\Reservation;
 use App\Services\VaccinationComplianceService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -62,6 +64,82 @@ class BoardingController extends Controller
             'addonTypes'          => $addonTypes,
             'vaccinationCompliance' => $compliance,
         ]);
+    }
+
+    public function kennelUnits(): Response
+    {
+        $units = KennelUnit::orderBy('sort_order')->orderBy('name')->get();
+
+        return Inertia::render('Admin/Boarding/KennelUnits', [
+            'units' => $units,
+        ]);
+    }
+
+    public function storeKennelUnit(Request $request): RedirectResponse
+    {
+        $this->requireOwner();
+
+        $validated = $request->validate([
+            'name'               => ['required', 'string', 'max:255'],
+            'type'               => ['required', Rule::in(['standard', 'suite', 'large', 'run'])],
+            'capacity'           => ['nullable', 'integer', 'min:1', 'max:100'],
+            'description'        => ['nullable', 'string', 'max:2000'],
+            'is_active'          => ['nullable', 'boolean'],
+            'sort_order'         => ['nullable', 'integer', 'min:0'],
+            'nightly_rate_cents' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        KennelUnit::create([
+            'tenant_id'          => app('current.tenant.id'),
+            'name'               => $validated['name'],
+            'type'               => $validated['type'],
+            'capacity'           => $validated['capacity'] ?? 1,
+            'description'        => $validated['description'] ?? null,
+            'is_active'          => $validated['is_active'] ?? true,
+            'sort_order'         => $validated['sort_order'] ?? 0,
+            'nightly_rate_cents' => $validated['nightly_rate_cents'] ?? null,
+        ]);
+
+        return redirect()->route('admin.boarding.units')->with('success', 'Kennel unit created.');
+    }
+
+    public function updateKennelUnit(Request $request, KennelUnit $kennelUnit): RedirectResponse
+    {
+        $this->requireOwner();
+
+        $validated = $request->validate([
+            'name'               => ['sometimes', 'string', 'max:255'],
+            'type'               => ['sometimes', Rule::in(['standard', 'suite', 'large', 'run'])],
+            'capacity'           => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'description'        => ['nullable', 'string', 'max:2000'],
+            'is_active'          => ['sometimes', 'boolean'],
+            'sort_order'         => ['sometimes', 'integer', 'min:0'],
+            'nightly_rate_cents' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $kennelUnit->update($validated);
+
+        return redirect()->route('admin.boarding.units')->with('success', 'Kennel unit updated.');
+    }
+
+    public function destroyKennelUnit(KennelUnit $kennelUnit): RedirectResponse
+    {
+        $this->requireOwner();
+
+        if ($kennelUnit->reservations()->where('status', '!=', 'cancelled')->exists()) {
+            return redirect()->route('admin.boarding.units')->with('error', 'Cannot delete a unit with active reservations.');
+        }
+
+        $kennelUnit->delete();
+
+        return redirect()->route('admin.boarding.units')->with('success', 'Kennel unit deleted.');
+    }
+
+    private function requireOwner(): void
+    {
+        if (auth()->user()?->role !== 'business_owner') {
+            abort(403);
+        }
     }
 
     public function occupancy(Request $request): Response
