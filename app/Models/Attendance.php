@@ -67,4 +67,9 @@ class Attendance extends Model
     {
         return $this->hasMany(CreditLedger::class);
     }
+
+    public function addons(): HasMany
+    {
+        return $this->hasMany(AttendanceAddon::class);
+    }
 }

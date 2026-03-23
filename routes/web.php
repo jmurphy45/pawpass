@@ -15,6 +15,7 @@ use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController;
 use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
 use App\Http\Controllers\Web\Portal\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
@@ -70,6 +71,11 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/dogs/{dog}', [AdminDogController::class, 'show'])->name('admin.dogs.show');
         Route::get('/dogs/{dog}/edit', [AdminDogController::class, 'edit'])->name('admin.dogs.edit');
         Route::patch('/dogs/{dog}', [AdminDogController::class, 'update'])->name('admin.dogs.update');
+
+        // Boarding
+        Route::get('/boarding/reservations', [AdminBoardingController::class, 'reservations'])->name('admin.boarding.reservations');
+        Route::get('/boarding/reservations/{reservation}', [AdminBoardingController::class, 'showReservation'])->name('admin.boarding.reservations.show');
+        Route::get('/boarding/occupancy', [AdminBoardingController::class, 'occupancy'])->name('admin.boarding.occupancy');
 
         // Roster
         Route::get('/roster', [AdminRosterController::class, 'index'])->name('admin.roster.index');

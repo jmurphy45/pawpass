@@ -1,6 +1,15 @@
 <?php
 
 use App\Http\Controllers\Admin\V1\BillingController;
+use App\Http\Controllers\Admin\V1\AddonTypeController;
+use App\Http\Controllers\Admin\V1\BoardingReportCardController;
+use App\Http\Controllers\Admin\V1\DogVaccinationController;
+use App\Http\Controllers\Admin\V1\KennelUnitController;
+use App\Http\Controllers\Admin\V1\OccupancyController;
+use App\Http\Controllers\Admin\V1\AttendanceAddonController;
+use App\Http\Controllers\Admin\V1\ReservationAddonController;
+use App\Http\Controllers\Admin\V1\ReservationController;
+use App\Http\Controllers\Admin\V1\VaccinationRequirementController;
 use App\Http\Controllers\Admin\V1\BroadcastNotificationController;
 use App\Http\Controllers\Admin\V1\ReportController as AdminReportController;
 use App\Http\Controllers\Platform\V1\ReportController as PlatformReportController;
@@ -136,6 +145,60 @@ Route::prefix('admin/v1')
         Route::post('payments/{order}/refund', [PaymentController::class, 'refund']);
 
         Route::post('notifications/broadcast', [BroadcastNotificationController::class, 'store']);
+
+        // Kennel units (read: staff+; write: owner only)
+        Route::get('kennel-units', [KennelUnitController::class, 'index']);
+        Route::middleware('role:business_owner')->group(function () {
+            Route::post('kennel-units', [KennelUnitController::class, 'store']);
+            Route::patch('kennel-units/{kennelUnit}', [KennelUnitController::class, 'update']);
+            Route::delete('kennel-units/{kennelUnit}', [KennelUnitController::class, 'destroy']);
+        });
+
+        // Reservations
+        Route::get('reservations', [ReservationController::class, 'index']);
+        Route::post('reservations', [ReservationController::class, 'store']);
+        Route::get('reservations/{reservation}', [ReservationController::class, 'show']);
+        Route::patch('reservations/{reservation}', [ReservationController::class, 'update']);
+        Route::delete('reservations/{reservation}', [ReservationController::class, 'destroy']);
+
+        // Report cards (nested under reservations)
+        Route::get('reservations/{reservation}/report-cards', [BoardingReportCardController::class, 'index']);
+        Route::post('reservations/{reservation}/report-cards', [BoardingReportCardController::class, 'store']);
+        Route::patch('reservations/{reservation}/report-cards/{reportCard}', [BoardingReportCardController::class, 'update']);
+
+        // Add-ons (nested under reservations)
+        Route::get('reservations/{reservation}/addons', [ReservationAddonController::class, 'index']);
+        Route::post('reservations/{reservation}/addons', [ReservationAddonController::class, 'store']);
+        Route::delete('reservations/{reservation}/addons/{addon}', [ReservationAddonController::class, 'destroy']);
+
+        // Add-ons (nested under attendances)
+        Route::get('attendances/{attendance}/addons', [AttendanceAddonController::class, 'index']);
+        Route::post('attendances/{attendance}/addons', [AttendanceAddonController::class, 'store']);
+        Route::delete('attendances/{attendance}/addons/{addon}', [AttendanceAddonController::class, 'destroy']);
+
+        // Add-on type catalog (read: staff+; write: owner only)
+        Route::get('addon-types', [AddonTypeController::class, 'index']);
+        Route::middleware('role:business_owner')->group(function () {
+            Route::post('addon-types', [AddonTypeController::class, 'store']);
+            Route::patch('addon-types/{addonType}', [AddonTypeController::class, 'update']);
+            Route::delete('addon-types/{addonType}', [AddonTypeController::class, 'destroy']);
+        });
+
+        // Dog vaccinations
+        Route::get('dogs/{dog}/vaccinations', [DogVaccinationController::class, 'index']);
+        Route::post('dogs/{dog}/vaccinations', [DogVaccinationController::class, 'store']);
+        Route::patch('dogs/{dog}/vaccinations/{vaccination}', [DogVaccinationController::class, 'update']);
+        Route::delete('dogs/{dog}/vaccinations/{vaccination}', [DogVaccinationController::class, 'destroy']);
+
+        // Vaccination requirements (read: staff+; write: owner only)
+        Route::get('vaccination-requirements', [VaccinationRequirementController::class, 'index']);
+        Route::middleware('role:business_owner')->group(function () {
+            Route::post('vaccination-requirements', [VaccinationRequirementController::class, 'store']);
+            Route::delete('vaccination-requirements/{vaccinationRequirement}', [VaccinationRequirementController::class, 'destroy']);
+        });
+
+        // Occupancy dashboard
+        Route::get('occupancy', [OccupancyController::class, 'index']);
 
         // Reports — Staff+ with basic_reporting
         Route::middleware(['role:staff,business_owner', 'plan:basic_reporting'])->group(function () {

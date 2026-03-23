@@ -71,4 +71,9 @@ class Dog extends Model
     {
         return $this->hasMany(Subscription::class);
     }
+
+    public function vaccinations(): HasMany
+    {
+        return $this->hasMany(DogVaccination::class);
+    }
 }

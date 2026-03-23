@@ -36,6 +36,7 @@ class Tenant extends Model
         'plan_current_period_end',
         'plan_cancel_at_period_end',
         'plan_past_due_since',
+        'business_type',
     ];
 
     protected $hidden = [
@@ -107,6 +108,26 @@ class Tenant extends Model
     public function packages(): HasMany
     {
         return $this->hasMany(Package::class);
+    }
+
+    public function kennelUnits(): HasMany
+    {
+        return $this->hasMany(KennelUnit::class);
+    }
+
+    public function isDaycare(): bool
+    {
+        return ($this->business_type ?? 'daycare') === 'daycare';
+    }
+
+    public function isKennel(): bool
+    {
+        return $this->business_type === 'kennel';
+    }
+
+    public function isHybrid(): bool
+    {
+        return $this->business_type === 'hybrid';
     }
 
     public function staffLimit(): int
