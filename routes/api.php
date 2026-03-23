@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\V1\BillingController;
+use App\Http\Controllers\Admin\V1\KennelUnitController;
+use App\Http\Controllers\Admin\V1\ReservationController;
 use App\Http\Controllers\Admin\V1\BroadcastNotificationController;
 use App\Http\Controllers\Admin\V1\ReportController as AdminReportController;
 use App\Http\Controllers\Platform\V1\ReportController as PlatformReportController;
@@ -136,6 +138,21 @@ Route::prefix('admin/v1')
         Route::post('payments/{order}/refund', [PaymentController::class, 'refund']);
 
         Route::post('notifications/broadcast', [BroadcastNotificationController::class, 'store']);
+
+        // Kennel units (read: staff+; write: owner only)
+        Route::get('kennel-units', [KennelUnitController::class, 'index']);
+        Route::middleware('role:business_owner')->group(function () {
+            Route::post('kennel-units', [KennelUnitController::class, 'store']);
+            Route::patch('kennel-units/{kennelUnit}', [KennelUnitController::class, 'update']);
+            Route::delete('kennel-units/{kennelUnit}', [KennelUnitController::class, 'destroy']);
+        });
+
+        // Reservations
+        Route::get('reservations', [ReservationController::class, 'index']);
+        Route::post('reservations', [ReservationController::class, 'store']);
+        Route::get('reservations/{reservation}', [ReservationController::class, 'show']);
+        Route::patch('reservations/{reservation}', [ReservationController::class, 'update']);
+        Route::delete('reservations/{reservation}', [ReservationController::class, 'destroy']);
 
         // Reports — Staff+ with basic_reporting
         Route::middleware(['role:staff,business_owner', 'plan:basic_reporting'])->group(function () {
