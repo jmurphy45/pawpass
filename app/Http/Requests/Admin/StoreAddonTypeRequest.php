@@ -18,6 +18,7 @@ class StoreAddonTypeRequest extends FormRequest
             'price_cents' => ['required', 'integer', 'min:0'],
             'is_active'   => ['sometimes', 'boolean'],
             'sort_order'  => ['sometimes', 'integer', 'min:0'],
+            'context'     => ['sometimes', 'string', 'in:boarding,daycare,both'],
         ];
     }
 }

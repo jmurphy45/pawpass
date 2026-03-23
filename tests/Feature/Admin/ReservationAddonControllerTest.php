@@ -149,6 +149,21 @@ class ReservationAddonControllerTest extends TestCase
         $this->assertDatabaseMissing('reservation_addons', ['id' => $addon->id]);
     }
 
+    public function test_store_rejects_daycare_only_addon_type(): void
+    {
+        $daycareOnly = AddonType::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'context'   => 'daycare',
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())->postJson(
+            "/api/admin/v1/reservations/{$this->reservation->id}/addons",
+            ['addon_type_id' => $daycareOnly->id]
+        );
+
+        $response->assertStatus(404);
+    }
+
     public function test_destroy_rejects_wrong_reservation(): void
     {
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);

@@ -14,6 +14,7 @@ class AddonTypeResource extends JsonResource
             'price_cents' => $this->price_cents,
             'is_active'   => $this->is_active,
             'sort_order'  => $this->sort_order,
+            'context'     => $this->context ?? 'both',
             'created_at'  => $this->created_at?->toIso8601String(),
         ];
     }

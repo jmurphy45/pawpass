@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\V1\BoardingReportCardController;
 use App\Http\Controllers\Admin\V1\DogVaccinationController;
 use App\Http\Controllers\Admin\V1\KennelUnitController;
 use App\Http\Controllers\Admin\V1\OccupancyController;
+use App\Http\Controllers\Admin\V1\AttendanceAddonController;
 use App\Http\Controllers\Admin\V1\ReservationAddonController;
 use App\Http\Controllers\Admin\V1\ReservationController;
 use App\Http\Controllers\Admin\V1\VaccinationRequirementController;
@@ -169,6 +170,11 @@ Route::prefix('admin/v1')
         Route::get('reservations/{reservation}/addons', [ReservationAddonController::class, 'index']);
         Route::post('reservations/{reservation}/addons', [ReservationAddonController::class, 'store']);
         Route::delete('reservations/{reservation}/addons/{addon}', [ReservationAddonController::class, 'destroy']);
+
+        // Add-ons (nested under attendances)
+        Route::get('attendances/{attendance}/addons', [AttendanceAddonController::class, 'index']);
+        Route::post('attendances/{attendance}/addons', [AttendanceAddonController::class, 'store']);
+        Route::delete('attendances/{attendance}/addons/{addon}', [AttendanceAddonController::class, 'destroy']);
 
         // Add-on type catalog (read: staff+; write: owner only)
         Route::get('addon-types', [AddonTypeController::class, 'index']);

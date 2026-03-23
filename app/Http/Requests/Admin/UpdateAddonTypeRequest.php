@@ -18,6 +18,7 @@ class UpdateAddonTypeRequest extends FormRequest
             'price_cents' => ['sometimes', 'integer', 'min:0'],
             'is_active'   => ['sometimes', 'boolean'],
             'sort_order'  => ['sometimes', 'integer', 'min:0'],
+            'context'     => ['sometimes', 'string', 'in:boarding,daycare,both'],
         ];
     }
 }

@@ -19,6 +19,7 @@ class AddonType extends Model
         'price_cents',
         'is_active',
         'sort_order',
+        'context',
     ];
 
     protected function casts(): array
@@ -37,8 +38,23 @@ class AddonType extends Model
         return $this->belongsTo(Tenant::class);
     }
 
+    public function appliesToBoarding(): bool
+    {
+        return in_array($this->context ?? 'both', ['boarding', 'both']);
+    }
+
+    public function appliesToDaycare(): bool
+    {
+        return in_array($this->context ?? 'both', ['daycare', 'both']);
+    }
+
     public function reservationAddons(): HasMany
     {
         return $this->hasMany(ReservationAddon::class);
+    }
+
+    public function attendanceAddons(): HasMany
+    {
+        return $this->hasMany(AttendanceAddon::class);
     }
 }

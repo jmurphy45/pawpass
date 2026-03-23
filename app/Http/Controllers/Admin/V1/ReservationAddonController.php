@@ -26,7 +26,11 @@ class ReservationAddonController extends Controller
             return response()->json(['error' => 'RESERVATION_CANCELLED'], 409);
         }
 
-        $addonType = AddonType::findOrFail($request->addon_type_id);
+        $addonType = AddonType::find($request->addon_type_id);
+
+        if (! $addonType || ! $addonType->appliesToBoarding()) {
+            abort(404);
+        }
 
         $addon = $reservation->addons()->create([
             'addon_type_id'    => $addonType->id,

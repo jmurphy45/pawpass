@@ -146,4 +146,38 @@ class AddonTypeControllerTest extends TestCase
 
         $response->assertStatus(404);
     }
+
+    public function test_owner_can_create_addon_type_with_context(): void
+    {
+        $response = $this->withHeaders($this->ownerHeaders())->postJson('/api/admin/v1/addon-types', [
+            'name' => 'Nail Trim', 'price_cents' => 1500, 'context' => 'both',
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('data.context', 'both');
+    }
+
+    public function test_index_filters_by_context(): void
+    {
+        AddonType::factory()->create(['tenant_id' => $this->tenant->id, 'context' => 'boarding']);
+        AddonType::factory()->create(['tenant_id' => $this->tenant->id, 'context' => 'daycare']);
+        AddonType::factory()->create(['tenant_id' => $this->tenant->id, 'context' => 'both']);
+
+        $response = $this->withHeaders($this->staffHeaders())
+            ->getJson('/api/admin/v1/addon-types?context=daycare');
+
+        $response->assertStatus(200);
+        // daycare + both = 2
+        $this->assertCount(2, $response->json('data'));
+    }
+
+    public function test_addon_type_defaults_context_to_both(): void
+    {
+        $response = $this->withHeaders($this->ownerHeaders())->postJson('/api/admin/v1/addon-types', [
+            'name' => 'Bath', 'price_cents' => 2000,
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('data.context', 'both');
+    }
 }
