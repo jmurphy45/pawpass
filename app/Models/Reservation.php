@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Reservation extends Model
 {
@@ -23,6 +24,10 @@ class Reservation extends Model
         'ends_at',
         'nightly_rate_cents',
         'notes',
+        'feeding_schedule',
+        'medication_notes',
+        'behavioral_notes',
+        'emergency_contact',
         'created_by',
         'cancelled_at',
         'cancelled_by',
@@ -78,5 +83,15 @@ class Reservation extends Model
     public function cancelledBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function reportCards(): HasMany
+    {
+        return $this->hasMany(BoardingReportCard::class);
+    }
+
+    public function addons(): HasMany
+    {
+        return $this->hasMany(ReservationAddon::class);
     }
 }

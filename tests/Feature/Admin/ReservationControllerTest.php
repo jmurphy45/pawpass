@@ -4,10 +4,12 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\DogVaccination;
 use App\Models\KennelUnit;
 use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\VaccinationRequirement;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -294,5 +296,66 @@ class ReservationControllerTest extends TestCase
         $response->assertStatus(409);
         $response->assertJsonPath('error', 'CANNOT_DELETE_ACTIVE_RESERVATION');
         $this->assertDatabaseHas('reservations', ['id' => $reservation->id]);
+    }
+
+    public function test_store_blocked_when_dog_missing_required_vaccine(): void
+    {
+        VaccinationRequirement::factory()->create([
+            'tenant_id'    => $this->tenant->id,
+            'vaccine_name' => 'Rabies',
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())->postJson('/api/admin/v1/reservations', [
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'starts_at'   => '2026-07-01',
+            'ends_at'     => '2026-07-05',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error', 'DOG_VACCINATION_INCOMPLETE');
+        $this->assertNotEmpty($response->json('violations'));
+    }
+
+    public function test_store_succeeds_when_dog_has_valid_vaccine(): void
+    {
+        VaccinationRequirement::factory()->create([
+            'tenant_id'    => $this->tenant->id,
+            'vaccine_name' => 'Rabies',
+        ]);
+        DogVaccination::factory()->create([
+            'tenant_id'       => $this->tenant->id,
+            'dog_id'          => $this->dog->id,
+            'vaccine_name'    => 'Rabies',
+            'administered_at' => '2026-01-01',
+            'expires_at'      => '2027-01-01',
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())->postJson('/api/admin/v1/reservations', [
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'starts_at'   => '2026-07-01',
+            'ends_at'     => '2026-07-05',
+        ]);
+
+        $response->assertStatus(201);
+    }
+
+    public function test_store_allows_override_of_vaccination_check(): void
+    {
+        VaccinationRequirement::factory()->create([
+            'tenant_id'    => $this->tenant->id,
+            'vaccine_name' => 'Rabies',
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())->postJson('/api/admin/v1/reservations', [
+            'dog_id'                    => $this->dog->id,
+            'customer_id'               => $this->customer->id,
+            'starts_at'                 => '2026-07-01',
+            'ends_at'                   => '2026-07-05',
+            'ignore_vaccination_check'  => true,
+        ]);
+
+        $response->assertStatus(201);
     }
 }

@@ -11,6 +11,7 @@ use App\Notifications\Channels\SmsChannel;
 use App\Observers\PackageObserver;
 use App\Observers\PlatformPlanObserver;
 use App\Services\KennelAvailabilityService;
+use App\Services\VaccinationComplianceService;
 use App\Services\NotificationService;
 use App\Services\PlanFeatureCache;
 use App\Services\SmsUsageService;
@@ -65,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PlanFeatureCache::class);
         $this->app->singleton(SmsUsageService::class);
         $this->app->bind(KennelAvailabilityService::class);
+        $this->app->bind(VaccinationComplianceService::class);
     }
 
     public function boot(): void

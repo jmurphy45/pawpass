@@ -10,13 +10,17 @@ use App\Models\Dog;
 use App\Models\KennelUnit;
 use App\Models\Reservation;
 use App\Services\KennelAvailabilityService;
+use App\Services\VaccinationComplianceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ReservationController extends Controller
 {
-    public function __construct(private readonly KennelAvailabilityService $availability) {}
+    public function __construct(
+        private readonly KennelAvailabilityService $availability,
+        private readonly VaccinationComplianceService $vaccination,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -53,6 +57,16 @@ class ReservationController extends Controller
 
             if (! $this->availability->isAvailable($unit, $startsAt, $endsAt)) {
                 return response()->json(['error' => 'UNIT_NOT_AVAILABLE'], 409);
+            }
+        }
+
+        if (! $request->boolean('ignore_vaccination_check')) {
+            $violations = $this->vaccination->getViolations($dog, $tenantId);
+            if (! empty($violations)) {
+                return response()->json([
+                    'error'      => 'DOG_VACCINATION_INCOMPLETE',
+                    'violations' => $violations,
+                ], 422);
             }
         }
 
@@ -94,7 +108,10 @@ class ReservationController extends Controller
             }
         }
 
-        $data = $request->only(['kennel_unit_id', 'status', 'starts_at', 'ends_at', 'nightly_rate_cents', 'notes']);
+        $data = $request->only([
+            'kennel_unit_id', 'status', 'starts_at', 'ends_at', 'nightly_rate_cents',
+            'notes', 'feeding_schedule', 'medication_notes', 'behavioral_notes', 'emergency_contact',
+        ]);
 
         if (($data['status'] ?? null) === 'cancelled' && ! $reservation->isCancelled()) {
             $data['cancelled_at'] = now();
