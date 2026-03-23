@@ -37,6 +37,8 @@ use App\Http\Controllers\Portal\V1\DogController as PortalDogController;
 use App\Http\Controllers\Portal\V1\NotificationController;
 use App\Http\Controllers\Portal\V1\OrderController;
 use App\Http\Controllers\Portal\V1\PackageController;
+use App\Http\Controllers\Portal\V1\KennelUnitController as PortalKennelUnitController;
+use App\Http\Controllers\Portal\V1\ReservationController as PortalReservationController;
 use App\Http\Controllers\Portal\V1\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -99,6 +101,11 @@ Route::prefix('portal/v1')
             Route::get('notifications/count', [NotificationController::class, 'count']);
             Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
             Route::patch('notifications/{id}/read', [NotificationController::class, 'markRead']);
+
+            Route::get('reservations', [PortalReservationController::class, 'index']);
+            Route::post('reservations', [PortalReservationController::class, 'store']);
+            Route::get('reservations/{id}', [PortalReservationController::class, 'show']);
+            Route::patch('reservations/{id}/cancel', [PortalReservationController::class, 'cancel']);
         });
     });
 

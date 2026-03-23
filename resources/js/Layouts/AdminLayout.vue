@@ -363,6 +363,8 @@ const flatNavItems = computed(() => {
   const items: Array<{ name: string; href: string; pattern: string }> = [
     { name: 'Dashboard', href: route('admin.dashboard'), pattern: 'admin.dashboard' },
     { name: 'Roster', href: route('admin.roster.index'), pattern: 'admin.roster.*' },
+    { name: 'Boarding', href: route('admin.boarding.reservations'), pattern: 'admin.boarding.reservations*' },
+    { name: 'Kennel Units', href: route('admin.boarding.units'), pattern: 'admin.boarding.units*' },
     { name: 'Customers', href: route('admin.customers.index'), pattern: 'admin.customers.*' },
     { name: 'Dogs', href: route('admin.dogs.index'), pattern: 'admin.dogs.*' },
     { name: 'Payments', href: route('admin.payments.index'), pattern: 'admin.payments.*' },
