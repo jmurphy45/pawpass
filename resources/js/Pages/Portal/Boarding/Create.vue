@@ -12,32 +12,19 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="label">Check-in date</label>
-            <input v-model="form.starts_at" type="date" class="input w-full" :min="today" @change="onDatesChange" />
+            <input v-model="localDates.starts_at" type="date" class="input w-full" :min="today" @change="onDatesChange" />
           </div>
           <div>
             <label class="label">Check-out date</label>
-            <input v-model="form.ends_at" type="date" class="input w-full" :min="form.starts_at || today" @change="onDatesChange" />
+            <input v-model="localDates.ends_at" type="date" class="input w-full" :min="localDates.starts_at || today" @change="onDatesChange" />
           </div>
         </div>
       </div>
 
-      <!-- Step 2: Dog -->
-      <div class="card p-5 space-y-3">
-        <h2 class="font-semibold text-text-body">Which dog?</h2>
-        <div v-if="dogs.length === 0" class="text-sm text-text-muted">
-          No dogs on your account yet. <Link :href="route('portal.dogs.create')" class="text-primary hover:underline">Add a dog first.</Link>
-        </div>
-        <select v-else v-model="form.dog_id" class="input w-full">
-          <option value="">Select a dog</option>
-          <option v-for="dog in dogs" :key="dog.id" :value="dog.id">{{ dog.name }}</option>
-        </select>
-      </div>
-
-      <!-- Step 3: Unit (shown after dates selected) -->
-      <div v-if="form.starts_at && form.ends_at" class="card p-5 space-y-3">
+      <!-- Step 2: Available units (shown once dates are loaded server-side) -->
+      <div v-if="localDates.starts_at && localDates.ends_at" class="card p-5 space-y-3">
         <h2 class="font-semibold text-text-body">Select a Unit <span class="text-text-muted text-sm font-normal">(optional)</span></h2>
-        <p v-if="loadingUnits" class="text-sm text-text-muted">Loading availability…</p>
-        <p v-else-if="availableUnits.length === 0" class="text-sm text-text-muted">No units available for the selected dates.</p>
+        <p v-if="availableUnits.length === 0" class="text-sm text-text-muted">No units available for the selected dates.</p>
         <div v-else class="space-y-2">
           <label
             v-for="unit in availableUnits"
@@ -55,6 +42,18 @@
             </p>
           </label>
         </div>
+      </div>
+
+      <!-- Step 3: Dog -->
+      <div class="card p-5 space-y-3">
+        <h2 class="font-semibold text-text-body">Which dog?</h2>
+        <div v-if="dogs.length === 0" class="text-sm text-text-muted">
+          No dogs on your account yet. <Link :href="route('portal.dogs.create')" class="text-primary hover:underline">Add a dog first.</Link>
+        </div>
+        <select v-else v-model="form.dog_id" class="input w-full">
+          <option value="">Select a dog</option>
+          <option v-for="dog in dogs" :key="dog.id" :value="dog.id">{{ dog.name }}</option>
+        </select>
       </div>
 
       <!-- Step 4: Care instructions -->
@@ -82,12 +81,18 @@
         </div>
       </div>
 
-      <!-- Error -->
-      <div v-if="error" class="rounded-lg p-3 text-sm bg-red-50 text-red-700 border border-red-200">{{ error }}</div>
+      <!-- Errors -->
+      <div v-if="form.errors.kennel_unit_id || form.errors.dog_id" class="rounded-lg p-3 text-sm bg-red-50 text-red-700 border border-red-200">
+        {{ form.errors.kennel_unit_id || form.errors.dog_id }}
+      </div>
 
       <div class="flex gap-3">
-        <button @click="submit" :disabled="submitting || !form.dog_id || !form.starts_at || !form.ends_at" class="btn-primary">
-          {{ submitting ? 'Requesting…' : 'Request Reservation' }}
+        <button
+          @click="submit"
+          :disabled="form.processing || !form.dog_id || !localDates.starts_at || !localDates.ends_at"
+          class="btn-primary"
+        >
+          {{ form.processing ? 'Requesting…' : 'Request Reservation' }}
         </button>
         <Link :href="route('portal.boarding.index')" class="btn-secondary">Cancel</Link>
       </div>
@@ -96,22 +101,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { reactive } from 'vue';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
-import axios from 'axios';
 
 const props = defineProps<{
   dogs: Array<{ id: string; name: string }>;
+  availableUnits: Array<{
+    id: string;
+    name: string;
+    type: string;
+    description: string | null;
+    nightly_rate_cents: number | null;
+  }>;
+  selectedDates: { starts_at: string; ends_at: string };
 }>();
 
 const today = new Date().toISOString().split('T')[0];
 
-const form = reactive({
+const localDates = reactive({
+  starts_at: props.selectedDates.starts_at,
+  ends_at: props.selectedDates.ends_at,
+});
+
+const form = useForm({
   dog_id: '',
   kennel_unit_id: '',
-  starts_at: '',
-  ends_at: '',
+  starts_at: props.selectedDates.starts_at,
+  ends_at: props.selectedDates.ends_at,
   notes: '',
   feeding_schedule: '',
   medication_notes: '',
@@ -119,56 +136,22 @@ const form = reactive({
   emergency_contact: '',
 });
 
-const availableUnits = ref<Array<{ id: string; name: string; type: string; description: string | null; nightly_rate_cents: number | null }>>([]);
-const loadingUnits = ref(false);
-const submitting = ref(false);
-const error = ref('');
-
-async function onDatesChange() {
-  if (!form.starts_at || !form.ends_at) return;
-  if (form.ends_at <= form.starts_at) return;
-  loadingUnits.value = true;
+function onDatesChange() {
+  if (!localDates.starts_at || !localDates.ends_at) return;
+  if (localDates.ends_at <= localDates.starts_at) return;
   form.kennel_unit_id = '';
-  try {
-    const { data } = await axios.get('/api/portal/v1/kennel-units/available', {
-      params: { starts_at: form.starts_at, ends_at: form.ends_at },
-    });
-    availableUnits.value = data.data;
-  } catch {
-    availableUnits.value = [];
-  } finally {
-    loadingUnits.value = false;
-  }
+  form.starts_at = localDates.starts_at;
+  form.ends_at = localDates.ends_at;
+  router.get(
+    route('portal.boarding.create'),
+    { starts_at: localDates.starts_at, ends_at: localDates.ends_at },
+    { preserveState: true, preserveScroll: true },
+  );
 }
 
-async function submit() {
-  error.value = '';
-  submitting.value = true;
-  try {
-    const { data } = await axios.post('/api/portal/v1/reservations', {
-      dog_id: form.dog_id,
-      kennel_unit_id: form.kennel_unit_id || undefined,
-      starts_at: form.starts_at,
-      ends_at: form.ends_at,
-      notes: form.notes || undefined,
-      feeding_schedule: form.feeding_schedule || undefined,
-      medication_notes: form.medication_notes || undefined,
-      behavioral_notes: form.behavioral_notes || undefined,
-      emergency_contact: form.emergency_contact || undefined,
-    });
-    router.visit(route('portal.boarding.show', data.data.id));
-  } catch (err: any) {
-    const msg = err.response?.data?.error;
-    if (msg === 'UNIT_NOT_AVAILABLE') {
-      error.value = 'That unit is no longer available for those dates. Please choose another.';
-    } else if (msg === 'DOG_VACCINATION_INCOMPLETE') {
-      const violations = err.response?.data?.violations ?? [];
-      error.value = `Missing vaccinations: ${violations.join(', ')}. Please update your dog's records before booking.`;
-    } else {
-      error.value = 'Something went wrong. Please try again.';
-    }
-  } finally {
-    submitting.value = false;
-  }
+function submit() {
+  form.starts_at = localDates.starts_at;
+  form.ends_at = localDates.ends_at;
+  form.post(route('portal.boarding.store'));
 }
 </script>

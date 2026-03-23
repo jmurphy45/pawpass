@@ -58,13 +58,13 @@
         <p class="text-sm text-text-muted mb-3">
           You can cancel this reservation since it hasn't been confirmed yet. Once confirmed, please contact us to cancel.
         </p>
-        <div v-if="cancelError" class="mb-3 rounded-lg p-3 text-sm bg-red-50 text-red-700 border border-red-200">{{ cancelError }}</div>
+        <div v-if="cancelForm.errors.status" class="mb-3 rounded-lg p-3 text-sm bg-red-50 text-red-700 border border-red-200">{{ cancelForm.errors.status }}</div>
         <button
           @click="cancelReservation"
-          :disabled="cancelling"
+          :disabled="cancelForm.processing"
           class="btn-secondary text-sm border-red-300 text-red-600 hover:bg-red-50"
         >
-          {{ cancelling ? 'Cancelling…' : 'Cancel Reservation' }}
+          {{ cancelForm.processing ? 'Cancelling…' : 'Cancel Reservation' }}
         </button>
       </div>
     </div>
@@ -72,10 +72,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Link, useForm } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
-import axios from 'axios';
 
 const props = defineProps<{
   reservation: {
@@ -96,8 +95,7 @@ const props = defineProps<{
   };
 }>();
 
-const cancelling = ref(false);
-const cancelError = ref('');
+const cancelForm = useForm({});
 
 const careFields = [
   { key: 'feeding_schedule', label: 'Feeding Schedule' },
@@ -126,18 +124,7 @@ function statusBadge(status: string): string {
   } as Record<string, string>)[status] ?? 'badge-gray';
 }
 
-async function cancelReservation() {
-  cancelError.value = '';
-  cancelling.value = true;
-  try {
-    await axios.patch(`/api/portal/v1/reservations/${props.reservation.id}/cancel`);
-    router.reload({ only: ['reservation'] });
-  } catch (err: any) {
-    cancelError.value = err.response?.data?.error === 'CANNOT_CANCEL_RESERVATION'
-      ? 'This reservation can no longer be cancelled. Please contact us for help.'
-      : 'Something went wrong. Please try again.';
-  } finally {
-    cancelling.value = false;
-  }
+function cancelReservation() {
+  cancelForm.post(route('portal.boarding.cancel', props.reservation.id));
 }
 </script>

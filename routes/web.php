@@ -190,7 +190,9 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         // Boarding
         Route::get('/boarding', [PortalBoardingController::class, 'index'])->name('portal.boarding.index');
         Route::get('/boarding/create', [PortalBoardingController::class, 'create'])->name('portal.boarding.create');
+        Route::post('/boarding', [PortalBoardingController::class, 'store'])->name('portal.boarding.store');
         Route::get('/boarding/{id}', [PortalBoardingController::class, 'show'])->name('portal.boarding.show');
+        Route::post('/boarding/{id}/cancel', [PortalBoardingController::class, 'cancel'])->name('portal.boarding.cancel');
 
         // Account
         Route::get('/account', [AccountController::class, 'index'])->name('portal.account');
