@@ -22,8 +22,8 @@ class BillSmsOverageJobTest extends TestCase
         parent::setUp();
         app()->forgetInstance('current.tenant.id');
         // Pre-create the plans that tests rely on
-        PlatformPlan::factory()->create(['slug' => 'pro', 'sms_segment_quota' => 500]);
-        PlatformPlan::factory()->create(['slug' => 'business', 'sms_segment_quota' => 1000]);
+        PlatformPlan::factory()->create(['slug' => 'pro', 'sms_segment_quota' => 500, 'sms_cost_per_segment_cents' => 4]);
+        PlatformPlan::factory()->create(['slug' => 'business', 'sms_segment_quota' => 1000, 'sms_cost_per_segment_cents' => 4]);
     }
 
     private function makeTenant(string $planSlug = 'pro', string $stripeCustomerId = 'cus_test123'): Tenant
@@ -183,5 +183,54 @@ class BillSmsOverageJobTest extends TestCase
         // tenant2 should be billed, tenant1 should not be
         $this->assertTrue(app(SmsUsageService::class)->isAlreadyBilled($tenant2->id, $period));
         $this->assertFalse(app(SmsUsageService::class)->isAlreadyBilled($tenant1->id, $period));
+    }
+
+    public function test_uses_plan_specific_rate_per_segment(): void
+    {
+        // Override rates: pro → 2 cents, business → 6 cents (setUp created both with rate 4)
+        PlatformPlan::where('slug', 'pro')->update(['sms_cost_per_segment_cents' => 2, 'sms_segment_quota' => 100]);
+        PlatformPlan::where('slug', 'business')->update(['sms_cost_per_segment_cents' => 6, 'sms_segment_quota' => 100]);
+
+        // PlanFeatureCache is a singleton — flush it so it re-reads the updated rates
+        app()->forgetInstance(\App\Services\PlanFeatureCache::class);
+
+        $period  = now()->subMonth()->format('Y-m');
+        $cheap   = $this->makeTenant('pro', 'cus_cheap');
+        $pricey  = $this->makeTenant('business', 'cus_pricey');
+
+        // Both have 50 overage segments
+        foreach ([$cheap, $pricey] as $tenant) {
+            TenantSmsUsage::create([
+                'tenant_id'     => $tenant->id,
+                'period'        => $period,
+                'segments_used' => 150,
+            ]);
+        }
+
+        $billing = $this->mock(StripeBillingService::class, function (MockInterface $mock) use ($period, $cheap, $pricey) {
+            // pro: 50 segments * 2 cents = 100 cents
+            $mock->shouldReceive('createInvoiceItem')
+                ->once()
+                ->with('cus_cheap', 100, "SMS overage: 50 segments for {$period}", "sms-overage-item-{$cheap->id}-{$period}");
+            $mock->shouldReceive('createAndFinalizeInvoice')
+                ->once()
+                ->with('cus_cheap', "sms-overage-invoice-{$cheap->id}-{$period}")
+                ->andReturn((object) ['id' => 'in_cheap']);
+
+            // business: 50 segments * 6 cents = 300 cents
+            $mock->shouldReceive('createInvoiceItem')
+                ->once()
+                ->with('cus_pricey', 300, "SMS overage: 50 segments for {$period}", "sms-overage-item-{$pricey->id}-{$period}");
+            $mock->shouldReceive('createAndFinalizeInvoice')
+                ->once()
+                ->with('cus_pricey', "sms-overage-invoice-{$pricey->id}-{$period}")
+                ->andReturn((object) ['id' => 'in_pricey']);
+        });
+
+        (new BillSmsOverageJob)->handle(
+            app(SmsUsageService::class),
+            $billing,
+            app(PlanFeatureCache::class),
+        );
     }
 }

@@ -27,7 +27,8 @@ class PlatformPlanFactory extends Factory
             'stripe_annual_price_id'  => null,
             'features'                => [],
             'staff_limit'             => 1,
-            'sms_segment_quota'       => 0,
+            'sms_segment_quota'           => 0,
+            'sms_cost_per_segment_cents'  => 4,
             'is_active'               => true,
             'sort_order'              => 0,
         ];

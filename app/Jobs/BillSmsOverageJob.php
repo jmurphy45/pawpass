@@ -47,7 +47,8 @@ class BillSmsOverageJob implements ShouldQueue, ShouldBeUnique
                         return;
                     }
 
-                    $amountCents    = $overage * SmsUsageService::SMS_SEGMENT_RATE_CENTS;
+                    $rateCents   = $planFeatureCache->smsSegmentCostCents($planSlug);
+                    $amountCents = $overage * $rateCents;
                     $description    = "SMS overage: {$overage} segments for {$period}";
                     $itemKey        = "sms-overage-item-{$tenant->id}-{$period}";
                     $invoiceKey     = "sms-overage-invoice-{$tenant->id}-{$period}";

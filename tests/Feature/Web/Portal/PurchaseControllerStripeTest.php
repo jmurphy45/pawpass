@@ -77,6 +77,11 @@ class PurchaseControllerStripeTest extends TestCase
                     \Mockery::any(),
                     \Mockery::any(),
                     'cus_new_conn',
+                    \Mockery::any(),
+                    \Mockery::any(),
+                    \Mockery::any(),
+                    \Mockery::any(),
+                    \Mockery::any(),
                 )
                 ->andReturn((object) ['id' => 'pi_test', 'client_secret' => 'pi_secret']);
         });
@@ -120,6 +125,11 @@ class PurchaseControllerStripeTest extends TestCase
                     \Mockery::any(),
                     \Mockery::any(),
                     'cus_existing_conn',
+                    \Mockery::any(),
+                    \Mockery::any(),
+                    \Mockery::any(),
+                    \Mockery::any(),
+                    \Mockery::any(),
                 )
                 ->andReturn((object) ['id' => 'pi_reuse', 'client_secret' => 'pi_reuse_secret']);
         });

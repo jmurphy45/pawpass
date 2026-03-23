@@ -27,4 +27,9 @@ class PlanFeatureCache
     {
         return (int) ($this->plan($planSlug)?->sms_segment_quota ?? 0);
     }
+
+    public function smsSegmentCostCents(string $planSlug): int
+    {
+        return (int) ($this->plan($planSlug)?->sms_cost_per_segment_cents ?? 4);
+    }
 }

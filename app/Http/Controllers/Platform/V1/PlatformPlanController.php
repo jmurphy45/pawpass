@@ -29,8 +29,10 @@ class PlatformPlanController extends Controller
             'annual_price_cents'  => 'nullable|integer|min:0',
             'features'            => 'required|array',
             'features.*'          => 'string',
-            'staff_limit'         => 'nullable|integer|min:1',
-            'sort_order'          => 'nullable|integer',
+            'staff_limit'                => 'nullable|integer|min:1',
+            'sms_segment_quota'          => 'nullable|integer|min:0',
+            'sms_cost_per_segment_cents' => 'nullable|integer|min:0',
+            'sort_order'                 => 'nullable|integer',
         ]);
 
         $plan = PlatformPlan::create(array_merge($data, ['is_active' => true]));
@@ -44,11 +46,13 @@ class PlatformPlanController extends Controller
 
         $data = $request->validate([
             'features'    => 'sometimes|array',
-            'features.*'  => 'string',
-            'staff_limit' => 'sometimes|integer|min:1',
-            'name'        => 'sometimes|string',
-            'description' => 'nullable|string',
-            'is_active'   => 'sometimes|boolean',
+            'features.*'                 => 'string',
+            'staff_limit'                => 'sometimes|integer|min:1',
+            'sms_segment_quota'          => 'sometimes|integer|min:0',
+            'sms_cost_per_segment_cents' => 'sometimes|integer|min:0',
+            'name'                       => 'sometimes|string',
+            'description'                => 'nullable|string',
+            'is_active'                  => 'sometimes|boolean',
         ]);
 
         $plan->update($data);

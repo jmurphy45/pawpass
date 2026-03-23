@@ -118,6 +118,7 @@ class RosterController extends Controller
         ]);
 
         $attendance = Attendance::where('dog_id', $request->dog_id)
+            ->whereDate('checked_in_at', today())
             ->whereNull('checked_out_at')
             ->latest('checked_in_at')
             ->first();

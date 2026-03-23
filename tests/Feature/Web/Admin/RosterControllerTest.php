@@ -91,6 +91,58 @@ class RosterControllerTest extends TestCase
         $this->assertNotNull($attendance->fresh()->checked_out_at);
     }
 
+    public function test_checkout_does_not_close_previous_day_open_attendance(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 5]);
+
+        Attendance::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'dog_id'         => $dog->id,
+            'checked_in_by'  => $this->staff->id,
+            'checked_in_at'  => now()->subDay(),
+            'checked_out_at' => null,
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post('/admin/roster/checkout', ['dog_id' => $dog->id]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertNull(Attendance::where('dog_id', $dog->id)->first()->checked_out_at);
+    }
+
+    public function test_checkout_closes_todays_record_not_previous_day(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 5]);
+
+        $oldAttendance = Attendance::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'dog_id'         => $dog->id,
+            'checked_in_by'  => $this->staff->id,
+            'checked_in_at'  => now()->subDay(),
+            'checked_out_at' => null,
+        ]);
+
+        $todayAttendance = Attendance::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'dog_id'         => $dog->id,
+            'checked_in_by'  => $this->staff->id,
+            'checked_in_at'  => now(),
+            'checked_out_at' => null,
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post('/admin/roster/checkout', ['dog_id' => $dog->id]);
+
+        $response->assertRedirect();
+        $this->assertNull($oldAttendance->fresh()->checked_out_at);
+        $this->assertNotNull($todayAttendance->fresh()->checked_out_at);
+    }
+
     public function test_cannot_checkin_dog_with_zero_credits_when_blocked(): void
     {
         $this->tenant->update(['checkin_block_at_zero' => true]);

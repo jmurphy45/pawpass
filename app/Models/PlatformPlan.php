@@ -24,6 +24,7 @@ class PlatformPlan extends Model
         'features',
         'staff_limit',
         'sms_segment_quota',
+        'sms_cost_per_segment_cents',
         'is_active',
         'sort_order',
     ];
@@ -33,7 +34,8 @@ class PlatformPlan extends Model
         return [
             'features'            => 'array',
             'staff_limit'         => 'integer',
-            'sms_segment_quota'   => 'integer',
+            'sms_segment_quota'              => 'integer',
+            'sms_cost_per_segment_cents'     => 'integer',
             'is_active'           => 'boolean',
             'monthly_price_cents' => 'integer',
             'annual_price_cents'  => 'integer',

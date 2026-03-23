@@ -16,8 +16,11 @@ class PlatformPlanResource extends JsonResource
             'description'         => $this->description,
             'monthly_price_cents' => $this->monthly_price_cents,
             'annual_price_cents'  => $this->annual_price_cents,
-            'features'            => $this->features,
-            'sort_order'          => $this->sort_order,
+            'features'                    => $this->features,
+            'staff_limit'                 => $this->staff_limit,
+            'sms_segment_quota'           => $this->sms_segment_quota,
+            'sms_cost_per_segment_cents'  => $this->sms_cost_per_segment_cents,
+            'sort_order'                  => $this->sort_order,
         ];
     }
 }

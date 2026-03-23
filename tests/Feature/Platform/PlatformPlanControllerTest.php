@@ -121,6 +121,38 @@ class PlatformPlanControllerTest extends TestCase
         ]);
     }
 
+    public function test_platform_admin_can_update_sms_cost_per_segment_cents(): void
+    {
+        $plan = PlatformPlan::factory()->create(['sms_cost_per_segment_cents' => 4]);
+
+        $response = $this->withHeaders($this->headers())
+            ->patchJson("/api/platform/v1/plans/{$plan->id}", [
+                'sms_cost_per_segment_cents' => 2,
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.sms_cost_per_segment_cents', 2);
+        $this->assertDatabaseHas('platform_plans', [
+            'id'                         => $plan->id,
+            'sms_cost_per_segment_cents' => 2,
+        ]);
+    }
+
+    public function test_plan_resource_exposes_sms_fields(): void
+    {
+        PlatformPlan::factory()->create(['sms_segment_quota' => 500, 'sms_cost_per_segment_cents' => 3]);
+
+        $response = $this->withHeaders($this->headers())
+            ->getJson('/api/platform/v1/plans');
+
+        $response->assertStatus(200);
+        $plan = $response->json('data.0');
+        $this->assertArrayHasKey('sms_segment_quota', $plan);
+        $this->assertArrayHasKey('sms_cost_per_segment_cents', $plan);
+        $this->assertSame(500, $plan['sms_segment_quota']);
+        $this->assertSame(3, $plan['sms_cost_per_segment_cents']);
+    }
+
     public function test_non_platform_admin_cannot_manage_plans(): void
     {
         $tenant = Tenant::factory()->create();
