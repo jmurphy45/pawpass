@@ -65,7 +65,7 @@
                 <p class="text-sm font-medium text-text-body truncate">{{ dog.name }}</p>
                 <p class="text-xs text-text-muted truncate">{{ dog.customer_name }}</p>
               </div>
-              <span class="badge ml-3" :class="dog.credit_balance <= 0 ? 'badge-red' : 'badge-yellow'">
+              <span class="badge ml-3 shrink-0" :class="dog.credit_balance <= 0 ? 'badge-red' : 'badge-yellow'">
                 {{ dog.credit_balance }} cr
               </span>
             </li>
@@ -89,7 +89,7 @@
                 <p class="text-sm font-medium text-text-body truncate">{{ entry.dog_name }}</p>
                 <p class="text-xs text-text-muted truncate">{{ entry.customer_name }}</p>
               </div>
-              <span class="text-xs font-medium" :class="entry.checked_out_at ? 'text-blue-600' : 'text-green-600'">
+              <span class="text-xs font-medium shrink-0" :class="entry.checked_out_at ? 'text-blue-600' : 'text-green-600'">
                 {{ entry.checked_out_at ? 'Out' : 'In' }}
               </span>
             </li>

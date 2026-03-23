@@ -1,9 +1,9 @@
 <template>
   <PortalLayout>
     <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-text-body">My Dogs</h1>
-        <Link :href="route('portal.dogs.create')" class="btn-primary">
+      <div class="flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-bold text-text-body min-w-0">My Dogs</h1>
+        <Link :href="route('portal.dogs.create')" class="btn-primary shrink-0">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>

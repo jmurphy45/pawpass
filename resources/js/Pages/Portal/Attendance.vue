@@ -1,8 +1,8 @@
 <template>
   <PortalLayout>
     <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-text-body">Attendance</h1>
+      <div class="flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-bold text-text-body min-w-0">Attendance</h1>
         <select
           v-model="selectedDog"
           class="input max-w-[180px]"

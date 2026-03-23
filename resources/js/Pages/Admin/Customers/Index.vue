@@ -1,12 +1,12 @@
 <template>
   <AdminLayout>
     <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <div>
+      <div class="flex items-center justify-between gap-4">
+        <div class="min-w-0">
           <h1 class="text-2xl font-bold text-text-body">Customers</h1>
           <p class="text-sm text-text-muted mt-0.5">{{ customers.data.length }} total</p>
         </div>
-        <Link :href="route('admin.customers.create')" class="btn-primary">Add Customer</Link>
+        <Link :href="route('admin.customers.create')" class="btn-primary shrink-0">Add Customer</Link>
       </div>
 
       <div class="card overflow-hidden">

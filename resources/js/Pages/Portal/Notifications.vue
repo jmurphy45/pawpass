@@ -1,8 +1,8 @@
 <template>
   <PortalLayout>
     <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-text-body">Notifications</h1>
+      <div class="flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-bold text-text-body min-w-0">Notifications</h1>
         <form @submit.prevent="readAll">
           <button
             type="submit"
