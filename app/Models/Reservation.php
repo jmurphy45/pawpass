@@ -23,6 +23,10 @@ class Reservation extends Model
         'starts_at',
         'ends_at',
         'nightly_rate_cents',
+        'deposit_amount_cents',
+        'stripe_pi_id',
+        'deposit_captured_at',
+        'deposit_refunded_at',
         'notes',
         'feeding_schedule',
         'medication_notes',
@@ -36,12 +40,15 @@ class Reservation extends Model
     protected function casts(): array
     {
         return [
-            'starts_at'          => 'immutable_datetime',
-            'ends_at'            => 'immutable_datetime',
-            'nightly_rate_cents' => 'integer',
-            'cancelled_at'       => 'immutable_datetime',
-            'created_at'         => 'immutable_datetime',
-            'updated_at'         => 'immutable_datetime',
+            'starts_at'            => 'immutable_datetime',
+            'ends_at'              => 'immutable_datetime',
+            'nightly_rate_cents'   => 'integer',
+            'deposit_amount_cents' => 'integer',
+            'deposit_captured_at'  => 'immutable_datetime',
+            'deposit_refunded_at'  => 'immutable_datetime',
+            'cancelled_at'         => 'immutable_datetime',
+            'created_at'           => 'immutable_datetime',
+            'updated_at'           => 'immutable_datetime',
         ];
     }
 

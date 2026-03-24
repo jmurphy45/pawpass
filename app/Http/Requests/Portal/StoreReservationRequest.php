@@ -22,7 +22,8 @@ class StoreReservationRequest extends FormRequest
             'feeding_schedule'   => ['nullable', 'string', 'max:2000'],
             'medication_notes'   => ['nullable', 'string', 'max:2000'],
             'behavioral_notes'   => ['nullable', 'string', 'max:2000'],
-            'emergency_contact'  => ['nullable', 'string', 'max:500'],
+            'emergency_contact'    => ['nullable', 'string', 'max:500'],
+            'deposit_amount_cents' => ['nullable', 'integer', 'min:1'],
         ];
     }
 }

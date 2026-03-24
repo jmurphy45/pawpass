@@ -10,8 +10,10 @@ use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VaccinationRequirement;
+use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Mockery;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithJwt;
 
@@ -357,5 +359,63 @@ class ReservationControllerTest extends TestCase
         ]);
 
         $response->assertStatus(201);
+    }
+
+    // -------------------------------------------------------------------------
+    // Deposit capture / release (Step 5)
+    // -------------------------------------------------------------------------
+
+    public function test_update_to_checked_in_captures_hold(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_test']);
+
+        $reservation = Reservation::factory()->confirmed()->create([
+            'tenant_id'            => $this->tenant->id,
+            'dog_id'               => $this->dog->id,
+            'customer_id'          => $this->customer->id,
+            'created_by'           => $this->staff->id,
+            'stripe_pi_id'         => 'pi_hold3',
+            'deposit_amount_cents'  => 5000,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('capturePaymentIntent')
+            ->once()
+            ->with('pi_hold3', 'acct_test')
+            ->andReturn((object) ['id' => 'pi_hold3', 'status' => 'succeeded']);
+        $this->app->instance(StripeService::class, $stripe);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->patchJson("/api/admin/v1/reservations/{$reservation->id}", ['status' => 'checked_in']);
+
+        $response->assertStatus(200);
+        $this->assertNotNull(Reservation::find($reservation->id)->deposit_captured_at);
+    }
+
+    public function test_update_to_cancelled_releases_uncaptured_hold(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_test']);
+
+        $reservation = Reservation::factory()->confirmed()->create([
+            'tenant_id'            => $this->tenant->id,
+            'dog_id'               => $this->dog->id,
+            'customer_id'          => $this->customer->id,
+            'created_by'           => $this->staff->id,
+            'stripe_pi_id'         => 'pi_hold4',
+            'deposit_amount_cents'  => 5000,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('cancelPaymentIntent')
+            ->once()
+            ->with('pi_hold4', 'acct_test')
+            ->andReturn((object) ['id' => 'pi_hold4', 'status' => 'canceled']);
+        $this->app->instance(StripeService::class, $stripe);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->patchJson("/api/admin/v1/reservations/{$reservation->id}", ['status' => 'cancelled']);
+
+        $response->assertStatus(200);
+        $this->assertNotNull(Reservation::find($reservation->id)->deposit_refunded_at);
     }
 }

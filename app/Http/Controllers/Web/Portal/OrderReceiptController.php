@@ -25,15 +25,16 @@ class OrderReceiptController extends Controller
         );
 
         $pdf = Pdf::loadView('pdf.receipt', [
-            'tenantName'  => $order->tenant->name,
-            'orderId'     => $order->id,
-            'customerName' => $order->customer->name,
-            'date'        => $order->paid_at?->format('M j, Y') ?? $order->created_at->format('M j, Y'),
-            'status'      => $order->status,
-            'packageName' => $order->package?->name ?? 'Unknown',
-            'dogNames'    => $order->orderDogs->map(fn ($od) => $od->dog?->name)->filter()->join(', '),
-            'amount'      => number_format((float) $order->total_amount, 2),
-            'charge'      => $charge,
+            'tenantName'             => $order->tenant->name,
+            'orderId'                => $order->id,
+            'stripePaymentIntentId'  => $order->stripe_pi_id,
+            'customerName'           => $order->customer->name,
+            'date'                   => $order->paid_at?->format('M j, Y') ?? $order->created_at->format('M j, Y'),
+            'status'                 => $order->status,
+            'packageName'            => $order->package?->name ?? 'Unknown',
+            'dogNames'               => $order->orderDogs->map(fn ($od) => $od->dog?->name)->filter()->join(', '),
+            'amount'                 => number_format((float) $order->total_amount, 2),
+            'charge'                 => $charge,
         ]);
 
         return $pdf->stream('receipt-' . $order->id . '.pdf');

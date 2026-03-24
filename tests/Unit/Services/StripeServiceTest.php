@@ -323,4 +323,55 @@ class StripeServiceTest extends TestCase
 
         $this->assertStringContainsString('connect.stripe.com', $result->url);
     }
+
+    public function test_create_hold_payment_intent_uses_manual_capture_method(): void
+    {
+        $paymentIntents = Mockery::mock();
+        $paymentIntents->shouldReceive('create')
+            ->once()
+            ->with(
+                Mockery::on(fn ($p) => $p['capture_method'] === 'manual'
+                    && $p['amount'] === 5000
+                    && $p['application_fee_amount'] === 250),
+                ['stripe_account' => 'acct_test']
+            )
+            ->andReturn((object) ['id' => 'pi_hold123', 'client_secret' => 'pi_hold123_secret']);
+
+        $this->client->paymentIntents = $paymentIntents;
+
+        $result = $this->service->createHoldPaymentIntent(5000, 'usd', 'acct_test', 250, ['reservation_id' => 'res1']);
+
+        $this->assertEquals('pi_hold123', $result->id);
+        $this->assertEquals('pi_hold123_secret', $result->client_secret);
+    }
+
+    public function test_capture_payment_intent_calls_stripe_capture(): void
+    {
+        $paymentIntents = Mockery::mock();
+        $paymentIntents->shouldReceive('capture')
+            ->once()
+            ->with('pi_hold123', [], ['stripe_account' => 'acct_test'])
+            ->andReturn((object) ['id' => 'pi_hold123', 'status' => 'succeeded']);
+
+        $this->client->paymentIntents = $paymentIntents;
+
+        $result = $this->service->capturePaymentIntent('pi_hold123', 'acct_test');
+
+        $this->assertEquals('succeeded', $result->status);
+    }
+
+    public function test_cancel_payment_intent_calls_stripe_cancel(): void
+    {
+        $paymentIntents = Mockery::mock();
+        $paymentIntents->shouldReceive('cancel')
+            ->once()
+            ->with('pi_hold123', [], ['stripe_account' => 'acct_test'])
+            ->andReturn((object) ['id' => 'pi_hold123', 'status' => 'canceled']);
+
+        $this->client->paymentIntents = $paymentIntents;
+
+        $result = $this->service->cancelPaymentIntent('pi_hold123', 'acct_test');
+
+        $this->assertEquals('canceled', $result->status);
+    }
 }

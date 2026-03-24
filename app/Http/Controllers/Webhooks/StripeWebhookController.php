@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhooks;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\RawWebhook;
+use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
 use App\Services\NotificationService;
@@ -43,12 +44,13 @@ class StripeWebhookController extends Controller
         ]);
 
         return match ($event->type) {
-            'payment_intent.succeeded'      => $this->handlePaymentIntentSucceeded($event->data->object),
-            'payment_intent.payment_failed' => $this->handlePaymentIntentFailed($event->data->object),
-            'charge.dispute.created'        => $this->handleDisputeCreated($event->data->object),
-            'charge.dispute.closed'         => $this->handleDisputeClosed($event->data->object),
-            'account.updated'               => $this->handleAccountUpdated($event->data->object),
-            default                         => response()->json(['data' => 'ok']),
+            'payment_intent.succeeded'               => $this->handlePaymentIntentSucceeded($event->data->object),
+            'payment_intent.payment_failed'          => $this->handlePaymentIntentFailed($event->data->object),
+            'payment_intent.amount_capturable_updated' => $this->handleDepositAuthorized($event->data->object),
+            'charge.dispute.created'                 => $this->handleDisputeCreated($event->data->object),
+            'charge.dispute.closed'                  => $this->handleDisputeClosed($event->data->object),
+            'account.updated'                        => $this->handleAccountUpdated($event->data->object),
+            default                                  => response()->json(['data' => 'ok']),
         };
     }
 
@@ -109,6 +111,17 @@ class StripeWebhookController extends Controller
                     $this->notificationService->dispatch('auto_replenish.failed', $order->tenant_id, $userId, ['order_id' => $order->id]);
                 }
             }
+        }
+
+        return response()->json(['data' => 'ok']);
+    }
+
+    private function handleDepositAuthorized(object $pi): JsonResponse
+    {
+        $reservation = Reservation::where('stripe_pi_id', $pi->id)->first();
+
+        if ($reservation && $reservation->status === 'pending') {
+            $reservation->update(['status' => 'confirmed']);
         }
 
         return response()->json(['data' => 'ok']);

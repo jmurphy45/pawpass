@@ -7,6 +7,8 @@
           <div>
             <p class="text-sm font-medium text-gray-900">{{ order.customer_name }}</p>
             <p class="text-xs text-gray-500">{{ order.package_name }} · ${{ (order.amount_cents / 100).toFixed(2) }}</p>
+            <p class="text-xs text-gray-400 font-mono mt-0.5">Ref: {{ order.id }}</p>
+            <p v-if="order.stripe_pi_id" class="text-xs text-gray-400 font-mono">{{ order.stripe_pi_id }}</p>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs px-2 py-0.5 rounded-full" :class="{
@@ -29,7 +31,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm } from '@inertiajs/vue3';
 
 defineProps<{
-  orders: { data: Array<{ id: string; customer_name: string | null; package_name: string | null; amount_cents: number; status: string; created_at: string }> };
+  orders: { data: Array<{ id: string; stripe_pi_id: string | null; customer_name: string | null; package_name: string | null; amount_cents: number; status: string; created_at: string }> };
   filters: { status: string };
 }>();
 

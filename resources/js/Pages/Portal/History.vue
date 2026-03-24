@@ -41,6 +41,7 @@
               <p class="text-xs text-text-muted mt-0.5">
                 {{ order.dog_names.join(', ') }} · {{ formatDate(order.created_at) }}
               </p>
+              <p class="text-xs text-text-muted mt-0.5 font-mono">Ref: {{ order.id }}</p>
             </div>
 
             <div class="text-right shrink-0">

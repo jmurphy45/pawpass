@@ -11,7 +11,8 @@
   .business-name { font-size: 22px; font-weight: 700; color: #111; }
   .receipt-label { text-align: right; }
   .receipt-label .title { font-size: 18px; font-weight: 600; color: #444; }
-  .receipt-label .id { font-size: 11px; color: #888; margin-top: 4px; font-family: monospace; }
+  .receipt-label .ref-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-top: 8px; }
+  .receipt-label .id { font-size: 12px; color: #333; margin-top: 2px; font-family: monospace; font-weight: 600; }
 
   .divider { border: none; border-top: 1px solid #e5e5e5; margin: 24px 0; }
 
@@ -55,6 +56,7 @@
     </div>
     <div class="receipt-label">
       <div class="title">Receipt</div>
+      <div class="ref-label">Order Ref</div>
       <div class="id">{{ $orderId }}</div>
     </div>
   </div>
@@ -126,6 +128,15 @@
       <span class="payment-val">{{ $charge['receipt_number'] }}</span>
     </div>
     @endif
+  </div>
+  @endif
+
+  @if($stripePaymentIntentId)
+  <div class="payment-section">
+    <div class="payment-row">
+      <span class="payment-key">Payment ID</span>
+      <span class="payment-val">{{ $stripePaymentIntentId }}</span>
+    </div>
   </div>
   @endif
 

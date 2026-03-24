@@ -29,13 +29,14 @@ class PaymentController extends Controller
         }
 
         $orders = $query->paginate(20)->through(fn ($order) => [
-            'id'           => $order->id,
+            'id'            => $order->id,
+            'stripe_pi_id'  => $order->stripe_pi_id,
             'customer_name' => $order->customer?->name,
-            'package_name' => $order->package?->name,
+            'package_name'  => $order->package?->name,
             'amount_cents'  => (int) round((float) $order->total_amount * 100),
-            'status'       => $order->status,
-            'created_at'   => $order->created_at->toIso8601String(),
-            'refunded_at'  => $order->refunded_at?->toIso8601String(),
+            'status'        => $order->status,
+            'created_at'    => $order->created_at->toIso8601String(),
+            'refunded_at'   => $order->refunded_at?->toIso8601String(),
         ]);
 
         return Inertia::render('Admin/Payments/Index', [

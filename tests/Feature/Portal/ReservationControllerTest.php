@@ -9,8 +9,10 @@ use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VaccinationRequirement;
+use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Mockery;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithJwt;
 
@@ -287,5 +289,116 @@ class ReservationControllerTest extends TestCase
         $this->withHeaders($this->authHeaders())
             ->patchJson("/api/portal/v1/reservations/{$reservation->id}/cancel")
             ->assertStatus(404);
+    }
+
+    // -------------------------------------------------------------------------
+    // Deposit / hold payment (Steps 3 & 4)
+    // -------------------------------------------------------------------------
+
+    public function test_store_with_deposit_creates_hold_and_returns_client_secret(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_test', 'platform_fee_pct' => 5.0]);
+
+        $unit = KennelUnit::factory()->create(['tenant_id' => $this->tenant->id, 'nightly_rate_cents' => 8000]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('createHoldPaymentIntent')
+            ->once()
+            ->with(5000, 'usd', 'acct_test', 250, Mockery::type('array'))
+            ->andReturn((object) ['id' => 'pi_hold1', 'client_secret' => 'pi_hold1_secret']);
+        $this->app->instance(StripeService::class, $stripe);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/portal/v1/reservations', [
+                'dog_id'               => $this->dog->id,
+                'kennel_unit_id'       => $unit->id,
+                'starts_at'            => now()->addDay()->toDateString(),
+                'ends_at'              => now()->addDays(3)->toDateString(),
+                'deposit_amount_cents' => 5000,
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('client_secret', 'pi_hold1_secret');
+
+        $this->assertDatabaseHas('reservations', [
+            'dog_id'               => $this->dog->id,
+            'stripe_pi_id'         => 'pi_hold1',
+            'deposit_amount_cents' => 5000,
+        ]);
+    }
+
+    public function test_store_without_deposit_returns_null_client_secret(): void
+    {
+        $unit = KennelUnit::factory()->create(['tenant_id' => $this->tenant->id]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldNotReceive('createHoldPaymentIntent');
+        $this->app->instance(StripeService::class, $stripe);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/portal/v1/reservations', [
+                'dog_id'    => $this->dog->id,
+                'starts_at' => now()->addDay()->toDateString(),
+                'ends_at'   => now()->addDays(3)->toDateString(),
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('client_secret', null);
+    }
+
+    public function test_cancel_with_stripe_pi_releases_hold(): void
+    {
+        $reservation = Reservation::factory()->create([
+            'tenant_id'            => $this->tenant->id,
+            'dog_id'               => $this->dog->id,
+            'customer_id'          => $this->customer->id,
+            'created_by'           => $this->user->id,
+            'status'               => 'pending',
+            'stripe_pi_id'         => 'pi_hold2',
+            'deposit_amount_cents' => 5000,
+        ]);
+
+        $this->tenant->update(['stripe_account_id' => 'acct_test']);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('cancelPaymentIntent')
+            ->once()
+            ->with('pi_hold2', 'acct_test');
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->withHeaders($this->authHeaders())
+            ->patchJson("/api/portal/v1/reservations/{$reservation->id}/cancel")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', 'cancelled');
+
+        $this->assertDatabaseHas('reservations', [
+            'id'     => $reservation->id,
+            'status' => 'cancelled',
+        ]);
+        $this->assertNotNull(Reservation::find($reservation->id)->deposit_refunded_at);
+    }
+
+    // -------------------------------------------------------------------------
+    // Deposit columns (Step 1 schema test)
+    // -------------------------------------------------------------------------
+
+    public function test_reservation_stores_deposit_columns(): void
+    {
+        $reservation = Reservation::factory()->create([
+            'tenant_id'          => $this->tenant->id,
+            'dog_id'             => $this->dog->id,
+            'customer_id'        => $this->customer->id,
+            'created_by'         => $this->user->id,
+            'deposit_amount_cents' => 5000,
+            'stripe_pi_id'       => 'pi_test_hold123',
+        ]);
+
+        $this->assertDatabaseHas('reservations', [
+            'id'                 => $reservation->id,
+            'deposit_amount_cents' => 5000,
+            'stripe_pi_id'       => 'pi_test_hold123',
+        ]);
+        $this->assertNull($reservation->deposit_captured_at);
+        $this->assertNull($reservation->deposit_refunded_at);
     }
 }

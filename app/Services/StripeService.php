@@ -50,6 +50,32 @@ class StripeService
         return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
     }
 
+    public function createHoldPaymentIntent(
+        int $amountCents,
+        string $currency,
+        string $stripeAccountId,
+        int $applicationFeeCents,
+        array $metadata = [],
+    ): object {
+        return $this->client->paymentIntents->create([
+            'amount'                 => $amountCents,
+            'currency'               => $currency,
+            'application_fee_amount' => $applicationFeeCents,
+            'capture_method'         => 'manual',
+            'metadata'               => $metadata,
+        ], ['stripe_account' => $stripeAccountId]);
+    }
+
+    public function capturePaymentIntent(string $piId, string $stripeAccountId): object
+    {
+        return $this->client->paymentIntents->capture($piId, [], ['stripe_account' => $stripeAccountId]);
+    }
+
+    public function cancelPaymentIntent(string $piId, string $stripeAccountId): object
+    {
+        return $this->client->paymentIntents->cancel($piId, [], ['stripe_account' => $stripeAccountId]);
+    }
+
     public function attachPaymentMethod(string $pmId, string $stripeCustomerId, string $stripeAccountId): object
     {
         return $this->client->paymentMethods->attach(

@@ -9,7 +9,9 @@ use App\Http\Resources\ReservationResource;
 use App\Models\Dog;
 use App\Models\KennelUnit;
 use App\Models\Reservation;
+use App\Models\Tenant;
 use App\Services\KennelAvailabilityService;
+use App\Services\StripeService;
 use App\Services\VaccinationComplianceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,7 @@ class ReservationController extends Controller
     public function __construct(
         private readonly KennelAvailabilityService $availability,
         private readonly VaccinationComplianceService $vaccination,
+        private readonly StripeService $stripe,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -125,6 +128,23 @@ class ReservationController extends Controller
         }
 
         $reservation->update($data);
+
+        $newStatus = $data['status'] ?? null;
+
+        if ($reservation->stripe_pi_id) {
+            $tenant = Tenant::find($reservation->tenant_id);
+            $stripeAccountId = $tenant?->stripe_account_id;
+
+            if ($stripeAccountId) {
+                if ($newStatus === 'checked_in' && ! $reservation->deposit_captured_at) {
+                    $this->stripe->capturePaymentIntent($reservation->stripe_pi_id, $stripeAccountId);
+                    $reservation->update(['deposit_captured_at' => now()]);
+                } elseif ($newStatus === 'cancelled' && ! $reservation->deposit_captured_at) {
+                    $this->stripe->cancelPaymentIntent($reservation->stripe_pi_id, $stripeAccountId);
+                    $reservation->update(['deposit_refunded_at' => now()]);
+                }
+            }
+        }
 
         return response()->json(['data' => new ReservationResource($reservation->fresh())]);
     }

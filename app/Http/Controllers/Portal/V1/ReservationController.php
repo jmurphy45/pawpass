@@ -8,7 +8,9 @@ use App\Http\Resources\ReservationResource;
 use App\Models\Dog;
 use App\Models\KennelUnit;
 use App\Models\Reservation;
+use App\Models\Tenant;
 use App\Services\KennelAvailabilityService;
+use App\Services\StripeService;
 use App\Services\VaccinationComplianceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +21,7 @@ class ReservationController extends Controller
     public function __construct(
         private readonly KennelAvailabilityService $availability,
         private readonly VaccinationComplianceService $vaccination,
+        private readonly StripeService $stripe,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -96,7 +99,37 @@ class ReservationController extends Controller
             'created_by'         => auth()->id(),
         ]);
 
-        return response()->json(['data' => new ReservationResource($reservation)], 201);
+        $clientSecret = null;
+
+        if ($request->filled('deposit_amount_cents')) {
+            $tenant = Tenant::find($tenantId);
+
+            if ($tenant?->stripe_account_id) {
+                $depositCents = (int) $request->deposit_amount_cents;
+                $feeCents = (int) round($depositCents * (float) $tenant->platform_fee_pct / 100);
+
+                $pi = $this->stripe->createHoldPaymentIntent(
+                    $depositCents,
+                    'usd',
+                    $tenant->stripe_account_id,
+                    $feeCents,
+                    [
+                        'reservation_id' => $reservation->id,
+                        'tenant_id'      => $tenantId,
+                        'dog_name'       => $dog->name,
+                    ]
+                );
+
+                $reservation->update([
+                    'stripe_pi_id'         => $pi->id,
+                    'deposit_amount_cents'  => $depositCents,
+                ]);
+
+                $clientSecret = $pi->client_secret;
+            }
+        }
+
+        return response()->json(['data' => new ReservationResource($reservation->fresh()), 'client_secret' => $clientSecret], 201);
     }
 
     public function cancel(string $id): JsonResponse
@@ -111,11 +144,21 @@ class ReservationController extends Controller
             return response()->json(['error' => 'CANNOT_CANCEL_RESERVATION'], 422);
         }
 
-        $reservation->update([
+        $updateData = [
             'status'       => 'cancelled',
             'cancelled_at' => now(),
             'cancelled_by' => auth()->id(),
-        ]);
+        ];
+
+        if ($reservation->stripe_pi_id && ! $reservation->deposit_captured_at) {
+            $tenant = Tenant::find($reservation->tenant_id);
+            if ($tenant?->stripe_account_id) {
+                $this->stripe->cancelPaymentIntent($reservation->stripe_pi_id, $tenant->stripe_account_id);
+                $updateData['deposit_refunded_at'] = now();
+            }
+        }
+
+        $reservation->update($updateData);
 
         return response()->json(['data' => new ReservationResource($reservation->fresh())]);
     }
