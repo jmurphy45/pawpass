@@ -36,7 +36,9 @@ class StripeService
         }
         if ($confirm) {
             $payload['confirm'] = true;
-            $payload['error_on_requires_action'] = true;
+            if ($paymentMethodTypes) {
+                $payload['error_on_requires_action'] = true;
+            }
         }
         if ($offSession) {
             $payload['off_session'] = true;
