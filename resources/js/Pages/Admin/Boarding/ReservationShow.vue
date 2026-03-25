@@ -85,7 +85,7 @@
           </p>
           <p v-else class="text-sm text-text-muted">No balance due — checkout without charge.</p>
 
-          <button @click="submitCheckout" class="btn-primary text-sm">
+          <button @click="submitCheckout" class="rsh-checkout-btn">
             {{ checkoutBalanceCents > 0 && savedCard?.pm_id ? `Confirm Checkout & Charge $${checkoutBalance}` : 'Confirm Checkout' }}
           </button>
         </div>
@@ -96,43 +96,60 @@
         <div class="lg:col-span-2 space-y-6">
 
           <!-- Stay details -->
-          <div class="card p-5 space-y-3">
-            <h2 class="font-semibold text-text-body">Stay Details</h2>
-            <dl class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              <dt class="text-text-muted">Customer</dt><dd class="text-text-body">{{ reservation.customer?.name ?? '—' }}</dd>
-              <dt class="text-text-muted">Unit</dt><dd class="text-text-body">{{ reservation.kennel_unit?.name ?? 'Unassigned' }}</dd>
-              <dt class="text-text-muted">Check-in</dt><dd class="text-text-body">{{ formatDate(reservation.starts_at) }}</dd>
-              <dt class="text-text-muted">Check-out (planned)</dt><dd class="text-text-body">{{ formatDate(reservation.ends_at) }}</dd>
-              <dt class="text-text-muted">Nightly rate</dt><dd class="text-text-body">{{ reservation.nightly_rate_cents ? '$' + ((reservation.nightly_rate_cents as number) / 100).toFixed(2) : '—' }}</dd>
-              <!-- Actual checkout summary -->
+          <div class="card overflow-hidden">
+            <div class="rsh-card-head">
+              <div class="rsh-card-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
+              </div>
+              <span class="rsh-card-title">Stay Details</span>
+            </div>
+            <dl class="rsh-dl">
+              <div class="rsh-dl-row"><dt>Customer</dt><dd>{{ reservation.customer?.name ?? '—' }}</dd></div>
+              <div class="rsh-dl-row"><dt>Unit</dt><dd>{{ reservation.kennel_unit?.name ?? 'Unassigned' }}</dd></div>
+              <div class="rsh-dl-row"><dt>Check-in</dt><dd>{{ formatDate(reservation.starts_at) }}</dd></div>
+              <div class="rsh-dl-row"><dt>Check-out (planned)</dt><dd>{{ formatDate(reservation.ends_at) }}</dd></div>
+              <div class="rsh-dl-row"><dt>Nightly rate</dt><dd>{{ reservation.nightly_rate_cents ? '$' + ((reservation.nightly_rate_cents as number) / 100).toFixed(2) : '—' }}</dd></div>
               <template v-if="reservation.status === 'checked_out'">
-                <dt class="text-text-muted">Actual checkout</dt><dd class="text-text-body">{{ formatDate(reservation.actual_checkout_at) }}</dd>
-                <dt class="text-text-muted">Charged at checkout</dt>
-                <dd class="text-text-body">
-                  <span v-if="reservation.checkout_charge_cents">
-                    ${{ ((reservation.checkout_charge_cents as number) / 100).toFixed(2) }}
-                    <span v-if="reservation.checkout_pi_id" class="text-xs text-text-muted font-mono ml-1">…{{ (reservation.checkout_pi_id as string).slice(-8) }}</span>
-                  </span>
-                  <span v-else class="text-text-muted">No charge</span>
-                </dd>
+                <div class="rsh-dl-row"><dt>Actual checkout</dt><dd>{{ formatDate(reservation.actual_checkout_at) }}</dd></div>
+                <div class="rsh-dl-row">
+                  <dt>Charged at checkout</dt>
+                  <dd>
+                    <span v-if="reservation.checkout_charge_cents">
+                      ${{ ((reservation.checkout_charge_cents as number) / 100).toFixed(2) }}
+                      <span v-if="reservation.checkout_pi_id" class="text-xs text-text-muted font-mono ml-1">…{{ (reservation.checkout_pi_id as string).slice(-8) }}</span>
+                    </span>
+                    <span v-else class="text-text-muted">No charge</span>
+                  </dd>
+                </div>
               </template>
             </dl>
           </div>
 
           <!-- Care instructions -->
-          <div class="card p-5 space-y-3">
-            <h2 class="font-semibold text-text-body">Care Instructions</h2>
-            <dl class="space-y-2 text-sm">
-              <div v-for="field in careFields" :key="field.key">
-                <dt class="text-text-muted text-xs uppercase tracking-wide">{{ field.label }}</dt>
-                <dd class="text-text-body mt-0.5 whitespace-pre-wrap">{{ (reservation as any)[field.key] || '—' }}</dd>
+          <div class="card overflow-hidden">
+            <div class="rsh-card-head">
+              <div class="rsh-card-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>
               </div>
-            </dl>
+              <span class="rsh-card-title">Care Instructions</span>
+            </div>
+            <div class="rsh-care">
+              <div v-for="field in careFields" :key="field.key" class="rsh-care-item">
+                <p class="rsh-care-label">{{ field.label }}</p>
+                <p class="rsh-care-value">{{ (reservation as any)[field.key] || '—' }}</p>
+              </div>
+            </div>
           </div>
 
           <!-- Daily Report Cards -->
-          <div class="card p-5 space-y-4">
-            <h2 class="font-semibold text-text-body">Daily Report Cards</h2>
+          <div class="card overflow-hidden">
+            <div class="rsh-card-head">
+              <div class="rsh-card-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" /></svg>
+              </div>
+              <span class="rsh-card-title">Daily Report Cards</span>
+            </div>
+            <div class="p-5 space-y-4">
             <div v-if="reportCards.length === 0" class="text-sm text-text-muted">No report cards yet.</div>
             <div v-for="card in reportCards" :key="card.id" class="border border-border rounded-lg p-3 text-sm space-y-1">
               <p class="font-medium text-text-body">{{ card.report_date }}</p>
@@ -146,11 +163,18 @@
               <textarea v-model="cardForm.notes" class="input text-sm w-full h-24 resize-none" placeholder="How was the stay today?" required />
               <button type="submit" class="btn-primary text-sm">Save</button>
             </form>
+            </div>
           </div>
 
           <!-- Add-ons -->
-          <div class="card p-5 space-y-4">
-            <h2 class="font-semibold text-text-body">Add-on Services</h2>
+          <div class="card overflow-hidden">
+            <div class="rsh-card-head">
+              <div class="rsh-card-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+              </div>
+              <span class="rsh-card-title">Add-on Services</span>
+            </div>
+            <div class="p-5 space-y-4">
             <div v-if="addons.length === 0" class="text-sm text-text-muted">No add-ons yet.</div>
             <div v-for="addon in addons" :key="addon.id" class="flex items-center justify-between text-sm">
               <span class="text-text-body">{{ addon.addon_type?.name ?? addon.addon_name }}</span>
@@ -165,6 +189,7 @@
               </select>
               <button type="submit" class="btn-primary text-sm px-4" :disabled="!addonForm.addon_type_id">Add</button>
             </form>
+            </div>
           </div>
         </div>
 
@@ -172,8 +197,14 @@
         <div class="space-y-4">
 
           <!-- Vaccination compliance -->
-          <div class="card p-5 space-y-3">
-            <h2 class="font-semibold text-text-body">Vaccination Compliance</h2>
+          <div class="card overflow-hidden">
+            <div class="rsh-card-head">
+              <div class="rsh-card-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
+              </div>
+              <span class="rsh-card-title">Vaccination Compliance</span>
+            </div>
+            <div class="p-4 space-y-2">
             <div v-if="vaccinationCompliance.length === 0" class="text-sm text-text-muted">No vaccination requirements configured.</div>
             <ul class="space-y-2">
               <li v-for="vc in vaccinationCompliance" :key="vc.vaccine_name" class="flex items-center gap-2 text-sm">
@@ -187,12 +218,18 @@
                 </span>
               </li>
             </ul>
+            </div>
           </div>
 
           <!-- Payment & Deposit -->
-          <div class="card p-5 space-y-3">
-            <h2 class="font-semibold text-text-body">Payment & Deposit</h2>
-
+          <div class="card overflow-hidden">
+            <div class="rsh-card-head">
+              <div class="rsh-card-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" /></svg>
+              </div>
+              <span class="rsh-card-title">Payment &amp; Deposit</span>
+            </div>
+            <div class="p-4 space-y-2">
             <div v-if="!depositAmount" class="text-sm text-text-muted">No deposit collected.</div>
 
             <dl v-else class="space-y-2 text-sm">
@@ -219,6 +256,7 @@
                 <dd class="text-text-body">{{ formatDate(reservation.deposit_refunded_at) }}</dd>
               </div>
             </dl>
+            </div>
           </div>
 
         </div>
@@ -411,3 +449,135 @@ function statusBadge(status: unknown) {
   };
 }
 </script>
+
+<style scoped>
+/* ── Card header ── */
+.rsh-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid #f0ede8;
+}
+
+.rsh-card-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.375rem;
+  background: #f0ede8;
+  color: #6b6560;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rsh-card-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.rsh-card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2a2522;
+}
+
+/* ── Checkout card ── */
+.rsh-checkout-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.875rem 1.25rem;
+  background: #2a2522;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.rsh-card-icon--checkout {
+  background: rgba(255,255,255,0.1);
+  color: #ffffff;
+}
+
+.rsh-card-title--light {
+  color: #ffffff;
+}
+
+.rsh-checkout-btn {
+  width: 100%;
+  padding: 0.75rem 1.25rem;
+  background: #2a2522;
+  color: #ffffff;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 150ms ease, box-shadow 150ms ease, transform 120ms ease;
+}
+
+.rsh-checkout-btn:hover {
+  background: #1a1514;
+  box-shadow: 0 6px 20px rgba(42,37,34,0.3);
+  transform: translateY(-1px);
+}
+
+/* ── Definition list ── */
+.rsh-dl {
+  padding: 0.25rem 0;
+}
+
+.rsh-dl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.6rem 1.25rem;
+  border-bottom: 1px solid #f8f5f0;
+  font-size: 0.875rem;
+}
+
+.rsh-dl-row:last-child {
+  border-bottom: none;
+}
+
+.rsh-dl-row dt {
+  color: #6b6560;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.rsh-dl-row dd {
+  color: #2a2522;
+  font-weight: 500;
+  text-align: right;
+}
+
+/* ── Care instructions ── */
+.rsh-care {
+  padding: 0.25rem 0;
+}
+
+.rsh-care-item {
+  padding: 0.625rem 1.25rem;
+  border-bottom: 1px solid #f8f5f0;
+}
+
+.rsh-care-item:last-child {
+  border-bottom: none;
+}
+
+.rsh-care-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  margin-bottom: 0.25rem;
+}
+
+.rsh-care-value {
+  font-size: 0.875rem;
+  color: #2a2522;
+  white-space: pre-wrap;
+}
+</style>
