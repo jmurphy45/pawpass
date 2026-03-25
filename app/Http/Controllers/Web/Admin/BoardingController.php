@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AddonType;
+use App\Models\BoardingReportCard;
 use App\Models\KennelUnit;
 use App\Models\Order;
+use App\Models\ReservationAddon;
 use App\Models\OrderPayment;
 use App\Models\Reservation;
 use App\Models\Tenant;
@@ -202,6 +204,46 @@ class BoardingController extends Controller
             'total_amount'     => '0.00',
             'platform_fee_pct' => Tenant::find($reservation->tenant_id)?->platform_fee_pct ?? 5.0,
         ]);
+    }
+
+    public function storeReportCard(Request $request, Reservation $reservation): RedirectResponse
+    {
+        $validated = $request->validate([
+            'report_date' => ['required', 'date'],
+            'notes'       => ['required', 'string', 'max:5000'],
+        ]);
+
+        BoardingReportCard::updateOrCreate(
+            [
+                'reservation_id' => $reservation->id,
+                'report_date'    => $validated['report_date'],
+            ],
+            [
+                'tenant_id'  => app('current.tenant.id'),
+                'notes'      => $validated['notes'],
+                'created_by' => auth()->id(),
+            ]
+        );
+
+        return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', 'Report card saved.');
+    }
+
+    public function storeAddon(Request $request, Reservation $reservation): RedirectResponse
+    {
+        $validated = $request->validate([
+            'addon_type_id' => ['required', 'string', 'exists:addon_types,id'],
+        ]);
+
+        $addonType = AddonType::findOrFail($validated['addon_type_id']);
+
+        ReservationAddon::create([
+            'reservation_id'   => $reservation->id,
+            'addon_type_id'    => $addonType->id,
+            'quantity'         => 1,
+            'unit_price_cents' => $addonType->price_cents,
+        ]);
+
+        return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', 'Add-on added.');
     }
 
     public function kennelUnits(): Response

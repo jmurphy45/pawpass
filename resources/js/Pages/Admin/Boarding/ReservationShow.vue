@@ -347,14 +347,14 @@ const addonForm = reactive({ addon_type_id: '' });
 
 function submitReportCard() {
   const res = props.reservation as { id: string };
-  router.post(`/api/admin/v1/reservations/${res.id}/report-cards`, { ...cardForm }, {
+  router.post(route('admin.boarding.reservations.report-cards.store', res.id), { ...cardForm }, {
     onSuccess: () => { cardForm.report_date = ''; cardForm.notes = ''; },
   });
 }
 
 function addAddon() {
   const res = props.reservation as { id: string };
-  router.post(`/api/admin/v1/reservations/${res.id}/addons`, { addon_type_id: addonForm.addon_type_id }, {
+  router.post(route('admin.boarding.reservations.addons.store', res.id), { addon_type_id: addonForm.addon_type_id }, {
     onSuccess: () => { addonForm.addon_type_id = ''; },
   });
 }
