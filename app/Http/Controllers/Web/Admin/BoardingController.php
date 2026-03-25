@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AddonType;
 use App\Models\KennelUnit;
 use App\Models\Reservation;
+use App\Models\Tenant;
+use App\Services\StripeService;
 use App\Services\VaccinationComplianceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +17,10 @@ use Inertia\Response;
 
 class BoardingController extends Controller
 {
-    public function __construct(private VaccinationComplianceService $compliance) {}
+    public function __construct(
+        private VaccinationComplianceService $compliance,
+        private StripeService $stripe,
+    ) {}
 
     public function reservations(Request $request): Response
     {
@@ -73,6 +78,46 @@ class BoardingController extends Controller
         return Inertia::render('Admin/Boarding/KennelUnits', [
             'units' => $units,
         ]);
+    }
+
+    public function updateReservation(Request $request, Reservation $reservation): RedirectResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled'])],
+        ]);
+
+        $newStatus = $validated['status'];
+
+        if (! $reservation->canTransitionTo($newStatus)) {
+            return back()->withErrors(['status' => "Cannot transition from '{$reservation->status}' to '{$newStatus}'."]);
+        }
+
+        $reservation->transitionTo($newStatus, auth()->id());
+
+        if ($reservation->stripe_pi_id) {
+            $tenant = Tenant::find($reservation->tenant_id);
+            $stripeAccountId = $tenant?->stripe_account_id;
+
+            if ($stripeAccountId) {
+                if ($newStatus === 'checked_in' && ! $reservation->deposit_captured_at) {
+                    $this->stripe->capturePaymentIntent($reservation->stripe_pi_id, $stripeAccountId);
+                    $reservation->update(['deposit_captured_at' => now()]);
+                } elseif ($newStatus === 'cancelled' && ! $reservation->deposit_captured_at) {
+                    $this->stripe->cancelPaymentIntent($reservation->stripe_pi_id, $stripeAccountId);
+                    $reservation->update(['deposit_refunded_at' => now()]);
+                }
+            }
+        }
+
+        $label = match ($newStatus) {
+            'confirmed'   => 'Reservation confirmed.',
+            'checked_in'  => 'Dog checked in.',
+            'checked_out' => 'Dog checked out.',
+            'cancelled'   => 'Reservation cancelled.',
+            default       => 'Reservation updated.',
+        };
+
+        return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', $label);
     }
 
     public function storeKennelUnit(Request $request): RedirectResponse

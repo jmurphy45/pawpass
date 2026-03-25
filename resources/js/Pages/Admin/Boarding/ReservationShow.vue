@@ -2,12 +2,37 @@
   <AdminLayout>
     <div class="space-y-6">
       <!-- Header -->
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 flex-wrap">
         <a :href="route('admin.boarding.reservations')" class="text-text-muted hover:text-text-body text-sm">← Back</a>
         <h1 class="text-2xl font-bold text-text-body">
           {{ reservation.dog?.name ?? 'Reservation' }}
         </h1>
         <span class="badge" :class="statusBadge(reservation.status)">{{ reservation.status }}</span>
+      </div>
+
+      <!-- Status Actions -->
+      <div v-if="availableActions.length > 0" class="card p-4">
+        <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Actions</h2>
+
+        <!-- Confirmation prompt -->
+        <div v-if="confirmingAction" class="flex items-center gap-3 text-sm">
+          <span class="text-text-body">{{ confirmMessage }}</span>
+          <button @click="executeAction" class="btn-primary text-xs py-1 px-3">Confirm</button>
+          <button @click="confirmingAction = null" class="btn-secondary text-xs py-1 px-3">Cancel</button>
+        </div>
+
+        <!-- Action buttons -->
+        <div v-else class="flex flex-wrap gap-2">
+          <button
+            v-for="action in availableActions"
+            :key="action.status"
+            @click="handleAction(action)"
+            :class="action.variant === 'danger' ? 'btn-danger' : action.variant === 'secondary' ? 'btn-secondary' : 'btn-primary'"
+            class="text-sm"
+          >
+            {{ action.label }}
+          </button>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -75,8 +100,10 @@
           </div>
         </div>
 
-        <!-- Right column: vaccination compliance -->
+        <!-- Right column -->
         <div class="space-y-4">
+
+          <!-- Vaccination compliance -->
           <div class="card p-5 space-y-3">
             <h2 class="font-semibold text-text-body">Vaccination Compliance</h2>
             <div v-if="vaccinationCompliance.length === 0" class="text-sm text-text-muted">No vaccination requirements configured.</div>
@@ -93,6 +120,39 @@
               </li>
             </ul>
           </div>
+
+          <!-- Payment & Deposit -->
+          <div class="card p-5 space-y-3">
+            <h2 class="font-semibold text-text-body">Payment & Deposit</h2>
+
+            <div v-if="!depositAmount" class="text-sm text-text-muted">No deposit collected.</div>
+
+            <dl v-else class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <dt class="text-text-muted">Deposit</dt>
+                <dd class="font-medium text-text-body">${{ depositAmount }}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-text-muted">Status</dt>
+                <dd>
+                  <span class="badge" :class="depositBadgeClass">{{ depositStatus }}</span>
+                </dd>
+              </div>
+              <div v-if="reservation.stripe_pi_id" class="flex justify-between">
+                <dt class="text-text-muted">Reference</dt>
+                <dd class="text-text-muted font-mono text-xs">…{{ (reservation.stripe_pi_id as string).slice(-8) }}</dd>
+              </div>
+              <div v-if="reservation.deposit_captured_at" class="flex justify-between">
+                <dt class="text-text-muted">Captured</dt>
+                <dd class="text-text-body">{{ formatDate(reservation.deposit_captured_at) }}</dd>
+              </div>
+              <div v-if="reservation.deposit_refunded_at" class="flex justify-between">
+                <dt class="text-text-muted">Released</dt>
+                <dd class="text-text-body">{{ formatDate(reservation.deposit_refunded_at) }}</dd>
+              </div>
+            </dl>
+          </div>
+
         </div>
       </div>
     </div>
@@ -100,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
@@ -108,6 +168,13 @@ interface AddonType { id: string; name: string; price_cents: number }
 interface Addon { id: number; addon_type?: AddonType; addon_name?: string; quantity: number; unit_price_cents: number }
 interface ReportCard { id: string; report_date: string; notes: string }
 interface VaxCompliance { vaccine_name: string; status: 'valid' | 'missing' | 'expired' }
+
+interface Action {
+  label: string;
+  status: string;
+  variant: 'primary' | 'secondary' | 'danger';
+  confirm?: string;
+}
 
 const props = defineProps<{
   reservation: Record<string, unknown>;
@@ -123,6 +190,57 @@ const careFields = [
   { key: 'behavioral_notes', label: 'Behavioral notes' },
   { key: 'emergency_contact', label: 'Emergency contact' },
 ];
+
+// -------------------------------------------------------------------------
+// State machine actions
+// -------------------------------------------------------------------------
+
+const ACTION_MAP: Record<string, Action[]> = {
+  pending: [
+    { label: 'Confirm Reservation', status: 'confirmed', variant: 'primary' },
+    { label: 'Cancel', status: 'cancelled', variant: 'danger', confirm: 'Cancel this reservation? Any deposit hold will be released.' },
+  ],
+  confirmed: [
+    { label: 'Check In', status: 'checked_in', variant: 'primary', confirm: 'Check in and capture the deposit? This cannot be undone.' },
+    { label: 'Cancel', status: 'cancelled', variant: 'danger', confirm: 'Cancel this reservation? Any deposit hold will be released.' },
+  ],
+  checked_in: [
+    { label: 'Check Out', status: 'checked_out', variant: 'secondary' },
+  ],
+};
+
+const availableActions = computed<Action[]>(() => {
+  const status = props.reservation.status as string;
+  return ACTION_MAP[status] ?? [];
+});
+
+const confirmingAction = ref<Action | null>(null);
+
+const confirmMessage = computed(() => confirmingAction.value?.confirm ?? '');
+
+function handleAction(action: Action) {
+  if (action.confirm) {
+    confirmingAction.value = action;
+  } else {
+    submitStatus(action.status);
+  }
+}
+
+function executeAction() {
+  if (confirmingAction.value) {
+    submitStatus(confirmingAction.value.status);
+    confirmingAction.value = null;
+  }
+}
+
+function submitStatus(status: string) {
+  const res = props.reservation as { id: string };
+  router.patch(route('admin.boarding.reservations.update', res.id), { status });
+}
+
+// -------------------------------------------------------------------------
+// Report cards & add-ons
+// -------------------------------------------------------------------------
 
 const cardForm = reactive({ report_date: '', notes: '' });
 const addonForm = reactive({ addon_type_id: '' });
@@ -141,6 +259,33 @@ function addAddon() {
   });
 }
 
+// -------------------------------------------------------------------------
+// Deposit helpers
+// -------------------------------------------------------------------------
+
+const depositAmount = computed(() => {
+  const cents = props.reservation.deposit_amount_cents as number | null;
+  return cents ? (cents / 100).toFixed(2) : null;
+});
+
+const depositStatus = computed(() => {
+  if (props.reservation.deposit_captured_at) return 'Captured';
+  if (props.reservation.deposit_refunded_at) return 'Released';
+  if (props.reservation.stripe_pi_id) return 'Authorized';
+  return 'None';
+});
+
+const depositBadgeClass = computed(() => ({
+  'badge-green': depositStatus.value === 'Captured',
+  'badge-gray':  depositStatus.value === 'Released',
+  'badge-blue':  depositStatus.value === 'Authorized',
+  'badge-yellow': depositStatus.value === 'None',
+}));
+
+// -------------------------------------------------------------------------
+// Formatting
+// -------------------------------------------------------------------------
+
 function formatDate(iso: unknown) {
   return typeof iso === 'string' ? iso.slice(0, 10) : '—';
 }
@@ -148,10 +293,10 @@ function formatDate(iso: unknown) {
 function statusBadge(status: unknown) {
   return {
     'badge-yellow': status === 'pending',
-    'badge-blue': status === 'confirmed',
-    'badge-green': status === 'checked_in',
-    'badge-gray': status === 'checked_out',
-    'badge-red': status === 'cancelled',
+    'badge-blue':   status === 'confirmed',
+    'badge-green':  status === 'checked_in',
+    'badge-gray':   status === 'checked_out',
+    'badge-red':    status === 'cancelled',
   };
 }
 </script>

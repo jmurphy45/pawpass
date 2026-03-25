@@ -117,19 +117,23 @@ class ReservationController extends Controller
             }
         }
 
-        $data = $request->only([
-            'kennel_unit_id', 'status', 'starts_at', 'ends_at', 'nightly_rate_cents',
+        $fields = $request->only([
+            'kennel_unit_id', 'starts_at', 'ends_at', 'nightly_rate_cents',
             'notes', 'feeding_schedule', 'medication_notes', 'behavioral_notes', 'emergency_contact',
         ]);
 
-        if (($data['status'] ?? null) === 'cancelled' && ! $reservation->isCancelled()) {
-            $data['cancelled_at'] = now();
-            $data['cancelled_by'] = auth()->id();
+        if ($fields) {
+            $reservation->update($fields);
         }
 
-        $reservation->update($data);
+        $newStatus = $request->input('status');
 
-        $newStatus = $data['status'] ?? null;
+        if ($newStatus && $newStatus !== $reservation->status) {
+            if (! $reservation->canTransitionTo($newStatus)) {
+                return response()->json(['error' => 'INVALID_STATUS_TRANSITION'], 422);
+            }
+            $reservation->transitionTo($newStatus, auth()->id());
+        }
 
         if ($reservation->stripe_pi_id) {
             $tenant = Tenant::find($reservation->tenant_id);

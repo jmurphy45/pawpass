@@ -362,6 +362,32 @@ class ReservationControllerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // ReservationResource includes deposit fields
+    // -------------------------------------------------------------------------
+
+    public function test_show_includes_deposit_fields(): void
+    {
+        $reservation = Reservation::factory()->create([
+            'tenant_id'            => $this->tenant->id,
+            'dog_id'               => $this->dog->id,
+            'customer_id'          => $this->customer->id,
+            'created_by'           => $this->staff->id,
+            'deposit_amount_cents'  => 7500,
+            'stripe_pi_id'         => 'pi_resource_test',
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->getJson("/api/admin/v1/reservations/{$reservation->id}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.deposit_amount_cents', 7500)
+            ->assertJsonPath('data.stripe_pi_id', 'pi_resource_test');
+
+        $this->assertArrayHasKey('deposit_captured_at', $response->json('data'));
+        $this->assertArrayHasKey('deposit_refunded_at', $response->json('data'));
+    }
+
+    // -------------------------------------------------------------------------
     // Deposit capture / release (Step 5)
     // -------------------------------------------------------------------------
 

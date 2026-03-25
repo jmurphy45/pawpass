@@ -22,11 +22,15 @@ class ReservationResource extends JsonResource
             'medication_notes'   => $this->medication_notes,
             'behavioral_notes'   => $this->behavioral_notes,
             'emergency_contact'  => $this->emergency_contact,
-            'created_by'         => $this->created_by,
-            'cancelled_at'       => $this->cancelled_at?->toIso8601String(),
-            'cancelled_by'       => $this->cancelled_by,
-            'created_at'         => $this->created_at?->toIso8601String(),
-            'updated_at'         => $this->updated_at?->toIso8601String(),
+            'deposit_amount_cents' => $this->deposit_amount_cents,
+            'stripe_pi_id'         => $this->stripe_pi_id,
+            'deposit_captured_at'  => $this->deposit_captured_at?->toIso8601String(),
+            'deposit_refunded_at'  => $this->deposit_refunded_at?->toIso8601String(),
+            'created_by'           => $this->created_by,
+            'cancelled_at'         => $this->cancelled_at?->toIso8601String(),
+            'cancelled_by'         => $this->cancelled_by,
+            'created_at'           => $this->created_at?->toIso8601String(),
+            'updated_at'           => $this->updated_at?->toIso8601String(),
         ];
     }
 }

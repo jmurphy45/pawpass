@@ -52,6 +52,40 @@ class Reservation extends Model
         ];
     }
 
+    private const TRANSITIONS = [
+        'pending'     => ['confirmed', 'cancelled'],
+        'confirmed'   => ['checked_in', 'cancelled'],
+        'checked_in'  => ['checked_out'],
+        'checked_out' => [],
+        'cancelled'   => [],
+    ];
+
+    public function allowedTransitions(): array
+    {
+        return self::TRANSITIONS[$this->status] ?? [];
+    }
+
+    public function canTransitionTo(string $status): bool
+    {
+        return in_array($status, $this->allowedTransitions(), true);
+    }
+
+    public function transitionTo(string $status, ?string $userId = null): void
+    {
+        if (! $this->canTransitionTo($status)) {
+            throw new \LogicException("Cannot transition reservation from '{$this->status}' to '{$status}'.");
+        }
+
+        $data = ['status' => $status];
+
+        if ($status === 'cancelled') {
+            $data['cancelled_at'] = now();
+            $data['cancelled_by'] = $userId;
+        }
+
+        $this->update($data);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', '!=', 'cancelled');

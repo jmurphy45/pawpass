@@ -12,8 +12,10 @@ use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VaccinationRequirement;
+use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Mockery;
 use Tests\TestCase;
 
 class BoardingControllerTest extends TestCase
@@ -133,5 +135,140 @@ class BoardingControllerTest extends TestCase
             ->has('from')
             ->has('to')
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // updateReservation (Step 3)
+    // -------------------------------------------------------------------------
+
+    public function test_staff_can_confirm_a_pending_reservation(): void
+    {
+        $reservation = Reservation::factory()->create([
+            'tenant_id' => $this->tenant->id, 'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id, 'created_by' => $this->staff->id,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'confirmed']);
+
+        $response->assertRedirect();
+        $this->assertEquals('confirmed', $reservation->fresh()->status);
+    }
+
+    public function test_staff_can_check_in_a_confirmed_reservation(): void
+    {
+        $reservation = Reservation::factory()->confirmed()->create([
+            'tenant_id' => $this->tenant->id, 'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id, 'created_by' => $this->staff->id,
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'checked_in']);
+
+        $response->assertRedirect();
+        $this->assertEquals('checked_in', $reservation->fresh()->status);
+    }
+
+    public function test_staff_can_check_out_a_checked_in_reservation(): void
+    {
+        $reservation = Reservation::factory()->checkedIn()->create([
+            'tenant_id' => $this->tenant->id, 'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id, 'created_by' => $this->staff->id,
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'checked_out']);
+
+        $response->assertRedirect();
+        $this->assertEquals('checked_out', $reservation->fresh()->status);
+    }
+
+    public function test_staff_can_cancel_a_reservation(): void
+    {
+        $reservation = Reservation::factory()->confirmed()->create([
+            'tenant_id' => $this->tenant->id, 'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id, 'created_by' => $this->staff->id,
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'cancelled']);
+
+        $response->assertRedirect();
+        $fresh = $reservation->fresh();
+        $this->assertEquals('cancelled', $fresh->status);
+        $this->assertNotNull($fresh->cancelled_at);
+        $this->assertEquals($this->staff->id, $fresh->cancelled_by);
+    }
+
+    public function test_check_in_captures_stripe_hold(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_web_test']);
+
+        $reservation = Reservation::factory()->confirmed()->create([
+            'tenant_id'            => $this->tenant->id,
+            'dog_id'               => $this->dog->id,
+            'customer_id'          => $this->customer->id,
+            'created_by'           => $this->staff->id,
+            'stripe_pi_id'         => 'pi_web_hold',
+            'deposit_amount_cents'  => 4000,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('capturePaymentIntent')
+            ->once()
+            ->with('pi_web_hold', 'acct_web_test');
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+        $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'checked_in']);
+
+        $this->assertNotNull($reservation->fresh()->deposit_captured_at);
+    }
+
+    public function test_cancel_releases_stripe_hold(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_web_test']);
+
+        $reservation = Reservation::factory()->confirmed()->create([
+            'tenant_id'            => $this->tenant->id,
+            'dog_id'               => $this->dog->id,
+            'customer_id'          => $this->customer->id,
+            'created_by'           => $this->staff->id,
+            'stripe_pi_id'         => 'pi_web_cancel',
+            'deposit_amount_cents'  => 4000,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('cancelPaymentIntent')
+            ->once()
+            ->with('pi_web_cancel', 'acct_web_test');
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+        $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'cancelled']);
+
+        $this->assertNotNull($reservation->fresh()->deposit_refunded_at);
+    }
+
+    public function test_invalid_transition_returns_redirect_with_error(): void
+    {
+        $reservation = Reservation::factory()->create([
+            'tenant_id' => $this->tenant->id, 'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id, 'created_by' => $this->staff->id,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'checked_in']);
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors();
+        $this->assertEquals('pending', $reservation->fresh()->status);
     }
 }
