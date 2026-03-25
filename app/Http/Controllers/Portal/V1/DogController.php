@@ -8,7 +8,6 @@ use App\Http\Requests\Portal\UpdateDogRequest;
 use App\Http\Resources\CreditLedgerResource;
 use App\Http\Resources\DogResource;
 use App\Models\Dog;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class DogController extends Controller
@@ -24,7 +23,7 @@ class DogController extends Controller
         return DogResource::collection($customer->dogs()->get());
     }
 
-    public function store(StoreDogRequest $request): JsonResponse
+    public function store(StoreDogRequest $request): DogResource
     {
         $customer = auth()->user()->customer;
 
@@ -44,10 +43,10 @@ class DogController extends Controller
             'credit_balance' => 0,
         ]);
 
-        return response()->json(['data' => new DogResource($dog)], 201);
+        return new DogResource($dog);
     }
 
-    public function show(Dog $dog): JsonResponse
+    public function show(Dog $dog): DogResource
     {
         $customer = auth()->user()->customer;
 
@@ -55,10 +54,10 @@ class DogController extends Controller
             abort(404);
         }
 
-        return response()->json(['data' => new DogResource($dog)]);
+        return new DogResource($dog);
     }
 
-    public function update(UpdateDogRequest $request, Dog $dog): JsonResponse
+    public function update(UpdateDogRequest $request, Dog $dog): DogResource
     {
         $customer = auth()->user()->customer;
 
@@ -68,7 +67,7 @@ class DogController extends Controller
 
         $dog->update($request->only(['name', 'breed', 'dob', 'sex', 'vet_name', 'vet_phone']));
 
-        return response()->json(['data' => new DogResource($dog->fresh())]);
+        return new DogResource($dog->fresh());
     }
 
     public function credits(Dog $dog): AnonymousResourceCollection

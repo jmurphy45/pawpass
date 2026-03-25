@@ -10,7 +10,7 @@
         <span class="badge" :class="statusBadge(reservation.status)">{{ reservation.status }}</span>
       </div>
 
-      <!-- Status Actions -->
+      <!-- Status Actions (non-checkout statuses) -->
       <div v-if="availableActions.length > 0" class="card p-4">
         <h2 class="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Actions</h2>
 
@@ -35,6 +35,51 @@
         </div>
       </div>
 
+      <!-- Checkout Form (checked_in only) -->
+      <div v-if="reservation.status === 'checked_in'" class="card p-5 space-y-4">
+        <h2 class="font-semibold text-text-body">Check Out</h2>
+
+        <div class="space-y-3">
+          <div>
+            <label class="text-sm text-text-muted block mb-1">Actual end date</label>
+            <input v-model="checkoutDate" type="date" class="input text-sm w-48" :min="checkoutMinDate" />
+          </div>
+
+          <!-- Breakdown -->
+          <dl class="text-sm space-y-1 border-t border-border pt-3">
+            <div class="flex justify-between">
+              <dt class="text-text-muted">{{ checkoutNights }} nights × ${{ nightlyRateFormatted }}</dt>
+              <dd class="text-text-body">${{ nightsTotalFormatted }}</dd>
+            </div>
+            <div v-if="addonsTotal > 0" class="flex justify-between">
+              <dt class="text-text-muted">Add-ons</dt>
+              <dd class="text-text-body">${{ (addonsTotal / 100).toFixed(2) }}</dd>
+            </div>
+            <div v-if="depositAmount" class="flex justify-between">
+              <dt class="text-text-muted">Deposit captured</dt>
+              <dd class="text-text-body">− ${{ depositAmount }}</dd>
+            </div>
+            <div class="flex justify-between font-semibold border-t border-border pt-1">
+              <dt class="text-text-body">Balance due</dt>
+              <dd class="text-text-body">${{ checkoutBalance }}</dd>
+            </div>
+          </dl>
+
+          <!-- Card info -->
+          <p v-if="savedCard?.pm_id" class="text-sm text-text-muted">
+            Will charge {{ savedCard.brand }} ···{{ savedCard.last4 }}
+          </p>
+          <p v-else-if="checkoutBalanceCents > 0" class="text-sm text-amber-600">
+            No card on file — checkout will be recorded without charge.
+          </p>
+          <p v-else class="text-sm text-text-muted">No balance due — checkout without charge.</p>
+
+          <button @click="submitCheckout" class="btn-primary text-sm">
+            {{ checkoutBalanceCents > 0 && savedCard?.pm_id ? `Confirm Checkout & Charge $${checkoutBalance}` : 'Confirm Checkout' }}
+          </button>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Left column: details -->
         <div class="lg:col-span-2 space-y-6">
@@ -46,8 +91,20 @@
               <dt class="text-text-muted">Customer</dt><dd class="text-text-body">{{ reservation.customer?.name ?? '—' }}</dd>
               <dt class="text-text-muted">Unit</dt><dd class="text-text-body">{{ reservation.kennel_unit?.name ?? 'Unassigned' }}</dd>
               <dt class="text-text-muted">Check-in</dt><dd class="text-text-body">{{ formatDate(reservation.starts_at) }}</dd>
-              <dt class="text-text-muted">Check-out</dt><dd class="text-text-body">{{ formatDate(reservation.ends_at) }}</dd>
-              <dt class="text-text-muted">Nightly rate</dt><dd class="text-text-body">{{ reservation.nightly_rate_cents ? '$' + (reservation.nightly_rate_cents / 100).toFixed(2) : '—' }}</dd>
+              <dt class="text-text-muted">Check-out (planned)</dt><dd class="text-text-body">{{ formatDate(reservation.ends_at) }}</dd>
+              <dt class="text-text-muted">Nightly rate</dt><dd class="text-text-body">{{ reservation.nightly_rate_cents ? '$' + ((reservation.nightly_rate_cents as number) / 100).toFixed(2) : '—' }}</dd>
+              <!-- Actual checkout summary -->
+              <template v-if="reservation.status === 'checked_out'">
+                <dt class="text-text-muted">Actual checkout</dt><dd class="text-text-body">{{ formatDate(reservation.actual_checkout_at) }}</dd>
+                <dt class="text-text-muted">Charged at checkout</dt>
+                <dd class="text-text-body">
+                  <span v-if="reservation.checkout_charge_cents">
+                    ${{ ((reservation.checkout_charge_cents as number) / 100).toFixed(2) }}
+                    <span v-if="reservation.checkout_pi_id" class="text-xs text-text-muted font-mono ml-1">…{{ (reservation.checkout_pi_id as string).slice(-8) }}</span>
+                  </span>
+                  <span v-else class="text-text-muted">No charge</span>
+                </dd>
+              </template>
             </dl>
           </div>
 
@@ -168,6 +225,7 @@ interface AddonType { id: string; name: string; price_cents: number }
 interface Addon { id: number; addon_type?: AddonType; addon_name?: string; quantity: number; unit_price_cents: number }
 interface ReportCard { id: string; report_date: string; notes: string }
 interface VaxCompliance { vaccine_name: string; status: 'valid' | 'missing' | 'expired' }
+interface SavedCard { last4: string | null; brand: string | null; pm_id: string | null }
 
 interface Action {
   label: string;
@@ -182,6 +240,7 @@ const props = defineProps<{
   addons: Addon[];
   addonTypes: AddonType[];
   vaccinationCompliance: VaxCompliance[];
+  savedCard: SavedCard;
 }>();
 
 const careFields = [
@@ -204,9 +263,7 @@ const ACTION_MAP: Record<string, Action[]> = {
     { label: 'Check In', status: 'checked_in', variant: 'primary', confirm: 'Check in and capture the deposit? This cannot be undone.' },
     { label: 'Cancel', status: 'cancelled', variant: 'danger', confirm: 'Cancel this reservation? Any deposit hold will be released.' },
   ],
-  checked_in: [
-    { label: 'Check Out', status: 'checked_out', variant: 'secondary' },
-  ],
+  // checked_in: handled by the dedicated checkout form below
 };
 
 const availableActions = computed<Action[]>(() => {
@@ -236,6 +293,49 @@ function executeAction() {
 function submitStatus(status: string) {
   const res = props.reservation as { id: string };
   router.patch(route('admin.boarding.reservations.update', res.id), { status });
+}
+
+// -------------------------------------------------------------------------
+// Checkout form
+// -------------------------------------------------------------------------
+
+const today = new Date().toISOString().slice(0, 10);
+const checkoutDate = ref(today);
+
+const checkoutMinDate = computed(() => {
+  const startsAt = props.reservation.starts_at as string | null;
+  return startsAt ? startsAt.slice(0, 10) : undefined;
+});
+
+const checkoutNights = computed(() => {
+  const startsAt = props.reservation.starts_at as string | null;
+  if (!startsAt || !checkoutDate.value) return 0;
+  const start = new Date(startsAt.slice(0, 10));
+  const end   = new Date(checkoutDate.value);
+  const diff  = Math.floor((end.getTime() - start.getTime()) / 86_400_000);
+  return Math.max(0, diff);
+});
+
+const nightlyRateCents = computed(() => (props.reservation.nightly_rate_cents as number) ?? 0);
+const nightlyRateFormatted = computed(() => (nightlyRateCents.value / 100).toFixed(2));
+const nightsTotalFormatted = computed(() => ((checkoutNights.value * nightlyRateCents.value) / 100).toFixed(2));
+
+const addonsTotal = computed(() =>
+  props.addons.reduce((sum, a) => sum + a.unit_price_cents * a.quantity, 0)
+);
+
+const checkoutBalanceCents = computed(() => {
+  const deposit = (props.reservation.deposit_amount_cents as number) ?? 0;
+  return Math.max(0, checkoutNights.value * nightlyRateCents.value + addonsTotal.value - deposit);
+});
+
+const checkoutBalance = computed(() => (checkoutBalanceCents.value / 100).toFixed(2));
+
+function submitCheckout() {
+  const res = props.reservation as { id: string };
+  router.post(route('admin.boarding.reservations.checkout', res.id), {
+    actual_checkout_date: checkoutDate.value,
+  });
 }
 
 // -------------------------------------------------------------------------

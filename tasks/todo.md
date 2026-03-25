@@ -1,61 +1,38 @@
-# Phase: Admin Reservation Management — Status Actions & Payment Details
+# Phase: Checkout Billing — Off-Session Charge on Actual Stay
+
+Formula: `balance = (actual_nights × nightly_rate_cents) + addons_total − deposit_amount_cents`
 
 ---
 
-## Step 1 — Reservation state machine ✅
+## Step 1 — Migration: checkout columns (TDD)
 
-- [x] Unit tests for `allowedTransitions`, `canTransitionTo`, `transitionTo`
-- [x] Added to `Reservation` model: `TRANSITIONS` const + 3 methods
-  - Side-effects: `cancelled_at`/`cancelled_by` set on cancel transition
-
----
-
-## Step 2 — Add deposit fields to ReservationResource ✅
-
-- [x] Added `deposit_amount_cents`, `stripe_pi_id`, `deposit_captured_at`, `deposit_refunded_at`
+- [ ] Write failing test for checkout columns
+- [ ] Create migration `2026_03_24_000004_add_checkout_columns_to_reservations.php`
+- [ ] Update `Reservation` fillable/casts + `ReservationResource`
+  - Verification: migration runs, model/resource include columns
 
 ---
 
-## Step 3 — Web route + BoardingController@updateReservation ✅
+## Step 2 — processCheckout() + route (TDD)
 
-- [x] `PATCH /admin/boarding/reservations/{reservation}` → `admin.boarding.reservations.update`
-- [x] `updateReservation()` uses state machine, handles Stripe, returns redirect with flash
-- [x] `Admin\V1\ReservationController@update` refactored to use `transitionTo()`
-
----
-
-## Step 4 — ReservationShow.vue ✅
-
-- [x] Status action buttons (Confirm, Check In, Check Out, Cancel) with inline confirmation
-- [x] Payment & Deposit sidebar card (amount, status badge, timestamps, Stripe reference)
+- [ ] Write failing tests (balance charge, no saved card, zero balance, invalid date, extended stay)
+- [ ] Add `POST /admin/boarding/reservations/{reservation}/checkout` route
+- [ ] Implement `BoardingController@processCheckout`
+- [ ] Update `showReservation()` to pass `savedCard` prop
+  - Verification: all tests pass
 
 ---
 
-## Step 5 — Final Verification ✅
+## Step 3 — ReservationShow.vue: checkout form
 
-- [x] 882 tests pass
-- [x] `npm run build` — clean
+- [ ] Remove `checked_in` from `ACTION_MAP`
+- [ ] Add checkout form (date input + live breakdown + charge button)
+- [ ] Add checkout summary to stay details when checked_out
+  - Verification: `npm run build` passes
 
 ---
 
-## Review
+## Step 4 — Final Verification
 
-### Summary of Changes
-- `Reservation` model: `TRANSITIONS` const, `allowedTransitions()`, `canTransitionTo()`, `transitionTo()` — single source of truth for status transitions
-- `ReservationResource`: added 4 deposit fields
-- `routes/web.php`: added `PATCH /admin/boarding/reservations/{reservation}`
-- `BoardingController`: injected `StripeService`, added `updateReservation()` method
-- `Admin\V1\ReservationController@update`: refactored to use `transitionTo()`, rejects invalid transitions with 422
-- `ReservationShow.vue`: status action buttons, inline confirmation dialogs, Payment & Deposit sidebar card
-
-### Tests Added or Updated
-- `tests/Unit/Models/ReservationStateMachineTest.php` — 13 new tests
-- `tests/Feature/Admin/ReservationControllerTest.php` — 1 new resource field test
-- `tests/Feature/Web/Admin/BoardingControllerTest.php` — 7 new status action tests
-
-### Build Status
-- Tests: 882 passed
-- Build: Successful
-
-### Notes
-- `btn-danger` CSS class referenced in Vue — verify it exists in Tailwind config if buttons appear unstyled
+- [ ] `./vendor/bin/sail artisan test` — 882+ tests pass
+- [ ] `npm run build` — no TS errors

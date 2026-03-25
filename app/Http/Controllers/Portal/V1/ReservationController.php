@@ -15,6 +15,7 @@ use App\Services\VaccinationComplianceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class ReservationController extends Controller
 {
@@ -37,7 +38,7 @@ class ReservationController extends Controller
         return ReservationResource::collection($query->cursorPaginate(20));
     }
 
-    public function show(string $id): JsonResponse
+    public function show(string $id): ReservationResource
     {
         $customerId = auth()->user()->customer_id;
 
@@ -47,7 +48,7 @@ class ReservationController extends Controller
 
         $reservation->load(['dog', 'kennelUnit', 'reportCards']);
 
-        return response()->json(['data' => new ReservationResource($reservation)]);
+        return new ReservationResource($reservation);
     }
 
     public function store(StoreReservationRequest $request): JsonResponse
@@ -132,7 +133,7 @@ class ReservationController extends Controller
         return response()->json(['data' => new ReservationResource($reservation->fresh()), 'client_secret' => $clientSecret], 201);
     }
 
-    public function cancel(string $id): JsonResponse
+    public function cancel(string $id): JsonResource|JsonResponse
     {
         $customerId = auth()->user()->customer_id;
 
@@ -160,6 +161,6 @@ class ReservationController extends Controller
 
         $reservation->update($updateData);
 
-        return response()->json(['data' => new ReservationResource($reservation->fresh())]);
+        return new ReservationResource($reservation->fresh());
     }
 }

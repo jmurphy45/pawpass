@@ -9,7 +9,6 @@ use App\Http\Resources\BoardingReportCardResource;
 use App\Models\BoardingReportCard;
 use App\Models\Reservation;
 use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class BoardingReportCardController extends Controller
@@ -21,7 +20,7 @@ class BoardingReportCardController extends Controller
         return BoardingReportCardResource::collection($cards);
     }
 
-    public function store(StoreBoardingReportCardRequest $request, Reservation $reservation): JsonResponse
+    public function store(StoreBoardingReportCardRequest $request, Reservation $reservation): BoardingReportCardResource
     {
         try {
             $card = BoardingReportCard::updateOrCreate(
@@ -43,12 +42,10 @@ class BoardingReportCardController extends Controller
             $card->update(['notes' => $request->notes]);
         }
 
-        $status = $card->wasRecentlyCreated ? 201 : 200;
-
-        return response()->json(['data' => new BoardingReportCardResource($card->fresh())], $status);
+        return new BoardingReportCardResource($card->fresh());
     }
 
-    public function update(UpdateBoardingReportCardRequest $request, Reservation $reservation, BoardingReportCard $reportCard): JsonResponse
+    public function update(UpdateBoardingReportCardRequest $request, Reservation $reservation, BoardingReportCard $reportCard): BoardingReportCardResource
     {
         if ($reportCard->reservation_id !== $reservation->id) {
             abort(404);
@@ -56,6 +53,6 @@ class BoardingReportCardController extends Controller
 
         $reportCard->update(['notes' => $request->notes]);
 
-        return response()->json(['data' => new BoardingReportCardResource($reportCard->fresh())]);
+        return new BoardingReportCardResource($reportCard->fresh());
     }
 }

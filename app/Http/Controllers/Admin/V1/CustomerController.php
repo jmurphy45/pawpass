@@ -10,7 +10,6 @@ use App\Models\Customer;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\StripeService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +35,7 @@ class CustomerController extends Controller
         return CustomerResource::collection($query->cursorPaginate(20));
     }
 
-    public function store(StoreCustomerRequest $request): JsonResponse
+    public function store(StoreCustomerRequest $request): CustomerResource
     {
         $tenantId = app('current.tenant.id');
 
@@ -77,20 +76,20 @@ class CustomerController extends Controller
             $customer->update(['stripe_customer_id' => $stripeCustomer->id]);
         }
 
-        return response()->json(['data' => new CustomerResource($customer)], 201);
+        return new CustomerResource($customer);
     }
 
-    public function show(Customer $customer): JsonResponse
+    public function show(Customer $customer): CustomerResource
     {
         $customer->load('dogs');
 
-        return response()->json(['data' => new CustomerResource($customer)]);
+        return new CustomerResource($customer);
     }
 
-    public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
+    public function update(UpdateCustomerRequest $request, Customer $customer): CustomerResource
     {
         $customer->update($request->only(['name', 'email', 'phone', 'notes']));
 
-        return response()->json(['data' => new CustomerResource($customer->fresh())]);
+        return new CustomerResource($customer->fresh());
     }
 }

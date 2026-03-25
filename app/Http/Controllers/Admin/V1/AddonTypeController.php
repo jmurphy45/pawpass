@@ -10,6 +10,7 @@ use App\Models\AddonType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class AddonTypeController extends Controller
 {
@@ -26,7 +27,7 @@ class AddonTypeController extends Controller
         return AddonTypeResource::collection($query->get());
     }
 
-    public function store(StoreAddonTypeRequest $request): JsonResponse
+    public function store(StoreAddonTypeRequest $request): AddonTypeResource
     {
         $addon = AddonType::create([
             'tenant_id'   => app('current.tenant.id'),
@@ -37,17 +38,17 @@ class AddonTypeController extends Controller
             'context'     => $request->input('context', 'both'),
         ]);
 
-        return response()->json(['data' => new AddonTypeResource($addon)], 201);
+        return new AddonTypeResource($addon);
     }
 
-    public function update(UpdateAddonTypeRequest $request, AddonType $addonType): JsonResponse
+    public function update(UpdateAddonTypeRequest $request, AddonType $addonType): AddonTypeResource
     {
         $addonType->update($request->only(['name', 'price_cents', 'is_active', 'sort_order', 'context']));
 
-        return response()->json(['data' => new AddonTypeResource($addonType->fresh())]);
+        return new AddonTypeResource($addonType->fresh());
     }
 
-    public function destroy(AddonType $addonType): JsonResponse
+    public function destroy(AddonType $addonType): JsonResource|JsonResponse
     {
         if ($addonType->reservationAddons()->exists() || $addonType->attendanceAddons()->exists()) {
             return response()->json(['error' => 'ADDON_TYPE_IN_USE'], 409);
@@ -56,6 +57,6 @@ class AddonTypeController extends Controller
         $resource = new AddonTypeResource($addonType);
         $addonType->delete();
 
-        return response()->json(['data' => $resource]);
+        return $resource;
     }
 }

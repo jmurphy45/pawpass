@@ -8,7 +8,6 @@ use App\Http\Requests\Admin\UpdateDogVaccinationRequest;
 use App\Http\Resources\DogVaccinationResource;
 use App\Models\Dog;
 use App\Models\DogVaccination;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class DogVaccinationController extends Controller
@@ -20,7 +19,7 @@ class DogVaccinationController extends Controller
         return DogVaccinationResource::collection($vaccinations);
     }
 
-    public function store(StoreDogVaccinationRequest $request, Dog $dog): JsonResponse
+    public function store(StoreDogVaccinationRequest $request, Dog $dog): DogVaccinationResource
     {
         $vaccination = DogVaccination::create([
             'tenant_id'       => app('current.tenant.id'),
@@ -32,10 +31,10 @@ class DogVaccinationController extends Controller
             'notes'           => $request->notes,
         ]);
 
-        return response()->json(['data' => new DogVaccinationResource($vaccination)], 201);
+        return new DogVaccinationResource($vaccination);
     }
 
-    public function update(UpdateDogVaccinationRequest $request, Dog $dog, DogVaccination $vaccination): JsonResponse
+    public function update(UpdateDogVaccinationRequest $request, Dog $dog, DogVaccination $vaccination): DogVaccinationResource
     {
         if ($vaccination->dog_id !== $dog->id) {
             abort(404);
@@ -45,10 +44,10 @@ class DogVaccinationController extends Controller
             'vaccine_name', 'administered_at', 'expires_at', 'administered_by', 'notes',
         ]));
 
-        return response()->json(['data' => new DogVaccinationResource($vaccination->fresh())]);
+        return new DogVaccinationResource($vaccination->fresh());
     }
 
-    public function destroy(Dog $dog, DogVaccination $vaccination): JsonResponse
+    public function destroy(Dog $dog, DogVaccination $vaccination): DogVaccinationResource
     {
         if ($vaccination->dog_id !== $dog->id) {
             abort(404);
@@ -57,6 +56,6 @@ class DogVaccinationController extends Controller
         $resource = new DogVaccinationResource($vaccination);
         $vaccination->delete();
 
-        return response()->json(['data' => $resource]);
+        return $resource;
     }
 }

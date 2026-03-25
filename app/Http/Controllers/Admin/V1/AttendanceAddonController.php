@@ -8,7 +8,6 @@ use App\Http\Resources\AttendanceAddonResource;
 use App\Models\Attendance;
 use App\Models\AttendanceAddon;
 use App\Models\AddonType;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AttendanceAddonController extends Controller
@@ -20,7 +19,7 @@ class AttendanceAddonController extends Controller
         );
     }
 
-    public function store(StoreAttendanceAddonRequest $request, Attendance $attendance): JsonResponse
+    public function store(StoreAttendanceAddonRequest $request, Attendance $attendance): AttendanceAddonResource
     {
         $addonType = AddonType::find($request->addon_type_id);
 
@@ -35,10 +34,10 @@ class AttendanceAddonController extends Controller
             'note'             => $request->note,
         ]);
 
-        return response()->json(['data' => new AttendanceAddonResource($addon->load('addonType'))], 201);
+        return new AttendanceAddonResource($addon->load('addonType'));
     }
 
-    public function destroy(Attendance $attendance, AttendanceAddon $addon): JsonResponse
+    public function destroy(Attendance $attendance, AttendanceAddon $addon): AttendanceAddonResource
     {
         if ($addon->attendance_id !== $attendance->id) {
             abort(404);
@@ -47,6 +46,6 @@ class AttendanceAddonController extends Controller
         $resource = new AttendanceAddonResource($addon);
         $addon->delete();
 
-        return response()->json(['data' => $resource]);
+        return $resource;
     }
 }

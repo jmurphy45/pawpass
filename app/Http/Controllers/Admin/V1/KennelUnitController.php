@@ -9,6 +9,7 @@ use App\Http\Resources\KennelUnitResource;
 use App\Models\KennelUnit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class KennelUnitController extends Controller
 {
@@ -19,7 +20,7 @@ class KennelUnitController extends Controller
         return KennelUnitResource::collection($units);
     }
 
-    public function store(StoreKennelUnitRequest $request): JsonResponse
+    public function store(StoreKennelUnitRequest $request): KennelUnitResource
     {
         $unit = KennelUnit::create([
             'tenant_id'          => app('current.tenant.id'),
@@ -32,17 +33,17 @@ class KennelUnitController extends Controller
             'nightly_rate_cents' => $request->nightly_rate_cents,
         ]);
 
-        return response()->json(['data' => new KennelUnitResource($unit)], 201);
+        return new KennelUnitResource($unit);
     }
 
-    public function update(UpdateKennelUnitRequest $request, KennelUnit $kennelUnit): JsonResponse
+    public function update(UpdateKennelUnitRequest $request, KennelUnit $kennelUnit): KennelUnitResource
     {
         $kennelUnit->update($request->only(['name', 'type', 'capacity', 'description', 'is_active', 'sort_order', 'nightly_rate_cents']));
 
-        return response()->json(['data' => new KennelUnitResource($kennelUnit->fresh())]);
+        return new KennelUnitResource($kennelUnit->fresh());
     }
 
-    public function destroy(KennelUnit $kennelUnit): JsonResponse
+    public function destroy(KennelUnit $kennelUnit): JsonResource|JsonResponse
     {
         $hasActive = $kennelUnit->reservations()->where('status', '!=', 'cancelled')->exists();
 
@@ -53,6 +54,6 @@ class KennelUnitController extends Controller
         $resource = new KennelUnitResource($kennelUnit);
         $kennelUnit->delete();
 
-        return response()->json(['data' => $resource]);
+        return $resource;
     }
 }

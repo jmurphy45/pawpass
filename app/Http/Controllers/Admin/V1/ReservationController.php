@@ -16,6 +16,7 @@ use App\Services\VaccinationComplianceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class ReservationController extends Controller
 {
@@ -46,7 +47,7 @@ class ReservationController extends Controller
         return ReservationResource::collection($query->cursorPaginate(20));
     }
 
-    public function store(StoreReservationRequest $request): JsonResponse
+    public function store(StoreReservationRequest $request): JsonResource|JsonResponse
     {
         $tenantId = app('current.tenant.id');
 
@@ -92,17 +93,17 @@ class ReservationController extends Controller
             'created_by'         => auth()->id(),
         ]);
 
-        return response()->json(['data' => new ReservationResource($reservation)], 201);
+        return new ReservationResource($reservation);
     }
 
-    public function show(Reservation $reservation): JsonResponse
+    public function show(Reservation $reservation): ReservationResource
     {
         $reservation->load(['dog', 'kennelUnit']);
 
-        return response()->json(['data' => new ReservationResource($reservation)]);
+        return new ReservationResource($reservation);
     }
 
-    public function update(UpdateReservationRequest $request, Reservation $reservation): JsonResponse
+    public function update(UpdateReservationRequest $request, Reservation $reservation): JsonResource|JsonResponse
     {
         $startsAt = $request->filled('starts_at') ? now()->parse($request->starts_at) : $reservation->starts_at;
         $endsAt = $request->filled('ends_at') ? now()->parse($request->ends_at) : $reservation->ends_at;
@@ -150,10 +151,10 @@ class ReservationController extends Controller
             }
         }
 
-        return response()->json(['data' => new ReservationResource($reservation->fresh())]);
+        return new ReservationResource($reservation->fresh());
     }
 
-    public function destroy(Reservation $reservation): JsonResponse
+    public function destroy(Reservation $reservation): JsonResource|JsonResponse
     {
         if (! in_array($reservation->status, ['pending', 'cancelled'])) {
             return response()->json(['error' => 'CANNOT_DELETE_ACTIVE_RESERVATION'], 409);
@@ -162,6 +163,6 @@ class ReservationController extends Controller
         $resource = new ReservationResource($reservation);
         $reservation->delete();
 
-        return response()->json(['data' => $resource]);
+        return $resource;
     }
 }

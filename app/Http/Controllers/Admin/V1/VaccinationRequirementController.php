@@ -9,6 +9,7 @@ use App\Models\VaccinationRequirement;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class VaccinationRequirementController extends Controller
 {
@@ -19,7 +20,7 @@ class VaccinationRequirementController extends Controller
         );
     }
 
-    public function store(StoreVaccinationRequirementRequest $request): JsonResponse
+    public function store(StoreVaccinationRequirementRequest $request): JsonResource|JsonResponse
     {
         try {
             $requirement = VaccinationRequirement::create([
@@ -30,14 +31,14 @@ class VaccinationRequirementController extends Controller
             return response()->json(['error' => 'VACCINE_REQUIREMENT_ALREADY_EXISTS'], 409);
         }
 
-        return response()->json(['data' => new VaccinationRequirementResource($requirement)], 201);
+        return new VaccinationRequirementResource($requirement);
     }
 
-    public function destroy(VaccinationRequirement $vaccinationRequirement): JsonResponse
+    public function destroy(VaccinationRequirement $vaccinationRequirement): VaccinationRequirementResource
     {
         $resource = new VaccinationRequirementResource($vaccinationRequirement);
         $vaccinationRequirement->delete();
 
-        return response()->json(['data' => $resource]);
+        return $resource;
     }
 }

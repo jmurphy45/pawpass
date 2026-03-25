@@ -9,6 +9,7 @@ use App\Http\Resources\PackageResource;
 use App\Models\Package;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class PackageController extends Controller
 {
@@ -19,7 +20,7 @@ class PackageController extends Controller
         return PackageResource::collection($packages);
     }
 
-    public function store(StorePackageRequest $request): JsonResponse
+    public function store(StorePackageRequest $request): PackageResource
     {
         $package = Package::create([
             'tenant_id'                 => app('current.tenant.id'),
@@ -34,17 +35,17 @@ class PackageController extends Controller
             'is_auto_replenish_eligible' => $request->boolean('is_auto_replenish_eligible', false),
         ]);
 
-        return response()->json(['data' => new PackageResource($package->fresh())], 201);
+        return new PackageResource($package->fresh());
     }
 
-    public function update(UpdatePackageRequest $request, Package $package): JsonResponse
+    public function update(UpdatePackageRequest $request, Package $package): PackageResource
     {
         $package->update($request->validated());
 
-        return response()->json(['data' => new PackageResource($package->fresh())]);
+        return new PackageResource($package->fresh());
     }
 
-    public function archive(string $package): JsonResponse
+    public function archive(string $package): JsonResource|JsonResponse
     {
         $pkg = Package::withTrashed()->findOrFail($package);
 
@@ -55,6 +56,6 @@ class PackageController extends Controller
         $pkg->update(['is_active' => false]);
         $pkg->delete();
 
-        return response()->json(['data' => new PackageResource($pkg->fresh())]);
+        return new PackageResource($pkg->fresh());
     }
 }

@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Dog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class DogController extends Controller
 {
@@ -21,7 +22,7 @@ class DogController extends Controller
         );
     }
 
-    public function store(StoreDogRequest $request): JsonResponse
+    public function store(StoreDogRequest $request): JsonResource|JsonResponse
     {
         $customer = Customer::find($request->customer_id);
 
@@ -41,7 +42,7 @@ class DogController extends Controller
             'credit_balance' => 0,
         ]);
 
-        return response()->json(['data' => new DogResource($dog)], 201);
+        return new DogResource($dog);
     }
 
     public function show(Dog $dog): JsonResponse
@@ -56,11 +57,11 @@ class DogController extends Controller
         ]);
     }
 
-    public function update(UpdateDogRequest $request, Dog $dog): JsonResponse
+    public function update(UpdateDogRequest $request, Dog $dog): DogResource
     {
         $dog->update($request->only(['name', 'breed', 'dob', 'sex', 'vet_name', 'vet_phone']));
 
-        return response()->json(['data' => new DogResource($dog->fresh())]);
+        return new DogResource($dog->fresh());
     }
 
     public function destroy(Dog $dog): JsonResponse

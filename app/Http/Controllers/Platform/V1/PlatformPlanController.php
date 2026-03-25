@@ -7,19 +7,19 @@ use App\Http\Resources\PlatformPlanResource;
 use App\Jobs\SyncPlatformPlanToStripe;
 use App\Models\PlatformPlan;
 use App\Services\PlanFeatureCache;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PlatformPlanController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(): AnonymousResourceCollection
     {
         $plans = PlatformPlan::orderBy('sort_order')->get();
 
-        return response()->json(['data' => PlatformPlanResource::collection($plans)]);
+        return PlatformPlanResource::collection($plans);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request): PlatformPlanResource
     {
         $data = $request->validate([
             'slug'                => 'required|string|unique:platform_plans,slug',
@@ -37,10 +37,10 @@ class PlatformPlanController extends Controller
 
         $plan = PlatformPlan::create(array_merge($data, ['is_active' => true]));
 
-        return response()->json(['data' => new PlatformPlanResource($plan->fresh())], 201);
+        return new PlatformPlanResource($plan->fresh());
     }
 
-    public function update(Request $request, string $id): JsonResponse
+    public function update(Request $request, string $id): PlatformPlanResource
     {
         $plan = PlatformPlan::findOrFail($id);
 
@@ -59,15 +59,15 @@ class PlatformPlanController extends Controller
 
         app(PlanFeatureCache::class); // singleton — reset handled by container lifecycle
 
-        return response()->json(['data' => new PlatformPlanResource($plan->fresh())]);
+        return new PlatformPlanResource($plan->fresh());
     }
 
-    public function syncStripe(Request $request, string $id): JsonResponse
+    public function syncStripe(Request $request, string $id): PlatformPlanResource
     {
         $plan = PlatformPlan::findOrFail($id);
 
         SyncPlatformPlanToStripe::dispatchSync($plan);
 
-        return response()->json(['data' => new PlatformPlanResource($plan->fresh())]);
+        return new PlatformPlanResource($plan->fresh());
     }
 }

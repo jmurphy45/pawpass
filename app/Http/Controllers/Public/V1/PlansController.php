@@ -5,16 +5,16 @@ namespace App\Http\Controllers\Public\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PlatformPlanResource;
 use App\Models\PlatformPlan;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PlansController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(): AnonymousResourceCollection
     {
         $plans = PlatformPlan::where('is_active', true)
             ->orderBy('sort_order')
             ->get();
 
-        return response()->json(['data' => PlatformPlanResource::collection($plans)]);
+        return PlatformPlanResource::collection($plans);
     }
 }

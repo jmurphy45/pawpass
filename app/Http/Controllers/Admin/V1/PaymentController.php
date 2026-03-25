@@ -11,6 +11,7 @@ use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
@@ -31,7 +32,7 @@ class PaymentController extends Controller
         return OrderResource::collection($query->paginate(20));
     }
 
-    public function refund(Request $request, Order $order): JsonResponse
+    public function refund(Request $request, Order $order): JsonResource|JsonResponse
     {
         if (! in_array($order->status, ['paid', 'partially_refunded'])) {
             return response()->json([
@@ -55,6 +56,6 @@ class PaymentController extends Controller
 
         $order->load(['package', 'orderDogs.dog', 'customer']);
 
-        return response()->json(['data' => new OrderResource($order)]);
+        return new OrderResource($order);
     }
 }

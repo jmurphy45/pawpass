@@ -362,6 +362,32 @@ class ReservationControllerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // ReservationResource includes checkout fields (Step 1 schema test)
+    // -------------------------------------------------------------------------
+
+    public function test_show_includes_checkout_fields(): void
+    {
+        $reservation = Reservation::factory()->create([
+            'tenant_id'             => $this->tenant->id,
+            'dog_id'                => $this->dog->id,
+            'customer_id'           => $this->customer->id,
+            'created_by'            => $this->staff->id,
+            'status'                => 'checked_out',
+            'checkout_charge_cents' => 27000,
+            'checkout_pi_id'        => 'pi_checkout_test',
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->getJson("/api/admin/v1/reservations/{$reservation->id}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.checkout_charge_cents', 27000)
+            ->assertJsonPath('data.checkout_pi_id', 'pi_checkout_test');
+
+        $this->assertArrayHasKey('actual_checkout_at', $response->json('data'));
+    }
+
+    // -------------------------------------------------------------------------
     // ReservationResource includes deposit fields
     // -------------------------------------------------------------------------
 

@@ -271,4 +271,200 @@ class BoardingControllerTest extends TestCase
         $response->assertSessionHasErrors();
         $this->assertEquals('pending', $reservation->fresh()->status);
     }
+
+    // -------------------------------------------------------------------------
+    // processCheckout (Step 2)
+    // -------------------------------------------------------------------------
+
+    public function test_checkout_charges_balance_to_saved_card(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_co_test', 'platform_fee_pct' => 5.0]);
+
+        // Customer with saved PM
+        $this->customer->update([
+            'stripe_customer_id'      => 'cus_test',
+            'stripe_payment_method_id' => 'pm_test_card',
+            'stripe_pm_last4'          => '4242',
+            'stripe_pm_brand'          => 'Visa',
+        ]);
+
+        $reservation = Reservation::factory()->checkedIn()->create([
+            'tenant_id'            => $this->tenant->id,
+            'dog_id'               => $this->dog->id,
+            'customer_id'          => $this->customer->id,
+            'created_by'           => $this->staff->id,
+            'starts_at'            => now()->subDays(3)->startOfDay(), // checked in 3 days ago
+            'ends_at'              => now()->startOfDay(),              // originally 3 nights
+            'nightly_rate_cents'   => 8000,
+            'deposit_amount_cents'  => 5000,
+            'stripe_pi_id'         => 'pi_dep',
+            'deposit_captured_at'  => now()->subDays(3),
+        ]);
+
+        // 4 nights actual: balance = (4 × 8000) + 0 addons - 5000 = 27000
+        $actualCheckout = now()->addDay()->toDateString(); // 1 extra night
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('createPaymentIntent')
+            ->once()
+            ->with(
+                27000, 'usd', 'acct_co_test',
+                Mockery::type('int'), // fee
+                Mockery::type('array'),
+                'cus_test', true, true, 'pm_test_card',
+                Mockery::any(), Mockery::any()
+            )
+            ->andReturn((object) ['id' => 'pi_checkout1', 'client_secret' => 'pi_checkout1_secret']);
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+        $response = $this->post("/admin/boarding/reservations/{$reservation->id}/checkout", [
+            'actual_checkout_date' => $actualCheckout,
+        ]);
+
+        $response->assertRedirect();
+        $fresh = $reservation->fresh();
+        $this->assertEquals('checked_out', $fresh->status);
+        $this->assertEquals(27000, $fresh->checkout_charge_cents);
+        $this->assertEquals('pi_checkout1', $fresh->checkout_pi_id);
+        $this->assertNotNull($fresh->actual_checkout_at);
+    }
+
+    public function test_checkout_without_saved_card_transitions_without_stripe_call(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_co_test']);
+
+        // Customer with NO saved PM
+        $this->customer->update(['stripe_payment_method_id' => null]);
+
+        $reservation = Reservation::factory()->checkedIn()->create([
+            'tenant_id'          => $this->tenant->id,
+            'dog_id'             => $this->dog->id,
+            'customer_id'        => $this->customer->id,
+            'created_by'         => $this->staff->id,
+            'nightly_rate_cents' => 8000,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldNotReceive('createPaymentIntent');
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+        $response = $this->post("/admin/boarding/reservations/{$reservation->id}/checkout", [
+            'actual_checkout_date' => now()->toDateString(),
+        ]);
+
+        $response->assertRedirect();
+        $fresh = $reservation->fresh();
+        $this->assertEquals('checked_out', $fresh->status);
+        $this->assertEquals(0, $fresh->checkout_charge_cents);
+        $this->assertNull($fresh->checkout_pi_id);
+    }
+
+    public function test_checkout_with_zero_balance_skips_stripe(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_co_test']);
+        $this->customer->update(['stripe_payment_method_id' => 'pm_test']);
+
+        $reservation = Reservation::factory()->checkedIn()->create([
+            'tenant_id'            => $this->tenant->id,
+            'dog_id'               => $this->dog->id,
+            'customer_id'          => $this->customer->id,
+            'created_by'           => $this->staff->id,
+            'starts_at'            => now()->subDay()->startOfDay(),
+            'ends_at'              => now()->startOfDay(),
+            'nightly_rate_cents'   => 5000,
+            'deposit_amount_cents'  => 10000, // deposit > 1 night — zero balance
+            'deposit_captured_at'  => now()->subDay(),
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldNotReceive('createPaymentIntent');
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+        $this->post("/admin/boarding/reservations/{$reservation->id}/checkout", [
+            'actual_checkout_date' => now()->toDateString(),
+        ]);
+
+        $fresh = $reservation->fresh();
+        $this->assertEquals('checked_out', $fresh->status);
+        $this->assertEquals(0, $fresh->checkout_charge_cents);
+    }
+
+    public function test_checkout_with_date_before_starts_at_returns_error(): void
+    {
+        $reservation = Reservation::factory()->checkedIn()->create([
+            'tenant_id'  => $this->tenant->id,
+            'dog_id'     => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'created_by' => $this->staff->id,
+            'starts_at'  => now()->addDays(2)->startOfDay(),
+            'ends_at'    => now()->addDays(5)->startOfDay(),
+        ]);
+
+        $this->actingAs($this->staff);
+        $response = $this->post("/admin/boarding/reservations/{$reservation->id}/checkout", [
+            'actual_checkout_date' => now()->toDateString(), // before starts_at
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('actual_checkout_date');
+        $this->assertEquals('checked_in', $reservation->fresh()->status);
+    }
+
+    public function test_checkout_with_missing_date_returns_error(): void
+    {
+        $reservation = Reservation::factory()->checkedIn()->create([
+            'tenant_id'  => $this->tenant->id,
+            'dog_id'     => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'created_by' => $this->staff->id,
+        ]);
+
+        $this->actingAs($this->staff);
+        $response = $this->post("/admin/boarding/reservations/{$reservation->id}/checkout", []);
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('actual_checkout_date');
+    }
+
+    public function test_checkout_extended_stay_uses_actual_date_for_calculation(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_co_test', 'platform_fee_pct' => 5.0]);
+        $this->customer->update([
+            'stripe_customer_id'      => 'cus_test2',
+            'stripe_payment_method_id' => 'pm_test2',
+        ]);
+
+        $reservation = Reservation::factory()->checkedIn()->create([
+            'tenant_id'          => $this->tenant->id,
+            'dog_id'             => $this->dog->id,
+            'customer_id'        => $this->customer->id,
+            'created_by'         => $this->staff->id,
+            'starts_at'          => now()->subDays(3)->startOfDay(),
+            'ends_at'            => now()->startOfDay(),     // originally 3 nights
+            'nightly_rate_cents' => 10000,
+            'deposit_amount_cents' => 0,
+        ]);
+
+        // Staying 2 extra nights → 5 nights total
+        $extendedDate = now()->addDays(2)->toDateString();
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('createPaymentIntent')
+            ->once()
+            ->with(50000, Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(),
+                   Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(),
+                   Mockery::any(), Mockery::any())
+            ->andReturn((object) ['id' => 'pi_ext', 'client_secret' => 'secret']);
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+        $this->post("/admin/boarding/reservations/{$reservation->id}/checkout", [
+            'actual_checkout_date' => $extendedDate,
+        ]);
+
+        $this->assertEquals(50000, $reservation->fresh()->checkout_charge_cents);
+    }
 }

@@ -10,6 +10,7 @@ use App\Models\Reservation;
 use App\Models\ReservationAddon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class ReservationAddonController extends Controller
 {
@@ -20,7 +21,7 @@ class ReservationAddonController extends Controller
         );
     }
 
-    public function store(StoreReservationAddonRequest $request, Reservation $reservation): JsonResponse
+    public function store(StoreReservationAddonRequest $request, Reservation $reservation): JsonResource|JsonResponse
     {
         if ($reservation->isCancelled()) {
             return response()->json(['error' => 'RESERVATION_CANCELLED'], 409);
@@ -39,10 +40,10 @@ class ReservationAddonController extends Controller
             'note'             => $request->note,
         ]);
 
-        return response()->json(['data' => new ReservationAddonResource($addon->load('addonType'))], 201);
+        return new ReservationAddonResource($addon->load('addonType'));
     }
 
-    public function destroy(Reservation $reservation, ReservationAddon $addon): JsonResponse
+    public function destroy(Reservation $reservation, ReservationAddon $addon): ReservationAddonResource
     {
         if ($addon->reservation_id !== $reservation->id) {
             abort(404);
@@ -51,6 +52,6 @@ class ReservationAddonController extends Controller
         $resource = new ReservationAddonResource($addon);
         $addon->delete();
 
-        return response()->json(['data' => $resource]);
+        return $resource;
     }
 }

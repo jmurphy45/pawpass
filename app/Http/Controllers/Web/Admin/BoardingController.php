@@ -9,6 +9,7 @@ use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Services\StripeService;
 use App\Services\VaccinationComplianceService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -63,12 +64,86 @@ class BoardingController extends Controller
         }
 
         return Inertia::render('Admin/Boarding/ReservationShow', [
-            'reservation'         => $reservation,
-            'reportCards'         => $reservation->reportCards->sortBy('report_date')->values(),
-            'addons'              => $reservation->addons,
-            'addonTypes'          => $addonTypes,
+            'reservation'           => $reservation,
+            'reportCards'           => $reservation->reportCards->sortBy('report_date')->values(),
+            'addons'                => $reservation->addons,
+            'addonTypes'            => $addonTypes,
             'vaccinationCompliance' => $compliance,
+            'savedCard'             => [
+                'last4' => $reservation->customer?->stripe_pm_last4,
+                'brand' => $reservation->customer?->stripe_pm_brand,
+                'pm_id' => $reservation->customer?->stripe_payment_method_id,
+            ],
         ]);
+    }
+
+    public function processCheckout(Request $request, Reservation $reservation): RedirectResponse
+    {
+        $validated = $request->validate([
+            'actual_checkout_date' => [
+                'required',
+                'date',
+                'after_or_equal:' . $reservation->starts_at->toDateString(),
+            ],
+        ]);
+
+        if (! $reservation->canTransitionTo('checked_out')) {
+            return back()->withErrors(['status' => 'Reservation cannot be checked out from its current status.']);
+        }
+
+        $actualCheckout = Carbon::parse($validated['actual_checkout_date'])->startOfDay();
+        $actualDays     = $reservation->starts_at->diffInDays($actualCheckout);
+        $nightsTotal    = $actualDays * ($reservation->nightly_rate_cents ?? 0);
+        $addonsTotal    = $reservation->addons->sum(fn ($a) => $a->unit_price_cents * $a->quantity);
+        $balance        = max(0, $nightsTotal + $addonsTotal - ($reservation->deposit_amount_cents ?? 0));
+
+        $checkoutPiId = null;
+        $chargedCents = 0;
+
+        $customer = $reservation->customer;
+        if ($balance > 0 && $customer?->stripe_payment_method_id) {
+            $tenant          = Tenant::find($reservation->tenant_id);
+            $stripeAccountId = $tenant?->stripe_account_id;
+
+            if ($stripeAccountId) {
+                $feePct     = $tenant->platform_fee_pct ?? 5.0;
+                $feeCents   = (int) round($balance * $feePct / 100);
+                $pi = $this->stripe->createPaymentIntent(
+                    $balance,
+                    'usd',
+                    $stripeAccountId,
+                    $feeCents,
+                    [
+                        'reservation_id' => $reservation->id,
+                        'tenant_id'      => $reservation->tenant_id,
+                        'dog_name'       => $reservation->dog?->name,
+                        'type'           => 'boarding_checkout',
+                    ],
+                    $customer->stripe_customer_id,
+                    true,
+                    true,
+                    $customer->stripe_payment_method_id,
+                    [],
+                    null,
+                );
+
+                $checkoutPiId = $pi->id;
+                $chargedCents = $balance;
+            }
+        }
+
+        $reservation->transitionTo('checked_out', auth()->id());
+        $reservation->update([
+            'actual_checkout_at'    => $actualCheckout,
+            'checkout_pi_id'        => $checkoutPiId,
+            'checkout_charge_cents' => $chargedCents,
+        ]);
+
+        $message = $chargedCents > 0
+            ? 'Dog checked out. Balance of $' . number_format($chargedCents / 100, 2) . ' charged.'
+            : 'Dog checked out. No balance charged.';
+
+        return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', $message);
     }
 
     public function kennelUnits(): Response
