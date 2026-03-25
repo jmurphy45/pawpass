@@ -4,17 +4,18 @@
       <h1 class="text-2xl font-bold text-text-body">Invoices</h1>
 
       <div v-if="orders.data.length === 0" class="card p-12 text-center">
-        <p class="text-4xl mb-3">🧾</p>
+        <div class="mx-auto h-14 w-14 rounded-full bg-surface-subtle flex items-center justify-center mb-3">
+          <svg class="h-7 w-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+          </svg>
+        </div>
         <p class="font-semibold text-text-body">No orders yet</p>
         <p class="text-sm text-text-muted mt-1">Your purchase history will appear here</p>
         <Link :href="route('portal.purchase')" class="btn-primary mt-4 inline-flex">Buy your first package →</Link>
       </div>
 
       <div v-else class="card overflow-hidden">
-        <div
-          class="flex items-center justify-between px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide"
-          style="border-bottom: 1px solid #e5e0d8; background-color: #faf9f6;"
-        >
+        <div class="flex items-center justify-between px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide bg-surface-subtle border-b border-border">
           <span>Package</span>
           <span>Amount</span>
         </div>
