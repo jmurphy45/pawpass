@@ -1,144 +1,167 @@
 <template>
   <PortalLayout>
-    <div class="max-w-2xl space-y-8">
-      <h1 class="text-2xl font-bold text-gray-900">Account Settings</h1>
+    <div class="max-w-2xl space-y-6">
+      <h1 class="text-2xl font-bold text-text-body">Account Settings</h1>
 
       <!-- Profile section -->
-      <section class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-        <h2 class="text-base font-semibold text-gray-900 mb-5">Profile</h2>
-        <form @submit.prevent="saveProfile" class="space-y-4">
+      <section class="card overflow-hidden">
+        <div class="ac-section-head">
+          <div class="ac-section-icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+            </svg>
+          </div>
+          <span class="ac-section-title">Profile</span>
+        </div>
+        <form @submit.prevent="saveProfile" class="p-5 space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <label class="ac-label">Full Name</label>
             <input
               v-model="profileForm.name"
               type="text"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="input w-full"
               :class="{ 'border-red-500': profileForm.errors.name }"
             />
             <p v-if="profileForm.errors.name" class="mt-1 text-xs text-red-600">{{ profileForm.errors.name }}</p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label class="ac-label">Email</label>
             <input
               v-model="profileForm.email"
               type="email"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="input w-full"
               :class="{ 'border-red-500': profileForm.errors.email }"
             />
             <p v-if="profileForm.errors.email" class="mt-1 text-xs text-red-600">{{ profileForm.errors.email }}</p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <label class="ac-label">Phone</label>
             <input
               v-model="profileForm.phone"
               type="tel"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="input w-full"
             />
           </div>
 
           <button
             type="submit"
             :disabled="profileForm.processing"
-            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            class="btn-primary text-sm disabled:opacity-60"
           >{{ profileForm.processing ? 'Saving…' : 'Save Profile' }}</button>
         </form>
       </section>
 
       <!-- Password section -->
-      <section class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-        <h2 class="text-base font-semibold text-gray-900 mb-5">Change Password</h2>
-        <form @submit.prevent="savePassword" class="space-y-4">
+      <section class="card overflow-hidden">
+        <div class="ac-section-head">
+          <div class="ac-section-icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+            </svg>
+          </div>
+          <span class="ac-section-title">Change Password</span>
+        </div>
+        <form @submit.prevent="savePassword" class="p-5 space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+            <label class="ac-label">Current Password</label>
             <input
               v-model="passwordForm.current_password"
               type="password"
               autocomplete="current-password"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="input w-full"
               :class="{ 'border-red-500': passwordForm.errors.current_password }"
             />
             <p v-if="passwordForm.errors.current_password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.current_password }}</p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <label class="ac-label">New Password</label>
             <input
               v-model="passwordForm.password"
               type="password"
               autocomplete="new-password"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="input w-full"
               :class="{ 'border-red-500': passwordForm.errors.password }"
             />
             <p v-if="passwordForm.errors.password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.password }}</p>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+            <label class="ac-label">Confirm Password</label>
             <input
               v-model="passwordForm.password_confirmation"
               type="password"
               autocomplete="new-password"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="input w-full"
             />
           </div>
 
           <button
             type="submit"
             :disabled="passwordForm.processing"
-            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            class="btn-primary text-sm disabled:opacity-60"
           >{{ passwordForm.processing ? 'Updating…' : 'Update Password' }}</button>
         </form>
       </section>
 
       <!-- Notification preferences -->
-      <section class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-        <h2 class="text-base font-semibold text-gray-900 mb-5">Notification Preferences</h2>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-gray-100">
-                <th class="text-left py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide w-1/2">Type</th>
-                <th class="text-center py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
-                <th class="text-center py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">SMS</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-50">
-              <tr v-for="type in notifTypes" :key="type.key">
-                <td class="py-3">
-                  <p class="font-medium text-gray-800">{{ type.label }}</p>
-                  <p v-if="isCritical(type.key)" class="text-xs text-gray-400">Always on</p>
-                </td>
-                <td class="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    :checked="getPref(type.key, 'email')"
-                    :disabled="isCritical(type.key)"
-                    class="h-4 w-4 rounded text-indigo-600 disabled:opacity-40"
-                    @change="(e) => setPref(type.key, 'email', (e.target as HTMLInputElement).checked)"
-                  />
-                </td>
-                <td class="py-3 px-3 text-center">
-                  <input
-                    type="checkbox"
-                    :checked="getPref(type.key, 'sms')"
-                    :disabled="isCritical(type.key)"
-                    class="h-4 w-4 rounded text-indigo-600 disabled:opacity-40"
-                    @change="(e) => setPref(type.key, 'sms', (e.target as HTMLInputElement).checked)"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <section class="card overflow-hidden">
+        <div class="ac-section-head">
+          <div class="ac-section-icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+            </svg>
+          </div>
+          <span class="ac-section-title">Notification Preferences</span>
         </div>
 
-        <button
-          @click="savePrefs"
-          :disabled="prefsForm.processing"
-          class="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
-        >{{ prefsForm.processing ? 'Saving…' : 'Save Preferences' }}</button>
+        <div class="p-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border">
+                  <th class="text-left py-2 text-xs font-semibold text-text-muted uppercase tracking-wide w-1/2">Type</th>
+                  <th class="text-center py-2 px-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Email</th>
+                  <th class="text-center py-2 px-3 text-xs font-semibold text-text-muted uppercase tracking-wide">SMS</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-surface-subtle">
+                <tr v-for="type in notifTypes" :key="type.key">
+                  <td class="py-3">
+                    <p class="font-medium text-text-body">{{ type.label }}</p>
+                    <p v-if="isCritical(type.key)" class="text-xs text-text-muted">Always on</p>
+                  </td>
+                  <td class="py-3 px-3 text-center">
+                    <input
+                      type="checkbox"
+                      :checked="getPref(type.key, 'email')"
+                      :disabled="isCritical(type.key)"
+                      class="h-4 w-4 rounded disabled:opacity-40"
+                      @change="(e) => setPref(type.key, 'email', (e.target as HTMLInputElement).checked)"
+                    />
+                  </td>
+                  <td class="py-3 px-3 text-center">
+                    <input
+                      type="checkbox"
+                      :checked="getPref(type.key, 'sms')"
+                      :disabled="isCritical(type.key)"
+                      class="h-4 w-4 rounded disabled:opacity-40"
+                      @change="(e) => setPref(type.key, 'sms', (e.target as HTMLInputElement).checked)"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            @click="savePrefs"
+            :disabled="prefsForm.processing"
+            class="btn-primary text-sm mt-4 disabled:opacity-60"
+          >{{ prefsForm.processing ? 'Saving…' : 'Save Preferences' }}</button>
+        </div>
       </section>
     </div>
   </PortalLayout>
@@ -217,3 +240,44 @@ function savePrefs() {
   prefsForm.put(route('portal.account.notification-prefs'));
 }
 </script>
+
+<style scoped>
+.ac-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid #f0ede8;
+}
+
+.ac-section-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.375rem;
+  background: #f0ede8;
+  color: #6b6560;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ac-section-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ac-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2a2522;
+}
+
+.ac-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #2a2522;
+  margin-bottom: 0.375rem;
+}
+</style>

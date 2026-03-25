@@ -51,7 +51,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Low Credit Dogs -->
         <div class="card overflow-hidden">
-          <div class="flex items-center justify-between px-5 py-4" style="border-bottom: 1px solid #e5e0d8;">
+          <div class="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 class="text-sm font-semibold text-text-body">Low Credit Dogs</h2>
             <span v-if="lowCreditDogs.length > 0" class="badge badge-red">{{ lowCreditDogs.length }}</span>
           </div>
@@ -74,7 +74,7 @@
 
         <!-- Recent Attendance -->
         <div class="card overflow-hidden">
-          <div class="px-5 py-4" style="border-bottom: 1px solid #e5e0d8;">
+          <div class="px-5 py-4 border-b border-border">
             <h2 class="text-sm font-semibold text-text-body">Recent Attendance</h2>
           </div>
           <div v-if="recentAttendance.length === 0" class="px-5 py-6 text-sm text-text-muted">No recent attendance.</div>

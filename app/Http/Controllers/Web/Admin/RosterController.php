@@ -4,10 +4,16 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Exceptions\InsufficientCreditsException;
 use App\Http\Controllers\Controller;
+use App\Models\AddonType;
 use App\Models\Attendance;
+use App\Models\AttendanceAddon;
 use App\Models\Dog;
+use App\Models\Order;
+use App\Models\OrderLineItem;
+use App\Models\OrderPayment;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
+use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,7 +21,10 @@ use Inertia\Response;
 
 class RosterController extends Controller
 {
-    public function __construct(private DogCreditService $credits) {}
+    public function __construct(
+        private DogCreditService $credits,
+        private StripeService $stripe,
+    ) {}
 
     public function index(): Response
     {
@@ -24,7 +33,9 @@ class RosterController extends Controller
         $threshold = $tenant?->low_credit_threshold ?? 2;
 
         $dogs = Dog::with(['attendances' => function ($q) {
-            $q->whereDate('checked_in_at', today())->orderByDesc('checked_in_at');
+            $q->whereDate('checked_in_at', today())
+              ->orderByDesc('checked_in_at')
+              ->with('addons.addonType');
         }, 'customer'])->get();
 
         $roster = $dogs->map(function (Dog $dog) use ($threshold) {
@@ -42,18 +53,36 @@ class RosterController extends Controller
                 default => 'ready',
             };
 
+            $attendanceAddons = $todayAttendance
+                ? $todayAttendance->addons->map(fn ($a) => [
+                    'id'               => $a->id,
+                    'name'             => $a->addonType?->name ?? 'Add-on',
+                    'quantity'         => $a->quantity,
+                    'unit_price_cents' => $a->unit_price_cents,
+                ])->values()
+                : collect();
+
             return [
-                'id'              => $dog->id,
-                'name'            => $dog->name,
-                'customer_name'   => $dog->customer?->name,
-                'credit_balance'  => $dog->credit_balance,
-                'credit_status'   => $creditStatus,
-                'attendance_state' => $attendanceState,
+                'id'                 => $dog->id,
+                'name'               => $dog->name,
+                'customer_name'      => $dog->customer?->name,
+                'credit_balance'     => $dog->credit_balance,
+                'credit_status'      => $creditStatus,
+                'attendance_state'   => $attendanceState,
+                'attendance_id'      => $todayAttendance?->id,
+                'attendance_addons'  => $attendanceAddons,
             ];
         });
 
+        $addonTypes = AddonType::where('is_active', true)
+            ->whereIn('context', ['daycare', 'both'])
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'price_cents', 'context']);
+
         return Inertia::render('Admin/Roster/Index', [
-            'roster' => $roster,
+            'roster'     => $roster,
+            'addonTypes' => $addonTypes,
         ]);
     }
 
@@ -134,6 +163,138 @@ class RosterController extends Controller
 
         $dog = Dog::find($request->dog_id);
 
-        return back()->with('success', "{$dog?->name} checked out.");
+        $chargedCents = $this->chargeAttendanceAddons($attendance->fresh());
+
+        $successMsg = "{$dog?->name} checked out.";
+        if ($chargedCents > 0) {
+            $successMsg .= ' $'.number_format($chargedCents / 100, 2).' charged for add-ons.';
+        }
+
+        return back()->with('success', $successMsg);
+    }
+
+    public function storeAttendanceAddon(Request $request, Attendance $attendance): RedirectResponse
+    {
+        $validated = $request->validate([
+            'addon_type_id' => ['required', 'string', 'exists:addon_types,id'],
+        ]);
+
+        $addonType = AddonType::find($validated['addon_type_id']);
+
+        if (! $addonType || ! $addonType->appliesToDaycare()) {
+            abort(404);
+        }
+
+        $attendance->addons()->create([
+            'addon_type_id'    => $addonType->id,
+            'quantity'         => 1,
+            'unit_price_cents' => $addonType->price_cents,
+        ]);
+
+        $successMsg = 'Add-on saved.';
+
+        // Charge immediately if dog is already checked out
+        if ($attendance->checked_out_at !== null) {
+            $chargedCents = $this->chargeAttendanceAddons($attendance->fresh());
+            if ($chargedCents > 0) {
+                $successMsg = 'Add-on saved and $'.number_format($chargedCents / 100, 2).' charged.';
+            }
+        }
+
+        return back()->with('success', $successMsg);
+    }
+
+    public function destroyAttendanceAddon(Attendance $attendance, AttendanceAddon $addon): RedirectResponse
+    {
+        if ($addon->attendance_id !== $attendance->id) {
+            abort(404);
+        }
+
+        if (Order::where('attendance_id', $attendance->id)->exists()) {
+            abort(409, 'ALREADY_BILLED');
+        }
+
+        $addon->delete();
+
+        return back()->with('success', 'Add-on removed.');
+    }
+
+    private function chargeAttendanceAddons(Attendance $attendance): int
+    {
+        $attendance->loadMissing('addons');
+        $totalCents = $attendance->addons->sum(fn ($a) => $a->unit_price_cents * $a->quantity);
+
+        if ($totalCents === 0) {
+            return 0;
+        }
+
+        // Don't double-charge if order already exists
+        if (Order::where('attendance_id', $attendance->id)->exists()) {
+            return 0;
+        }
+
+        $dog      = Dog::find($attendance->dog_id);
+        $customer = $dog?->customer;
+        $tenant   = Tenant::find($attendance->tenant_id);
+
+        $order = Order::create([
+            'tenant_id'    => $attendance->tenant_id,
+            'customer_id'  => $customer?->id,
+            'attendance_id' => $attendance->id,
+            'type'         => 'daycare',
+            'status'       => 'pending',
+            'total_amount' => $totalCents / 100,
+        ]);
+
+        foreach ($attendance->addons as $i => $addon) {
+            $order->lineItems()->create([
+                'tenant_id'        => $attendance->tenant_id,
+                'description'      => $addon->addonType?->name ?? 'Add-on',
+                'quantity'         => $addon->quantity,
+                'unit_price_cents' => $addon->unit_price_cents,
+                'sort_order'       => $i,
+            ]);
+        }
+
+        $stripeAccountId = $tenant?->stripe_account_id;
+
+        if ($customer?->stripe_payment_method_id && $stripeAccountId) {
+            $feePct   = $tenant->platform_fee_pct ?? 5.0;
+            $feeCents = (int) round($totalCents * $feePct / 100);
+
+            $pi = $this->stripe->createPaymentIntent(
+                $totalCents,
+                'usd',
+                $stripeAccountId,
+                $feeCents,
+                [
+                    'attendance_id' => $attendance->id,
+                    'tenant_id'     => $attendance->tenant_id,
+                    'dog_name'      => $dog?->name,
+                    'type'          => 'daycare_addons',
+                ],
+                $customer->stripe_customer_id,
+                true,
+                true,
+                $customer->stripe_payment_method_id,
+                [],
+                null,
+            );
+
+            $order->payments()->create([
+                'tenant_id'    => $attendance->tenant_id,
+                'stripe_pi_id' => $pi->id,
+                'amount_cents' => $totalCents,
+                'type'         => 'charge',
+                'status'       => 'paid',
+                'paid_at'      => now(),
+            ]);
+
+            $order->update(['status' => 'paid']);
+
+            return $totalCents;
+        }
+
+        return 0;
     }
 }

@@ -228,6 +228,21 @@ class BoardingController extends Controller
         return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', 'Report card saved.');
     }
 
+    public function destroyAddon(Reservation $reservation, ReservationAddon $addon): RedirectResponse
+    {
+        if ($reservation->status === 'checked_out') {
+            abort(409, 'RESERVATION_CHECKED_OUT');
+        }
+
+        if ($addon->reservation_id !== $reservation->id) {
+            abort(404);
+        }
+
+        $addon->delete();
+
+        return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', 'Add-on removed.');
+    }
+
     public function storeAddon(Request $request, Reservation $reservation): RedirectResponse
     {
         $validated = $request->validate([
