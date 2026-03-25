@@ -16,6 +16,7 @@ use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController;
+use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController;
 use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
 use App\Http\Controllers\Web\Portal\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
@@ -80,6 +81,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::post('/boarding/reservations/{reservation}/checkout', [AdminBoardingController::class, 'processCheckout'])->name('admin.boarding.reservations.checkout');
         Route::post('/boarding/reservations/{reservation}/report-cards', [AdminBoardingController::class, 'storeReportCard'])->name('admin.boarding.reservations.report-cards.store');
         Route::post('/boarding/reservations/{reservation}/addons', [AdminBoardingController::class, 'storeAddon'])->name('admin.boarding.reservations.addons.store');
+        Route::delete('/boarding/reservations/{reservation}/addons/{addon}', [AdminBoardingController::class, 'destroyAddon'])->name('admin.boarding.reservations.addons.destroy');
         Route::get('/boarding/occupancy', [AdminBoardingController::class, 'occupancy'])->name('admin.boarding.occupancy');
         Route::get('/boarding/units', [AdminBoardingController::class, 'kennelUnits'])->name('admin.boarding.units');
         Route::post('/boarding/units', [AdminBoardingController::class, 'storeKennelUnit'])->name('admin.boarding.units.store');
@@ -90,6 +92,8 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/roster', [AdminRosterController::class, 'index'])->name('admin.roster.index');
         Route::post('/roster/checkin', [AdminRosterController::class, 'checkin'])->name('admin.roster.checkin');
         Route::post('/roster/checkout', [AdminRosterController::class, 'checkout'])->name('admin.roster.checkout');
+        Route::post('/roster/attendances/{attendance}/addons', [AdminRosterController::class, 'storeAttendanceAddon'])->name('admin.roster.attendance-addons.store');
+        Route::delete('/roster/attendances/{attendance}/addons/{addon}', [AdminRosterController::class, 'destroyAttendanceAddon'])->name('admin.roster.attendance-addons.destroy');
 
         // Credits
         Route::post('/dogs/{dog}/credits/goodwill', [AdminCreditController::class, 'goodwill'])->name('admin.credits.goodwill');
@@ -123,6 +127,12 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/reports/customers', [AdminReportController::class, 'customers'])->name('admin.reports.customers');
         Route::get('/reports/attendance', [AdminReportController::class, 'attendance'])->name('admin.reports.attendance');
         Route::get('/reports/credit-status', [AdminReportController::class, 'creditStatus'])->name('admin.reports.credit-status');
+
+        // Services (Add-on type catalog)
+        Route::get('/services', [AdminServicesController::class, 'index'])->name('admin.services.index');
+        Route::post('/services', [AdminServicesController::class, 'store'])->name('admin.services.store');
+        Route::patch('/services/{addonType}', [AdminServicesController::class, 'update'])->name('admin.services.update');
+        Route::delete('/services/{addonType}', [AdminServicesController::class, 'destroy'])->name('admin.services.destroy');
 
         // Notifications / Broadcast
         Route::get('/notifications/broadcast', [AdminBroadcastController::class, 'index'])->name('admin.notifications.broadcast');

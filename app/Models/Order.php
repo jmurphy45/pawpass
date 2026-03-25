@@ -18,6 +18,7 @@ class Order extends Model
         'customer_id',
         'package_id',
         'reservation_id',
+        'attendance_id',
         'type',
         'status',
         'total_amount',
@@ -68,5 +69,10 @@ class Order extends Model
     public function reservation(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Reservation::class);
+    }
+
+    public function attendance(): BelongsTo
+    {
+        return $this->belongsTo(Attendance::class);
     }
 }

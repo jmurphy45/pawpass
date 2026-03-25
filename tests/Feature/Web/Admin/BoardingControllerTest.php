@@ -11,6 +11,7 @@ use App\Models\KennelUnit;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\Reservation;
+use App\Models\ReservationAddon;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VaccinationRequirement;
@@ -529,5 +530,55 @@ class BoardingControllerTest extends TestCase
             'amount_cents' => 50000,
             'stripe_pi_id' => 'pi_ext',
         ]);
+    }
+
+    public function test_destroy_addon_removes_reservation_addon(): void
+    {
+        $reservation = Reservation::factory()->create([
+            'tenant_id'   => $this->tenant->id,
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'status'      => 'confirmed',
+            'created_by'  => $this->staff->id,
+        ]);
+        $addonType = AddonType::factory()->create(['tenant_id' => $this->tenant->id]);
+        $addon     = ReservationAddon::create([
+            'reservation_id'   => $reservation->id,
+            'addon_type_id'    => $addonType->id,
+            'quantity'         => 1,
+            'unit_price_cents' => $addonType->price_cents,
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->delete("/admin/boarding/reservations/{$reservation->id}/addons/{$addon->id}");
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('reservation_addons', ['id' => $addon->id]);
+    }
+
+    public function test_destroy_addon_409_when_reservation_checked_out(): void
+    {
+        $reservation = Reservation::factory()->create([
+            'tenant_id'   => $this->tenant->id,
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'status'      => 'checked_out',
+            'created_by'  => $this->staff->id,
+        ]);
+        $addonType = AddonType::factory()->create(['tenant_id' => $this->tenant->id]);
+        $addon     = ReservationAddon::create([
+            'reservation_id'   => $reservation->id,
+            'addon_type_id'    => $addonType->id,
+            'quantity'         => 1,
+            'unit_price_cents' => $addonType->price_cents,
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->delete("/admin/boarding/reservations/{$reservation->id}/addons/{$addon->id}");
+
+        $response->assertStatus(409);
+        $this->assertDatabaseHas('reservation_addons', ['id' => $addon->id]);
     }
 }

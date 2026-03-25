@@ -178,7 +178,15 @@
             <div v-if="addons.length === 0" class="text-sm text-text-muted">No add-ons yet.</div>
             <div v-for="addon in addons" :key="addon.id" class="flex items-center justify-between text-sm">
               <span class="text-text-body">{{ addon.addon_type?.name ?? addon.addon_name }}</span>
-              <span class="text-text-muted">{{ addon.quantity }} × ${{ (addon.unit_price_cents / 100).toFixed(2) }}</span>
+              <div class="flex items-center gap-3">
+                <span class="text-text-muted">{{ addon.quantity }} × ${{ (addon.unit_price_cents / 100).toFixed(2) }}</span>
+                <button
+                  v-if="reservation.status !== 'checked_out'"
+                  @click="removeAddon(addon.id)"
+                  class="text-red-400 hover:text-red-600 text-xs"
+                  title="Remove add-on"
+                >×</button>
+              </div>
             </div>
             <form @submit.prevent="addAddon" class="flex gap-2 pt-2 border-t border-border">
               <select v-model="addonForm.addon_type_id" class="input text-sm flex-1">
@@ -406,6 +414,11 @@ function addAddon() {
   router.post(route('admin.boarding.reservations.addons.store', res.id), { addon_type_id: addonForm.addon_type_id }, {
     onSuccess: () => { addonForm.addon_type_id = ''; },
   });
+}
+
+function removeAddon(addonId: number) {
+  const res = props.reservation as { id: string };
+  router.delete(route('admin.boarding.reservations.addons.destroy', { reservation: res.id, addon: addonId }));
 }
 
 // -------------------------------------------------------------------------
