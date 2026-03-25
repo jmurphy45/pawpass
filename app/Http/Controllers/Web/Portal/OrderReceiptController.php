@@ -15,21 +15,23 @@ class OrderReceiptController extends Controller
     {
         $customer = Auth::user()->customer;
         abort_if($order->customer_id !== $customer->id, 403);
-        abort_if($order->status !== 'paid' || !$order->stripe_pi_id, 404);
+        $order->load(['tenant', 'package', 'orderDogs.dog', 'customer', 'payments']);
 
-        $order->load(['tenant', 'package', 'orderDogs.dog', 'customer']);
+        $payment = $order->payments->where('status', 'paid')->first();
+
+        abort_if($order->status !== 'paid' || ! $payment?->stripe_pi_id, 404);
 
         $charge = app(StripeService::class)->retrieveChargeDetails(
-            $order->stripe_pi_id,
+            $payment->stripe_pi_id,
             $order->tenant->stripe_account_id
         );
 
         $pdf = Pdf::loadView('pdf.receipt', [
             'tenantName'             => $order->tenant->name,
             'orderId'                => $order->id,
-            'stripePaymentIntentId'  => $order->stripe_pi_id,
+            'stripePaymentIntentId'  => $payment->stripe_pi_id,
             'customerName'           => $order->customer->name,
-            'date'                   => $order->paid_at?->format('M j, Y') ?? $order->created_at->format('M j, Y'),
+            'date'                   => $payment->paid_at?->format('M j, Y') ?? $order->created_at->format('M j, Y'),
             'status'                 => $order->status,
             'packageName'            => $order->package?->name ?? 'Unknown',
             'dogNames'               => $order->orderDogs->map(fn ($od) => $od->dog?->name)->filter()->join(', '),

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\RawWebhook;
 use App\Models\Reservation;
 use App\Models\Tenant;
@@ -56,7 +57,8 @@ class StripeWebhookController extends Controller
 
     private function handlePaymentIntentSucceeded(object $pi): JsonResponse
     {
-        $order = Order::where('stripe_pi_id', $pi->id)->first();
+        $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
+        $order   = $payment?->order;
 
         if (! $order) {
             return response()->json(['data' => 'ok']);
@@ -66,8 +68,13 @@ class StripeWebhookController extends Controller
             return response()->json(['data' => 'ok']);
         }
 
-        DB::transaction(function () use ($order) {
-            $order->update(['status' => 'paid', 'paid_at' => now()]);
+        DB::transaction(function () use ($order, $payment) {
+            $payment->update(['status' => 'paid', 'paid_at' => now()]);
+            $order->update(['status' => 'paid']);
+
+            if ($order->type !== 'daycare') {
+                return;
+            }
 
             $order->load(['orderDogs.dog', 'package']);
 
@@ -97,10 +104,12 @@ class StripeWebhookController extends Controller
 
     private function handlePaymentIntentFailed(object $pi): JsonResponse
     {
-        $order = Order::where('stripe_pi_id', $pi->id)->first();
+        $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
+        $order   = $payment?->order;
 
         if ($order) {
             Log::warning('payment_intent.failed', ['order_id' => $order->id, 'pi_id' => $pi->id]);
+            $payment->update(['status' => 'failed']);
             $order->update(['status' => 'failed']);
 
             $isAutoReplenish = ($pi->metadata->auto_replenish ?? null) === 'true';
@@ -118,9 +127,11 @@ class StripeWebhookController extends Controller
 
     private function handleDepositAuthorized(object $pi): JsonResponse
     {
-        $reservation = Reservation::where('stripe_pi_id', $pi->id)->first();
+        $payment     = OrderPayment::where('stripe_pi_id', $pi->id)->with('order.reservation')->first();
+        $reservation = $payment?->order?->reservation;
 
         if ($reservation && $reservation->status === 'pending') {
+            $payment->update(['status' => 'authorized']);
             $reservation->update(['status' => 'confirmed']);
         }
 
@@ -132,8 +143,11 @@ class StripeWebhookController extends Controller
         $piId = $dispute->payment_intent ?? null;
 
         if ($piId) {
-            $order = Order::where('stripe_pi_id', $piId)->first();
-            $order?->update(['status' => 'disputed']);
+            $payment = OrderPayment::where('stripe_pi_id', $piId)->with('order')->first();
+            if ($payment) {
+                $payment->update(['status' => 'disputed']);
+                $payment->order?->update(['status' => 'disputed']);
+            }
         }
 
         return response()->json(['data' => 'ok']);

@@ -42,16 +42,21 @@ class PaymentController extends Controller
         }
 
         $stripeAccountId = Tenant::find($order->tenant_id)?->stripe_account_id;
-        $this->stripe->createRefund($order->stripe_pi_id, $stripeAccountId);
+        $payment = $order->payments()->whereIn('status', ['paid', 'authorized'])->latest()->first();
 
-        DB::transaction(function () use ($order) {
+        if ($payment?->stripe_pi_id) {
+            $this->stripe->createRefund($payment->stripe_pi_id, $stripeAccountId);
+        }
+
+        DB::transaction(function () use ($order, $payment) {
             $order->load(['orderDogs.dog', 'package']);
 
             foreach ($order->orderDogs as $orderDog) {
                 $this->creditService->removeAllOnRefund($order, $orderDog->dog->fresh());
             }
 
-            $order->update(['status' => 'refunded', 'refunded_at' => now()]);
+            $payment?->update(['status' => 'refunded', 'refunded_at' => now()]);
+            $order->update(['status' => 'refunded']);
         });
 
         $order->load(['package', 'orderDogs.dog', 'customer']);

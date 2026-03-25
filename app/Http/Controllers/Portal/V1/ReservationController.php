@@ -7,6 +7,7 @@ use App\Http\Requests\Portal\StoreReservationRequest;
 use App\Http\Resources\ReservationResource;
 use App\Models\Dog;
 use App\Models\KennelUnit;
+use App\Models\Order;
 use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Services\KennelAvailabilityService;
@@ -107,7 +108,7 @@ class ReservationController extends Controller
 
             if ($tenant?->stripe_account_id) {
                 $depositCents = (int) $request->deposit_amount_cents;
-                $feeCents = (int) round($depositCents * (float) $tenant->platform_fee_pct / 100);
+                $feeCents     = (int) round($depositCents * (float) $tenant->platform_fee_pct / 100);
 
                 $pi = $this->stripe->createHoldPaymentIntent(
                     $depositCents,
@@ -121,9 +122,23 @@ class ReservationController extends Controller
                     ]
                 );
 
-                $reservation->update([
-                    'stripe_pi_id'         => $pi->id,
-                    'deposit_amount_cents'  => $depositCents,
+                $order = Order::create([
+                    'tenant_id'        => $tenantId,
+                    'customer_id'      => $reservation->customer_id,
+                    'package_id'       => null,
+                    'reservation_id'   => $reservation->id,
+                    'type'             => 'boarding',
+                    'status'           => 'pending',
+                    'total_amount'     => number_format($depositCents / 100, 2, '.', ''),
+                    'platform_fee_pct' => $tenant->platform_fee_pct,
+                ]);
+
+                $order->payments()->create([
+                    'tenant_id'    => $tenantId,
+                    'stripe_pi_id' => $pi->id,
+                    'amount_cents' => $depositCents,
+                    'type'         => 'deposit',
+                    'status'       => 'pending',
                 ]);
 
                 $clientSecret = $pi->client_secret;
@@ -151,11 +166,17 @@ class ReservationController extends Controller
             'cancelled_by' => auth()->id(),
         ];
 
-        if ($reservation->stripe_pi_id && ! $reservation->deposit_captured_at) {
+        $depositPayment = $reservation->order?->payments()
+            ->where('type', 'deposit')
+            ->whereIn('status', ['pending', 'authorized'])
+            ->first();
+
+        if ($depositPayment?->stripe_pi_id) {
             $tenant = Tenant::find($reservation->tenant_id);
             if ($tenant?->stripe_account_id) {
-                $this->stripe->cancelPaymentIntent($reservation->stripe_pi_id, $tenant->stripe_account_id);
-                $updateData['deposit_refunded_at'] = now();
+                $this->stripe->cancelPaymentIntent($depositPayment->stripe_pi_id, $tenant->stripe_account_id);
+                $depositPayment->update(['status' => 'refunded', 'refunded_at' => now()]);
+                $reservation->order?->update(['status' => 'refunded']);
             }
         }
 

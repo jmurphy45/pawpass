@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\V1\StoreOrderRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
+use App\Models\OrderLineItem;
+use App\Models\OrderPayment;
 use App\Models\Package;
 use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
@@ -94,7 +96,21 @@ class OrderController extends Controller
             ]
         );
 
-        $order->update(['stripe_pi_id' => $pi->id]);
+        $order->lineItems()->create([
+            'tenant_id'        => $tenantId,
+            'description'      => $package->name,
+            'quantity'         => 1,
+            'unit_price_cents' => $amountCents,
+            'sort_order'       => 0,
+        ]);
+
+        $order->payments()->create([
+            'tenant_id'             => $tenantId,
+            'stripe_pi_id'          => $pi->id,
+            'amount_cents'          => $amountCents,
+            'type'                  => 'full',
+            'status'                => 'pending',
+        ]);
 
         return response()->json([
             'data' => [

@@ -136,17 +136,23 @@ class ReservationController extends Controller
             $reservation->transitionTo($newStatus, auth()->id());
         }
 
-        if ($reservation->stripe_pi_id) {
-            $tenant = Tenant::find($reservation->tenant_id);
+        $depositPayment = $reservation->order?->payments()
+            ->where('type', 'deposit')
+            ->whereIn('status', ['pending', 'authorized'])
+            ->first();
+
+        if ($depositPayment?->stripe_pi_id) {
+            $tenant          = Tenant::find($reservation->tenant_id);
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($stripeAccountId) {
-                if ($newStatus === 'checked_in' && ! $reservation->deposit_captured_at) {
-                    $this->stripe->capturePaymentIntent($reservation->stripe_pi_id, $stripeAccountId);
-                    $reservation->update(['deposit_captured_at' => now()]);
-                } elseif ($newStatus === 'cancelled' && ! $reservation->deposit_captured_at) {
-                    $this->stripe->cancelPaymentIntent($reservation->stripe_pi_id, $stripeAccountId);
-                    $reservation->update(['deposit_refunded_at' => now()]);
+                if ($newStatus === 'checked_in' && $depositPayment->status !== 'paid') {
+                    $this->stripe->capturePaymentIntent($depositPayment->stripe_pi_id, $stripeAccountId);
+                    $depositPayment->update(['status' => 'paid', 'paid_at' => now()]);
+                } elseif ($newStatus === 'cancelled' && $depositPayment->status === 'authorized') {
+                    $this->stripe->cancelPaymentIntent($depositPayment->stripe_pi_id, $stripeAccountId);
+                    $depositPayment->update(['status' => 'refunded', 'refunded_at' => now()]);
+                    $reservation->order?->update(['status' => 'refunded']);
                 }
             }
         }

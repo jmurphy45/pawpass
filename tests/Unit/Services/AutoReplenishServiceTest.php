@@ -110,6 +110,8 @@ class AutoReplenishServiceTest extends TestCase
         $this->assertDatabaseHas('orders', [
             'customer_id' => $customer->id,
             'package_id'  => $package->id,
+        ]);
+        $this->assertDatabaseHas('order_payments', [
             'stripe_pi_id' => 'pi_auto_test',
         ]);
     }

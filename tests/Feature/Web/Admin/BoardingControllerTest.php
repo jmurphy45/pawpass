@@ -8,6 +8,8 @@ use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\DogVaccination;
 use App\Models\KennelUnit;
+use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
@@ -210,12 +212,26 @@ class BoardingControllerTest extends TestCase
         $this->tenant->update(['stripe_account_id' => 'acct_web_test']);
 
         $reservation = Reservation::factory()->confirmed()->create([
-            'tenant_id'            => $this->tenant->id,
-            'dog_id'               => $this->dog->id,
-            'customer_id'          => $this->customer->id,
-            'created_by'           => $this->staff->id,
-            'stripe_pi_id'         => 'pi_web_hold',
-            'deposit_amount_cents'  => 4000,
+            'tenant_id'   => $this->tenant->id,
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'created_by'  => $this->staff->id,
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'customer_id'    => $this->customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        $payment = OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_web_hold',
+            'type'         => 'deposit',
+            'status'       => 'authorized',
+            'amount_cents' => 4000,
         ]);
 
         $stripe = Mockery::mock(StripeService::class);
@@ -227,7 +243,7 @@ class BoardingControllerTest extends TestCase
         $this->actingAs($this->staff);
         $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'checked_in']);
 
-        $this->assertNotNull($reservation->fresh()->deposit_captured_at);
+        $this->assertEquals('paid', $payment->fresh()->status);
     }
 
     public function test_cancel_releases_stripe_hold(): void
@@ -235,12 +251,26 @@ class BoardingControllerTest extends TestCase
         $this->tenant->update(['stripe_account_id' => 'acct_web_test']);
 
         $reservation = Reservation::factory()->confirmed()->create([
-            'tenant_id'            => $this->tenant->id,
-            'dog_id'               => $this->dog->id,
-            'customer_id'          => $this->customer->id,
-            'created_by'           => $this->staff->id,
-            'stripe_pi_id'         => 'pi_web_cancel',
-            'deposit_amount_cents'  => 4000,
+            'tenant_id'   => $this->tenant->id,
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'created_by'  => $this->staff->id,
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'customer_id'    => $this->customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        $payment = OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_web_cancel',
+            'type'         => 'deposit',
+            'status'       => 'authorized',
+            'amount_cents' => 4000,
         ]);
 
         $stripe = Mockery::mock(StripeService::class);
@@ -252,7 +282,7 @@ class BoardingControllerTest extends TestCase
         $this->actingAs($this->staff);
         $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'cancelled']);
 
-        $this->assertNotNull($reservation->fresh()->deposit_refunded_at);
+        $this->assertEquals('refunded', $payment->fresh()->status);
     }
 
     public function test_invalid_transition_returns_redirect_with_error(): void
@@ -289,16 +319,28 @@ class BoardingControllerTest extends TestCase
         ]);
 
         $reservation = Reservation::factory()->checkedIn()->create([
-            'tenant_id'            => $this->tenant->id,
-            'dog_id'               => $this->dog->id,
-            'customer_id'          => $this->customer->id,
-            'created_by'           => $this->staff->id,
-            'starts_at'            => now()->subDays(3)->startOfDay(), // checked in 3 days ago
-            'ends_at'              => now()->startOfDay(),              // originally 3 nights
-            'nightly_rate_cents'   => 8000,
-            'deposit_amount_cents'  => 5000,
-            'stripe_pi_id'         => 'pi_dep',
-            'deposit_captured_at'  => now()->subDays(3),
+            'tenant_id'          => $this->tenant->id,
+            'dog_id'             => $this->dog->id,
+            'customer_id'        => $this->customer->id,
+            'created_by'         => $this->staff->id,
+            'starts_at'          => now()->subDays(3)->startOfDay(),
+            'ends_at'            => now()->startOfDay(),
+            'nightly_rate_cents' => 8000,
+        ]);
+
+        // Pre-existing deposit order + payment
+        $order = Order::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'customer_id'    => $this->customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->deposit()->create([
+            'stripe_pi_id' => 'pi_dep',
+            'amount_cents' => 5000,
         ]);
 
         // 4 nights actual: balance = (4 × 8000) + 0 addons - 5000 = 27000
@@ -325,9 +367,14 @@ class BoardingControllerTest extends TestCase
         $response->assertRedirect();
         $fresh = $reservation->fresh();
         $this->assertEquals('checked_out', $fresh->status);
-        $this->assertEquals(27000, $fresh->checkout_charge_cents);
-        $this->assertEquals('pi_checkout1', $fresh->checkout_pi_id);
         $this->assertNotNull($fresh->actual_checkout_at);
+
+        $this->assertDatabaseHas('order_payments', [
+            'order_id'     => $order->id,
+            'type'         => 'balance',
+            'amount_cents' => 27000,
+            'stripe_pi_id' => 'pi_checkout1',
+        ]);
     }
 
     public function test_checkout_without_saved_card_transitions_without_stripe_call(): void
@@ -357,8 +404,7 @@ class BoardingControllerTest extends TestCase
         $response->assertRedirect();
         $fresh = $reservation->fresh();
         $this->assertEquals('checked_out', $fresh->status);
-        $this->assertEquals(0, $fresh->checkout_charge_cents);
-        $this->assertNull($fresh->checkout_pi_id);
+        $this->assertDatabaseMissing('order_payments', ['type' => 'balance', 'order_id' => $fresh->order?->id]);
     }
 
     public function test_checkout_with_zero_balance_skips_stripe(): void
@@ -367,15 +413,27 @@ class BoardingControllerTest extends TestCase
         $this->customer->update(['stripe_payment_method_id' => 'pm_test']);
 
         $reservation = Reservation::factory()->checkedIn()->create([
-            'tenant_id'            => $this->tenant->id,
-            'dog_id'               => $this->dog->id,
-            'customer_id'          => $this->customer->id,
-            'created_by'           => $this->staff->id,
-            'starts_at'            => now()->subDay()->startOfDay(),
-            'ends_at'              => now()->startOfDay(),
-            'nightly_rate_cents'   => 5000,
-            'deposit_amount_cents'  => 10000, // deposit > 1 night — zero balance
-            'deposit_captured_at'  => now()->subDay(),
+            'tenant_id'          => $this->tenant->id,
+            'dog_id'             => $this->dog->id,
+            'customer_id'        => $this->customer->id,
+            'created_by'         => $this->staff->id,
+            'starts_at'          => now()->subDay()->startOfDay(),
+            'ends_at'            => now()->startOfDay(),
+            'nightly_rate_cents' => 5000,
+        ]);
+
+        // Deposit > 1 night — zero balance
+        $order = Order::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'customer_id'    => $this->customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->deposit()->create([
+            'amount_cents' => 10000,
         ]);
 
         $stripe = Mockery::mock(StripeService::class);
@@ -389,7 +447,7 @@ class BoardingControllerTest extends TestCase
 
         $fresh = $reservation->fresh();
         $this->assertEquals('checked_out', $fresh->status);
-        $this->assertEquals(0, $fresh->checkout_charge_cents);
+        $this->assertDatabaseMissing('order_payments', ['type' => 'balance', 'order_id' => $order->id]);
     }
 
     public function test_checkout_with_date_before_starts_at_returns_error(): void
@@ -443,10 +501,11 @@ class BoardingControllerTest extends TestCase
             'customer_id'        => $this->customer->id,
             'created_by'         => $this->staff->id,
             'starts_at'          => now()->subDays(3)->startOfDay(),
-            'ends_at'            => now()->startOfDay(),     // originally 3 nights
+            'ends_at'            => now()->startOfDay(),
             'nightly_rate_cents' => 10000,
-            'deposit_amount_cents' => 0,
         ]);
+
+        // No deposit order needed — zero deposit means no pre-existing order payment
 
         // Staying 2 extra nights → 5 nights total
         $extendedDate = now()->addDays(2)->toDateString();
@@ -465,6 +524,10 @@ class BoardingControllerTest extends TestCase
             'actual_checkout_date' => $extendedDate,
         ]);
 
-        $this->assertEquals(50000, $reservation->fresh()->checkout_charge_cents);
+        $this->assertDatabaseHas('order_payments', [
+            'type'         => 'balance',
+            'amount_cents' => 50000,
+            'stripe_pi_id' => 'pi_ext',
+        ]);
     }
 }

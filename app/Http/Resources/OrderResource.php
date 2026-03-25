@@ -27,8 +27,6 @@ class OrderResource extends JsonResource
                 'id' => $this->customer->id,
                 'name' => $this->customer->name,
             ]),
-            'paid_at' => $this->paid_at?->toIso8601String(),
-            'refunded_at' => $this->refunded_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
         ];
     }

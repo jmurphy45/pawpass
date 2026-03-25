@@ -5,6 +5,7 @@ namespace Tests\Feature\Web\Portal;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
@@ -268,9 +269,13 @@ class PurchaseControllerStripeTest extends TestCase
             'customer_id' => $this->customer->id,
             'package_id'  => $package->id,
             'status'      => 'pending',
-            'stripe_pi_id' => 'pi_unlimited_test',
         ]);
         $order->orderDogs()->create(['dog_id' => $this->dog->id, 'credits_issued' => 0]);
+        OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_unlimited_test',
+            'status'       => 'pending',
+            'type'         => 'full',
+        ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('retrievePaymentIntent')

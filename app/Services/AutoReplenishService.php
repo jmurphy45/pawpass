@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Dog;
 use App\Models\Order;
 use App\Models\Package;
+use App\Models\OrderLineItem;
+use App\Models\OrderPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -86,7 +88,21 @@ class AutoReplenishService
                 paymentMethodTypes: ['card'],
             );
 
-            $order->update(['stripe_pi_id' => $intent->id]);
+            $order->lineItems()->create([
+                'tenant_id'        => $tenant->id,
+                'description'      => $package->name,
+                'quantity'         => 1,
+                'unit_price_cents' => $amountCents,
+                'sort_order'       => 0,
+            ]);
+
+            $order->payments()->create([
+                'tenant_id'    => $tenant->id,
+                'stripe_pi_id' => $intent->id,
+                'amount_cents' => $amountCents,
+                'type'         => 'full',
+                'status'       => 'pending',
+            ]);
         } catch (\Throwable $e) {
             Log::error('AutoReplenish: PaymentIntent failed', [
                 'dog_id'  => $dog->id,

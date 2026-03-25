@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Web\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderLineItem;
+use App\Models\OrderPayment;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
@@ -171,7 +173,23 @@ class PurchaseController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $order->update(['stripe_pi_id' => $intent->id]);
+        OrderLineItem::create([
+            'tenant_id'       => $tenantId,
+            'order_id'        => $order->id,
+            'description'     => $package->name,
+            'quantity'        => 1,
+            'unit_price_cents' => $amountCents,
+            'sort_order'      => 0,
+        ]);
+
+        OrderPayment::create([
+            'tenant_id'   => $tenantId,
+            'order_id'    => $order->id,
+            'stripe_pi_id' => $intent->id,
+            'amount_cents' => $amountCents,
+            'type'         => 'full',
+            'status'       => 'pending',
+        ]);
 
         return response()->json([
             'client_secret'     => $intent->client_secret,
@@ -189,13 +207,16 @@ class PurchaseController extends Controller
 
         $customer = Auth::user()->customer;
 
-        $order = Order::where('stripe_pi_id', $validated['payment_intent_id'])
-            ->where('customer_id', $customer->id)
+        $payment = OrderPayment::where('stripe_pi_id', $validated['payment_intent_id'])
+            ->whereHas('order', fn ($q) => $q->where('customer_id', $customer->id))
+            ->with('order')
             ->first();
 
-        if (!$order) {
+        if (!$payment) {
             return response()->json(['status' => 'not_found'], 404);
         }
+
+        $order = $payment->order;
 
         if ($order->status === 'paid') {
             return response()->json(['status' => 'paid']);
@@ -208,8 +229,9 @@ class PurchaseController extends Controller
             return response()->json(['status' => $pi->status]);
         }
 
-        DB::transaction(function () use ($order, $validated, $request) {
-            $order->update(['status' => 'paid', 'paid_at' => now()]);
+        DB::transaction(function () use ($order, $payment, $validated, $request) {
+            $order->update(['status' => 'paid']);
+            $payment->update(['status' => 'paid', 'paid_at' => now()]);
             $order->load(['orderDogs.dog', 'package']);
             foreach ($order->orderDogs as $orderDog) {
                 if ($order->package->type === 'unlimited') {

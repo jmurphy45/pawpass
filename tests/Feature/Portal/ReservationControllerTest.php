@@ -5,6 +5,8 @@ namespace Tests\Feature\Portal;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\KennelUnit;
+use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
@@ -320,10 +322,10 @@ class ReservationControllerTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonPath('client_secret', 'pi_hold1_secret');
 
-        $this->assertDatabaseHas('reservations', [
-            'dog_id'               => $this->dog->id,
-            'stripe_pi_id'         => 'pi_hold1',
-            'deposit_amount_cents' => 5000,
+        $this->assertDatabaseHas('order_payments', [
+            'stripe_pi_id' => 'pi_hold1',
+            'amount_cents' => 5000,
+            'type'         => 'deposit',
         ]);
     }
 
@@ -349,13 +351,26 @@ class ReservationControllerTest extends TestCase
     public function test_cancel_with_stripe_pi_releases_hold(): void
     {
         $reservation = Reservation::factory()->create([
-            'tenant_id'            => $this->tenant->id,
-            'dog_id'               => $this->dog->id,
-            'customer_id'          => $this->customer->id,
-            'created_by'           => $this->user->id,
-            'status'               => 'pending',
-            'stripe_pi_id'         => 'pi_hold2',
-            'deposit_amount_cents' => 5000,
+            'tenant_id'   => $this->tenant->id,
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'created_by'  => $this->user->id,
+            'status'      => 'pending',
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'customer_id'    => $this->customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        $payment = OrderPayment::factory()->forOrder($order)->deposit()->create([
+            'stripe_pi_id' => 'pi_hold2',
+            'status'       => 'pending',
+            'amount_cents' => 5000,
         ]);
 
         $this->tenant->update(['stripe_account_id' => 'acct_test']);
@@ -375,30 +390,7 @@ class ReservationControllerTest extends TestCase
             'id'     => $reservation->id,
             'status' => 'cancelled',
         ]);
-        $this->assertNotNull(Reservation::find($reservation->id)->deposit_refunded_at);
+        $this->assertDatabaseHas('order_payments', ['id' => $payment->id, 'status' => 'refunded']);
     }
 
-    // -------------------------------------------------------------------------
-    // Deposit columns (Step 1 schema test)
-    // -------------------------------------------------------------------------
-
-    public function test_reservation_stores_deposit_columns(): void
-    {
-        $reservation = Reservation::factory()->create([
-            'tenant_id'          => $this->tenant->id,
-            'dog_id'             => $this->dog->id,
-            'customer_id'        => $this->customer->id,
-            'created_by'         => $this->user->id,
-            'deposit_amount_cents' => 5000,
-            'stripe_pi_id'       => 'pi_test_hold123',
-        ]);
-
-        $this->assertDatabaseHas('reservations', [
-            'id'                 => $reservation->id,
-            'deposit_amount_cents' => 5000,
-            'stripe_pi_id'       => 'pi_test_hold123',
-        ]);
-        $this->assertNull($reservation->deposit_captured_at);
-        $this->assertNull($reservation->deposit_refunded_at);
-    }
 }

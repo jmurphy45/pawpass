@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AddonType;
 use App\Models\KennelUnit;
+use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Services\StripeService;
@@ -93,21 +95,52 @@ class BoardingController extends Controller
 
         $actualCheckout = Carbon::parse($validated['actual_checkout_date'])->startOfDay();
         $actualDays     = $reservation->starts_at->diffInDays($actualCheckout);
-        $nightsTotal    = $actualDays * ($reservation->nightly_rate_cents ?? 0);
+        $nightlyRate    = $reservation->nightly_rate_cents ?? 0;
+        $nightsTotal    = $actualDays * $nightlyRate;
+        $reservation->load('addons.addonType');
         $addonsTotal    = $reservation->addons->sum(fn ($a) => $a->unit_price_cents * $a->quantity);
-        $balance        = max(0, $nightsTotal + $addonsTotal - ($reservation->deposit_amount_cents ?? 0));
 
-        $checkoutPiId = null;
+        // Get or create the boarding order for this reservation
+        $order = $reservation->order ?? $this->createBoardingOrder($reservation);
+
+        // Deposit already paid (tracked in order_payments)
+        $depositPayment   = $order->payments()->whereIn('status', ['paid', 'authorized'])->where('type', 'deposit')->first();
+        $depositPaidCents = $depositPayment?->amount_cents ?? 0;
+
+        $balance = max(0, $nightsTotal + $addonsTotal - $depositPaidCents);
+
+        $tenant = Tenant::find($reservation->tenant_id);
+
+        // Finalize line items (replace any draft nightly rate line item)
+        $order->lineItems()->delete();
+        if ($nightlyRate > 0 && $actualDays > 0) {
+            $order->lineItems()->create([
+                'tenant_id'        => $reservation->tenant_id,
+                'description'      => 'Nightly Rate × '.$actualDays,
+                'quantity'         => $actualDays,
+                'unit_price_cents' => $nightlyRate,
+                'sort_order'       => 0,
+            ]);
+        }
+        foreach ($reservation->addons as $i => $addon) {
+            $order->lineItems()->create([
+                'tenant_id'        => $reservation->tenant_id,
+                'description'      => $addon->addonType?->name ?? 'Add-on',
+                'quantity'         => $addon->quantity,
+                'unit_price_cents' => $addon->unit_price_cents,
+                'sort_order'       => $i + 1,
+            ]);
+        }
+
         $chargedCents = 0;
 
-        $customer = $reservation->customer;
-        if ($balance > 0 && $customer?->stripe_payment_method_id) {
-            $tenant          = Tenant::find($reservation->tenant_id);
+        if ($balance > 0) {
+            $customer        = $reservation->customer;
             $stripeAccountId = $tenant?->stripe_account_id;
 
-            if ($stripeAccountId) {
-                $feePct     = $tenant->platform_fee_pct ?? 5.0;
-                $feeCents   = (int) round($balance * $feePct / 100);
+            if ($customer?->stripe_payment_method_id && $stripeAccountId) {
+                $feePct   = $tenant->platform_fee_pct ?? 5.0;
+                $feeCents = (int) round($balance * $feePct / 100);
                 $pi = $this->stripe->createPaymentIntent(
                     $balance,
                     'usd',
@@ -127,23 +160,48 @@ class BoardingController extends Controller
                     null,
                 );
 
-                $checkoutPiId = $pi->id;
+                $order->payments()->create([
+                    'tenant_id'             => $reservation->tenant_id,
+                    'stripe_pi_id'          => $pi->id,
+                    'amount_cents'          => $balance,
+                    'type'                  => 'balance',
+                    'status'                => 'paid',
+                    'paid_at'               => now(),
+                ]);
+
                 $chargedCents = $balance;
             }
         }
 
-        $reservation->transitionTo('checked_out', auth()->id());
-        $reservation->update([
-            'actual_checkout_at'    => $actualCheckout,
-            'checkout_pi_id'        => $checkoutPiId,
-            'checkout_charge_cents' => $chargedCents,
+        // Update total amount and mark order paid
+        $totalCents = $depositPaidCents + $chargedCents;
+        $order->update([
+            'total_amount' => number_format($totalCents / 100, 2, '.', ''),
+            'status'       => 'paid',
         ]);
+
+        $reservation->transitionTo('checked_out', auth()->id());
+        $reservation->update(['actual_checkout_at' => $actualCheckout]);
 
         $message = $chargedCents > 0
             ? 'Dog checked out. Balance of $' . number_format($chargedCents / 100, 2) . ' charged.'
             : 'Dog checked out. No balance charged.';
 
         return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', $message);
+    }
+
+    private function createBoardingOrder(Reservation $reservation): Order
+    {
+        return Order::create([
+            'tenant_id'        => $reservation->tenant_id,
+            'customer_id'      => $reservation->customer_id,
+            'package_id'       => null,
+            'reservation_id'   => $reservation->id,
+            'type'             => 'boarding',
+            'status'           => 'pending',
+            'total_amount'     => '0.00',
+            'platform_fee_pct' => Tenant::find($reservation->tenant_id)?->platform_fee_pct ?? 5.0,
+        ]);
     }
 
     public function kennelUnits(): Response
@@ -169,17 +227,23 @@ class BoardingController extends Controller
 
         $reservation->transitionTo($newStatus, auth()->id());
 
-        if ($reservation->stripe_pi_id) {
-            $tenant = Tenant::find($reservation->tenant_id);
+        $depositPayment = $reservation->order?->payments()
+            ->where('type', 'deposit')
+            ->whereIn('status', ['pending', 'authorized'])
+            ->first();
+
+        if ($depositPayment?->stripe_pi_id) {
+            $tenant          = Tenant::find($reservation->tenant_id);
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($stripeAccountId) {
-                if ($newStatus === 'checked_in' && ! $reservation->deposit_captured_at) {
-                    $this->stripe->capturePaymentIntent($reservation->stripe_pi_id, $stripeAccountId);
-                    $reservation->update(['deposit_captured_at' => now()]);
-                } elseif ($newStatus === 'cancelled' && ! $reservation->deposit_captured_at) {
-                    $this->stripe->cancelPaymentIntent($reservation->stripe_pi_id, $stripeAccountId);
-                    $reservation->update(['deposit_refunded_at' => now()]);
+                if ($newStatus === 'checked_in' && $depositPayment->status !== 'paid') {
+                    $this->stripe->capturePaymentIntent($depositPayment->stripe_pi_id, $stripeAccountId);
+                    $depositPayment->update(['status' => 'paid', 'paid_at' => now()]);
+                } elseif ($newStatus === 'cancelled' && $depositPayment->status === 'authorized') {
+                    $this->stripe->cancelPaymentIntent($depositPayment->stripe_pi_id, $stripeAccountId);
+                    $depositPayment->update(['status' => 'refunded', 'refunded_at' => now()]);
+                    $reservation->order?->update(['status' => 'refunded']);
                 }
             }
         }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
 use App\Services\StripeService;
@@ -22,26 +23,44 @@ class PaymentController extends Controller
 
     public function index(Request $request): Response
     {
-        $query = Order::with(['customer', 'package'])->latest();
+        $query = OrderPayment::with([
+            'order.customer',
+            'order.package',
+            'order.reservation.dog',
+        ])->latest();
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
         }
 
-        $orders = $query->paginate(20)->through(fn ($order) => [
-            'id'            => $order->id,
-            'stripe_pi_id'  => $order->stripe_pi_id,
-            'customer_name' => $order->customer?->name,
-            'package_name'  => $order->package?->name,
-            'amount_cents'  => (int) round((float) $order->total_amount * 100),
-            'status'        => $order->status,
-            'created_at'    => $order->created_at->toIso8601String(),
-            'refunded_at'   => $order->refunded_at?->toIso8601String(),
-        ]);
+        $payments = $query->paginate(20)->through(function ($payment) {
+            $order = $payment->order;
+
+            if ($order->type === 'boarding') {
+                $dog  = $order->reservation?->dog;
+                $desc = 'Boarding' . ($dog ? ': '.$dog->name : '');
+            } else {
+                $desc = $order->package?->name ?? 'Package';
+            }
+
+            return [
+                'id'            => $payment->id,
+                'order_id'      => $order->id,
+                'type'          => $order->type,
+                'payment_type'  => $payment->type,
+                'stripe_pi_id'  => $payment->stripe_pi_id,
+                'customer_name' => $order->customer?->name,
+                'description'   => $desc,
+                'amount_cents'  => $payment->amount_cents,
+                'status'        => $payment->status,
+                'created_at'    => $payment->created_at->toIso8601String(),
+                'refunded_at'   => $payment->refunded_at?->toIso8601String(),
+            ];
+        });
 
         return Inertia::render('Admin/Payments/Index', [
-            'orders'  => $orders,
-            'filters' => ['status' => $request->query('status', '')],
+            'payments' => $payments,
+            'filters'  => ['status' => $request->query('status', '')],
         ]);
     }
 
@@ -53,16 +72,21 @@ class PaymentController extends Controller
 
         try {
             $stripeAccountId = Tenant::find($order->tenant_id)?->stripe_account_id;
-            $this->stripe->createRefund($order->stripe_pi_id, $stripeAccountId);
+            $payment = $order->payments()->whereIn('status', ['paid', 'authorized'])->latest()->first();
 
-            DB::transaction(function () use ($order) {
+            if ($payment?->stripe_pi_id) {
+                $this->stripe->createRefund($payment->stripe_pi_id, $stripeAccountId);
+            }
+
+            DB::transaction(function () use ($order, $payment) {
                 $order->load(['orderDogs.dog', 'package']);
 
                 foreach ($order->orderDogs as $orderDog) {
                     $this->creditService->removeAllOnRefund($order, $orderDog->dog->fresh());
                 }
 
-                $order->update(['status' => 'refunded', 'refunded_at' => now()]);
+                $payment?->update(['status' => 'refunded', 'refunded_at' => now()]);
+                $order->update(['status' => 'refunded']);
             });
 
             return back()->with('success', 'Order refunded successfully.');

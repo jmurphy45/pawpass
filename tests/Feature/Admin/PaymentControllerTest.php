@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
@@ -90,7 +91,6 @@ class PaymentControllerTest extends TestCase
             'customer_id' => $this->customer->id,
             'package_id' => $this->package->id,
             'status' => 'refunded',
-            'refunded_at' => now(),
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
@@ -110,7 +110,11 @@ class PaymentControllerTest extends TestCase
             'customer_id' => $this->customer->id,
             'package_id' => $this->package->id,
             'status' => 'paid',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_refund123',
+            'status'       => 'paid',
         ]);
 
         $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 10]);
@@ -130,7 +134,7 @@ class PaymentControllerTest extends TestCase
 
         $order->refresh();
         $this->assertEquals('refunded', $order->status);
-        $this->assertNotNull($order->refunded_at);
+        $this->assertDatabaseHas('order_payments', ['order_id' => $order->id, 'status' => 'refunded']);
 
         $dog->refresh();
         $this->assertEquals(0, $dog->credit_balance);

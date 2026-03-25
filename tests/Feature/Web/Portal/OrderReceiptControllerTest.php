@@ -4,6 +4,7 @@ namespace Tests\Feature\Web\Portal;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
@@ -61,11 +62,16 @@ class OrderReceiptControllerTest extends TestCase
     public function test_streams_pdf_for_paid_order(): void
     {
         $order = Order::factory()->create([
-            'tenant_id'    => $this->tenant->id,
-            'customer_id'  => $this->customer->id,
-            'package_id'   => $this->package->id,
-            'status'       => 'paid',
+            'tenant_id'   => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'package_id'  => $this->package->id,
+            'status'      => 'paid',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_abc123',
+            'status'       => 'paid',
+            'paid_at'      => now(),
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -85,11 +91,15 @@ class OrderReceiptControllerTest extends TestCase
     public function test_pdf_still_generated_when_stripe_returns_no_charge(): void
     {
         $order = Order::factory()->create([
-            'tenant_id'    => $this->tenant->id,
-            'customer_id'  => $this->customer->id,
-            'package_id'   => $this->package->id,
-            'status'       => 'paid',
+            'tenant_id'   => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'package_id'  => $this->package->id,
+            'status'      => 'paid',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_abc123',
+            'status'       => 'paid',
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -109,11 +119,15 @@ class OrderReceiptControllerTest extends TestCase
     {
         $otherCustomer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $order = Order::factory()->create([
-            'tenant_id'    => $this->tenant->id,
-            'customer_id'  => $otherCustomer->id,
-            'package_id'   => $this->package->id,
-            'status'       => 'paid',
+            'tenant_id'   => $this->tenant->id,
+            'customer_id' => $otherCustomer->id,
+            'package_id'  => $this->package->id,
+            'status'      => 'paid',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_other123',
+            'status'       => 'paid',
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -129,11 +143,14 @@ class OrderReceiptControllerTest extends TestCase
     public function test_returns_404_if_order_is_not_paid(): void
     {
         $order = Order::factory()->create([
-            'tenant_id'    => $this->tenant->id,
-            'customer_id'  => $this->customer->id,
-            'package_id'   => $this->package->id,
-            'status'       => 'pending',
-            'stripe_pi_id' => 'pi_abc123',
+            'tenant_id'   => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'package_id'  => $this->package->id,
+            'status'      => 'pending',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->pending()->create([
+            'stripe_pi_id' => null,
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -149,12 +166,13 @@ class OrderReceiptControllerTest extends TestCase
     public function test_returns_404_if_order_has_no_stripe_pi_id(): void
     {
         $order = Order::factory()->create([
-            'tenant_id'    => $this->tenant->id,
-            'customer_id'  => $this->customer->id,
-            'package_id'   => $this->package->id,
-            'status'       => 'paid',
-            'stripe_pi_id' => null,
+            'tenant_id'   => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'package_id'  => $this->package->id,
+            'status'      => 'paid',
         ]);
+
+        // No OrderPayment created — so no stripe_pi_id
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldNotReceive('retrieveChargeDetails');

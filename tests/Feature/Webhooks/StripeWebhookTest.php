@@ -5,6 +5,7 @@ namespace Tests\Feature\Webhooks;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Services\StripeService;
@@ -75,8 +76,12 @@ class StripeWebhookTest extends TestCase
             'customer_id' => $customer->id,
             'package_id' => $package->id,
             'status' => 'pending',
+        ]);
+
+        $payment = OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_abc123',
-            'paid_at' => null,
+            'status'       => 'pending',
+            'paid_at'      => null,
         ]);
 
         $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
@@ -90,7 +95,10 @@ class StripeWebhookTest extends TestCase
 
         $order->refresh();
         $this->assertEquals('paid', $order->status);
-        $this->assertNotNull($order->paid_at);
+
+        $payment->refresh();
+        $this->assertEquals('paid', $payment->status);
+        $this->assertNotNull($payment->paid_at);
 
         $dog->refresh();
         $this->assertEquals(5, $dog->credit_balance);
@@ -123,8 +131,12 @@ class StripeWebhookTest extends TestCase
             'customer_id' => $customer->id,
             'package_id' => $package->id,
             'status' => 'paid',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_paid123',
-            'paid_at' => now(),
+            'status'       => 'paid',
+            'paid_at'      => now(),
         ]);
 
         $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 5]);
@@ -153,6 +165,9 @@ class StripeWebhookTest extends TestCase
             'customer_id' => $customer->id,
             'package_id' => $package->id,
             'status' => 'pending',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->pending()->create([
             'stripe_pi_id' => 'pi_failed123',
         ]);
 
@@ -177,7 +192,11 @@ class StripeWebhookTest extends TestCase
             'customer_id' => $customer->id,
             'package_id' => $package->id,
             'status' => 'paid',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_dispute123',
+            'status'       => 'paid',
         ]);
 
         $event = $this->makeEvent('charge.dispute.created', [

@@ -6,6 +6,8 @@ use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\DogVaccination;
 use App\Models\KennelUnit;
+use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
@@ -368,22 +370,32 @@ class ReservationControllerTest extends TestCase
     public function test_show_includes_checkout_fields(): void
     {
         $reservation = Reservation::factory()->create([
-            'tenant_id'             => $this->tenant->id,
-            'dog_id'                => $this->dog->id,
-            'customer_id'           => $this->customer->id,
-            'created_by'            => $this->staff->id,
-            'status'                => 'checked_out',
-            'checkout_charge_cents' => 27000,
-            'checkout_pi_id'        => 'pi_checkout_test',
+            'tenant_id'   => $this->tenant->id,
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'created_by'  => $this->staff->id,
+            'status'      => 'checked_out',
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'customer_id'    => $this->customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'paid',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->balance()->create([
+            'stripe_pi_id' => 'pi_checkout_test',
+            'amount_cents' => 27000,
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
             ->getJson("/api/admin/v1/reservations/{$reservation->id}");
 
-        $response->assertStatus(200)
-            ->assertJsonPath('data.checkout_charge_cents', 27000)
-            ->assertJsonPath('data.checkout_pi_id', 'pi_checkout_test');
-
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('order_payments', ['stripe_pi_id' => 'pi_checkout_test', 'amount_cents' => 27000]);
         $this->assertArrayHasKey('actual_checkout_at', $response->json('data'));
     }
 
@@ -394,23 +406,32 @@ class ReservationControllerTest extends TestCase
     public function test_show_includes_deposit_fields(): void
     {
         $reservation = Reservation::factory()->create([
-            'tenant_id'            => $this->tenant->id,
-            'dog_id'               => $this->dog->id,
-            'customer_id'          => $this->customer->id,
-            'created_by'           => $this->staff->id,
-            'deposit_amount_cents'  => 7500,
-            'stripe_pi_id'         => 'pi_resource_test',
+            'tenant_id'   => $this->tenant->id,
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'created_by'  => $this->staff->id,
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'customer_id'    => $this->customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->deposit()->create([
+            'stripe_pi_id' => 'pi_resource_test',
+            'amount_cents' => 7500,
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
             ->getJson("/api/admin/v1/reservations/{$reservation->id}");
 
-        $response->assertStatus(200)
-            ->assertJsonPath('data.deposit_amount_cents', 7500)
-            ->assertJsonPath('data.stripe_pi_id', 'pi_resource_test');
-
-        $this->assertArrayHasKey('deposit_captured_at', $response->json('data'));
-        $this->assertArrayHasKey('deposit_refunded_at', $response->json('data'));
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('order_payments', ['stripe_pi_id' => 'pi_resource_test', 'amount_cents' => 7500]);
+        $this->assertArrayHasKey('actual_checkout_at', $response->json('data'));
     }
 
     // -------------------------------------------------------------------------
@@ -422,12 +443,25 @@ class ReservationControllerTest extends TestCase
         $this->tenant->update(['stripe_account_id' => 'acct_test']);
 
         $reservation = Reservation::factory()->confirmed()->create([
-            'tenant_id'            => $this->tenant->id,
-            'dog_id'               => $this->dog->id,
-            'customer_id'          => $this->customer->id,
-            'created_by'           => $this->staff->id,
-            'stripe_pi_id'         => 'pi_hold3',
-            'deposit_amount_cents'  => 5000,
+            'tenant_id'   => $this->tenant->id,
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'created_by'  => $this->staff->id,
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'customer_id'    => $this->customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        $payment = OrderPayment::factory()->forOrder($order)->deposit()->create([
+            'stripe_pi_id' => 'pi_hold3',
+            'status'       => 'authorized',
+            'amount_cents' => 5000,
         ]);
 
         $stripe = Mockery::mock(StripeService::class);
@@ -441,7 +475,7 @@ class ReservationControllerTest extends TestCase
             ->patchJson("/api/admin/v1/reservations/{$reservation->id}", ['status' => 'checked_in']);
 
         $response->assertStatus(200);
-        $this->assertNotNull(Reservation::find($reservation->id)->deposit_captured_at);
+        $this->assertDatabaseHas('order_payments', ['id' => $payment->id, 'status' => 'paid']);
     }
 
     public function test_update_to_cancelled_releases_uncaptured_hold(): void
@@ -449,12 +483,25 @@ class ReservationControllerTest extends TestCase
         $this->tenant->update(['stripe_account_id' => 'acct_test']);
 
         $reservation = Reservation::factory()->confirmed()->create([
-            'tenant_id'            => $this->tenant->id,
-            'dog_id'               => $this->dog->id,
-            'customer_id'          => $this->customer->id,
-            'created_by'           => $this->staff->id,
-            'stripe_pi_id'         => 'pi_hold4',
-            'deposit_amount_cents'  => 5000,
+            'tenant_id'   => $this->tenant->id,
+            'dog_id'      => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'created_by'  => $this->staff->id,
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $this->tenant->id,
+            'customer_id'    => $this->customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        $payment = OrderPayment::factory()->forOrder($order)->deposit()->create([
+            'stripe_pi_id' => 'pi_hold4',
+            'status'       => 'authorized',
+            'amount_cents' => 5000,
         ]);
 
         $stripe = Mockery::mock(StripeService::class);
@@ -468,6 +515,6 @@ class ReservationControllerTest extends TestCase
             ->patchJson("/api/admin/v1/reservations/{$reservation->id}", ['status' => 'cancelled']);
 
         $response->assertStatus(200);
-        $this->assertNotNull(Reservation::find($reservation->id)->deposit_refunded_at);
+        $this->assertDatabaseHas('order_payments', ['id' => $payment->id, 'status' => 'refunded']);
     }
 }

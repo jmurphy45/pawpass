@@ -4,6 +4,8 @@ namespace Tests\Feature\Webhooks;
 
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
@@ -47,13 +49,28 @@ class StripeDepositWebhookTest extends TestCase
         $dog = Dog::factory()->forCustomer($customer)->create();
 
         $reservation = Reservation::factory()->create([
-            'tenant_id'            => $tenant->id,
-            'dog_id'               => $dog->id,
-            'customer_id'          => $customer->id,
-            'created_by'           => User::factory()->create(['tenant_id' => $tenant->id])->id,
-            'status'               => 'pending',
-            'stripe_pi_id'         => 'pi_hold_webhook',
-            'deposit_amount_cents'  => 5000,
+            'tenant_id'   => $tenant->id,
+            'dog_id'      => $dog->id,
+            'customer_id' => $customer->id,
+            'created_by'  => User::factory()->create(['tenant_id' => $tenant->id])->id,
+            'status'      => 'pending',
+        ]);
+
+        // Create boarding order + deposit payment
+        $order = Order::factory()->create([
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_hold_webhook',
+            'type'         => 'deposit',
+            'status'       => 'pending',
+            'amount_cents' => 5000,
         ]);
 
         $event = $this->makeEvent('payment_intent.amount_capturable_updated', [
@@ -88,11 +105,27 @@ class StripeDepositWebhookTest extends TestCase
         $dog = Dog::factory()->forCustomer($customer)->create();
 
         $reservation = Reservation::factory()->confirmed()->create([
-            'tenant_id'    => $tenant->id,
-            'dog_id'       => $dog->id,
-            'customer_id'  => $customer->id,
-            'created_by'   => User::factory()->create(['tenant_id' => $tenant->id])->id,
+            'tenant_id'   => $tenant->id,
+            'dog_id'      => $dog->id,
+            'customer_id' => $customer->id,
+            'created_by'  => User::factory()->create(['tenant_id' => $tenant->id])->id,
+        ]);
+
+        // Create boarding order + deposit payment (already authorized)
+        $order = Order::factory()->create([
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'package_id'     => null,
+            'reservation_id' => $reservation->id,
+            'type'           => 'boarding',
+            'status'         => 'pending',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_hold_already_confirmed',
+            'type'         => 'deposit',
+            'status'       => 'authorized',
+            'amount_cents' => 5000,
         ]);
 
         $event = $this->makeEvent('payment_intent.amount_capturable_updated', [

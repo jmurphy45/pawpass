@@ -3,20 +3,22 @@
     <div class="space-y-6">
       <h1 class="text-2xl font-bold text-gray-900">Payments</h1>
       <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-        <div v-for="order in orders.data" :key="order.id" class="px-5 py-3 flex items-center justify-between">
+        <div v-for="payment in payments.data" :key="payment.id" class="px-5 py-3 flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-gray-900">{{ order.customer_name }}</p>
-            <p class="text-xs text-gray-500">{{ order.package_name }} · ${{ (order.amount_cents / 100).toFixed(2) }}</p>
-            <p class="text-xs text-gray-400 font-mono mt-0.5">Ref: {{ order.id }}</p>
-            <p v-if="order.stripe_pi_id" class="text-xs text-gray-400 font-mono">{{ order.stripe_pi_id }}</p>
+            <p class="text-sm font-medium text-gray-900">{{ payment.customer_name }}</p>
+            <p class="text-xs text-gray-500">{{ payment.description }} · ${{ (payment.amount_cents / 100).toFixed(2) }}</p>
+            <p class="text-xs text-gray-400 font-mono mt-0.5">Ref: {{ payment.id }}</p>
+            <p v-if="payment.stripe_pi_id" class="text-xs text-gray-400 font-mono">{{ payment.stripe_pi_id }}</p>
           </div>
           <div class="flex items-center gap-3">
+            <span v-if="payment.type === 'boarding'" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">boarding</span>
             <span class="text-xs px-2 py-0.5 rounded-full" :class="{
-              'bg-green-100 text-green-700': order.status === 'paid',
-              'bg-red-100 text-red-700': order.status === 'refunded',
-              'bg-gray-100 text-gray-600': !['paid', 'refunded'].includes(order.status),
-            }">{{ order.status }}</span>
-            <form v-if="order.status === 'paid'" @submit.prevent="refund(order.id)">
+              'bg-green-100 text-green-700': payment.status === 'paid',
+              'bg-red-100 text-red-700': payment.status === 'refunded',
+              'bg-yellow-100 text-yellow-700': payment.status === 'authorized',
+              'bg-gray-100 text-gray-600': !['paid', 'refunded', 'authorized'].includes(payment.status),
+            }">{{ payment.status }}</span>
+            <form v-if="payment.status === 'paid'" @submit.prevent="refund(payment.order_id)">
               <button type="submit" class="text-xs text-red-600 hover:underline">Refund</button>
             </form>
           </div>
@@ -31,7 +33,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm } from '@inertiajs/vue3';
 
 defineProps<{
-  orders: { data: Array<{ id: string; stripe_pi_id: string | null; customer_name: string | null; package_name: string | null; amount_cents: number; status: string; created_at: string }> };
+  payments: { data: Array<{ id: string; order_id: string; type: string; payment_type: string; stripe_pi_id: string | null; customer_name: string | null; description: string; amount_cents: number; status: string; created_at: string; refunded_at: string | null }> };
   filters: { status: string };
 }>();
 
