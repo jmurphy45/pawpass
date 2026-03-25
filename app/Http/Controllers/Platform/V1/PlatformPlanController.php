@@ -19,7 +19,7 @@ class PlatformPlanController extends Controller
         return PlatformPlanResource::collection($plans);
     }
 
-    public function store(Request $request): PlatformPlanResource
+    public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->validate([
             'slug'                => 'required|string|unique:platform_plans,slug',
@@ -37,7 +37,7 @@ class PlatformPlanController extends Controller
 
         $plan = PlatformPlan::create(array_merge($data, ['is_active' => true]));
 
-        return new PlatformPlanResource($plan->fresh());
+        return (new PlatformPlanResource($plan->fresh()))->response()->setStatusCode(201);
     }
 
     public function update(Request $request, string $id): PlatformPlanResource

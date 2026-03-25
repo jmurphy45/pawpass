@@ -20,7 +20,7 @@ class PackageController extends Controller
         return PackageResource::collection($packages);
     }
 
-    public function store(StorePackageRequest $request): PackageResource
+    public function store(StorePackageRequest $request): \Illuminate\Http\JsonResponse
     {
         $package = Package::create([
             'tenant_id'                 => app('current.tenant.id'),
@@ -35,7 +35,7 @@ class PackageController extends Controller
             'is_auto_replenish_eligible' => $request->boolean('is_auto_replenish_eligible', false),
         ]);
 
-        return new PackageResource($package->fresh());
+        return (new PackageResource($package->fresh()))->response()->setStatusCode(201);
     }
 
     public function update(UpdatePackageRequest $request, Package $package): PackageResource

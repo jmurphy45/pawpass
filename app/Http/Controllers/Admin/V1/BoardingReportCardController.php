@@ -20,8 +20,9 @@ class BoardingReportCardController extends Controller
         return BoardingReportCardResource::collection($cards);
     }
 
-    public function store(StoreBoardingReportCardRequest $request, Reservation $reservation): BoardingReportCardResource
+    public function store(StoreBoardingReportCardRequest $request, Reservation $reservation): \Illuminate\Http\JsonResponse
     {
+        $wasCreated = false;
         try {
             $card = BoardingReportCard::updateOrCreate(
                 [
@@ -34,6 +35,7 @@ class BoardingReportCardController extends Controller
                     'created_by' => auth()->id(),
                 ]
             );
+            $wasCreated = $card->wasRecentlyCreated;
         } catch (UniqueConstraintViolationException) {
             // Race condition fallback — retry as update
             $card = BoardingReportCard::where('reservation_id', $reservation->id)
@@ -42,7 +44,9 @@ class BoardingReportCardController extends Controller
             $card->update(['notes' => $request->notes]);
         }
 
-        return new BoardingReportCardResource($card->fresh());
+        return (new BoardingReportCardResource($card->fresh()))
+            ->response()
+            ->setStatusCode($wasCreated ? 201 : 200);
     }
 
     public function update(UpdateBoardingReportCardRequest $request, Reservation $reservation, BoardingReportCard $reportCard): BoardingReportCardResource
