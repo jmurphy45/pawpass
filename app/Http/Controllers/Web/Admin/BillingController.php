@@ -31,7 +31,8 @@ class BillingController extends Controller
 
         $tenant = Tenant::find(app('current.tenant.id'));
 
-        $plans = PlatformPlan::where('is_active', true)
+        $plans = PlatformPlan::with('features')
+            ->where('is_active', true)
             ->orderBy('sort_order')
             ->get()
             ->map(fn ($p) => [
@@ -40,7 +41,9 @@ class BillingController extends Controller
                 'description'          => $p->description,
                 'monthly_price_cents'  => $p->monthly_price_cents,
                 'annual_price_cents'   => $p->annual_price_cents,
-                'features'             => $p->features ?? [],
+                'features'             => $p->getRelation('features')->isNotEmpty()
+                    ? $p->getRelation('features')->sortBy('sort_order')->pluck('name')->values()->all()
+                    : collect($p->features ?? [])->map(fn ($s) => ucwords(str_replace('_', ' ', $s)))->all(),
                 'staff_limit'          => $p->staff_limit,
                 'sort_order'           => $p->sort_order,
             ])
