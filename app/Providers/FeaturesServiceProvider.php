@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\PlatformFeature;
 use App\Models\Tenant;
 use App\Services\PlanFeatureCache;
 use Illuminate\Support\ServiceProvider;
@@ -9,16 +10,25 @@ use Laravel\Pennant\Feature;
 
 class FeaturesServiceProvider extends ServiceProvider
 {
+    private const FALLBACK_FEATURES = [
+        'add_customers', 'add_dogs', 'customer_portal',
+        'email_notifications', 'basic_reporting',
+        'sms_notifications', 'financial_reports',
+        'weekly_daily_payouts', 'custom_branding', 'pwa',
+        'white_label', 'unlimited_staff', 'priority_support',
+        'recurring_checkout',
+    ];
+
     public function boot(): void
     {
-        $features = [
-            'add_customers', 'add_dogs', 'customer_portal',
-            'email_notifications', 'basic_reporting',
-            'sms_notifications', 'financial_reports',
-            'weekly_daily_payouts', 'custom_branding', 'pwa',
-            'white_label', 'unlimited_staff', 'priority_support',
-            'recurring_checkout',
-        ];
+        try {
+            $features = PlatformFeature::pluck('slug')->all();
+            if (empty($features)) {
+                $features = self::FALLBACK_FEATURES;
+            }
+        } catch (\Throwable) {
+            $features = self::FALLBACK_FEATURES;
+        }
 
         foreach ($features as $feature) {
             Feature::define($feature, fn (?Tenant $tenant) =>

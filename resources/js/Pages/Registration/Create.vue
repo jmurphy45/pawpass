@@ -63,11 +63,11 @@
             <ul class="mt-4 space-y-1">
               <li
                 v-for="feature in plan.features"
-                :key="feature"
+                :key="typeof feature === 'string' ? feature : feature.slug"
                 class="flex items-center gap-2 text-sm text-gray-600"
               >
                 <span class="text-green-500">✓</span>
-                {{ feature.replace(/_/g, ' ') }}
+                {{ typeof feature === 'string' ? feature.replace(/_/g, ' ') : feature.name }}
               </li>
             </ul>
             <button
@@ -217,7 +217,7 @@ const props = defineProps<{
     description: string | null
     monthly_price_cents: number
     annual_price_cents: number
-    features: string[]
+    features: Array<{ slug: string; name: string } | string>
     sort_order: number
   }>
   trialDays: number

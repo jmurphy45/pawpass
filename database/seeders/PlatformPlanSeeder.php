@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Jobs\SyncPlatformPlanToStripe;
+use App\Models\PlatformFeature;
 use App\Models\PlatformPlan;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -102,6 +103,10 @@ class PlatformPlanSeeder extends Seeder
                 ['slug' => $plan['slug']],
                 array_merge($plan, ['is_active' => true])
             );
+
+            // Sync feature pivot
+            $featureIds = PlatformFeature::whereIn('slug', $plan['features'])->pluck('id');
+            $model->features()->sync($featureIds);
 
             if ($stripeEnabled && $model->stripe_product_id === null) {
                 $this->command->info("  → Syncing to Stripe...");

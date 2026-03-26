@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\PlatformFeatureResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,7 +17,11 @@ class PlatformPlanResource extends JsonResource
             'description'         => $this->description,
             'monthly_price_cents' => $this->monthly_price_cents,
             'annual_price_cents'  => $this->annual_price_cents,
-            'features'                    => $this->features,
+            'features'                    => $this->when(
+                $this->relationLoaded('features'),
+                fn () => PlatformFeatureResource::collection($this->resource->getRelation('features')),
+                fn () => $this->features ?? []
+            ),
             'staff_limit'                 => $this->staff_limit,
             'sms_segment_quota'           => $this->sms_segment_quota,
             'sms_cost_per_segment_cents'  => $this->sms_cost_per_segment_cents,

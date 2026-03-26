@@ -165,6 +165,17 @@ class AutoReplenishService
             return;
         }
 
+        // Idempotency guard: skip if a pending auto-replenish order was created recently
+        $recentPending = Order::where('customer_id', $customer->id)
+            ->where('status', 'pending')
+            ->whereHas('orderDogs', fn ($q) => $q->where('dog_id', $dog->id))
+            ->where('created_at', '>=', now()->subMinutes(10))
+            ->exists();
+
+        if ($recentPending) {
+            return;
+        }
+
         $amountCents = (int) round((float) $package->price * 100);
         $feePct      = (float) ($tenant->platform_fee_pct ?? 5);
         $feeCents    = (int) round($amountCents * $feePct / 100);

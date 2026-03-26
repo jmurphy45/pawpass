@@ -17,7 +17,8 @@ class HomeController extends Controller
             Log::info('HomeController invoked on main domain', []);
         }
 
-        $plans = PlatformPlan::where('is_active', true)
+        $plans = PlatformPlan::with('features')
+            ->where('is_active', true)
             ->where('monthly_price_cents', '>', 0)
             ->orderBy('sort_order')
             ->get()
@@ -26,12 +27,19 @@ class HomeController extends Controller
         $midIndex = (int) floor(($plans->count() - 1) / 2);
 
         $mapped = $plans->map(function (PlatformPlan $plan, int $index) use ($midIndex) {
+            $relationFeatures = $plan->getRelation('features');
+            $features = $relationFeatures->isNotEmpty()
+                ? $relationFeatures->sortBy('sort_order')
+                    ->map(fn ($f) => ['slug' => $f->slug, 'name' => $f->name])
+                    ->values()
+                : collect($plan->features ?? [])->map(fn ($s) => ['slug' => $s, 'name' => ucwords(str_replace('_', ' ', $s))])->values();
+
             return [
                 'name'     => $plan->name,
                 'price'    => '$' . number_format($plan->monthly_price_cents / 100),
                 'featured' => $index === $midIndex,
                 'cta'      => 'Start free trial',
-                'features' => $plan->features ?? [],
+                'features' => $features,
             ];
         });
 

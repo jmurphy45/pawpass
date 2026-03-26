@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Customer;
+use App\Models\PlatformFeature;
 use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
@@ -22,11 +23,16 @@ class PlanGateMiddlewareTest extends TestCase
         $this->setUpJwt();
 
         PlatformPlan::factory()->create(['slug' => 'free', 'features' => [], 'staff_limit' => 1]);
-        PlatformPlan::factory()->create([
+        $starterFeatures = ['add_customers', 'add_dogs', 'customer_portal', 'email_notifications', 'basic_reporting'];
+        $starter = PlatformPlan::factory()->create([
             'slug'        => 'starter',
-            'features'    => ['add_customers', 'add_dogs', 'customer_portal', 'email_notifications', 'basic_reporting'],
+            'features'    => $starterFeatures,
             'staff_limit' => 5,
         ]);
+        $featureIds = collect($starterFeatures)->map(fn ($s) =>
+            PlatformFeature::firstOrCreate(['slug' => $s], ['name' => $s, 'sort_order' => 0])->id
+        );
+        $starter->features()->sync($featureIds);
     }
 
     protected function tearDown(): void

@@ -10,12 +10,25 @@ class PlanFeatureCache
 
     public function plan(string $slug): ?PlatformPlan
     {
-        return $this->plans[$slug] ??= PlatformPlan::where('slug', $slug)->first();
+        return $this->plans[$slug] ??= PlatformPlan::with('features')->where('slug', $slug)->first();
     }
 
     public function hasFeature(string $planSlug, string $feature): bool
     {
-        return (bool) $this->plan($planSlug)?->hasFeature($feature);
+        $plan = $this->plan($planSlug);
+
+        if ($plan === null) {
+            return false;
+        }
+
+        // If the pivot relationship is loaded and has records, use it
+        $relationFeatures = $plan->relationLoaded('features') ? $plan->getRelation('features') : null;
+        if ($relationFeatures !== null && $relationFeatures->isNotEmpty()) {
+            return $relationFeatures->contains('slug', $feature);
+        }
+
+        // Fall back to jsonb array (backward compat for tests that only set the jsonb column)
+        return in_array($feature, $plan->features ?? []);
     }
 
     public function staffLimit(string $planSlug): int

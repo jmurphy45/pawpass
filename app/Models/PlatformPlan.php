@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class PlatformPlan extends Model
 {
@@ -43,8 +44,17 @@ class PlatformPlan extends Model
         ];
     }
 
+    public function features(): BelongsToMany
+    {
+        return $this->belongsToMany(PlatformFeature::class, 'platform_plan_features', 'plan_id', 'feature_id');
+    }
+
     public function hasFeature(string $feature): bool
     {
+        if ($this->relationLoaded('features')) {
+            return $this->getRelation('features')->contains('slug', $feature);
+        }
+
         return in_array($feature, $this->features ?? []);
     }
 }

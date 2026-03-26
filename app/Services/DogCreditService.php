@@ -118,6 +118,17 @@ class DogCreditService
 
     private function dispatchCreditAlert(Dog $dog): void
     {
+        // Dogs with auto-replenish: dispatch job when empty, skip credit notifications entirely.
+        // The customer receives an auto_replenish.succeeded confirmation instead.
+        if ($dog->auto_replenish_enabled) {
+            if ($dog->credit_balance <= 0) {
+                ProcessAutoReplenishJob::dispatch($dog->id);
+            }
+
+            return;
+        }
+
+        // Non-auto-replenish: 24h notification dedup
         if ($dog->credits_alert_sent_at && $dog->credits_alert_sent_at->isAfter(now()->subHours(24))) {
             return;
         }
@@ -141,10 +152,6 @@ class DogCreditService
         app(NotificationService::class)->enqueueGrouped($type, $dog->tenant_id, $userId, $dog->id);
 
         $dog->update(['credits_alert_sent_at' => now()]);
-
-        if ($type === 'credits.empty' && $dog->auto_replenish_enabled) {
-            ProcessAutoReplenishJob::dispatch($dog->id);
-        }
     }
 
     public function removeAllOnRefund(Order $order, Dog $dog): void

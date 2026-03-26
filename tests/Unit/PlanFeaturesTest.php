@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\PlatformFeature;
 use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,11 +21,16 @@ class PlanFeaturesTest extends TestCase
 
     private function planFor(string $slug, array $features, int $staffLimit = 1): PlatformPlan
     {
-        return PlatformPlan::factory()->create([
+        $plan = PlatformPlan::factory()->create([
             'slug'        => $slug,
             'features'    => $features,
             'staff_limit' => $staffLimit,
         ]);
+        $featureIds = collect($features)->map(fn ($s) =>
+            PlatformFeature::firstOrCreate(['slug' => $s], ['name' => $s, 'sort_order' => 0])->id
+        );
+        $plan->features()->sync($featureIds);
+        return $plan;
     }
 
     private function tenantWithPlan(string $planSlug): Tenant

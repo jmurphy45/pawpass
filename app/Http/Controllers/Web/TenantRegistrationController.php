@@ -21,7 +21,24 @@ class TenantRegistrationController extends Controller
 
     public function create(): Response
     {
-        $plans = PlatformPlan::where('is_active', true)->where('slug', '!=', 'free')->orderBy('sort_order')->get();
+        $plans = PlatformPlan::with('features')
+            ->where('is_active', true)
+            ->where('slug', '!=', 'free')
+            ->orderBy('sort_order')
+            ->get()
+            ->map(function (PlatformPlan $plan) {
+                $relationFeatures = $plan->getRelation('features');
+                $features = $relationFeatures->isNotEmpty()
+                    ? $relationFeatures->sortBy('sort_order')
+                        ->map(fn ($f) => ['slug' => $f->slug, 'name' => $f->name])
+                        ->values()
+                    : collect($plan->features ?? [])->map(fn ($s) => ['slug' => $s, 'name' => ucwords(str_replace('_', ' ', $s))])->values();
+
+                return array_merge($plan->only([
+                    'id', 'slug', 'name', 'description',
+                    'monthly_price_cents', 'annual_price_cents', 'sort_order',
+                ]), ['features' => $features]);
+            });
 
         return Inertia::render('Registration/Create', [
             'plans'     => $plans,

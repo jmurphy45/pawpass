@@ -12,8 +12,10 @@ use App\Http\Controllers\Admin\V1\ReservationController;
 use App\Http\Controllers\Admin\V1\VaccinationRequirementController;
 use App\Http\Controllers\Admin\V1\BroadcastNotificationController;
 use App\Http\Controllers\Admin\V1\ReportController as AdminReportController;
+use App\Http\Controllers\Platform\V1\PlatformFeatureController;
 use App\Http\Controllers\Platform\V1\ReportController as PlatformReportController;
 use App\Http\Controllers\Platform\V1\PlatformPlanController;
+use App\Http\Controllers\Platform\V1\TenantFeatureOverrideController;
 use App\Http\Controllers\Public\V1\PlansController;
 use App\Http\Controllers\Public\V1\TenantRegistrationController as PublicTenantRegistrationController;
 use App\Http\Controllers\Admin\V1\CreditController;
@@ -279,6 +281,15 @@ Route::prefix('platform/v1')
         Route::post('plans', [PlatformPlanController::class, 'store']);
         Route::patch('plans/{id}', [PlatformPlanController::class, 'update']);
         Route::post('plans/{id}/sync-stripe', [PlatformPlanController::class, 'syncStripe']);
+
+        Route::get('features', [PlatformFeatureController::class, 'index']);
+        Route::post('features', [PlatformFeatureController::class, 'store']);
+        Route::patch('features/{id}', [PlatformFeatureController::class, 'update']);
+        Route::delete('features/{id}', [PlatformFeatureController::class, 'destroy']);
+
+        Route::get('tenants/{tenantId}/features', [TenantFeatureOverrideController::class, 'index']);
+        Route::post('tenants/{tenantId}/features', [TenantFeatureOverrideController::class, 'store']);
+        Route::delete('tenants/{tenantId}/features/{featureSlug}', [TenantFeatureOverrideController::class, 'destroy']);
 
         Route::get('reports/revenue', [PlatformReportController::class, 'revenue']);
         Route::get('reports/tenant-health', [PlatformReportController::class, 'tenantHealth']);

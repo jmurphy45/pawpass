@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Exceptions\InsufficientCreditsException;
+use App\Jobs\ProcessAutoReplenishJob;
 use App\Models\Attendance;
 use App\Models\CreditLedger;
 use App\Models\Customer;
@@ -15,6 +16,7 @@ use App\Models\User;
 use App\Services\DogCreditService;
 use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -665,5 +667,122 @@ class DogCreditServiceTest extends TestCase
         $this->service->expireCredits($dog);
 
         $this->assertDatabaseCount('credit_ledger', 0);
+    }
+
+    // -----------------------------------------------------------
+    // dispatchCreditAlert — auto-replenish behaviour
+    // -----------------------------------------------------------
+
+    public function test_auto_replenish_job_dispatched_when_credits_hit_zero(): void
+    {
+        Queue::fake();
+
+        $tenant = Tenant::factory()->create();
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package = Package::factory()->autoReplenish()->create(['tenant_id' => $tenant->id]);
+        $dog = Dog::factory()->create([
+            'tenant_id'                 => $tenant->id,
+            'customer_id'               => $customer->id,
+            'credit_balance'            => 1,
+            'auto_replenish_enabled'    => true,
+            'auto_replenish_package_id' => $package->id,
+        ]);
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id' => $tenant->id,
+            'dog_id'    => $dog->id,
+        ]);
+
+        $this->service->deductForAttendance($attendance);
+
+        Queue::assertPushed(ProcessAutoReplenishJob::class, fn ($job) => $job->dogId === $dog->id);
+    }
+
+    public function test_auto_replenish_job_dispatched_even_when_low_alert_already_sent_today(): void
+    {
+        Queue::fake();
+
+        $tenant = Tenant::factory()->create(['low_credit_threshold' => 2]);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package = Package::factory()->autoReplenish()->create(['tenant_id' => $tenant->id]);
+        $dog = Dog::factory()->create([
+            'tenant_id'                 => $tenant->id,
+            'customer_id'               => $customer->id,
+            'credit_balance'            => 1,
+            'auto_replenish_enabled'    => true,
+            'auto_replenish_package_id' => $package->id,
+            'credits_alert_sent_at'     => now()->subHour(), // alert sent recently
+        ]);
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id' => $tenant->id,
+            'dog_id'    => $dog->id,
+        ]);
+
+        $this->service->deductForAttendance($attendance);
+
+        Queue::assertPushed(ProcessAutoReplenishJob::class, fn ($job) => $job->dogId === $dog->id);
+    }
+
+    public function test_no_credits_low_notification_when_auto_replenish_enabled(): void
+    {
+        Queue::fake();
+
+        $notif = $this->mock(NotificationService::class);
+        $notif->shouldNotReceive('enqueueGrouped');
+
+        $tenant = Tenant::factory()->create(['low_credit_threshold' => 5]);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $customer->update(['user_id' => $user->id]);
+        $package = Package::factory()->autoReplenish()->create(['tenant_id' => $tenant->id]);
+        $dog = Dog::factory()->create([
+            'tenant_id'                 => $tenant->id,
+            'customer_id'               => $customer->id,
+            'credit_balance'            => 3, // above zero but below threshold
+            'auto_replenish_enabled'    => true,
+            'auto_replenish_package_id' => $package->id,
+        ]);
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id' => $tenant->id,
+            'dog_id'    => $dog->id,
+        ]);
+
+        $this->service->deductForAttendance($attendance);
+
+        // balance is now 2 (≤ threshold 5) — but no notification because auto-replenish handles it
+        Queue::assertNotPushed(ProcessAutoReplenishJob::class); // balance > 0, no job
+    }
+
+    public function test_no_credits_empty_notification_when_auto_replenish_enabled(): void
+    {
+        Queue::fake();
+
+        $notif = $this->mock(NotificationService::class);
+        $notif->shouldNotReceive('enqueueGrouped');
+
+        $tenant = Tenant::factory()->create();
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $customer->update(['user_id' => $user->id]);
+        $package = Package::factory()->autoReplenish()->create(['tenant_id' => $tenant->id]);
+        $dog = Dog::factory()->create([
+            'tenant_id'                 => $tenant->id,
+            'customer_id'               => $customer->id,
+            'credit_balance'            => 1,
+            'auto_replenish_enabled'    => true,
+            'auto_replenish_package_id' => $package->id,
+        ]);
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id' => $tenant->id,
+            'dog_id'    => $dog->id,
+        ]);
+
+        $this->service->deductForAttendance($attendance);
+
+        // balance hits 0 — job dispatched, but no credits.empty notification
+        Queue::assertPushed(ProcessAutoReplenishJob::class);
     }
 }

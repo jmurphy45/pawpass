@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Platform\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PlatformPlanResource;
 use App\Jobs\SyncPlatformPlanToStripe;
+use App\Models\PlatformFeature;
 use App\Models\PlatformPlan;
 use App\Services\PlanFeatureCache;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ class PlatformPlanController extends Controller
 {
     public function index(): AnonymousResourceCollection
     {
-        $plans = PlatformPlan::orderBy('sort_order')->get();
+        $plans = PlatformPlan::with('features')->orderBy('sort_order')->get();
 
         return PlatformPlanResource::collection($plans);
     }
@@ -37,7 +38,12 @@ class PlatformPlanController extends Controller
 
         $plan = PlatformPlan::create(array_merge($data, ['is_active' => true]));
 
-        return (new PlatformPlanResource($plan->fresh()))->response()->setStatusCode(201);
+        if (isset($data['features'])) {
+            $ids = PlatformFeature::whereIn('slug', $data['features'])->pluck('id');
+            $plan->features()->sync($ids);
+        }
+
+        return (new PlatformPlanResource($plan->fresh()->load('features')))->response()->setStatusCode(201);
     }
 
     public function update(Request $request, string $id): PlatformPlanResource
@@ -57,9 +63,14 @@ class PlatformPlanController extends Controller
 
         $plan->update($data);
 
+        if (isset($data['features'])) {
+            $ids = PlatformFeature::whereIn('slug', $data['features'])->pluck('id');
+            $plan->features()->sync($ids);
+        }
+
         app(PlanFeatureCache::class); // singleton — reset handled by container lifecycle
 
-        return new PlatformPlanResource($plan->fresh());
+        return new PlatformPlanResource($plan->fresh()->load('features'));
     }
 
     public function syncStripe(Request $request, string $id): PlatformPlanResource

@@ -411,11 +411,11 @@
             </div>
 
             <ul class="flex-1 space-y-3 mb-8">
-              <li v-for="feature in plan.features" :key="feature" class="flex items-start gap-2.5 text-sm text-gray-600">
+              <li v-for="feature in plan.features" :key="typeof feature === 'string' ? feature : feature.slug" class="flex items-start gap-2.5 text-sm text-gray-600">
                 <svg class="mt-0.5 h-4 w-4 flex-shrink-0" :class="plan.featured ? 'text-indigo-600' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                 </svg>
-                {{ feature }}
+                {{ typeof feature === 'string' ? feature : feature.name }}
               </li>
             </ul>
 
@@ -501,12 +501,17 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 
 // ── Props ─────────────────────────────────────────────────────
+interface PlanFeature {
+  slug: string
+  name: string
+}
+
 interface Plan {
   name: string
   price: string
   featured: boolean
   cta: string
-  features: string[]
+  features: Array<PlanFeature | string>
 }
 
 const props = defineProps<{ plans: Plan[] }>()
