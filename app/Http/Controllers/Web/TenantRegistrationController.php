@@ -21,7 +21,7 @@ class TenantRegistrationController extends Controller
 
     public function create(): Response
     {
-        $plans = PlatformPlan::where('is_active', true)->orderBy('sort_order')->get();
+        $plans = PlatformPlan::where('is_active', true)->where('slug', '!=', 'free')->orderBy('sort_order')->get();
 
         return Inertia::render('Registration/Create', [
             'plans'     => $plans,
