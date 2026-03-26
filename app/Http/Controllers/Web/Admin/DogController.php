@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\Package;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -115,29 +116,42 @@ class DogController extends Controller
 
     public function edit(Dog $dog): Response
     {
+        $eligiblePackages = Package::where('is_auto_replenish_eligible', true)
+            ->where('is_active', true)
+            ->get(['id', 'name', 'price', 'credit_count']);
+
         return Inertia::render('Admin/Dogs/Edit', [
             'dog' => [
-                'id'       => $dog->id,
-                'name'     => $dog->name,
-                'breed'    => $dog->breed,
-                'dob'      => $dog->dob?->toDateString(),
-                'sex'      => $dog->sex,
-                'vet_name' => $dog->vet_name,
-                'vet_phone' => $dog->vet_phone,
+                'id'                        => $dog->id,
+                'name'                      => $dog->name,
+                'breed'                     => $dog->breed,
+                'dob'                       => $dog->dob?->toDateString(),
+                'sex'                       => $dog->sex,
+                'vet_name'                  => $dog->vet_name,
+                'vet_phone'                 => $dog->vet_phone,
+                'auto_replenish_enabled'    => (bool) $dog->auto_replenish_enabled,
+                'auto_replenish_package_id' => $dog->auto_replenish_package_id,
             ],
+            'eligiblePackages' => $eligiblePackages,
         ]);
     }
 
     public function update(Request $request, Dog $dog): RedirectResponse
     {
         $validated = $request->validate([
-            'name'      => ['required', 'string', 'max:255'],
-            'breed'     => ['nullable', 'string', 'max:255'],
-            'dob'       => ['nullable', 'date'],
-            'sex'       => ['nullable', 'string', 'in:male,female,unknown'],
-            'vet_name'  => ['nullable', 'string', 'max:255'],
-            'vet_phone' => ['nullable', 'string', 'max:50'],
+            'name'                      => ['required', 'string', 'max:255'],
+            'breed'                     => ['nullable', 'string', 'max:255'],
+            'dob'                       => ['nullable', 'date'],
+            'sex'                       => ['nullable', 'string', 'in:male,female,unknown'],
+            'vet_name'                  => ['nullable', 'string', 'max:255'],
+            'vet_phone'                 => ['nullable', 'string', 'max:50'],
+            'auto_replenish_enabled'    => ['boolean'],
+            'auto_replenish_package_id' => ['nullable', 'string', 'exists:packages,id'],
         ]);
+
+        if (! ($validated['auto_replenish_enabled'] ?? false)) {
+            $validated['auto_replenish_package_id'] = null;
+        }
 
         $dog->update($validated);
 

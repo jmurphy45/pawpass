@@ -5,8 +5,11 @@ namespace Tests\Feature\Admin;
 use App\Models\Attendance;
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\AutoReplenishService;
+use App\Services\DogCreditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -315,6 +318,113 @@ class RosterControllerTest extends TestCase
             'credit_balance' => 0,
             'unlimited_pass_expires_at' => now()->subDay(),
         ]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/roster/checkin', [
+                'dogs' => [['dog_id' => $dog->id]],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.status', 'error')
+            ->assertJsonPath('data.0.error_code', 'ZERO_CREDITS_BLOCKED');
+    }
+
+    public function test_auto_replenish_charges_and_checks_in_when_blocking_disabled(): void
+    {
+        $this->tenant->update(['checkin_block_at_zero' => false]);
+
+        $package = Package::factory()->autoReplenish()->create([
+            'tenant_id' => $this->tenant->id,
+            'credit_count' => 5,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_payment_method_id' => 'pm_test_123',
+        ]);
+
+        $dog = Dog::factory()->forCustomer($customer)->create([
+            'credit_balance' => 0,
+            'auto_replenish_enabled' => true,
+            'auto_replenish_package_id' => $package->id,
+        ]);
+
+        $this->mock(AutoReplenishService::class)
+            ->shouldReceive('triggerSync')
+            ->once()
+            ->andReturnUsing(function () use ($dog) {
+                $dog->increment('credit_balance', 5);
+
+                return true;
+            });
+
+        $this->mock(DogCreditService::class)->shouldIgnoreMissing();
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/roster/checkin', [
+                'dogs' => [['dog_id' => $dog->id]],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.status', 'checked_in');
+
+        $this->assertDatabaseHas('attendances', ['dog_id' => $dog->id]);
+    }
+
+    public function test_auto_replenish_failure_blocks_checkin(): void
+    {
+        $this->tenant->update(['checkin_block_at_zero' => false]);
+
+        $package = Package::factory()->autoReplenish()->create([
+            'tenant_id' => $this->tenant->id,
+            'credit_count' => 5,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_payment_method_id' => 'pm_test_123',
+        ]);
+
+        $dog = Dog::factory()->forCustomer($customer)->create([
+            'credit_balance' => 0,
+            'auto_replenish_enabled' => true,
+            'auto_replenish_package_id' => $package->id,
+        ]);
+
+        $this->mock(AutoReplenishService::class)
+            ->shouldReceive('triggerSync')
+            ->once()
+            ->andReturn(false);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/roster/checkin', [
+                'dogs' => [['dog_id' => $dog->id]],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.status', 'error')
+            ->assertJsonPath('data.0.error_code', 'AUTO_REPLENISH_FAILED');
+
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_auto_replenish_skipped_when_blocking_enabled(): void
+    {
+        // blocking is true by default in this test class setUp
+        $package = Package::factory()->autoReplenish()->create([
+            'tenant_id' => $this->tenant->id,
+            'credit_count' => 5,
+        ]);
+
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create([
+            'credit_balance' => 0,
+            'auto_replenish_enabled' => true,
+            'auto_replenish_package_id' => $package->id,
+        ]);
+
+        $autoReplenish = $this->mock(AutoReplenishService::class);
+        $autoReplenish->shouldNotReceive('triggerSync');
 
         $response = $this->withHeaders($this->authHeaders())
             ->postJson('/api/admin/v1/roster/checkin', [
