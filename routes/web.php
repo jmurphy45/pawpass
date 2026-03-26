@@ -18,6 +18,7 @@ use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController;
 use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController;
+use App\Http\Controllers\Web\Admin\VaccinationRequirementController as AdminVaccinationRequirementController;
 use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
 use App\Http\Controllers\Web\Portal\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
@@ -77,6 +78,8 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/dogs/{dog}', [AdminDogController::class, 'show'])->name('admin.dogs.show');
         Route::get('/dogs/{dog}/edit', [AdminDogController::class, 'edit'])->name('admin.dogs.edit');
         Route::patch('/dogs/{dog}', [AdminDogController::class, 'update'])->name('admin.dogs.update');
+        Route::post('/dogs/{dog}/vaccinations', [AdminDogController::class, 'storeVaccination'])->name('admin.dogs.vaccinations.store');
+        Route::delete('/dogs/{dog}/vaccinations/{vaccination}', [AdminDogController::class, 'destroyVaccination'])->name('admin.dogs.vaccinations.destroy');
 
         // Boarding
         Route::get('/boarding/reservations', [AdminBoardingController::class, 'reservations'])->name('admin.boarding.reservations');
@@ -131,6 +134,11 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/reports/customers', [AdminReportController::class, 'customers'])->name('admin.reports.customers');
         Route::get('/reports/attendance', [AdminReportController::class, 'attendance'])->name('admin.reports.attendance');
         Route::get('/reports/credit-status', [AdminReportController::class, 'creditStatus'])->name('admin.reports.credit-status');
+
+        // Vaccination Requirements
+        Route::get('/vaccination-requirements', [AdminVaccinationRequirementController::class, 'index'])->name('admin.vaccination-requirements.index');
+        Route::post('/vaccination-requirements', [AdminVaccinationRequirementController::class, 'store'])->name('admin.vaccination-requirements.store');
+        Route::delete('/vaccination-requirements/{vaccinationRequirement}', [AdminVaccinationRequirementController::class, 'destroy'])->name('admin.vaccination-requirements.destroy');
 
         // Services (Add-on type catalog)
         Route::get('/services', [AdminServicesController::class, 'index'])->name('admin.services.index');

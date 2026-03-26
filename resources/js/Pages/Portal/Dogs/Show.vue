@@ -69,6 +69,45 @@
         </div>
       </div>
 
+      <!-- Vaccinations -->
+      <div v-if="vaccinations.length > 0 || true">
+        <h2 class="text-base font-semibold text-text-body mb-3">Vaccinations</h2>
+        <div class="card divide-y divide-border-warm">
+          <div v-if="vaccinations.length === 0" class="px-4 py-4 text-sm text-text-muted text-center">
+            No vaccination records on file.
+          </div>
+          <div
+            v-for="v in vaccinations"
+            :key="v.id"
+            class="px-4 py-3 flex items-start justify-between gap-3"
+          >
+            <div class="flex items-start gap-2.5 min-w-0">
+              <span
+                class="mt-1 h-2 w-2 rounded-full shrink-0"
+                :class="v.is_valid ? 'bg-green-500' : 'bg-red-400'"
+              />
+              <div class="min-w-0">
+                <p class="font-medium text-text-body text-sm">{{ v.vaccine_name }}</p>
+                <p class="text-xs text-text-muted mt-0.5">
+                  Given {{ formatDate(v.administered_at) }}
+                  <template v-if="v.expires_at">
+                    ·
+                    <span :class="isExpiringSoon(v.expires_at) && v.is_valid ? 'text-amber-600' : ''">
+                      Expires {{ formatDate(v.expires_at) }}
+                    </span>
+                  </template>
+                </p>
+              </div>
+            </div>
+            <span
+              class="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full"
+              :class="v.is_valid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+            >{{ v.is_valid ? 'Valid' : 'Expired' }}</span>
+          </div>
+        </div>
+        <p class="text-xs text-text-muted mt-2">To update vaccination records, contact us directly.</p>
+      </div>
+
       <!-- Recurring Plans -->
       <div v-if="subscriptions.length > 0">
         <h2 class="text-base font-semibold text-text-body mb-3">Recurring Plans</h2>
@@ -180,10 +219,19 @@ interface Subscription {
   package: { id: string; name: string };
 }
 
+interface Vaccination {
+  id: string;
+  vaccine_name: string;
+  administered_at: string;
+  expires_at: string | null;
+  is_valid: boolean;
+}
+
 const props = defineProps<{
   dog: DogDetail;
   subscriptions: Subscription[];
   ledger: PaginatedResponse<CreditLedger>;
+  vaccinations: Vaccination[];
 }>();
 
 const cancelling = ref<string | null>(null);
@@ -205,6 +253,11 @@ const accentColor = computed(() => page.props.tenant?.primary_color ?? '#4f46e5'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isExpiringSoon(iso: string): boolean {
+  const ms = new Date(iso).getTime() - Date.now();
+  return ms > 0 && ms < 30 * 24 * 60 * 60 * 1000;
 }
 
 function formatType(type: string) {

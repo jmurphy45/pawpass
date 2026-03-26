@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\DogVaccination;
 use App\Models\Package;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -96,6 +97,16 @@ class DogController extends Controller
             'checked_out_at' => $a->checked_out_at?->toIso8601String(),
         ]);
 
+        $vaccinations = $dog->vaccinations()->orderByDesc('administered_at')->get()->map(fn ($v) => [
+            'id'              => $v->id,
+            'vaccine_name'    => $v->vaccine_name,
+            'administered_at' => $v->administered_at->toDateString(),
+            'expires_at'      => $v->expires_at?->toDateString(),
+            'administered_by' => $v->administered_by,
+            'notes'           => $v->notes,
+            'is_valid'        => $v->isValid(),
+        ]);
+
         return Inertia::render('Admin/Dogs/Show', [
             'dog' => [
                 'id'             => $dog->id,
@@ -109,8 +120,9 @@ class DogController extends Controller
                 'customer_id'    => $dog->customer_id,
                 'customer_name'  => $dog->customer?->name,
             ],
-            'ledger'     => $ledger,
-            'attendance' => $attendance,
+            'ledger'       => $ledger,
+            'attendance'   => $attendance,
+            'vaccinations' => $vaccinations,
         ]);
     }
 
@@ -157,5 +169,35 @@ class DogController extends Controller
 
         return redirect()->route('admin.dogs.show', $dog)
             ->with('success', 'Dog updated successfully.');
+    }
+
+    public function storeVaccination(Request $request, Dog $dog): RedirectResponse
+    {
+        $validated = $request->validate([
+            'vaccine_name'    => ['required', 'string', 'max:255'],
+            'administered_at' => ['required', 'date'],
+            'expires_at'      => ['nullable', 'date', 'after:administered_at'],
+            'administered_by' => ['nullable', 'string', 'max:255'],
+            'notes'           => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        DogVaccination::create([
+            'tenant_id' => app('current.tenant.id'),
+            'dog_id'    => $dog->id,
+            ...$validated,
+        ]);
+
+        return redirect()->route('admin.dogs.show', $dog)
+            ->with('success', 'Vaccination record added.');
+    }
+
+    public function destroyVaccination(Dog $dog, DogVaccination $vaccination): RedirectResponse
+    {
+        abort_unless($vaccination->dog_id === $dog->id, 404);
+
+        $vaccination->delete();
+
+        return redirect()->route('admin.dogs.show', $dog)
+            ->with('success', 'Vaccination record removed.');
     }
 }

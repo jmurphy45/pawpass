@@ -4,6 +4,7 @@ namespace Tests\Feature\Web\Admin;
 
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\DogVaccination;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
@@ -182,6 +183,84 @@ class DogControllerTest extends TestCase
         $this->actingAs($this->staff);
 
         $response = $this->get("/admin/dogs/{$otherDog->id}");
+
+        $response->assertStatus(404);
+    }
+
+    public function test_show_includes_vaccinations(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create();
+        DogVaccination::factory()->create(['tenant_id' => $this->tenant->id, 'dog_id' => $dog->id, 'vaccine_name' => 'Rabies']);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->get("/admin/dogs/{$dog->id}");
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Dogs/Show')
+            ->has('vaccinations', 1)
+            ->where('vaccinations.0.vaccine_name', 'Rabies')
+        );
+    }
+
+    public function test_store_vaccination_creates_record(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create();
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post("/admin/dogs/{$dog->id}/vaccinations", [
+            'vaccine_name'    => 'Bordetella',
+            'administered_at' => '2026-01-15',
+            'expires_at'      => '2027-01-15',
+        ]);
+
+        $response->assertRedirect(route('admin.dogs.show', $dog));
+        $this->assertDatabaseHas('dog_vaccinations', [
+            'dog_id'       => $dog->id,
+            'tenant_id'    => $this->tenant->id,
+            'vaccine_name' => 'Bordetella',
+        ]);
+    }
+
+    public function test_store_vaccination_validates_required_fields(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create();
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post("/admin/dogs/{$dog->id}/vaccinations", []);
+
+        $response->assertSessionHasErrors(['vaccine_name', 'administered_at']);
+    }
+
+    public function test_destroy_vaccination_deletes_record(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create();
+        $vaccination = DogVaccination::factory()->create(['tenant_id' => $this->tenant->id, 'dog_id' => $dog->id]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->delete("/admin/dogs/{$dog->id}/vaccinations/{$vaccination->id}");
+
+        $response->assertRedirect(route('admin.dogs.show', $dog));
+        $this->assertDatabaseMissing('dog_vaccinations', ['id' => $vaccination->id]);
+    }
+
+    public function test_destroy_vaccination_returns_404_for_wrong_dog(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create();
+        $otherDog = Dog::factory()->forCustomer($customer)->create();
+        $vaccination = DogVaccination::factory()->create(['tenant_id' => $this->tenant->id, 'dog_id' => $otherDog->id]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->delete("/admin/dogs/{$dog->id}/vaccinations/{$vaccination->id}");
 
         $response->assertStatus(404);
     }

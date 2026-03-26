@@ -67,6 +67,14 @@ class DogController extends Controller
             ->orderByDesc('created_at')
             ->paginate(20);
 
+        $vaccinations = $dog->vaccinations()->orderByDesc('administered_at')->get()->map(fn ($v) => [
+            'id'              => $v->id,
+            'vaccine_name'    => $v->vaccine_name,
+            'administered_at' => $v->administered_at->toDateString(),
+            'expires_at'      => $v->expires_at?->toDateString(),
+            'is_valid'        => $v->isValid(),
+        ]);
+
         return Inertia::render('Portal/Dogs/Show', [
             'dog' => [
                 'id'             => $dog->id,
@@ -78,6 +86,7 @@ class DogController extends Controller
                 'credits_expire_at' => $dog->credits_expire_at?->toIso8601String(),
                 'unlimited_pass_expires_at' => $dog->unlimited_pass_expires_at?->toIso8601String(),
             ],
+            'vaccinations' => $vaccinations,
             'subscriptions' => $dog->subscriptions()
                 ->where('status', 'active')
                 ->with('package')
