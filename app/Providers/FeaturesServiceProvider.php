@@ -16,7 +16,9 @@ class FeaturesServiceProvider extends ServiceProvider
         'sms_notifications', 'financial_reports',
         'weekly_daily_payouts', 'custom_branding', 'pwa',
         'white_label', 'unlimited_staff', 'priority_support',
-        'recurring_checkout',
+        'recurring_checkout', 'vaccination_management',
+        'advanced_credit_ops', 'boarding', 'addon_services',
+        'broadcast_notifications',
     ];
 
     public function boot(): void

@@ -37,7 +37,7 @@ class BoardingControllerTest extends TestCase
     {
         parent::setUp();
 
-        $this->tenant = Tenant::factory()->create(['slug' => 'boarding-web', 'status' => 'active', 'plan' => 'starter']);
+        $this->tenant = Tenant::factory()->create(['slug' => 'boarding-web', 'status' => 'active', 'plan' => 'pro']);
         URL::forceRootUrl('http://boarding-web.pawpass.com');
 
         $this->staff    = User::factory()->staff()->create(['tenant_id' => $this->tenant->id, 'status' => 'active']);

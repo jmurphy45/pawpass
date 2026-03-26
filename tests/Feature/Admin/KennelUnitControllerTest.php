@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\KennelUnit;
 use App\Models\Reservation;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,7 +27,9 @@ class KennelUnitControllerTest extends TestCase
         parent::setUp();
         $this->setUpJwt();
 
-        $this->tenant = Tenant::factory()->create(['slug' => 'kennelunit-test', 'status' => 'active', 'plan' => 'starter']);
+        PlatformPlan::factory()->create(['slug' => 'pro', 'features' => ['boarding']]);
+
+        $this->tenant = Tenant::factory()->create(['slug' => 'kennelunit-test', 'status' => 'active', 'plan' => 'pro']);
         URL::forceRootUrl('http://kennelunit-test.pawpass.com');
 
         $this->staff = User::factory()->create(['tenant_id' => $this->tenant->id, 'role' => 'staff']);

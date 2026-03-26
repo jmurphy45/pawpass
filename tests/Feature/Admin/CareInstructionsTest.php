@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Reservation;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,7 +28,9 @@ class CareInstructionsTest extends TestCase
         parent::setUp();
         $this->setUpJwt();
 
-        $this->tenant = Tenant::factory()->create(['slug' => 'care-test', 'status' => 'active', 'plan' => 'starter']);
+        PlatformPlan::factory()->create(['slug' => 'pro', 'features' => ['boarding']]);
+
+        $this->tenant = Tenant::factory()->create(['slug' => 'care-test', 'status' => 'active', 'plan' => 'pro']);
         URL::forceRootUrl('http://care-test.pawpass.com');
 
         $this->staff = User::factory()->create(['tenant_id' => $this->tenant->id, 'role' => 'staff']);

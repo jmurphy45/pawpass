@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VaccinationRequirement;
@@ -24,6 +25,8 @@ class VaccinationRequirementControllerTest extends TestCase
     {
         parent::setUp();
         $this->setUpJwt();
+
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['vaccination_management']]);
 
         $this->tenant = Tenant::factory()->create(['slug' => 'vaxreq-test', 'status' => 'active', 'plan' => 'starter']);
         URL::forceRootUrl('http://vaxreq-test.pawpass.com');

@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,7 +29,9 @@ class CreditControllerTest extends TestCase
         parent::setUp();
         $this->setUpJwt();
 
-        $this->tenant = Tenant::factory()->create(['slug' => 'creditadmin', 'status' => 'active']);
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['advanced_credit_ops']]);
+
+        $this->tenant = Tenant::factory()->create(['slug' => 'creditadmin', 'status' => 'active', 'plan' => 'starter']);
         URL::forceRootUrl('http://creditadmin.pawpass.com');
 
         $this->staff = User::factory()->create([
