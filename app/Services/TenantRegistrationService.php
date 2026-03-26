@@ -18,6 +18,7 @@ class TenantRegistrationService
 {
     public function __construct(
         private readonly StripeBillingService $billing,
+        private readonly NotificationService $notifications,
     ) {}
 
     public function register(array $validated): array
@@ -44,7 +45,9 @@ class TenantRegistrationService
         Log::info('registration.stripe_subscription_created', ['sub_id' => $stripeSub->id]);
 
         // 3: All Stripe calls succeeded — now persist everything in one transaction
-        [$tenant, $user] = DB::transaction(function () use ($validated, $customerId, $stripeSub, $trialDays, $tenantId) {
+        $token = Str::random(64);
+
+        [$tenant, $user] = DB::transaction(function () use ($validated, $customerId, $stripeSub, $trialDays, $tenantId, $token) {
             $tenant = Tenant::create([
                 'id'                            => $tenantId,
                 'name'                          => $validated['business_name'],
@@ -59,12 +62,14 @@ class TenantRegistrationService
             ]);
 
             $user = User::create([
-                'tenant_id' => $tenant->id,
-                'name'      => $validated['owner_name'],
-                'email'     => $validated['email'],
-                'password'  => Hash::make($validated['password']),
-                'role'      => 'business_owner',
-                'status'    => 'active',
+                'tenant_id'               => $tenant->id,
+                'name'                    => $validated['owner_name'],
+                'email'                   => $validated['email'],
+                'password'                => Hash::make($validated['password']),
+                'role'                    => 'business_owner',
+                'status'                  => 'active',
+                'email_verify_token'      => $token,
+                'email_verify_expires_at' => now()->addHours(24),
             ]);
 
             $tenant->update(['owner_user_id' => $user->id]);
@@ -83,6 +88,13 @@ class TenantRegistrationService
         });
 
         ProvisionStripeConnectAccountJob::dispatch($tenant);
+
+        $verifyUrl = 'https://'.$tenant->slug.'.'.config('app.domain').'/admin/verify-email?token='.$token;
+
+        $this->notifications->dispatch('auth.verify_email', $tenant->id, $user->id, [
+            'name'       => $user->name,
+            'verify_url' => $verifyUrl,
+        ]);
 
         $accessToken = app(JwtService::class)->issue($user);
 

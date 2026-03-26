@@ -4,6 +4,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Web\TenantRegistrationController;
 use App\Http\Controllers\Web\Admin\Auth\AcceptInviteController;
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
+use App\Http\Controllers\Web\Admin\VerifyEmailController as AdminVerifyEmailController;
 use App\Http\Controllers\Web\Admin\Auth\LogoutController as AdminLogoutController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\CustomerController as AdminCustomerController;
@@ -53,6 +54,8 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
 
         Route::get('/invite/{token}', [AcceptInviteController::class, 'show'])->name('admin.invite.show');
         Route::post('/invite/{token}', [AcceptInviteController::class, 'store'])->name('admin.invite.store');
+
+        Route::get('/verify-email', [AdminVerifyEmailController::class, 'show'])->name('admin.verify-email');
     });
 
     // Authenticated staff routes
