@@ -7,13 +7,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\RegisterRequest;
 use App\Models\Customer;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class RegisterController extends Controller
 {
-    public function __construct(private JwtService $jwt) {}
+    public function __construct(
+        private JwtService $jwt,
+        private NotificationService $notifications,
+    ) {}
 
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -29,7 +34,9 @@ class RegisterController extends Controller
             ]);
         }
 
-        $user = DB::transaction(function () use ($request, $tenantId) {
+        $token = Str::random(64);
+
+        $user = DB::transaction(function () use ($request, $tenantId, $token) {
             $customer = Customer::create([
                 'tenant_id' => $tenantId,
                 'name' => $request->name,
@@ -44,8 +51,9 @@ class RegisterController extends Controller
                 'email' => $request->email,
                 'password' => $request->password,
                 'role' => 'customer',
-                'status' => 'active',
-                'email_verified_at' => now(),
+                'status' => 'pending_verification',
+                'email_verify_token' => $token,
+                'email_verify_expires_at' => now()->addHours(24),
             ]);
 
             $customer->update(['user_id' => $user->id]);
@@ -53,12 +61,13 @@ class RegisterController extends Controller
             return $user;
         });
 
-        return response()->json([
-            'data' => [
-                'access_token' => $this->jwt->issue($user),
-                'refresh_token' => $this->jwt->issueRefreshToken($user),
-                'expires_in' => 900,
-            ],
+        $this->notifications->dispatch('auth.verify_email', $tenantId, $user->id, [
+            'name' => $user->name,
+            'verify_url' => url('/my/verify-email?token=' . $token),
         ]);
+
+        return response()->json([
+            'data' => ['message' => 'Registration successful. Please check your email to verify your account.'],
+        ], 202);
     }
 }

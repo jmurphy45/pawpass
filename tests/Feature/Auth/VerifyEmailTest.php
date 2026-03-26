@@ -4,8 +4,10 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Mockery;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithJwt;
 
@@ -24,13 +26,16 @@ class VerifyEmailTest extends TestCase
         URL::forceRootUrl('http://verifytest.pawpass.com');
     }
 
-    public function test_valid_token_verifies_email(): void
+    public function test_valid_token_verifies_email_and_returns_tokens(): void
     {
+        $this->mock(NotificationService::class)->shouldIgnoreMissing();
+
         $user = User::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'email_verify_token' => 'valid-token-123',
+            'tenant_id'              => $this->tenant->id,
+            'email_verify_token'     => 'valid-token-123',
             'email_verify_expires_at' => now()->addHour(),
-            'email_verified_at' => null,
+            'email_verified_at'      => null,
+            'status'                 => 'pending_verification',
         ]);
 
         $response = $this->postJson('/api/portal/v1/auth/verify-email', [
@@ -38,11 +43,36 @@ class VerifyEmailTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.message', 'Email verified.');
+            ->assertJsonStructure(['data' => ['access_token', 'refresh_token', 'expires_in']]);
 
-        $this->assertNotNull($user->fresh()->email_verified_at);
-        $this->assertNull($user->fresh()->email_verify_token);
-        $this->assertNull($user->fresh()->email_verify_expires_at);
+        $fresh = $user->fresh();
+        $this->assertNotNull($fresh->email_verified_at);
+        $this->assertNull($fresh->email_verify_token);
+        $this->assertNull($fresh->email_verify_expires_at);
+        $this->assertSame('active', $fresh->status);
+    }
+
+    public function test_valid_token_dispatches_registration_confirmed_notification(): void
+    {
+        $notificationService = $this->mock(NotificationService::class);
+        $notificationService->shouldReceive('dispatch')
+            ->once()
+            ->with(
+                'auth.registration_confirmed',
+                $this->tenant->id,
+                Mockery::any(),
+                Mockery::on(fn ($d) => isset($d['login_url']) && isset($d['name']))
+            );
+
+        User::factory()->create([
+            'tenant_id'              => $this->tenant->id,
+            'email_verify_token'     => 'confirm-token',
+            'email_verify_expires_at' => now()->addHour(),
+            'email_verified_at'      => null,
+            'status'                 => 'pending_verification',
+        ]);
+
+        $this->postJson('/api/portal/v1/auth/verify-email', ['token' => 'confirm-token']);
     }
 
     public function test_expired_token_returns_422(): void

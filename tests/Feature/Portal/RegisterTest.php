@@ -5,6 +5,7 @@ namespace Tests\Feature\Portal;
 use App\Models\Customer;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -24,26 +25,27 @@ class RegisterTest extends TestCase
         URL::forceRootUrl('http://regtest.pawpass.com');
     }
 
-    public function test_successful_registration_returns_tokens(): void
+    public function test_successful_registration_returns_202_and_message(): void
     {
+        $this->mock(NotificationService::class)->shouldIgnoreMissing();
+
         $response = $this->postJson('/api/portal/v1/auth/register', [
             'name' => 'Jane Doe',
             'email' => 'jane@example.com',
             'password' => 'secret123',
         ]);
 
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => ['access_token', 'refresh_token', 'expires_in'],
-            ]);
+        $response->assertStatus(202)
+            ->assertJsonPath('data.message', 'Registration successful. Please check your email to verify your account.');
 
-        $this->assertSame(900, $response->json('data.expires_in'));
-        $this->assertDatabaseHas('users', ['email' => 'jane@example.com', 'tenant_id' => $this->tenant->id]);
+        $this->assertDatabaseHas('users', ['email' => 'jane@example.com', 'tenant_id' => $this->tenant->id, 'status' => 'pending_verification']);
         $this->assertDatabaseHas('customers', ['email' => 'jane@example.com', 'tenant_id' => $this->tenant->id]);
     }
 
     public function test_registration_with_phone_stores_phone(): void
     {
+        $this->mock(NotificationService::class)->shouldIgnoreMissing();
+
         $response = $this->postJson('/api/portal/v1/auth/register', [
             'name' => 'Jane Doe',
             'email' => 'jane2@example.com',
@@ -51,7 +53,7 @@ class RegisterTest extends TestCase
             'phone' => '555-1234',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(202);
         $this->assertDatabaseHas('customers', ['phone' => '555-1234']);
     }
 
@@ -74,6 +76,8 @@ class RegisterTest extends TestCase
 
     public function test_same_email_on_different_tenant_succeeds(): void
     {
+        $this->mock(NotificationService::class)->shouldIgnoreMissing();
+
         $otherTenant = Tenant::factory()->create(['slug' => 'othertenant', 'status' => 'active']);
         User::factory()->create([
             'tenant_id' => $otherTenant->id,
@@ -86,7 +90,7 @@ class RegisterTest extends TestCase
             'password' => 'secret123',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(202);
     }
 
     public function test_missing_required_fields_returns_422(): void
@@ -111,11 +115,13 @@ class RegisterTest extends TestCase
 
     public function test_user_and_customer_are_linked(): void
     {
+        $this->mock(NotificationService::class)->shouldIgnoreMissing();
+
         $this->postJson('/api/portal/v1/auth/register', [
             'name' => 'Link Test',
             'email' => 'link@example.com',
             'password' => 'secret123',
-        ])->assertStatus(200);
+        ])->assertStatus(202);
 
         $user = User::where('email', 'link@example.com')->first();
         $customer = Customer::where('email', 'link@example.com')->first();

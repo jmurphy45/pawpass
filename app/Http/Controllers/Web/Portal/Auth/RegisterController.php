@@ -6,19 +6,23 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\NotificationService;
 use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RegisterController extends Controller
 {
-    public function __construct(private readonly StripeService $stripe) {}
+    public function __construct(
+        private readonly StripeService $stripe,
+        private readonly NotificationService $notifications,
+    ) {}
 
     public function show(): Response
     {
@@ -46,9 +50,10 @@ class RegisterController extends Controller
             ]);
         }
 
+        $token = Str::random(64);
         $customer = null;
 
-        $user = DB::transaction(function () use ($validated, $tenantId, &$customer) {
+        $user = DB::transaction(function () use ($validated, $tenantId, $token, &$customer) {
             $customer = Customer::create([
                 'tenant_id' => $tenantId,
                 'name'      => $validated['name'],
@@ -57,15 +62,16 @@ class RegisterController extends Controller
             ]);
 
             $user = User::create([
-                'tenant_id'         => $tenantId,
-                'customer_id'       => $customer->id,
-                'name'              => $validated['name'],
-                'email'             => $validated['email'],
-                'password'          => $validated['password'],
-                'phone'             => $validated['phone'] ?? null,
-                'role'              => 'customer',
-                'status'            => 'active',
-                'email_verified_at' => now(),
+                'tenant_id'              => $tenantId,
+                'customer_id'            => $customer->id,
+                'name'                   => $validated['name'],
+                'email'                  => $validated['email'],
+                'password'               => $validated['password'],
+                'phone'                  => $validated['phone'] ?? null,
+                'role'                   => 'customer',
+                'status'                 => 'pending_verification',
+                'email_verify_token'     => $token,
+                'email_verify_expires_at' => now()->addHours(24),
             ]);
 
             $customer->update(['user_id' => $user->id]);
@@ -90,9 +96,12 @@ class RegisterController extends Controller
             }
         }
 
-        Auth::login($user);
-        $request->session()->regenerate();
+        $this->notifications->dispatch('auth.verify_email', $tenantId, $user->id, [
+            'name' => $user->name,
+            'verify_url' => url('/my/verify-email?token=' . $token),
+        ]);
 
-        return redirect()->route('portal.dashboard');
+        return redirect()->route('portal.login')
+            ->with('status', 'Please check your email to verify your account before logging in.');
     }
 }

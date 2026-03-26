@@ -54,6 +54,14 @@ class PawPassNotification extends Notification implements ShouldQueue
             $message->action('Set Up Your Account', $this->data['invite_url']);
         }
 
+        if ($this->type === 'auth.verify_email' && isset($this->data['verify_url'])) {
+            $message->action('Verify Email', $this->data['verify_url']);
+        }
+
+        if ($this->type === 'auth.registration_confirmed' && isset($this->data['login_url'])) {
+            $message->action('Log In', $this->data['login_url']);
+        }
+
         return $message;
     }
 
@@ -74,7 +82,8 @@ class PawPassNotification extends Notification implements ShouldQueue
             'subscription.cancelled' => ['Subscription Cancelled', 'Your subscription has been cancelled.'],
             'credits.low' => ['Credits Running Low', 'Your dog\'s credits are running low. Consider purchasing more to avoid interruption.'],
             'credits.empty' => ['Credits Empty', 'Your dog has no credits remaining. Please purchase more credits to continue.'],
-            'auth.verify_email' => ['Verify Your Email', 'Please verify your email address to continue.'],
+            'auth.verify_email' => ['Verify Your Email', 'Hi ' . ($this->data['name'] ?? 'there') . ', thanks for signing up! Click the button below to verify your email and activate your account.'],
+            'auth.registration_confirmed' => ['Welcome, ' . ($this->data['name'] ?? 'there') . '! Your account is ready.', 'Your email has been verified and your account is all set. Click below to log in and get started.'],
             'auth.password_reset' => ['Password Reset Requested', 'A password reset was requested for your account.'],
             'staff.invite' => ['You\'ve been invited to join the staff portal', 'You\'ve been invited as a staff member. Click the button below to set your password and get started.'],
             'auto_replenish.succeeded' => ['Credits Auto-Renewed', 'Your credits have been automatically topped up.'],

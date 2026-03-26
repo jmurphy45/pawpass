@@ -5,6 +5,7 @@ namespace Tests\Feature\Web;
 use App\Models\Customer;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\NotificationService;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
@@ -123,6 +124,7 @@ class PortalAuthTest extends TestCase
 
         $stripeCustomer = (object) ['id' => 'cus_reg123'];
 
+        $this->mock(NotificationService::class)->shouldIgnoreMissing();
         $this->mock(StripeService::class)
             ->shouldReceive('createCustomer')
             ->once()
@@ -136,7 +138,7 @@ class PortalAuthTest extends TestCase
             'password_confirmation' => 'password123',
         ]);
 
-        $response->assertRedirect('/my');
+        $response->assertRedirect('/my/login');
 
         $customer = Customer::where('email', 'newuser@example.com')->first();
         $this->assertNotNull($customer);
@@ -147,6 +149,7 @@ class PortalAuthTest extends TestCase
     {
         $this->tenant->update(['stripe_account_id' => 'acct_testconnect']);
 
+        $this->mock(NotificationService::class)->shouldIgnoreMissing();
         $this->mock(StripeService::class)
             ->shouldReceive('createCustomer')
             ->once()
@@ -159,7 +162,7 @@ class PortalAuthTest extends TestCase
             'password_confirmation' => 'password123',
         ]);
 
-        $response->assertRedirect('/my');
+        $response->assertRedirect('/my/login');
         $this->assertDatabaseHas('customers', ['email' => 'failuser@example.com']);
     }
 }

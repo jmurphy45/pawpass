@@ -23,6 +23,7 @@ use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
 use App\Http\Controllers\Web\Portal\Auth\RegisterController;
 use App\Http\Controllers\Web\Portal\Auth\ResetPasswordController;
+use App\Http\Controllers\Web\Portal\Auth\VerifyEmailController;
 use App\Http\Controllers\Web\Portal\AccountController;
 use App\Http\Controllers\Web\Portal\AttendanceController;
 use App\Http\Controllers\Web\Portal\DashboardController;
@@ -161,6 +162,8 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
 
         Route::get('/register', [RegisterController::class, 'show'])->name('portal.register');
         Route::post('/register', [RegisterController::class, 'store'])->name('portal.register.store');
+
+        Route::get('/verify-email', [VerifyEmailController::class, 'show'])->name('portal.verify-email');
 
         Route::get('/forgot-password', [ForgotPasswordController::class, 'show'])->name('portal.forgot-password');
         Route::post('/forgot-password', [ForgotPasswordController::class, 'store'])->name('portal.forgot-password.store');

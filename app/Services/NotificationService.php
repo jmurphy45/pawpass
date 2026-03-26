@@ -20,6 +20,7 @@ class NotificationService
         'auto_replenish.succeeded',
         'auto_replenish.failed',
         'auth.verify_email',
+        'auth.registration_confirmed',
         'auth.password_reset',
         'staff.invite',
     ];
