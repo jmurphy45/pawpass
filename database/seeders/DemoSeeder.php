@@ -7,6 +7,7 @@ use App\Models\CreditLedger;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -71,7 +72,7 @@ class DemoSeeder extends Seeder
                 $svc = app(\App\Services\StripeService::class);
                 $product = $svc->createProduct($name, $stripeAccountId);
                 $interval = $type === 'subscription' ? 'month' : null;
-                $price_obj = $svc->createPrice($product->id, (int) ($price * 100), 'usd', $stripeAccountId, $interval);
+                $price_obj = $svc->createPrice($product->id, (int) ($price * 100), 'usd', $interval, $stripeAccountId);
                 $stripePriceId = $price_obj->id;
                 $stripeProductId = $product->id;
             } catch (\Exception $e) {
@@ -173,20 +174,31 @@ class DemoSeeder extends Seeder
         string $status = 'paid',
         mixed $refundedAt = null
     ): Order {
-        return Order::create([
+        $order = Order::create([
+            'id'               => (string) Str::ulid(),
+            'tenant_id'        => $tid,
+            'customer_id'      => $customerId,
+            'package_id'       => $packageId,
+            'status'           => $status,
+            'total_amount'     => $amount,
+            'platform_fee_pct' => '5.00',
+            'idempotency_key'  => (string) Str::uuid(),
+        ]);
+
+        OrderPayment::create([
             'id'                    => (string) Str::ulid(),
             'tenant_id'             => $tid,
-            'customer_id'           => $customerId,
-            'package_id'            => $packageId,
-            'status'                => $status,
-            'total_amount'          => $amount,
-            'platform_fee_pct'      => '5.00',
+            'order_id'              => $order->id,
             'stripe_pi_id'          => $fakePiId,
             'stripe_payment_method' => null,
-            'idempotency_key'       => (string) Str::uuid(),
+            'amount_cents'          => (int) (floatval($amount) * 100),
+            'type'                  => 'charge',
+            'status'                => $status,
             'paid_at'               => $paidAt,
             'refunded_at'           => $refundedAt,
         ]);
+
+        return $order;
     }
 
     private function makeLedger(

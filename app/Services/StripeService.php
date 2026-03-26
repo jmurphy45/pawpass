@@ -227,6 +227,14 @@ class StripeService
         return $this->client->products->update($productId, ['active' => false]);
     }
 
+    public function createPaymentMethodFromToken(string $token, string $stripeAccountId): object
+    {
+        return $this->client->paymentMethods->create(
+            ['type' => 'card', 'card' => ['token' => $token]],
+            ['stripe_account' => $stripeAccountId],
+        );
+    }
+
     public function createConnectAccount(string $email, string $businessName): object
     {
         return $this->client->accounts->create([
