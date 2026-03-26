@@ -29,14 +29,14 @@ class VerifyEmailController extends Controller
         }
 
         $user->update([
-            'email_verified_at'       => now(),
-            'email_verify_token'      => null,
+            'email_verified_at' => now(),
+            'email_verify_token' => null,
             'email_verify_expires_at' => null,
-            'status'                  => 'active',
+            'status' => 'active',
         ]);
 
         $this->notifications->dispatch('auth.registration_confirmed', $tenantId, $user->id, [
-            'name'      => $user->name,
+            'name' => $user->name,
             'login_url' => route('portal.login'),
         ]);
 

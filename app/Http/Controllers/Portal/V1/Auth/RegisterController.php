@@ -63,7 +63,7 @@ class RegisterController extends Controller
 
         $this->notifications->dispatch('auth.verify_email', $tenantId, $user->id, [
             'name' => $user->name,
-            'verify_url' => url('/my/verify-email?token=' . $token),
+            'verify_url' => url('/my/verify-email?token='.$token),
         ]);
 
         return response()->json([

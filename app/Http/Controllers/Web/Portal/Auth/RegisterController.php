@@ -32,10 +32,10 @@ class RegisterController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'phone'    => ['nullable', 'string', 'max:30'],
+            'phone' => ['nullable', 'string', 'max:30'],
         ]);
 
         $tenantId = app('current.tenant.id');
@@ -56,21 +56,21 @@ class RegisterController extends Controller
         $user = DB::transaction(function () use ($validated, $tenantId, $token, &$customer) {
             $customer = Customer::create([
                 'tenant_id' => $tenantId,
-                'name'      => $validated['name'],
-                'email'     => $validated['email'],
-                'phone'     => $validated['phone'] ?? null,
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
             ]);
 
             $user = User::create([
-                'tenant_id'              => $tenantId,
-                'customer_id'            => $customer->id,
-                'name'                   => $validated['name'],
-                'email'                  => $validated['email'],
-                'password'               => $validated['password'],
-                'phone'                  => $validated['phone'] ?? null,
-                'role'                   => 'customer',
-                'status'                 => 'pending_verification',
-                'email_verify_token'     => $token,
+                'tenant_id' => $tenantId,
+                'customer_id' => $customer->id,
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'phone' => $validated['phone'] ?? null,
+                'role' => 'customer',
+                'status' => 'pending_verification',
+                'email_verify_token' => $token,
                 'email_verify_expires_at' => now()->addHours(24),
             ]);
 
@@ -91,14 +91,14 @@ class RegisterController extends Controller
             } catch (\Throwable $e) {
                 Log::warning('Portal registration Stripe sync failed', [
                     'customer_id' => $customer->id,
-                    'error'       => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
 
         $this->notifications->dispatch('auth.verify_email', $tenantId, $user->id, [
             'name' => $user->name,
-            'verify_url' => url('/my/verify-email?token=' . $token),
+            'verify_url' => url('/my/verify-email?token='.$token),
         ]);
 
         return redirect()->route('portal.login')

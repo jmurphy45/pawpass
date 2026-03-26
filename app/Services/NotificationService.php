@@ -70,9 +70,9 @@ class NotificationService
             if (! $pending) {
                 $pending = NotificationPending::create([
                     'tenant_id' => $tenantId,
-                    'user_id'   => $userId,
-                    'type'      => $type,
-                    'dog_ids'   => [$dogId],
+                    'user_id' => $userId,
+                    'type' => $type,
+                    'dog_ids' => [$dogId],
                 ]);
 
                 DispatchGroupedAlertJob::dispatch($pending->id)
