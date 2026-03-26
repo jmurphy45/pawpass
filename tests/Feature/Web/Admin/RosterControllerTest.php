@@ -9,8 +9,10 @@ use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
 use App\Models\OrderPayment;
+use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\AutoReplenishService;
 use App\Services\DogCreditService;
 use App\Services\StripeService;
 use Mockery;
@@ -155,6 +157,72 @@ class RosterControllerTest extends TestCase
 
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 0]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post('/admin/roster/checkin', ['dog_id' => $dog->id]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertDatabaseMissing('attendances', ['dog_id' => $dog->id]);
+    }
+
+    public function test_auto_replenish_charges_and_checks_in_when_blocking_disabled(): void
+    {
+        // tenant already has checkin_block_at_zero = false (setUp)
+        $package = Package::factory()->autoReplenish()->create([
+            'tenant_id'    => $this->tenant->id,
+            'credit_count' => 5,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'tenant_id'                => $this->tenant->id,
+            'stripe_payment_method_id' => 'pm_test_123',
+        ]);
+
+        $dog = Dog::factory()->forCustomer($customer)->create([
+            'credit_balance'            => 0,
+            'auto_replenish_enabled'    => true,
+            'auto_replenish_package_id' => $package->id,
+        ]);
+
+        $this->mock(AutoReplenishService::class)
+            ->shouldReceive('triggerSync')
+            ->once()
+            ->andReturn(true);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post('/admin/roster/checkin', ['dog_id' => $dog->id]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', ['dog_id' => $dog->id]);
+    }
+
+    public function test_auto_replenish_failure_blocks_web_checkin(): void
+    {
+        // tenant already has checkin_block_at_zero = false (setUp)
+        $package = Package::factory()->autoReplenish()->create([
+            'tenant_id'    => $this->tenant->id,
+            'credit_count' => 5,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'tenant_id'                => $this->tenant->id,
+            'stripe_payment_method_id' => 'pm_test_123',
+        ]);
+
+        $dog = Dog::factory()->forCustomer($customer)->create([
+            'credit_balance'            => 0,
+            'auto_replenish_enabled'    => true,
+            'auto_replenish_package_id' => $package->id,
+        ]);
+
+        $this->mock(AutoReplenishService::class)
+            ->shouldReceive('triggerSync')
+            ->once()
+            ->andReturn(false);
 
         $this->actingAs($this->staff);
 

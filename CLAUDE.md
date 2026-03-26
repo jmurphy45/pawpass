@@ -36,7 +36,7 @@ The `compose.yaml` configures Laravel Sail with MySQL 8.4, Redis, Meilisearch, M
 
 PawPass is a **multi-tenant SaaS platform for doggy daycare businesses** built on Laravel 12 + Vue.js. Each tenant (daycare) gets a branded subdomain and processes payments through Stripe Connect.
 
-**Tech stack:** Laravel 12, PostgreSQL (native pg types), Vue.js, Vite, Tailwind CSS v4, Redis, Stripe Connect Express, Twilio (SMS), Postmark (email), S3/R2 (dog photos), Meilisearch.
+**Tech stack:** Laravel 12, PostgreSQL (native pg types), Vue.js, Vite, Tailwind CSS v4, Redis, Stripe Connect Express, Twilio (SMS), Resend (email), S3/R2 (dog photos), Meilisearch.
 
 ## Multi-Tenancy Architecture
 
@@ -85,7 +85,7 @@ Flow: Customer → Stripe platform account → payout → business Connect Expre
 
 **Subscription:** SetupIntent flow → `invoice.payment_succeeded` webhook fires on each renewal → writes `subscription` ledger entry.
 
-Webhook endpoints are all on `platform.pawpass.com/webhooks/*` and require signature verification (Stripe HMAC, Twilio, Postmark shared secret).
+Webhook endpoints are all on `platform.pawpass.com/webhooks/*` and require signature verification (Stripe HMAC, Twilio, Resend shared secret).
 
 ## Database Schema Conventions
 
@@ -113,7 +113,7 @@ Three API namespaces, all returning `{ "data": ..., "meta": ... }` envelopes:
 
 ## Notification System
 
-All notifications go through `NotificationService::dispatch()`, which queues `SendNotificationJob` to the `notifications` queue. Channels: email (Postmark), SMS (Twilio), in-app (database, always on).
+All notifications go through `NotificationService::dispatch()`, which queues `SendNotificationJob` to the `notifications` queue. Channels: email (Resend), SMS (Twilio), in-app (database, always on).
 
 `credits.low` and `credits.empty` events use a **60-second grouping window** to consolidate multi-dog alerts into one message per customer. `dogs.credits_alert_sent_at` enforces a 24-hour dedup per dog.
 

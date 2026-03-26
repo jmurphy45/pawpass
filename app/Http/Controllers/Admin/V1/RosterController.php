@@ -9,12 +9,16 @@ use App\Http\Requests\Admin\CheckoutRequest;
 use App\Models\Attendance;
 use App\Models\Dog;
 use App\Models\Tenant;
+use App\Services\AutoReplenishService;
 use App\Services\DogCreditService;
 use Illuminate\Http\JsonResponse;
 
 class RosterController extends Controller
 {
-    public function __construct(private DogCreditService $credits) {}
+    public function __construct(
+        private DogCreditService $credits,
+        private AutoReplenishService $autoReplenish,
+    ) {}
 
     public function index(): JsonResponse
     {
@@ -91,6 +95,17 @@ class RosterController extends Controller
                 $results[] = ['dog_id' => $dog->id, 'status' => 'error', 'error_code' => 'ZERO_CREDITS_BLOCKED'];
 
                 continue;
+            }
+
+            if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && ! $tenant->checkin_block_at_zero && ! $override) {
+                if ($dog->auto_replenish_enabled && $dog->auto_replenish_package_id) {
+                    if (! $this->autoReplenish->triggerSync($dog)) {
+                        $results[] = ['dog_id' => $dog->id, 'status' => 'error', 'error_code' => 'AUTO_REPLENISH_FAILED'];
+
+                        continue;
+                    }
+                    $dog = $dog->fresh();
+                }
             }
 
             $attendance = Attendance::create([

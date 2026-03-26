@@ -1,58 +1,78 @@
-# Phase: Checkout Billing — Off-Session Charge on Actual Stay
-
-Formula: `balance = (actual_nights × nightly_rate_cents) + addons_total − deposit_amount_cents`
+# Phase: Add-on Services — Boarding + Daycare with Billing
 
 ---
 
-## Step 1 — Migration: checkout columns (TDD)
+## Step 1 — Migration: attendance_id on orders
 
-- [x] Write failing test for checkout columns
-- [x] Create migration `2026_03_24_000004_add_checkout_columns_to_reservations.php`
-- [x] Update `Reservation` fillable/casts + `ReservationResource`
-  - Verification: migration runs, model/resource include columns
-
----
-
-## Step 2 — processCheckout() + route (TDD)
-
-- [x] Write failing tests (balance charge, no saved card, zero balance, invalid date, extended stay)
-- [x] Add `POST /admin/boarding/reservations/{reservation}/checkout` route
-- [x] Implement `BoardingController@processCheckout`
-- [x] Update `showReservation()` to pass `savedCard` prop
-  - Verification: all tests pass
+- [x] New migration `2026_03_25_000008_add_attendance_id_to_orders.php`
+- [x] Update `Order` model: `attendance_id` fillable + `attendance()` BelongsTo
+  - Verification: migration runs on both main and test DB
 
 ---
 
-## Step 3 — ReservationShow.vue: checkout form
+## Step 2 — Services Management Page (Owner-Only)
 
-- [x] Remove `checked_in` from `ACTION_MAP`
-- [x] Add checkout form (date input + live breakdown + charge button)
-- [x] Add checkout summary to stay details when checked_out
-  - Verification: `npm run build` passes
+- [x] Write failing tests in `tests/Feature/Web/Admin/ServicesControllerTest.php`
+- [x] Create `app/Http/Controllers/Web/Admin/ServicesController.php` (index/store/update/destroy)
+- [x] Add routes to `routes/web.php` (`admin.services.*`)
+- [x] Create `resources/js/Pages/Admin/Services/Index.vue` (table + inline create/edit form)
+- [x] Add "Services" nav link to `AdminLayout.vue` (sparkles icon, after Packages)
+  - Verification: 9 tests pass
 
 ---
 
-## Step 4 — Final Verification
+## Step 3 — Delete Boarding Reservation Addon
 
-- [x] `./vendor/bin/sail artisan test` — 895 tests pass
-- [x] `npm run build` — no TS errors
+- [x] Write failing tests (destroy allowed, 409 when checked_out)
+- [x] Add `BoardingController::destroyAddon`
+- [x] Add web route `DELETE /boarding/reservations/{reservation}/addons/{addon}`
+- [x] Add remove button (×) to `ReservationShow.vue` addon list
+  - Verification: 2 tests pass
+
+---
+
+## Step 4 — Roster Inline Addon UI + Billing
+
+- [x] Write failing tests in `tests/Feature/Web/Admin/RosterControllerTest.php`
+- [x] Update `RosterController::index` — include `attendance_id`, `attendance_addons`, `addonTypes` prop
+- [x] Add `RosterController::chargeAttendanceAddons` private helper
+- [x] Update `RosterController::checkout` — charge addons at checkout
+- [x] Add `RosterController::storeAttendanceAddon` — save addon; charge immediately if already checked out
+- [x] Add `RosterController::destroyAttendanceAddon` — guard: 409 if order already exists
+- [x] Add routes: `POST/DELETE /roster/attendances/{attendance}/addons`
+- [x] Update `resources/js/Pages/Admin/Roster/Index.vue` — expandable inline addon panel per dog
+  - Verification: 7 tests pass
+
+---
+
+## Final Verification
+
+- [x] `./vendor/bin/sail artisan test` — 913 tests pass (up from 895)
+- [x] `npm run build` — no TS errors, built in 4s
 
 ---
 
 ## Review
 
 ### Summary of Changes
-- Migration adds `actual_checkout_at`, `checkout_pi_id`, `checkout_charge_cents` to `reservations`
-- `BoardingController@processCheckout` calculates balance (nights × rate + addons − deposit), fires off-session Stripe charge if card on file, records `OrderPayment` of type `balance`, transitions reservation to `checked_out`
-- `ReservationShow.vue` shows checkout form for `checked_in` reservations with live balance breakdown and displays actual checkout summary once complete
+- Migration: `attendance_id` (nullable FK) added to `orders` for daycare addon billing traceability
+- New `ServicesController` (web) + `Admin/Services/Index.vue` — owner-only CRUD for addon type catalog with context badges (both/boarding/daycare)
+- `AdminLayout.vue` — "Services" nav link (sparkles icon) in owner section
+- `BoardingController::destroyAddon` — delete reservation addon, guarded for checked_out status
+- `ReservationShow.vue` — × remove button per addon (hidden when reservation is checked_out)
+- `RosterController` — `chargeAttendanceAddons` helper creates Order + charges Stripe on checkout; `storeAttendanceAddon` handles both "add during stay" and "add after checkout (charge immediately)"; `destroyAttendanceAddon` with billing guard
+- `Roster/Index.vue` — expandable per-dog addon panel (click dog name), add/remove addons inline, addon count hint in subtitle
 
 ### Tests Added or Updated
-- `tests/Feature/Web/Admin/BoardingControllerTest.php` — 6 new processCheckout tests (balance charge, no card, zero balance, invalid date, missing date, extended stay)
+- `tests/Feature/Web/Admin/ServicesControllerTest.php` — 9 new tests
+- `tests/Feature/Web/Admin/BoardingControllerTest.php` — 2 new tests
+- `tests/Feature/Web/Admin/RosterControllerTest.php` — 7 new tests
 
 ### Build Status
-- Tests: 895 passing
+- Tests: 913 passing
 - Build: Successful (no TS errors)
 
 ### Notes
-- Test DB needed `migrate:fresh --env=testing` after new migrations were added
-- `checkout_pi_id` / `checkout_charge_cents` columns exist on reservations table but the controller now stores payment data in `order_payments` — the columns are present but unused; can be dropped in a future cleanup migration
+- `both`-context addon types (e.g. Nail Clip) appear in both the boarding ReservationShow dropdown and the roster inline panel
+- If no card on file at daycare checkout, an order is created with `status='pending'` for manual follow-up
+- `destroyAttendanceAddon` guards against removing addons that have already been billed (order exists for the attendance)

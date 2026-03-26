@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\OrderLineItem;
 use App\Models\OrderPayment;
 use App\Models\Tenant;
+use App\Services\AutoReplenishService;
 use App\Services\DogCreditService;
 use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
@@ -24,6 +25,7 @@ class RosterController extends Controller
     public function __construct(
         private DogCreditService $credits,
         private StripeService $stripe,
+        private AutoReplenishService $autoReplenish,
     ) {}
 
     public function index(): Response
@@ -118,6 +120,15 @@ class RosterController extends Controller
 
         if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && $tenant->checkin_block_at_zero && ! $override) {
             return back()->with('error', 'Cannot check in dog with zero credits.');
+        }
+
+        if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && ! $tenant->checkin_block_at_zero && ! $override) {
+            if ($dog->auto_replenish_enabled && $dog->auto_replenish_package_id) {
+                if (! $this->autoReplenish->triggerSync($dog)) {
+                    return back()->with('error', 'Auto-replenish charge failed. Check payment method.');
+                }
+                $dog = $dog->fresh();
+            }
         }
 
         $attendance = Attendance::create([

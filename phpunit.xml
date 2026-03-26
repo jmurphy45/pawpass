@@ -39,7 +39,7 @@
         <env name="TWILIO_SID" value="test_sid"/>
         <env name="TWILIO_TOKEN" value="test_token"/>
         <env name="TWILIO_FROM" value="+15005550006"/>
-        <env name="RESEND_KEY" value="re_test_placeholder"/>
+        <env name="RESEND_API_KEY" value="re_test_placeholder"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
