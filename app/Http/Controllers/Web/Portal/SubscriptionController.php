@@ -23,6 +23,11 @@ class SubscriptionController extends Controller
                 ->with('error', 'Only active subscriptions can be cancelled.');
         }
 
+        if (! $subscription->stripe_sub_id) {
+            return redirect()->route('portal.dogs.show', $dogId)
+                ->with('error', 'This subscription cannot be cancelled online. Please contact support.');
+        }
+
         $this->stripe->cancelSubscriptionAtPeriodEnd(
             $subscription->stripe_sub_id,
             $subscription->tenant->stripe_account_id,
