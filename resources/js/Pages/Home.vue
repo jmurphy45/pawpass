@@ -390,7 +390,7 @@
 
         <div class="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
           <div
-            v-for="plan in props.plans"
+            v-for="plan in displayPlans"
             :key="plan.name"
             class="relative flex flex-col rounded-2xl border p-8 transition-all"
             :class="plan.featured
@@ -412,11 +412,20 @@
             </div>
 
             <ul class="flex-1 space-y-3 mb-8">
-              <li v-for="feature in plan.features" :key="typeof feature === 'string' ? feature : feature.slug" class="flex items-start gap-2.5 text-sm text-gray-600">
+              <!-- "Everything in X, plus" callout for non-base plans -->
+              <li v-if="plan.inheritedFrom" class="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 mb-1">
+                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                </svg>
+                Everything in {{ plan.inheritedFrom }}, plus:
+              </li>
+
+              <!-- Only new features for this plan -->
+              <li v-for="feature in plan.newFeatures" :key="featureSlug(feature)" class="flex items-start gap-2.5 text-sm text-gray-600">
                 <svg class="mt-0.5 h-4 w-4 flex-shrink-0" :class="plan.featured ? 'text-indigo-600' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                 </svg>
-                {{ typeof feature === 'string' ? feature : feature.name }}
+                {{ featureName(feature) }}
               </li>
             </ul>
 
@@ -502,7 +511,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import PricingCalculator from '@/Components/PricingCalculator.vue'
 
 // ── Props ─────────────────────────────────────────────────────
@@ -688,6 +697,33 @@ const testimonials = [
     avatarBg: '#db2777',
   },
 ]
+
+// ── Computed pricing display (cumulative features) ────────────
+function featureSlug(f: PlanFeature | string): string {
+  return typeof f === 'string' ? f : f.slug
+}
+function featureName(f: PlanFeature | string): string {
+  return typeof f === 'string' ? f : f.name
+}
+
+interface DisplayPlan extends Plan {
+  inheritedFrom: string | null   // previous plan name, or null for base
+  newFeatures: Array<PlanFeature | string>
+}
+
+const displayPlans = computed<DisplayPlan[]>(() => {
+  const seenSlugs = new Set<string>()
+  return props.plans.map((plan, index) => {
+    const prevPlanName = index > 0 ? props.plans[index - 1].name : null
+    const newFeatures = plan.features.filter(f => !seenSlugs.has(featureSlug(f)))
+    plan.features.forEach(f => seenSlugs.add(featureSlug(f)))
+    return {
+      ...plan,
+      inheritedFrom: prevPlanName,
+      newFeatures,
+    }
+  })
+})
 
 // Plans are passed from the server via props (see HomeController)
 </script>
