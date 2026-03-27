@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\Reservation;
 use App\Models\ReservationAddon;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VaccinationRequirement;
@@ -37,6 +38,7 @@ class BoardingControllerTest extends TestCase
     {
         parent::setUp();
 
+        PlatformPlan::factory()->create(['slug' => 'pro', 'features' => ['boarding', 'addon_services']]);
         $this->tenant = Tenant::factory()->create(['slug' => 'boarding-web', 'status' => 'active', 'plan' => 'pro']);
         URL::forceRootUrl('http://boarding-web.pawpass.com');
 

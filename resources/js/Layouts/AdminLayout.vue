@@ -60,6 +60,7 @@
         </Link>
 
         <Link
+          v-if="hasBoarding"
           :href="route('admin.boarding.reservations')"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
           :class="isActive('admin.boarding.reservations*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
@@ -72,6 +73,7 @@
         </Link>
 
         <Link
+          v-if="hasBoarding"
           :href="route('admin.boarding.units')"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
           :class="isActive('admin.boarding.units*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
@@ -139,6 +141,7 @@
         <div class="section-heading">Communications</div>
 
         <Link
+          v-if="hasBroadcast"
           :href="route('admin.notifications.broadcast')"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
           :class="isActive('admin.notifications.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
@@ -167,6 +170,7 @@
           </Link>
 
           <Link
+            v-if="hasAddonServices"
             :href="route('admin.services.index')"
             class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
             :class="isActive('admin.services.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
@@ -378,6 +382,18 @@ const hasReports = computed(() => {
   const plan = tenantPlan.value;
   return plan === 'starter' || plan === 'pro' || plan === 'business';
 });
+const hasBoarding = computed(() => {
+  const plan = tenantPlan.value;
+  return plan === 'pro' || plan === 'business';
+});
+const hasAddonServices = computed(() => {
+  const plan = tenantPlan.value;
+  return plan === 'pro' || plan === 'business';
+});
+const hasBroadcast = computed(() => {
+  const plan = tenantPlan.value;
+  return plan === 'pro' || plan === 'business';
+});
 
 function isActive(pattern: string): boolean {
   try { return !!(route as any)().current(pattern); } catch { return false; }
@@ -387,18 +403,25 @@ const flatNavItems = computed(() => {
   const items: Array<{ name: string; href: string; pattern: string }> = [
     { name: 'Dashboard', href: route('admin.dashboard'), pattern: 'admin.dashboard' },
     { name: 'Roster', href: route('admin.roster.index'), pattern: 'admin.roster.*' },
-    { name: 'Boarding', href: route('admin.boarding.reservations'), pattern: 'admin.boarding.reservations*' },
-    { name: 'Kennel Units', href: route('admin.boarding.units'), pattern: 'admin.boarding.units*' },
     { name: 'Customers', href: route('admin.customers.index'), pattern: 'admin.customers.*' },
     { name: 'Dogs', href: route('admin.dogs.index'), pattern: 'admin.dogs.*' },
     { name: 'Payments', href: route('admin.payments.index'), pattern: 'admin.payments.*' },
   ];
 
+  if (hasBoarding.value) {
+    items.push(
+      { name: 'Boarding', href: route('admin.boarding.reservations'), pattern: 'admin.boarding.reservations*' },
+      { name: 'Kennel Units', href: route('admin.boarding.units'), pattern: 'admin.boarding.units*' },
+    );
+  }
+
   if (hasReports.value) {
     items.push({ name: 'Reports', href: route('admin.reports.index'), pattern: 'admin.reports.*' });
   }
 
-  items.push({ name: 'Broadcast', href: route('admin.notifications.broadcast'), pattern: 'admin.notifications.*' });
+  if (hasBroadcast.value) {
+    items.push({ name: 'Broadcast', href: route('admin.notifications.broadcast'), pattern: 'admin.notifications.*' });
+  }
 
   if (isOwner.value) {
     items.push(

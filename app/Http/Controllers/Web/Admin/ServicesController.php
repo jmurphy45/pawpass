@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AddonType;
+use App\Models\Tenant;
+use App\Services\PlanFeatureCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -11,8 +13,15 @@ use Inertia\Response;
 
 class ServicesController extends Controller
 {
+    public function __construct(private PlanFeatureCache $planFeatureCache) {}
+
     public function index(): Response
     {
+        $tenant = Tenant::find(app('current.tenant.id'));
+        if (! $this->planFeatureCache->hasFeature($tenant?->plan ?? 'free', 'addon_services')) {
+            abort(403);
+        }
+
         return Inertia::render('Admin/Services/Index', [
             'addonTypes' => AddonType::orderBy('sort_order')->orderBy('name')->get(),
         ]);
