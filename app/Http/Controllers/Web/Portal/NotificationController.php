@@ -22,8 +22,9 @@ class NotificationController extends Controller
             'notifications' => [
                 'data' => collect($notifications->items())->map(fn ($n) => [
                     'id'         => $n->id,
-                    'type'       => $n->type,
-                    'data'       => $n->data,
+                    'type'       => $n->data['type'] ?? null,
+                    'subject'    => $n->data['subject'] ?? null,
+                    'body'       => $n->data['body'] ?? null,
                     'read_at'    => $n->read_at?->toIso8601String(),
                     'created_at' => $n->created_at->toIso8601String(),
                 ]),

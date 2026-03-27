@@ -62,8 +62,9 @@ export interface Attendance {
 
 export interface Notification {
     id: string;
-    type: string;
-    data: Record<string, unknown>;
+    type: string | null;
+    subject: string | null;
+    body: string | null;
     read_at: string | null;
     created_at: string;
 }
