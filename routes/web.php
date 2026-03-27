@@ -12,6 +12,7 @@ use App\Http\Controllers\Web\Admin\DogController as AdminDogController;
 use App\Http\Controllers\Web\Admin\RosterController as AdminRosterController;
 use App\Http\Controllers\Web\Admin\CreditController as AdminCreditController;
 use App\Http\Controllers\Web\Admin\PackageController as AdminPackageController;
+use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptController;
 use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
@@ -119,6 +120,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         // Payments
         Route::get('/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
         Route::post('/payments/{order}/refund', [AdminPaymentController::class, 'refund'])->name('admin.payments.refund');
+        Route::get('/orders/{order}/receipt', AdminOrderReceiptController::class)->name('admin.orders.receipt');
 
         // Settings (business_owner only enforced in controller)
         Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings.index');

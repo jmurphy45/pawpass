@@ -15,7 +15,7 @@ class HistoryController extends Controller
         $customer = Auth::user()->customer;
 
         $orders = Order::where('customer_id', $customer->id)
-            ->with(['package', 'orderDogs.dog'])
+            ->with(['package', 'orderDogs.dog', 'payments'])
             ->orderByDesc('created_at')
             ->paginate(20);
 
@@ -28,7 +28,7 @@ class HistoryController extends Controller
                     'amount_cents' => (int) round((float) $o->total_amount * 100),
                     'status'       => $o->status,
                     'created_at'   => $o->created_at->toIso8601String(),
-                    'has_receipt'  => $o->status === 'paid' && (bool) $o->stripe_pi_id,
+                    'has_receipt'  => $o->status === 'paid' && $o->payments->contains(fn ($p) => $p->status === 'paid' && $p->stripe_pi_id),
                 ]),
                 'meta' => [
                     'total'        => $orders->total(),

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
+use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,6 +19,13 @@ class SubscriptionController extends Controller
         if ($subscription->status !== 'active') {
             return redirect()->route('portal.dogs.show', $dogId)
                 ->with('error', 'Only active subscriptions can be cancelled.');
+        }
+
+        if ($subscription->stripe_sub_id && $subscription->tenant?->stripe_account_id) {
+            app(StripeService::class)->cancelSubscriptionAtPeriodEnd(
+                $subscription->stripe_sub_id,
+                $subscription->tenant->stripe_account_id,
+            );
         }
 
         $subscription->update(['cancelled_at' => now(), 'status' => 'cancelled']);
