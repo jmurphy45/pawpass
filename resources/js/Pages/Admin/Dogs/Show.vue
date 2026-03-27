@@ -108,12 +108,14 @@
       </div>
     </div>
   </AdminLayout>
+  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 interface Vaccination {
   id: string;
@@ -156,8 +158,20 @@ function submitVaccination() {
   );
 }
 
+const confirmModal = ref<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>
+  ({ open: false, title: '', message: '', onConfirm: null });
+
+function askConfirm(title: string, message: string, onConfirm: () => void) {
+  confirmModal.value = { open: true, title, message, onConfirm };
+}
+function handleConfirm() { confirmModal.value.onConfirm?.(); confirmModal.value.open = false; }
+function handleCancel() { confirmModal.value.open = false; }
+
 function deleteVaccination(vaccinationId: string) {
-  if (!confirm('Remove this vaccination record?')) return;
-  router.delete(route('admin.dogs.vaccinations.destroy', { dog: props.dog.id, vaccination: vaccinationId }));
+  askConfirm(
+    'Remove Vaccination',
+    'This vaccination record will be permanently deleted.',
+    () => router.delete(route('admin.dogs.vaccinations.destroy', { dog: props.dog.id, vaccination: vaccinationId })),
+  );
 }
 </script>

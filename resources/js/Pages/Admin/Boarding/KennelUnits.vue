@@ -90,6 +90,7 @@
       </div>
     </div>
   </AdminLayout>
+  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
@@ -97,6 +98,7 @@ import { ref, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import type { PageProps } from '@/types';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 interface KennelUnit {
   id: string;
@@ -173,9 +175,21 @@ function submitForm() {
   }
 }
 
+const confirmModal = ref<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>
+  ({ open: false, title: '', message: '', onConfirm: null });
+
+function askConfirm(title: string, message: string, onConfirm: () => void) {
+  confirmModal.value = { open: true, title, message, onConfirm };
+}
+function handleConfirm() { confirmModal.value.onConfirm?.(); confirmModal.value.open = false; }
+function handleCancel() { confirmModal.value.open = false; }
+
 function deleteUnit(id: string) {
-  if (!confirm('Delete this kennel unit? This cannot be undone.')) return;
-  router.delete(route('admin.boarding.units.destroy', { kennelUnit: id }));
+  askConfirm(
+    'Delete Kennel Unit',
+    'This kennel unit will be permanently deleted. This cannot be undone.',
+    () => router.delete(route('admin.boarding.units.destroy', { kennelUnit: id })),
+  );
 }
 
 function typeClass(type: string): string {

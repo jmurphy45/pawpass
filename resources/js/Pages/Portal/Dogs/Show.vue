@@ -192,6 +192,7 @@
       </div>
     </div>
   </PortalLayout>
+  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
@@ -199,6 +200,7 @@ import { computed, ref } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 import type { CreditLedger, PaginatedResponse, PageProps } from '@/types';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 interface DogDetail {
   id: string;
@@ -236,15 +238,27 @@ const props = defineProps<{
 
 const cancelling = ref<string | null>(null);
 
+const confirmModal = ref<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>
+  ({ open: false, title: '', message: '', onConfirm: null });
+
+function askConfirm(title: string, message: string, onConfirm: () => void) {
+  confirmModal.value = { open: true, title, message, onConfirm };
+}
+function handleConfirm() { confirmModal.value.onConfirm?.(); confirmModal.value.open = false; }
+function handleCancel() { confirmModal.value.open = false; }
+
 function cancelSubscription(subscriptionId: string) {
-  if (!confirm('Are you sure you want to cancel this plan? It will remain active until the end of the current period.')) {
-    return;
-  }
-  cancelling.value = subscriptionId;
-  router.post(
-    route('portal.subscriptions.cancel', { dog: props.dog.id, subscription: subscriptionId }),
-    {},
-    { onFinish: () => { cancelling.value = null; } },
+  askConfirm(
+    'Cancel Plan',
+    'Are you sure? The plan will remain active until the end of the current period.',
+    () => {
+      cancelling.value = subscriptionId;
+      router.post(
+        route('portal.subscriptions.cancel', { dog: props.dog.id, subscription: subscriptionId }),
+        {},
+        { onFinish: () => { cancelling.value = null; } },
+      );
+    },
   );
 }
 
