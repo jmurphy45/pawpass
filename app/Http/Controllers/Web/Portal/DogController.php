@@ -75,6 +75,8 @@ class DogController extends Controller
             'is_valid'        => $v->isValid(),
         ]);
 
+        $dog->load('autoReplenishPackage');
+
         return Inertia::render('Portal/Dogs/Show', [
             'dog' => [
                 'id'             => $dog->id,
@@ -85,6 +87,10 @@ class DogController extends Controller
                 'credit_balance' => $dog->credit_balance,
                 'credits_expire_at' => $dog->credits_expire_at?->toIso8601String(),
                 'unlimited_pass_expires_at' => $dog->unlimited_pass_expires_at?->toIso8601String(),
+                'auto_replenish_enabled' => $dog->auto_replenish_enabled,
+                'auto_replenish_package' => $dog->auto_replenish_package_id
+                    ? ['id' => $dog->autoReplenishPackage?->id, 'name' => $dog->autoReplenishPackage?->name]
+                    : null,
             ],
             'vaccinations' => $vaccinations,
             'subscriptions' => $dog->subscriptions()

@@ -108,6 +108,23 @@
         <p class="text-xs text-text-muted mt-2">To update vaccination records, contact us directly.</p>
       </div>
 
+      <!-- Auto-Replenish -->
+      <div v-if="dog.auto_replenish_enabled && dog.auto_replenish_package">
+        <h2 class="text-base font-semibold text-text-body mb-3">Auto-Replenish</h2>
+        <div class="card px-4 py-3 flex items-center justify-between gap-4">
+          <div>
+            <p class="font-medium text-text-body">{{ dog.auto_replenish_package!.name }}</p>
+            <p class="text-xs text-text-muted mt-0.5">Auto-replenish when credits run out · Card saved securely</p>
+          </div>
+          <button
+            type="button"
+            class="btn-secondary text-xs py-1.5 px-3 text-red-600 border-red-200 hover:bg-red-50"
+            :disabled="cancellingReplenish"
+            @click="cancelAutoReplenish"
+          >{{ cancellingReplenish ? 'Cancelling…' : 'Cancel Auto-Replenish' }}</button>
+        </div>
+      </div>
+
       <!-- Recurring Plans -->
       <div v-if="subscriptions.length > 0">
         <h2 class="text-base font-semibold text-text-body mb-3">Recurring Plans</h2>
@@ -211,6 +228,8 @@ interface DogDetail {
   credit_balance: number;
   credits_expire_at: string | null;
   unlimited_pass_expires_at: string | null;
+  auto_replenish_enabled: boolean;
+  auto_replenish_package: { id: string; name: string } | null;
 }
 
 interface Subscription {
@@ -237,6 +256,7 @@ const props = defineProps<{
 }>();
 
 const cancelling = ref<string | null>(null);
+const cancellingReplenish = ref(false);
 
 const confirmModal = ref<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>
   ({ open: false, title: '', message: '', onConfirm: null });
@@ -246,6 +266,21 @@ function askConfirm(title: string, message: string, onConfirm: () => void) {
 }
 function handleConfirm() { confirmModal.value.onConfirm?.(); confirmModal.value.open = false; }
 function handleCancel() { confirmModal.value.open = false; }
+
+function cancelAutoReplenish() {
+  askConfirm(
+    'Disable Auto-Replenish',
+    'Are you sure? Credits will no longer be automatically purchased when your balance runs out.',
+    () => {
+      cancellingReplenish.value = true;
+      router.post(
+        route('portal.auto-replenish.cancel', { dog: props.dog.id }),
+        {},
+        { onFinish: () => { cancellingReplenish.value = false; } },
+      );
+    },
+  );
+}
 
 function cancelSubscription(subscriptionId: string) {
   askConfirm(
