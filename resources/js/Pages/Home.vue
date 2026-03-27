@@ -527,7 +527,7 @@ const props = defineProps<{
 }>()
 
 // ── Nav state ────────────────────────────────────────────────
-const appDomain = import.meta.env.VITE_APP_DOMAIN as string
+const appDomain = (import.meta.env.VITE_APP_DOMAIN as string) || 'pawpass.local'
 
 const navScrolled = ref(false)
 const heroSentinel = ref<HTMLElement | null>(null)
