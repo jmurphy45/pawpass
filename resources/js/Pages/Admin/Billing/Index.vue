@@ -65,6 +65,7 @@
             <div class="text-2xl font-bold text-gray-900">
               ${{ Math.floor((cycle === 'annual' ? plan.annual_price_cents : plan.monthly_price_cents) / 100) }}<span class="text-base font-normal text-gray-500">/mo</span>
             </div>
+            <p class="text-xs text-gray-400">2.9% + 30¢ + {{ plan.platform_fee_pct }}% platform fee per transaction</p>
 
             <ul class="space-y-1.5 flex-1">
               <li v-for="feature in plan.features" :key="feature" class="flex items-start gap-2 text-sm text-gray-700">
@@ -247,6 +248,7 @@ interface Plan {
   annual_price_cents: number;
   features: string[];
   staff_limit: number | null;
+  platform_fee_pct: number;
   sort_order: number;
 }
 

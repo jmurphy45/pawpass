@@ -22,6 +22,7 @@ class PlatformPlanSeeder extends Seeder
                 'features'            => [],
                 'staff_limit'         => 1,
                 'sms_segment_quota'   => 0,
+                'platform_fee_pct'    => 0.00,
                 'sort_order'          => 0,
             ],
             [
@@ -43,6 +44,7 @@ class PlatformPlanSeeder extends Seeder
                 ],
                 'staff_limit'       => 5,
                 'sms_segment_quota' => 0,
+                'platform_fee_pct'  => 5.00,
                 'sort_order'        => 1,
             ],
             [
@@ -71,6 +73,7 @@ class PlatformPlanSeeder extends Seeder
                 ],
                 'staff_limit'       => 15,
                 'sms_segment_quota' => 500,
+                'platform_fee_pct'  => 3.00,
                 'sort_order'        => 2,
             ],
             [
@@ -102,6 +105,7 @@ class PlatformPlanSeeder extends Seeder
                 ],
                 'staff_limit'       => 999999,
                 'sms_segment_quota' => 1000,
+                'platform_fee_pct'  => 2.00,
                 'sort_order'        => 3,
             ],
         ];

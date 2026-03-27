@@ -35,11 +35,12 @@ class HomeController extends Controller
                 : collect($plan->features ?? [])->map(fn ($s) => ['slug' => $s, 'name' => ucwords(str_replace('_', ' ', $s))])->values();
 
             return [
-                'name'     => $plan->name,
-                'price'    => '$' . number_format($plan->monthly_price_cents / 100),
-                'featured' => $index === $midIndex,
-                'cta'      => 'Start free trial',
-                'features' => $features,
+                'name'                => $plan->name,
+                'price'               => '$' . number_format($plan->monthly_price_cents / 100),
+                'featured'            => $index === $midIndex,
+                'cta'                 => 'Start free trial',
+                'features'            => $features,
+                'transaction_fee_pct' => (float) $plan->platform_fee_pct,
             ];
         });
 

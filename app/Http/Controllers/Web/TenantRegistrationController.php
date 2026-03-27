@@ -36,7 +36,7 @@ class TenantRegistrationController extends Controller
 
                 return array_merge($plan->only([
                     'id', 'slug', 'name', 'description',
-                    'monthly_price_cents', 'annual_price_cents', 'sort_order',
+                    'monthly_price_cents', 'annual_price_cents', 'sort_order', 'platform_fee_pct',
                 ]), ['features' => $features]);
             });
 

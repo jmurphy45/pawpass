@@ -25,6 +25,7 @@ class PlatformPlanResource extends JsonResource
             'staff_limit'                 => $this->staff_limit,
             'sms_segment_quota'           => $this->sms_segment_quota,
             'sms_cost_per_segment_cents'  => $this->sms_cost_per_segment_cents,
+            'platform_fee_pct'            => (float) $this->platform_fee_pct,
             'sort_order'                  => $this->sort_order,
         ];
     }

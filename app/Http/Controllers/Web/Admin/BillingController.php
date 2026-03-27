@@ -45,6 +45,7 @@ class BillingController extends Controller
                     ? $p->getRelation('features')->sortBy('sort_order')->pluck('name')->values()->all()
                     : collect($p->features ?? [])->map(fn ($s) => ucwords(str_replace('_', ' ', $s)))->all(),
                 'staff_limit'          => $p->staff_limit,
+                'platform_fee_pct'     => (float) $p->platform_fee_pct,
                 'sort_order'           => $p->sort_order,
             ])
             ->values()

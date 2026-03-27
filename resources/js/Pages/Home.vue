@@ -407,7 +407,8 @@
                 <span class="text-5xl font-extrabold tracking-tight text-gray-900">{{ plan.price }}</span>
                 <span class="text-sm text-gray-500 font-medium">/mo</span>
               </div>
-              <p class="mt-2 text-xs text-indigo-600 font-semibold">21-day free trial</p>
+              <p class="mt-1.5 text-xs text-gray-400">2.9% + 30¢ + {{ plan.transaction_fee_pct }}% platform fee per transaction</p>
+              <p class="mt-1 text-xs text-indigo-600 font-semibold">21-day free trial</p>
             </div>
 
             <ul class="flex-1 space-y-3 mb-8">
