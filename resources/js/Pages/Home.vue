@@ -434,6 +434,9 @@
       </div>
     </section>
 
+    <!-- ===== PRICING CALCULATOR (A/B test via Pennant) ===== -->
+    <PricingCalculator v-if="props.show_pricing_calculator" :plans="props.plans" />
+
     <!-- ===== BOTTOM CTA ===== -->
     <section style="background-color: #0a0908;" class="relative overflow-hidden px-6 py-32 text-center">
       <div class="absolute inset-0 opacity-[0.04]" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.75%22 numOctaves=%224%22 stitchTiles=%22stitch%22/></filter><rect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22 opacity=%221%22/></svg>');"></div>
@@ -500,6 +503,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import PricingCalculator from '@/Components/PricingCalculator.vue'
 
 // ── Props ─────────────────────────────────────────────────────
 interface PlanFeature {
@@ -510,12 +514,17 @@ interface PlanFeature {
 interface Plan {
   name: string
   price: string
+  monthly_price: number
   featured: boolean
   cta: string
   features: Array<PlanFeature | string>
+  transaction_fee_pct: number
 }
 
-const props = defineProps<{ plans: Plan[] }>()
+const props = defineProps<{
+  plans: Plan[]
+  show_pricing_calculator: boolean
+}>()
 
 // ── Nav state ────────────────────────────────────────────────
 const appDomain = import.meta.env.VITE_APP_DOMAIN as string

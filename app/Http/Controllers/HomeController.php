@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PlatformPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Laravel\Pennant\Feature;
 
 class HomeController extends Controller
 {
@@ -37,6 +38,7 @@ class HomeController extends Controller
             return [
                 'name'                => $plan->name,
                 'price'               => '$' . number_format($plan->monthly_price_cents / 100),
+                'monthly_price'       => round($plan->monthly_price_cents / 100, 2),
                 'featured'            => $index === $midIndex,
                 'cta'                 => 'Start free trial',
                 'features'            => $features,
@@ -44,6 +46,9 @@ class HomeController extends Controller
             ];
         });
 
-        return inertia('Home', ['plans' => $mapped]);
+        return inertia('Home', [
+            'plans'                  => $mapped,
+            'show_pricing_calculator' => Feature::for(null)->active('pricing_calculator'),
+        ]);
     }
 }
