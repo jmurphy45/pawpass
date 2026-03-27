@@ -48,7 +48,7 @@ class HomeController extends Controller
 
         return inertia('Home', [
             'plans'                  => $mapped,
-            'show_pricing_calculator' => Feature::for(null)->active('pricing_calculator'),
+            'show_pricing_calculator' => Feature::for(null)->active('pricing_calculator') || $request->boolean('show_calculator'),
         ]);
     }
 }
