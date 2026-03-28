@@ -366,6 +366,7 @@
 import { ref, computed } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import type { PageProps } from '@/types';
+import { useFeatures } from '@/composables/useFeatures';
 
 const page = usePage<PageProps>();
 const tenant = computed(() => page.props.tenant);
@@ -378,22 +379,11 @@ const mobileMenuOpen = ref(false);
 
 const isOwner = computed(() => auth.value.user?.role === 'business_owner');
 const tenantPlan = computed(() => page.props.tenantPlan);
-const hasReports = computed(() => {
-  const plan = tenantPlan.value;
-  return plan === 'starter' || plan === 'pro' || plan === 'business';
-});
-const hasBoarding = computed(() => {
-  const plan = tenantPlan.value;
-  return plan === 'pro' || plan === 'business';
-});
-const hasAddonServices = computed(() => {
-  const plan = tenantPlan.value;
-  return plan === 'pro' || plan === 'business';
-});
-const hasBroadcast = computed(() => {
-  const plan = tenantPlan.value;
-  return plan === 'pro' || plan === 'business';
-});
+const { hasFeature } = useFeatures();
+const hasReports = computed(() => hasFeature('basic_reporting'));
+const hasBoarding = computed(() => hasFeature('boarding'));
+const hasAddonServices = computed(() => hasFeature('addon_services'));
+const hasBroadcast = computed(() => hasFeature('broadcast_notifications'));
 
 function isActive(pattern: string): boolean {
   try { return !!(route as any)().current(pattern); } catch { return false; }

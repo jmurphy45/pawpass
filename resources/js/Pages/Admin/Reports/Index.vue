@@ -83,11 +83,12 @@ import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import type { PageProps } from '@/types';
+import { useFeatures } from '@/composables/useFeatures';
 
 const page = usePage<PageProps>();
 const auth = computed(() => page.props.auth);
 const isOwner = computed(() => auth.value.user?.role === 'business_owner');
-const tenantPlan = computed(() => page.props.tenantPlan);
-const hasBasicReporting = computed(() => ['starter', 'pro', 'business'].includes(tenantPlan.value ?? ''));
-const hasFinancialReports = computed(() => ['pro', 'business'].includes(tenantPlan.value ?? ''));
+const { hasFeature } = useFeatures();
+const hasBasicReporting = computed(() => hasFeature('basic_reporting'));
+const hasFinancialReports = computed(() => hasFeature('financial_reports'));
 </script>

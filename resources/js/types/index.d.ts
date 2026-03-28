@@ -82,6 +82,7 @@ export interface PageProps {
     [key: string]: unknown;
     tenant: Tenant | null;
     tenantPlan: string | null;
+    tenantFeatures: string[];
     auth: {
         user: AuthUser | null;
     };

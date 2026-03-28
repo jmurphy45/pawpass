@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Tenant;
+use App\Services\PlanFeatureCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
@@ -46,7 +47,10 @@ class HandleInertiaRequests extends Middleware
                     'business_type' => $t->business_type ?? 'daycare',
                 ];
             },
-            'tenantPlan'  => fn () => $getTenant()?->plan,
+            'tenantPlan'     => fn () => $getTenant()?->plan,
+            'tenantFeatures' => fn () => ($plan = $getTenant()?->plan)
+                ? app(PlanFeatureCache::class)->featuresForPlan($plan)
+                : [],
             'auth'        => function () {
                 $user = Auth::guard('web')->user();
 

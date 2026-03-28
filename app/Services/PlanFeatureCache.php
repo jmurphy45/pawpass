@@ -13,6 +13,22 @@ class PlanFeatureCache
         return $this->plans[$slug] ??= PlatformPlan::with('features')->where('slug', $slug)->first();
     }
 
+    public function featuresForPlan(string $planSlug): array
+    {
+        $plan = $this->plan($planSlug);
+
+        if ($plan === null) {
+            return [];
+        }
+
+        $relationFeatures = $plan->relationLoaded('features') ? $plan->getRelation('features') : null;
+        if ($relationFeatures !== null && $relationFeatures->isNotEmpty()) {
+            return $relationFeatures->pluck('slug')->all();
+        }
+
+        return $plan->features ?? [];
+    }
+
     public function hasFeature(string $planSlug, string $feature): bool
     {
         $plan = $this->plan($planSlug);
