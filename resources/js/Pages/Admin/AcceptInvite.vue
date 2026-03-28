@@ -16,39 +16,18 @@
           </svg>
         </div>
         <h1 class="text-2xl font-bold text-text-body">{{ tenant?.name ?? 'PawPass' }}</h1>
-        <p class="mt-1.5 text-sm text-text-muted">Set up your staff account</p>
+        <p class="mt-1.5 text-sm text-text-muted">You've been invited to the staff portal</p>
       </div>
 
       <div class="card-padded" style="box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);">
-        <form @submit.prevent="submit" class="space-y-5">
-          <div>
-            <label class="block text-sm font-medium text-text-body mb-1.5">Password</label>
-            <input
-              v-model="form.password"
-              type="password"
-              autocomplete="new-password"
-              class="input"
-              :class="{ 'input-error': form.errors.password }"
-            />
-            <p v-if="form.errors.password" class="mt-1 text-xs text-red-600">{{ form.errors.password }}</p>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-text-body mb-1.5">Confirm Password</label>
-            <input
-              v-model="form.password_confirmation"
-              type="password"
-              autocomplete="new-password"
-              class="input"
-            />
-          </div>
-
+        <p class="text-sm text-text-muted mb-5">Click below to activate your account and sign in. You'll use a magic link to sign in going forward.</p>
+        <form @submit.prevent="submit">
           <button
             type="submit"
             :disabled="form.processing"
             class="btn-primary w-full justify-center py-2.5"
           >
-            {{ form.processing ? 'Setting up…' : 'Set password & sign in' }}
+            {{ form.processing ? 'Activating…' : 'Accept invitation & sign in' }}
           </button>
         </form>
       </div>
@@ -66,14 +45,9 @@ const props = defineProps<{ token: string }>();
 const page = usePage<PageProps>();
 const tenant = computed(() => page.props.tenant);
 
-const form = useForm({
-  password: '',
-  password_confirmation: '',
-});
+const form = useForm({});
 
 function submit() {
-  form.post(route('admin.invite.store', { token: props.token }), {
-    onFinish: () => form.reset('password', 'password_confirmation'),
-  });
+  form.post(route('admin.invite.store', { token: props.token }));
 }
 </script>

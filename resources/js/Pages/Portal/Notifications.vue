@@ -69,7 +69,7 @@
           <!-- Content -->
           <div class="notif-body">
             <p class="notif-message" :class="{ 'font-semibold': !n.read_at }">
-              {{ n.body ?? formatType(n.type ?? '') }}
+              {{ n.message ?? formatType(n.type) }}
             </p>
             <div class="notif-meta">
               <span>{{ formatDate(n.created_at) }}</span>

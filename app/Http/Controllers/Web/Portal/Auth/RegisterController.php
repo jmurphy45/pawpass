@@ -32,9 +32,8 @@ class RegisterController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name'  => ['required', 'string', 'max:255'],
             'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'phone' => ['nullable', 'string', 'max:30'],
         ]);
 
@@ -66,7 +65,6 @@ class RegisterController extends Controller
                 'customer_id' => $customer->id,
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => $validated['password'],
                 'phone' => $validated['phone'] ?? null,
                 'role' => 'customer',
                 'status' => 'pending_verification',

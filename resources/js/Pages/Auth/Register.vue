@@ -44,28 +44,6 @@
             <p v-if="form.errors.phone" class="mt-1 text-xs text-red-600">{{ form.errors.phone }}</p>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              v-model="form.password"
-              type="password"
-              autocomplete="new-password"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              :class="{ 'border-red-500': form.errors.password }"
-            />
-            <p v-if="form.errors.password" class="mt-1 text-xs text-red-600">{{ form.errors.password }}</p>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-            <input
-              v-model="form.password_confirmation"
-              type="password"
-              autocomplete="new-password"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
           <button
             type="submit"
             :disabled="form.processing"
@@ -94,17 +72,9 @@ const page = usePage<PageProps>();
 const tenant = computed(() => page.props.tenant);
 const accentColor = computed(() => tenant.value?.primary_color ?? '#4f46e5');
 
-const form = useForm({
-  name: '',
-  email: '',
-  phone: '',
-  password: '',
-  password_confirmation: '',
-});
+const form = useForm({ name: '', email: '', phone: '' });
 
 function submit() {
-  form.post(route('portal.register.store'), {
-    onFinish: () => form.reset('password', 'password_confirmation'),
-  });
+  form.post(route('portal.register.store'));
 }
 </script>

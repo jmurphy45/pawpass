@@ -75,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->job(new \App\Jobs\SendUpgradeNudges)->dailyAt('09:00');
         $schedule->job(new \App\Jobs\ProcessDunning)->dailyAt('02:00');
         $schedule->job(new \App\Jobs\BillSmsOverageJob)->monthlyOn(1, '05:00');
+        $schedule->command('auth:cleanup-magic-links')->everyTenMinutes();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

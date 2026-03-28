@@ -7,7 +7,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,7 +16,6 @@ class AccountController extends Controller
     private const CRITICAL_TYPES = [
         'payment.confirmed',
         'credits.empty',
-        'auth.password_reset',
         'auth.email_verification',
     ];
 
@@ -59,24 +57,6 @@ class AccountController extends Controller
         }
 
         return back()->with('success', 'Profile updated.');
-    }
-
-    public function updatePassword(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'current_password' => ['required', 'string'],
-            'password'         => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
-
-        $user = Auth::user();
-
-        if (! Hash::check($request->current_password, $user->password)) {
-            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
-        }
-
-        $user->update(['password' => Hash::make($request->password)]);
-
-        return back()->with('success', 'Password updated.');
     }
 
     public function notificationPrefs(Request $request): RedirectResponse

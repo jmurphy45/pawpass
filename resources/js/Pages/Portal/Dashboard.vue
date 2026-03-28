@@ -179,7 +179,7 @@
               </svg>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-sm text-text-body">{{ n.body ?? formatType(n.type ?? '') }}</p>
+              <p class="text-sm text-text-body">{{ n.message ?? n.type }}</p>
               <p class="text-xs text-text-muted mt-0.5">{{ formatDate(n.created_at) }}</p>
             </div>
             <span v-if="!n.read_at" class="h-2 w-2 rounded-full bg-amber-400 shrink-0 animate-pulse" />
@@ -207,9 +207,8 @@ interface DogCard {
 
 interface NotifCard {
   id: string;
-  type: string | null;
-  subject: string | null;
-  body: string | null;
+  type: string;
+  message: string | null;
   read_at: string | null;
   created_at: string;
 }

@@ -21,11 +21,9 @@ use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController
 use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController;
 use App\Http\Controllers\Web\Admin\VaccinationRequirementController as AdminVaccinationRequirementController;
 use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
-use App\Http\Controllers\Web\Portal\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
 use App\Http\Controllers\Web\Portal\Auth\RegisterController;
-use App\Http\Controllers\Web\Portal\Auth\ResetPasswordController;
 use App\Http\Controllers\Web\Portal\Auth\VerifyEmailController;
 use App\Http\Controllers\Web\Portal\AccountController;
 use App\Http\Controllers\Web\Portal\AttendanceController;
@@ -38,9 +36,18 @@ use App\Http\Controllers\Web\Portal\NotificationController;
 use App\Http\Controllers\Web\Portal\OrderReceiptController;
 use App\Http\Controllers\Web\Portal\BoardingController as PortalBoardingController;
 use App\Http\Controllers\Web\Portal\PurchaseController;
+use App\Http\Controllers\Web\Auth\MagicLinkController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+
+// Magic-link passwordless authentication (no tenant scope — works for any portal)
+Route::prefix('auth/magic-link')->group(function () {
+    Route::post('/request', [MagicLinkController::class, 'request'])->name('magic-link.request');
+    Route::get('/verify',   [MagicLinkController::class, 'verify'])->name('magic-link.verify');
+    Route::get('/confirm',  [MagicLinkController::class, 'confirmShow'])->name('magic-link.confirm');
+    Route::post('/confirm', [MagicLinkController::class, 'confirm'])->name('magic-link.confirm.store');
+});
 
 // Tenant self-registration (no tenant middleware — this creates a new tenant)
 Route::get('/register', [TenantRegistrationController::class, 'create'])->name('tenant.register');
@@ -53,7 +60,6 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
     // Guest-only auth routes
     Route::middleware(['guest'])->group(function () {
         Route::get('/login', [AdminLoginController::class, 'show'])->name('admin.login');
-        Route::post('/login', [AdminLoginController::class, 'store'])->name('admin.login.store');
 
         Route::get('/invite/{token}', [AcceptInviteController::class, 'show'])->name('admin.invite.show');
         Route::post('/invite/{token}', [AcceptInviteController::class, 'store'])->name('admin.invite.store');
@@ -172,18 +178,13 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
     // Guest-only auth routes
     Route::middleware(['guest'])->group(function () {
         Route::get('/login', [LoginController::class, 'show'])->name('portal.login');
-        Route::post('/login', [LoginController::class, 'store'])->name('portal.login.store');
 
         Route::get('/register', [RegisterController::class, 'show'])->name('portal.register');
         Route::post('/register', [RegisterController::class, 'store'])->name('portal.register.store');
 
         Route::get('/verify-email', [VerifyEmailController::class, 'show'])->name('portal.verify-email');
 
-        Route::get('/forgot-password', [ForgotPasswordController::class, 'show'])->name('portal.forgot-password');
-        Route::post('/forgot-password', [ForgotPasswordController::class, 'store'])->name('portal.forgot-password.store');
 
-        Route::get('/reset-password', [ResetPasswordController::class, 'show'])->name('portal.reset-password');
-        Route::post('/reset-password', [ResetPasswordController::class, 'store'])->name('portal.reset-password.store');
     });
 
     // Authenticated customer routes
@@ -229,7 +230,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         // Account
         Route::get('/account', [AccountController::class, 'index'])->name('portal.account');
         Route::patch('/account', [AccountController::class, 'update'])->name('portal.account.update');
-        Route::patch('/account/password', [AccountController::class, 'updatePassword'])->name('portal.account.password');
+
         Route::put('/account/notification-prefs', [AccountController::class, 'notificationPrefs'])->name('portal.account.notification-prefs');
     });
 });

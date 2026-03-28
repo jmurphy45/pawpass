@@ -12,9 +12,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            PlatformFeatureSeeder::class,
             PlatformPlanSeeder::class,
             PlatformConfigSeeder::class,
-            DemoSeeder::class,
+            PlatformAdminSeeder::class,
         ]);
     }
 }

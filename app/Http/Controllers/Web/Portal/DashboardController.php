@@ -41,9 +41,8 @@ class DashboardController extends Controller
             ->get()
             ->map(fn ($n) => [
                 'id'         => $n->id,
-                'type'       => $n->data['type'] ?? null,
-                'subject'    => $n->data['subject'] ?? null,
-                'body'       => $n->data['body'] ?? null,
+                'type'       => $n->data['type'] ?? $n->type,
+                'message'    => $n->data['body'] ?? null,
                 'read_at'    => $n->read_at?->toIso8601String(),
                 'created_at' => $n->created_at->toIso8601String(),
             ]);

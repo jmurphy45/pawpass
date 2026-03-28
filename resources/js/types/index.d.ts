@@ -62,9 +62,8 @@ export interface Attendance {
 
 export interface Notification {
     id: string;
-    type: string | null;
-    subject: string | null;
-    body: string | null;
+    type: string;
+    message: string | null;
     read_at: string | null;
     created_at: string;
 }

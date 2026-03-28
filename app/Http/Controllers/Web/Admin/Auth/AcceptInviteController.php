@@ -23,12 +23,7 @@ class AcceptInviteController extends Controller
     {
         $user = $this->findUserOrFail($token);
 
-        $request->validate([
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
-
         $user->update([
-            'password'          => $request->password,
             'status'            => 'active',
             'invite_token'      => null,
             'invite_expires_at' => null,

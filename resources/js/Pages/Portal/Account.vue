@@ -53,59 +53,6 @@
         </form>
       </section>
 
-      <!-- Password section -->
-      <section class="card overflow-hidden">
-        <div class="ac-section-head">
-          <div class="ac-section-icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-            </svg>
-          </div>
-          <span class="ac-section-title">Change Password</span>
-        </div>
-        <form @submit.prevent="savePassword" class="p-5 space-y-4">
-          <div>
-            <label class="ac-label">Current Password</label>
-            <input
-              v-model="passwordForm.current_password"
-              type="password"
-              autocomplete="current-password"
-              class="input w-full"
-              :class="{ 'border-red-500': passwordForm.errors.current_password }"
-            />
-            <p v-if="passwordForm.errors.current_password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.current_password }}</p>
-          </div>
-
-          <div>
-            <label class="ac-label">New Password</label>
-            <input
-              v-model="passwordForm.password"
-              type="password"
-              autocomplete="new-password"
-              class="input w-full"
-              :class="{ 'border-red-500': passwordForm.errors.password }"
-            />
-            <p v-if="passwordForm.errors.password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.password }}</p>
-          </div>
-
-          <div>
-            <label class="ac-label">Confirm Password</label>
-            <input
-              v-model="passwordForm.password_confirmation"
-              type="password"
-              autocomplete="new-password"
-              class="input w-full"
-            />
-          </div>
-
-          <button
-            type="submit"
-            :disabled="passwordForm.processing"
-            class="btn-primary text-sm disabled:opacity-60"
-          >{{ passwordForm.processing ? 'Updating…' : 'Update Password' }}</button>
-        </form>
-      </section>
-
       <!-- Notification preferences -->
       <section class="card overflow-hidden">
         <div class="ac-section-head">
@@ -192,26 +139,12 @@ function saveProfile() {
   profileForm.patch(route('portal.account.update'));
 }
 
-// Password form
-const passwordForm = useForm({
-  current_password: '',
-  password: '',
-  password_confirmation: '',
-});
-
-function savePassword() {
-  passwordForm.patch(route('portal.account.password'), {
-    onFinish: () => passwordForm.reset(),
-  });
-}
-
 // Notification prefs
 const notifTypes = [
   { key: 'payment.confirmed', label: 'Payment Confirmed' },
   { key: 'credits.low', label: 'Credits Low' },
   { key: 'credits.empty', label: 'Credits Empty' },
   { key: 'subscription.renewed', label: 'Subscription Renewed' },
-  { key: 'auth.password_reset', label: 'Password Reset' },
 ];
 
 const localPrefs = ref<NotifPref[]>(JSON.parse(JSON.stringify(props.notifPrefs)));

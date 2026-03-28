@@ -21,47 +21,41 @@
       </div>
 
       <div class="card-padded" style="box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);">
-        <form @submit.prevent="submit" class="space-y-5">
+
+        <!-- Sent state -->
+        <div v-if="sent" class="text-center py-2">
+          <div class="text-4xl mb-4">&#9993;</div>
+          <p class="text-sm font-medium text-text-body mb-1">Check your inbox</p>
+          <p class="text-sm text-text-muted">We sent a sign-in link to <strong>{{ email }}</strong>. It expires in 15 minutes.</p>
+          <button class="mt-5 text-xs text-indigo-600 hover:underline" @click="sent = false">Use a different email</button>
+        </div>
+
+        <!-- Request form -->
+        <form v-else @submit.prevent="submit" class="space-y-5">
           <div>
             <label class="block text-sm font-medium text-text-body mb-1.5">Email</label>
             <input
-              v-model="form.email"
+              v-model="email"
               type="email"
               autocomplete="email"
               class="input"
-              :class="{ 'input-error': form.errors.email }"
+              :class="{ 'input-error': error }"
+              required
             />
-            <p v-if="form.errors.email" class="mt-1 text-xs text-red-600">{{ form.errors.email }}</p>
-          </div>
-
-          <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <label class="block text-sm font-medium text-text-body">Password</label>
-              <Link :href="route('portal.forgot-password')" class="text-xs text-indigo-600 hover:underline">
-                Forgot password?
-              </Link>
-            </div>
-            <input
-              v-model="form.password"
-              type="password"
-              autocomplete="current-password"
-              class="input"
-              :class="{ 'input-error': form.errors.password }"
-            />
-            <p v-if="form.errors.password" class="mt-1 text-xs text-red-600">{{ form.errors.password }}</p>
+            <p v-if="error" class="mt-1 text-xs text-red-600">{{ error }}</p>
           </div>
 
           <button
             type="submit"
-            :disabled="form.processing"
+            :disabled="loading"
             class="btn-primary w-full justify-center py-2.5"
             :style="{ backgroundColor: accentColor }"
           >
-            {{ form.processing ? 'Signing in…' : 'Sign in' }}
+            {{ loading ? 'Sending…' : 'Send sign-in link' }}
           </button>
         </form>
 
-        <p class="mt-6 text-center text-sm text-text-muted">
+        <p v-if="!sent" class="mt-6 text-center text-sm text-text-muted">
           Don't have an account?
           <Link :href="route('portal.register')" class="font-medium text-indigo-600 hover:underline">Register</Link>
         </p>
@@ -71,19 +65,55 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
 import type { PageProps } from '@/types';
 
 const page = usePage<PageProps>();
 const tenant = computed(() => page.props.tenant);
 const accentColor = computed(() => tenant.value?.primary_color ?? '#4f46e5');
 
-const form = useForm({ email: '', password: '', remember: false });
+const email = ref('');
+const loading = ref(false);
+const sent = ref(false);
+const error = ref('');
 
-function submit() {
-  form.post(route('portal.login.store'), {
-    onFinish: () => form.reset('password'),
-  });
+function collectFingerprint(): string {
+  const components = {
+    ua: navigator.userAgent ?? '',
+    screen: `${screen.width}x${screen.height}`,
+    lang: navigator.language ?? '',
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone ?? '',
+    platform: navigator.platform ?? '',
+  };
+  return btoa(JSON.stringify(components)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function submit() {
+  error.value = '';
+  loading.value = true;
+
+  try {
+    const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+
+    await fetch('/auth/magic-link/request', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+      },
+      body: JSON.stringify({
+        email: email.value,
+        fp_components: JSON.parse(atob(collectFingerprint().replace(/-/g, '+').replace(/_/g, '/'))),
+      }),
+    });
+
+    // Always show the sent state — endpoint never leaks whether email exists
+    sent.value = true;
+  } catch {
+    error.value = 'Something went wrong. Please try again.';
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
