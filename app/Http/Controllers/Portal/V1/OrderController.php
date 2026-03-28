@@ -57,16 +57,17 @@ class OrderController extends Controller
         }
 
         $amountCents = (int) round($package->price * 100);
-        $applicationFeeCents = (int) round($amountCents * $tenant->platform_fee_pct / 100);
+        $effectiveFeePct = $tenant->effectivePlatformFeePct($amountCents);
+        $applicationFeeCents = (int) round($amountCents * $effectiveFeePct / 100);
 
-        $order = DB::transaction(function () use ($request, $package, $tenantId, $customer, $idempotencyKey) {
+        $order = DB::transaction(function () use ($request, $package, $tenantId, $customer, $idempotencyKey, $effectiveFeePct) {
             $order = Order::create([
                 'tenant_id' => $tenantId,
                 'customer_id' => $customer->id,
                 'package_id' => $package->id,
                 'status' => 'pending',
                 'total_amount' => $package->price,
-                'platform_fee_pct' => $customer->tenant->platform_fee_pct,
+                'platform_fee_pct' => $effectiveFeePct,
                 'idempotency_key' => $idempotencyKey,
             ]);
 

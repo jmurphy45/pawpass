@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUlid;
+use App\Models\Order;
 use App\Services\PlanFeatureCache;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Tenant extends Model
 {
@@ -133,5 +135,29 @@ class Tenant extends Model
     public function staffLimit(): int
     {
         return app(PlanFeatureCache::class)->staffLimit($this->plan ?? 'free');
+    }
+
+    /**
+     * Returns the effective platform fee percentage for a new charge.
+     *
+     * For plans with a monthly_gmv_cap_cents, the fee is 0% while the tenant's
+     * month-to-date paid order volume is below the cap. Once over the cap, the
+     * tenant's stored platform_fee_pct applies (e.g. 2% for founders).
+     * For all other plans, this returns platform_fee_pct unchanged.
+     */
+    public function effectivePlatformFeePct(int $amountCents = 0): float
+    {
+        $capCents = app(PlanFeatureCache::class)->monthlyGmvCapCents($this->plan ?? 'free');
+
+        if ($capCents === null) {
+            return (float) $this->platform_fee_pct;
+        }
+
+        $mtdCents = (int) Order::where('tenant_id', $this->id)
+            ->where('status', 'paid')
+            ->where('created_at', '>=', now()->startOfMonth())
+            ->sum(DB::raw('ROUND(total_amount * 100)'));
+
+        return $mtdCents < $capCents ? 0.0 : (float) $this->platform_fee_pct;
     }
 }

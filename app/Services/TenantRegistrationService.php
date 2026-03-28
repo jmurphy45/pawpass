@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Auth\JwtService;
+use App\Exceptions\FoundersPlanSlotsFullException;
 use App\Jobs\ProvisionStripeConnectAccountJob;
 use App\Models\PlatformConfig;
 use App\Models\PlatformPlan;
@@ -26,6 +27,16 @@ class TenantRegistrationService
         $trialDays = (int) PlatformConfig::get('trial_days', 21);
 
         $plan = PlatformPlan::where('slug', $validated['plan'])->first();
+
+        if ($plan->tenant_limit !== null) {
+            $occupied = Tenant::where('plan', $plan->slug)
+                ->whereNotIn('status', ['cancelled'])
+                ->count();
+
+            if ($occupied >= $plan->tenant_limit) {
+                throw new FoundersPlanSlotsFullException('This plan is no longer accepting new registrations.');
+            }
+        }
         $priceId = $validated['billing_cycle'] === 'annual'
             ? $plan->stripe_annual_price_id
             : $plan->stripe_monthly_price_id;
@@ -47,7 +58,7 @@ class TenantRegistrationService
         // 3: All Stripe calls succeeded — now persist everything in one transaction
         $token = Str::random(64);
 
-        [$tenant, $user] = DB::transaction(function () use ($validated, $customerId, $stripeSub, $trialDays, $tenantId, $token) {
+        [$tenant, $user] = DB::transaction(function () use ($validated, $customerId, $stripeSub, $trialDays, $tenantId, $token, $plan) {
             $tenant = Tenant::create([
                 'id'                            => $tenantId,
                 'name'                          => $validated['business_name'],
@@ -59,6 +70,7 @@ class TenantRegistrationService
                 'trial_ends_at'                 => now()->addDays($trialDays),
                 'platform_stripe_customer_id'   => $customerId,
                 'platform_stripe_sub_id'        => $stripeSub->id,
+                'platform_fee_pct'              => $plan->default_platform_fee_pct ?? 5.0,
             ]);
 
             $user = User::create([

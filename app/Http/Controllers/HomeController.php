@@ -43,6 +43,8 @@ class HomeController extends Controller
                 'cta'                 => 'Start free trial',
                 'features'            => $features,
                 'transaction_fee_pct' => (float) $plan->platform_fee_pct,
+                'sms_segment_quota'   => (int) $plan->sms_segment_quota,
+                'staff_limit'         => (int) $plan->staff_limit,
             ];
         });
 

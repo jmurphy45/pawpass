@@ -153,7 +153,7 @@ class BoardingController extends Controller
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($customer?->stripe_payment_method_id && $stripeAccountId) {
-                $feePct   = $tenant->platform_fee_pct ?? 5.0;
+                $feePct   = $tenant->effectivePlatformFeePct($balance);
                 $feeCents = (int) round($balance * $feePct / 100);
                 $pi = $this->stripe->createPaymentIntent(
                     $balance,

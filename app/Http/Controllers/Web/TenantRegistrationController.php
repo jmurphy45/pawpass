@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Exceptions\FoundersPlanSlotsFullException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PlatformPlanResource;
 use App\Models\PlatformConfig;
@@ -34,10 +35,17 @@ class TenantRegistrationController extends Controller
                         ->values()
                     : collect($plan->features ?? [])->map(fn ($s) => ['slug' => $s, 'name' => ucwords(str_replace('_', ' ', $s))])->values();
 
+                $spotsLeft = null;
+                if ($plan->tenant_limit !== null) {
+                    $occupied  = \App\Models\Tenant::where('plan', $plan->slug)->whereNotIn('status', ['cancelled'])->count();
+                    $spotsLeft = max(0, $plan->tenant_limit - $occupied);
+                }
+
                 return array_merge($plan->only([
                     'id', 'slug', 'name', 'description',
                     'monthly_price_cents', 'annual_price_cents', 'sort_order', 'platform_fee_pct',
-                ]), ['features' => $features]);
+                    'tenant_limit', 'monthly_gmv_cap_cents',
+                ]), ['features' => $features, 'spots_left' => $spotsLeft]);
             });
 
         return Inertia::render('Registration/Create', [
@@ -70,7 +78,11 @@ class TenantRegistrationController extends Controller
             'billing_cycle' => ['required', 'in:monthly,annual'],
         ]);
 
-        $result = $this->registration->register($validated);
+        try {
+            $result = $this->registration->register($validated);
+        } catch (FoundersPlanSlotsFullException $e) {
+            return back()->withErrors(['plan' => $e->getMessage()])->withInput();
+        }
 
         $slug = $result['tenant']->slug;
 
