@@ -28,14 +28,14 @@ class BroadcastNotificationControllerTest extends TestCase
         $this->setUpJwt();
 
         PlatformPlan::factory()->create([
-            'slug'     => 'starter',
-            'features' => ['add_customers', 'add_dogs'],
+            'slug'     => 'pro',
+            'features' => ['broadcast_notifications'],
         ]);
 
         $this->tenant = Tenant::factory()->create([
             'slug'   => 'broadcast-test',
             'status' => 'active',
-            'plan'   => 'starter',
+            'plan'   => 'pro',
         ]);
 
         URL::forceRootUrl('http://broadcast-test.pawpass.com');

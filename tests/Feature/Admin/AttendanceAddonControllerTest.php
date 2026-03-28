@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\AttendanceAddon;
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +32,9 @@ class AttendanceAddonControllerTest extends TestCase
         parent::setUp();
         $this->setUpJwt();
 
-        $this->tenant = Tenant::factory()->create(['slug' => 'attaddon-test', 'status' => 'active', 'plan' => 'starter']);
+        PlatformPlan::factory()->create(['slug' => 'pro', 'features' => ['addon_services']]);
+
+        $this->tenant = Tenant::factory()->create(['slug' => 'attaddon-test', 'status' => 'active', 'plan' => 'pro']);
         URL::forceRootUrl('http://attaddon-test.pawpass.com');
 
         $this->staff    = User::factory()->create(['tenant_id' => $this->tenant->id, 'role' => 'staff']);

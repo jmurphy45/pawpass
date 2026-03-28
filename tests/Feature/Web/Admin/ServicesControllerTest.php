@@ -5,6 +5,7 @@ namespace Tests\Feature\Web\Admin;
 use App\Models\AddonType;
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\PlatformPlan;
 use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
@@ -30,7 +31,8 @@ class ServicesControllerTest extends TestCase
     {
         parent::setUp();
 
-        $this->tenant = Tenant::factory()->create(['slug' => 'services-web', 'status' => 'active', 'plan' => 'starter']);
+        PlatformPlan::factory()->create(['slug' => 'pro', 'features' => ['boarding', 'addon_services']]);
+        $this->tenant = Tenant::factory()->create(['slug' => 'services-web', 'status' => 'active', 'plan' => 'pro']);
         URL::forceRootUrl('http://services-web.pawpass.com');
 
         $this->owner    = User::factory()->businessOwner()->create(['tenant_id' => $this->tenant->id, 'status' => 'active']);

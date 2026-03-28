@@ -31,6 +31,7 @@ class BoardingControllerTest extends TestCase
         $this->tenant = Tenant::factory()->create([
             'slug'          => 'boardingportal',
             'status'        => 'active',
+            'plan'          => 'pro',
             'business_type' => 'kennel',
         ]);
         URL::forceRootUrl('http://boardingportal.pawpass.com');

@@ -23,7 +23,12 @@ class PlatformFeatureSeeder extends Seeder
             ['slug' => 'white_label',         'name' => 'White Label',            'description' => 'Remove all PawPass branding.', 'is_marketing' => true,  'sort_order' => 110],
             ['slug' => 'unlimited_staff',     'name' => 'Unlimited Staff',        'description' => 'No cap on staff accounts.', 'is_marketing' => true,  'sort_order' => 120],
             ['slug' => 'priority_support',    'name' => 'Priority Support',       'description' => 'Dedicated support with fast response times.', 'is_marketing' => true,  'sort_order' => 130],
-            ['slug' => 'recurring_checkout',  'name' => 'Recurring Checkout',     'description' => 'Charge saved cards automatically at check-in.', 'is_marketing' => true,  'sort_order' => 140],
+            ['slug' => 'recurring_checkout',       'name' => 'Recurring Checkout',           'description' => 'Charge saved cards automatically at check-in.',             'is_marketing' => true,  'sort_order' => 140],
+            ['slug' => 'vaccination_management',   'name' => 'Vaccination Management',       'description' => 'Create vaccination requirements and enforce compliance.',     'is_marketing' => true,  'sort_order' => 150],
+            ['slug' => 'advanced_credit_ops',      'name' => 'Advanced Credit Operations',   'description' => 'Goodwill credits, corrections, and dog-to-dog transfers.',   'is_marketing' => false, 'sort_order' => 160],
+            ['slug' => 'boarding',                 'name' => 'Boarding & Reservations',      'description' => 'Kennel reservations, report cards, and occupancy tracking.', 'is_marketing' => true,  'sort_order' => 170],
+            ['slug' => 'addon_services',           'name' => 'Add-on Services',              'description' => 'Charge customers per-service add-ons at check-in.',          'is_marketing' => true,  'sort_order' => 180],
+            ['slug' => 'broadcast_notifications',  'name' => 'Broadcast Notifications',      'description' => 'Send announcements to all customers at once.',               'is_marketing' => true,  'sort_order' => 190],
         ];
 
         foreach ($features as $feature) {

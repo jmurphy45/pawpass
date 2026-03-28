@@ -108,7 +108,7 @@ class ReservationController extends Controller
 
             if ($tenant?->stripe_account_id) {
                 $depositCents = (int) $request->deposit_amount_cents;
-                $feeCents     = (int) round($depositCents * (float) $tenant->platform_fee_pct / 100);
+                $feeCents     = (int) round($depositCents * $tenant->effectivePlatformFeePct($depositCents) / 100);
 
                 $pi = $this->stripe->createHoldPaymentIntent(
                     $depositCents,
@@ -130,7 +130,7 @@ class ReservationController extends Controller
                     'type'             => 'boarding',
                     'status'           => 'pending',
                     'total_amount'     => number_format($depositCents / 100, 2, '.', ''),
-                    'platform_fee_pct' => $tenant->platform_fee_pct,
+                    'platform_fee_pct' => $tenant->effectivePlatformFeePct($depositCents),
                 ]);
 
                 $order->payments()->create([

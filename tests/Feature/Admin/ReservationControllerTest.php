@@ -9,6 +9,7 @@ use App\Models\KennelUnit;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\Reservation;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VaccinationRequirement;
@@ -36,7 +37,9 @@ class ReservationControllerTest extends TestCase
         parent::setUp();
         $this->setUpJwt();
 
-        $this->tenant = Tenant::factory()->create(['slug' => 'reservation-test', 'status' => 'active', 'plan' => 'starter']);
+        PlatformPlan::factory()->create(['slug' => 'pro', 'features' => ['boarding']]);
+
+        $this->tenant = Tenant::factory()->create(['slug' => 'reservation-test', 'status' => 'active', 'plan' => 'pro']);
         URL::forceRootUrl('http://reservation-test.pawpass.com');
 
         $this->staff = User::factory()->create(['tenant_id' => $this->tenant->id, 'role' => 'staff']);

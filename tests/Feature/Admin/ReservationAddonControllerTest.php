@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Reservation;
 use App\Models\ReservationAddon;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +32,9 @@ class ReservationAddonControllerTest extends TestCase
         parent::setUp();
         $this->setUpJwt();
 
-        $this->tenant = Tenant::factory()->create(['slug' => 'resaddon-test', 'status' => 'active', 'plan' => 'starter']);
+        PlatformPlan::factory()->create(['slug' => 'pro', 'features' => ['boarding']]);
+
+        $this->tenant = Tenant::factory()->create(['slug' => 'resaddon-test', 'status' => 'active', 'plan' => 'pro']);
         URL::forceRootUrl('http://resaddon-test.pawpass.com');
 
         $this->staff = User::factory()->create(['tenant_id' => $this->tenant->id, 'role' => 'staff']);

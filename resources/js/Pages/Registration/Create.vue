@@ -57,6 +57,7 @@
               ${{ billingCycle === 'monthly' ? (plan.monthly_price_cents / 100).toFixed(0) : (plan.annual_price_cents / 100 / 12).toFixed(0) }}
               <span class="text-base font-normal text-gray-500">/mo</span>
             </p>
+            <p class="text-xs text-gray-400 mt-1">2.9% + 30¢ + {{ plan.platform_fee_pct }}% platform fee per transaction</p>
             <p v-if="billingCycle === 'annual'" class="text-xs text-gray-400 mb-4">
               Billed ${{ (plan.annual_price_cents / 100).toFixed(0) }}/year
             </p>
@@ -218,6 +219,7 @@ const props = defineProps<{
     monthly_price_cents: number
     annual_price_cents: number
     features: Array<{ slug: string; name: string } | string>
+    platform_fee_pct: number
     sort_order: number
   }>
   trialDays: number

@@ -65,6 +65,7 @@
             <div class="text-2xl font-bold text-gray-900">
               ${{ Math.floor((cycle === 'annual' ? plan.annual_price_cents : plan.monthly_price_cents) / 100) }}<span class="text-base font-normal text-gray-500">/mo</span>
             </div>
+            <p class="text-xs text-gray-400">2.9% + 30¢ + {{ plan.platform_fee_pct }}% platform fee per transaction</p>
 
             <ul class="space-y-1.5 flex-1">
               <li v-for="feature in plan.features" :key="feature" class="flex items-start gap-2 text-sm text-gray-700">
@@ -226,12 +227,14 @@
       </div>
     </Teleport>
   </AdminLayout>
+  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { loadConnectAndInitialize } from '@stripe/connect-js';
 import { loadStripe } from '@stripe/stripe-js';
 import type { Stripe, StripeCardElement } from '@stripe/stripe-js';
@@ -245,6 +248,7 @@ interface Plan {
   annual_price_cents: number;
   features: string[];
   staff_limit: number | null;
+  platform_fee_pct: number;
   sort_order: number;
 }
 
@@ -523,9 +527,22 @@ function submitUpgrade(slug: string) {
 // ── Cancel form ──────────────────────────────────────────────────────────────
 
 const cancelForm = useForm({});
+
+const confirmModal = ref<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>
+  ({ open: false, title: '', message: '', onConfirm: null });
+
+function askConfirm(title: string, message: string, onConfirm: () => void) {
+  confirmModal.value = { open: true, title, message, onConfirm };
+}
+function handleConfirm() { confirmModal.value.onConfirm?.(); confirmModal.value.open = false; }
+function handleCancel() { confirmModal.value.open = false; }
+
 function submitCancel() {
-  if (!confirm('Cancel your subscription at the end of the current period?')) return;
-  cancelForm.post(route('admin.billing.cancel'));
+  askConfirm(
+    'Cancel Subscription',
+    'Your subscription will be cancelled at the end of the current billing period.',
+    () => cancelForm.post(route('admin.billing.cancel')),
+  );
 }
 
 // ── Stripe Connect embed ─────────────────────────────────────────────────────

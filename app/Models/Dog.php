@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasUlid;
+use App\Models\Package;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -55,6 +56,11 @@ class Dog extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function autoReplenishPackage(): BelongsTo
+    {
+        return $this->belongsTo(Package::class, 'auto_replenish_package_id');
     }
 
     public function creditLedger(): HasMany

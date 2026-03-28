@@ -204,4 +204,50 @@ class PlanFeaturesTest extends TestCase
 
         $this->assertEquals(999999, $tenant->staffLimit());
     }
+
+    public function test_tenant_limit_returns_null_for_plans_without_limit(): void
+    {
+        $this->planFor('starter', ['add_customers'], 5);
+
+        $cache = app(\App\Services\PlanFeatureCache::class);
+
+        $this->assertNull($cache->tenantLimit('starter'));
+    }
+
+    public function test_tenant_limit_returns_value_when_set(): void
+    {
+        PlatformPlan::factory()->create([
+            'slug'         => 'founders',
+            'features'     => [],
+            'staff_limit'  => 15,
+            'tenant_limit' => 25,
+        ]);
+
+        $cache = app(\App\Services\PlanFeatureCache::class);
+
+        $this->assertEquals(25, $cache->tenantLimit('founders'));
+    }
+
+    public function test_monthly_gmv_cap_cents_returns_null_for_plans_without_cap(): void
+    {
+        $this->planFor('pro', ['financial_reports'], 15);
+
+        $cache = app(\App\Services\PlanFeatureCache::class);
+
+        $this->assertNull($cache->monthlyGmvCapCents('pro'));
+    }
+
+    public function test_monthly_gmv_cap_cents_returns_value_when_set(): void
+    {
+        PlatformPlan::factory()->create([
+            'slug'                   => 'founders',
+            'features'               => [],
+            'staff_limit'            => 15,
+            'monthly_gmv_cap_cents'  => 1_000_000,
+        ]);
+
+        $cache = app(\App\Services\PlanFeatureCache::class);
+
+        $this->assertEquals(1_000_000, $cache->monthlyGmvCapCents('founders'));
+    }
 }

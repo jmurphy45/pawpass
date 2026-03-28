@@ -18,6 +18,11 @@
               'bg-yellow-100 text-yellow-700': payment.status === 'authorized',
               'bg-gray-100 text-gray-600': !['paid', 'refunded', 'authorized'].includes(payment.status),
             }">{{ payment.status }}</span>
+            <a
+              v-if="payment.status === 'paid' && payment.stripe_pi_id"
+              :href="route('admin.orders.receipt', { order: payment.order_id })"
+              class="text-xs text-blue-600 hover:underline"
+            >Receipt</a>
             <form v-if="payment.status === 'paid'" @submit.prevent="refund(payment.order_id)">
               <button type="submit" class="text-xs text-red-600 hover:underline">Refund</button>
             </form>

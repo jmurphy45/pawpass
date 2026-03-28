@@ -10,8 +10,6 @@ use Illuminate\Support\Facades\Auth;
 
 class SubscriptionController extends Controller
 {
-    public function __construct(private readonly StripeService $stripe) {}
-
     public function cancel(string $dogId, Subscription $subscription): RedirectResponse
     {
         $customerId = Auth::user()->customer?->id;
@@ -23,14 +21,18 @@ class SubscriptionController extends Controller
                 ->with('error', 'Only active subscriptions can be cancelled.');
         }
 
-        $this->stripe->cancelSubscriptionAtPeriodEnd(
-            $subscription->stripe_sub_id,
-            $subscription->tenant->stripe_account_id,
-        );
+        if ($subscription->stripe_sub_id && $subscription->tenant?->stripe_account_id) {
+            app(StripeService::class)->cancelSubscriptionAtPeriodEnd(
+                $subscription->stripe_sub_id,
+                $subscription->tenant->stripe_account_id,
+            );
+        }
 
-        $subscription->update(['cancelled_at' => now()]);
+        $subscription->update(['cancelled_at' => now(), 'status' => 'cancelled']);
+
+        $subscription->dog?->update(['auto_replenish_enabled' => false]);
 
         return redirect()->route('portal.dogs.show', $dogId)
-            ->with('success', 'Your subscription has been cancelled and will not renew.');
+            ->with('success', 'Your plan has been cancelled and will not auto-renew.');
     }
 }

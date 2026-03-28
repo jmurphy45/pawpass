@@ -45,4 +45,18 @@ class PlanFeatureCache
     {
         return (int) ($this->plan($planSlug)?->sms_cost_per_segment_cents ?? 4);
     }
+
+    public function tenantLimit(string $planSlug): ?int
+    {
+        $limit = $this->plan($planSlug)?->tenant_limit;
+
+        return $limit !== null ? (int) $limit : null;
+    }
+
+    public function monthlyGmvCapCents(string $planSlug): ?int
+    {
+        $cap = $this->plan($planSlug)?->monthly_gmv_cap_cents;
+
+        return $cap !== null ? (int) $cap : null;
+    }
 }

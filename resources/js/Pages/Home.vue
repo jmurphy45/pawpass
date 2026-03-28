@@ -390,7 +390,7 @@
 
         <div class="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
           <div
-            v-for="plan in props.plans"
+            v-for="plan in displayPlans"
             :key="plan.name"
             class="relative flex flex-col rounded-2xl border p-8 transition-all"
             :class="plan.featured
@@ -407,15 +407,45 @@
                 <span class="text-5xl font-extrabold tracking-tight text-gray-900">{{ plan.price }}</span>
                 <span class="text-sm text-gray-500 font-medium">/mo</span>
               </div>
-              <p class="mt-2 text-xs text-indigo-600 font-semibold">21-day free trial</p>
+              <p class="mt-1.5 text-xs text-gray-400">2.9% + 30¢ + {{ plan.transaction_fee_pct }}% platform fee per transaction</p>
+              <p class="mt-1 text-xs text-indigo-600 font-semibold">21-day free trial</p>
+
+              <!-- Plan limits at-a-glance -->
+              <div class="mt-4 flex flex-wrap gap-2">
+                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+                  :class="plan.featured ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600'">
+                  <!-- SMS icon -->
+                  <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                  </svg>
+                  {{ plan.sms_segment_quota > 0 ? plan.sms_segment_quota.toLocaleString() + ' SMS/mo' : 'No broadcast SMS' }}
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+                  :class="plan.featured ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600'">
+                  <!-- Staff icon -->
+                  <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  </svg>
+                  {{ plan.staff_limit >= 999 ? 'Unlimited staff' : 'Up to ' + plan.staff_limit + ' staff' }}
+                </span>
+              </div>
             </div>
 
             <ul class="flex-1 space-y-3 mb-8">
-              <li v-for="feature in plan.features" :key="typeof feature === 'string' ? feature : feature.slug" class="flex items-start gap-2.5 text-sm text-gray-600">
+              <!-- "Everything in X, plus" callout for non-base plans -->
+              <li v-if="plan.inheritedFrom" class="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 mb-1">
+                <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                </svg>
+                Everything in {{ plan.inheritedFrom }}, plus:
+              </li>
+
+              <!-- Only new features for this plan -->
+              <li v-for="feature in plan.newFeatures" :key="featureSlug(feature)" class="flex items-start gap-2.5 text-sm text-gray-600">
                 <svg class="mt-0.5 h-4 w-4 flex-shrink-0" :class="plan.featured ? 'text-indigo-600' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                 </svg>
-                {{ typeof feature === 'string' ? feature : feature.name }}
+                {{ featureName(feature) }}
               </li>
             </ul>
 
@@ -432,6 +462,9 @@
         </div>
       </div>
     </section>
+
+    <!-- ===== PRICING CALCULATOR (A/B test via Pennant) ===== -->
+    <PricingCalculator v-if="props.show_pricing_calculator" :plans="props.plans" />
 
     <!-- ===== BOTTOM CTA ===== -->
     <section style="background-color: #0a0908;" class="relative overflow-hidden px-6 py-32 text-center">
@@ -498,7 +531,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import PricingCalculator from '@/Components/PricingCalculator.vue'
 
 // ── Props ─────────────────────────────────────────────────────
 interface PlanFeature {
@@ -509,15 +543,22 @@ interface PlanFeature {
 interface Plan {
   name: string
   price: string
+  monthly_price: number
   featured: boolean
   cta: string
   features: Array<PlanFeature | string>
+  transaction_fee_pct: number
+  sms_segment_quota: number
+  staff_limit: number
 }
 
-const props = defineProps<{ plans: Plan[] }>()
+const props = defineProps<{
+  plans: Plan[]
+  show_pricing_calculator: boolean
+}>()
 
 // ── Nav state ────────────────────────────────────────────────
-const appDomain = import.meta.env.VITE_APP_DOMAIN as string
+const appDomain = (import.meta.env.VITE_APP_DOMAIN as string) || 'pawpass.local'
 
 const navScrolled = ref(false)
 const heroSentinel = ref<HTMLElement | null>(null)
@@ -678,6 +719,33 @@ const testimonials = [
     avatarBg: '#db2777',
   },
 ]
+
+// ── Computed pricing display (cumulative features) ────────────
+function featureSlug(f: PlanFeature | string): string {
+  return typeof f === 'string' ? f : f.slug
+}
+function featureName(f: PlanFeature | string): string {
+  return typeof f === 'string' ? f : f.name
+}
+
+interface DisplayPlan extends Plan {
+  inheritedFrom: string | null   // previous plan name, or null for base
+  newFeatures: Array<PlanFeature | string>
+}
+
+const displayPlans = computed<DisplayPlan[]>(() => {
+  const seenSlugs = new Set<string>()
+  return props.plans.map((plan, index) => {
+    const prevPlanName = index > 0 ? props.plans[index - 1].name : null
+    const newFeatures = plan.features.filter(f => !seenSlugs.has(featureSlug(f)))
+    plan.features.forEach(f => seenSlugs.add(featureSlug(f)))
+    return {
+      ...plan,
+      inheritedFrom: prevPlanName,
+      newFeatures,
+    }
+  })
+})
 
 // Plans are passed from the server via props (see HomeController)
 </script>

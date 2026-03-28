@@ -52,17 +52,17 @@ class AutoReplenishService
         }
 
         $amountCents = (int) round((float) $package->price * 100);
-        $feePct      = (float) ($tenant->platform_fee_pct ?? 5);
+        $feePct      = $tenant->effectivePlatformFeePct($amountCents);
         $feeCents    = (int) round($amountCents * $feePct / 100);
 
-        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant) {
+        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct) {
             $order = Order::create([
                 'tenant_id'        => $tenant->id,
                 'customer_id'      => $customer->id,
                 'package_id'       => $package->id,
                 'status'           => 'pending',
                 'total_amount'     => $package->price,
-                'platform_fee_pct' => $tenant->platform_fee_pct,
+                'platform_fee_pct' => $feePct,
             ]);
 
             $order->orderDogs()->create([
@@ -177,17 +177,17 @@ class AutoReplenishService
         }
 
         $amountCents = (int) round((float) $package->price * 100);
-        $feePct      = (float) ($tenant->platform_fee_pct ?? 5);
+        $feePct      = $tenant->effectivePlatformFeePct($amountCents);
         $feeCents    = (int) round($amountCents * $feePct / 100);
 
-        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant) {
+        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct) {
             $order = Order::create([
                 'tenant_id'        => $tenant->id,
                 'customer_id'      => $customer->id,
                 'package_id'       => $package->id,
                 'status'           => 'pending',
                 'total_amount'     => $package->price,
-                'platform_fee_pct' => $tenant->platform_fee_pct,
+                'platform_fee_pct' => $feePct,
             ]);
 
             $order->orderDogs()->create([

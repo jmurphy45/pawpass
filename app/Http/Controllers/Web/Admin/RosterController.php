@@ -270,7 +270,7 @@ class RosterController extends Controller
         $stripeAccountId = $tenant?->stripe_account_id;
 
         if ($customer?->stripe_payment_method_id && $stripeAccountId) {
-            $feePct   = $tenant->platform_fee_pct ?? 5.0;
+            $feePct   = $tenant->effectivePlatformFeePct($totalCents);
             $feeCents = (int) round($totalCents * $feePct / 100);
 
             $pi = $this->stripe->createPaymentIntent(

@@ -104,12 +104,14 @@ Route::prefix('portal/v1')
             Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
             Route::patch('notifications/{id}/read', [NotificationController::class, 'markRead']);
 
-            Route::get('kennel-units/available', [PortalKennelUnitController::class, 'available']);
+            Route::middleware('plan:boarding')->group(function () {
+                Route::get('kennel-units/available', [PortalKennelUnitController::class, 'available']);
 
-            Route::get('reservations', [PortalReservationController::class, 'index']);
-            Route::post('reservations', [PortalReservationController::class, 'store']);
-            Route::get('reservations/{id}', [PortalReservationController::class, 'show']);
-            Route::patch('reservations/{id}/cancel', [PortalReservationController::class, 'cancel']);
+                Route::get('reservations', [PortalReservationController::class, 'index']);
+                Route::post('reservations', [PortalReservationController::class, 'store']);
+                Route::get('reservations/{id}', [PortalReservationController::class, 'show']);
+                Route::patch('reservations/{id}/cancel', [PortalReservationController::class, 'cancel']);
+            });
         });
     });
 
@@ -146,7 +148,7 @@ Route::prefix('admin/v1')
         Route::post('roster/checkin', [RosterController::class, 'checkin']);
         Route::post('roster/checkout', [RosterController::class, 'checkout']);
 
-        Route::middleware('idempotency')->group(function () {
+        Route::middleware(['idempotency', 'plan:advanced_credit_ops'])->group(function () {
             Route::post('dogs/{dog}/credits/goodwill', [CreditController::class, 'goodwill']);
             Route::post('dogs/{dog}/credits/correction', [CreditController::class, 'correction']);
             Route::post('dogs/{dog}/credits/transfer', [CreditController::class, 'transfer']);
@@ -155,61 +157,64 @@ Route::prefix('admin/v1')
         Route::get('payments', [PaymentController::class, 'index']);
         Route::post('payments/{order}/refund', [PaymentController::class, 'refund']);
 
-        Route::post('notifications/broadcast', [BroadcastNotificationController::class, 'store']);
+        Route::post('notifications/broadcast', [BroadcastNotificationController::class, 'store'])
+            ->middleware('plan:broadcast_notifications');
 
-        // Kennel units (read: staff+; write: owner only)
+        // Kennel units (read ungated; write: owner + boarding plan)
         Route::get('kennel-units', [KennelUnitController::class, 'index']);
-        Route::middleware('role:business_owner')->group(function () {
+        Route::middleware(['plan:boarding', 'role:business_owner'])->group(function () {
             Route::post('kennel-units', [KennelUnitController::class, 'store']);
             Route::patch('kennel-units/{kennelUnit}', [KennelUnitController::class, 'update']);
             Route::delete('kennel-units/{kennelUnit}', [KennelUnitController::class, 'destroy']);
         });
 
-        // Reservations
-        Route::get('reservations', [ReservationController::class, 'index']);
-        Route::post('reservations', [ReservationController::class, 'store']);
-        Route::get('reservations/{reservation}', [ReservationController::class, 'show']);
-        Route::patch('reservations/{reservation}', [ReservationController::class, 'update']);
-        Route::delete('reservations/{reservation}', [ReservationController::class, 'destroy']);
+        // Boarding & Reservations (plan:boarding required)
+        Route::middleware('plan:boarding')->group(function () {
+            Route::get('reservations', [ReservationController::class, 'index']);
+            Route::post('reservations', [ReservationController::class, 'store']);
+            Route::get('reservations/{reservation}', [ReservationController::class, 'show']);
+            Route::patch('reservations/{reservation}', [ReservationController::class, 'update']);
+            Route::delete('reservations/{reservation}', [ReservationController::class, 'destroy']);
 
-        // Report cards (nested under reservations)
-        Route::get('reservations/{reservation}/report-cards', [BoardingReportCardController::class, 'index']);
-        Route::post('reservations/{reservation}/report-cards', [BoardingReportCardController::class, 'store']);
-        Route::patch('reservations/{reservation}/report-cards/{reportCard}', [BoardingReportCardController::class, 'update']);
+            Route::get('reservations/{reservation}/report-cards', [BoardingReportCardController::class, 'index']);
+            Route::post('reservations/{reservation}/report-cards', [BoardingReportCardController::class, 'store']);
+            Route::patch('reservations/{reservation}/report-cards/{reportCard}', [BoardingReportCardController::class, 'update']);
 
-        // Add-ons (nested under reservations)
-        Route::get('reservations/{reservation}/addons', [ReservationAddonController::class, 'index']);
-        Route::post('reservations/{reservation}/addons', [ReservationAddonController::class, 'store']);
-        Route::delete('reservations/{reservation}/addons/{addon}', [ReservationAddonController::class, 'destroy']);
+            Route::get('reservations/{reservation}/addons', [ReservationAddonController::class, 'index']);
+            Route::post('reservations/{reservation}/addons', [ReservationAddonController::class, 'store']);
+            Route::delete('reservations/{reservation}/addons/{addon}', [ReservationAddonController::class, 'destroy']);
 
-        // Add-ons (nested under attendances)
-        Route::get('attendances/{attendance}/addons', [AttendanceAddonController::class, 'index']);
-        Route::post('attendances/{attendance}/addons', [AttendanceAddonController::class, 'store']);
-        Route::delete('attendances/{attendance}/addons/{addon}', [AttendanceAddonController::class, 'destroy']);
-
-        // Add-on type catalog (read: staff+; write: owner only)
-        Route::get('addon-types', [AddonTypeController::class, 'index']);
-        Route::middleware('role:business_owner')->group(function () {
-            Route::post('addon-types', [AddonTypeController::class, 'store']);
-            Route::patch('addon-types/{addonType}', [AddonTypeController::class, 'update']);
-            Route::delete('addon-types/{addonType}', [AddonTypeController::class, 'destroy']);
+            Route::get('occupancy', [OccupancyController::class, 'index']);
         });
 
-        // Dog vaccinations
-        Route::get('dogs/{dog}/vaccinations', [DogVaccinationController::class, 'index']);
-        Route::post('dogs/{dog}/vaccinations', [DogVaccinationController::class, 'store']);
-        Route::patch('dogs/{dog}/vaccinations/{vaccination}', [DogVaccinationController::class, 'update']);
-        Route::delete('dogs/{dog}/vaccinations/{vaccination}', [DogVaccinationController::class, 'destroy']);
+        // Add-on Services (plan:addon_services required)
+        Route::middleware('plan:addon_services')->group(function () {
+            Route::get('attendances/{attendance}/addons', [AttendanceAddonController::class, 'index']);
+            Route::post('attendances/{attendance}/addons', [AttendanceAddonController::class, 'store']);
+            Route::delete('attendances/{attendance}/addons/{addon}', [AttendanceAddonController::class, 'destroy']);
 
-        // Vaccination requirements (read: staff+; write: owner only)
+            Route::get('addon-types', [AddonTypeController::class, 'index']);
+            Route::middleware('role:business_owner')->group(function () {
+                Route::post('addon-types', [AddonTypeController::class, 'store']);
+                Route::patch('addon-types/{addonType}', [AddonTypeController::class, 'update']);
+                Route::delete('addon-types/{addonType}', [AddonTypeController::class, 'destroy']);
+            });
+        });
+
+        // Vaccination Management (plan:vaccination_management required)
+        Route::middleware('plan:vaccination_management')->group(function () {
+            Route::get('dogs/{dog}/vaccinations', [DogVaccinationController::class, 'index']);
+            Route::post('dogs/{dog}/vaccinations', [DogVaccinationController::class, 'store']);
+            Route::patch('dogs/{dog}/vaccinations/{vaccination}', [DogVaccinationController::class, 'update']);
+            Route::delete('dogs/{dog}/vaccinations/{vaccination}', [DogVaccinationController::class, 'destroy']);
+        });
+
+        // Vaccination requirements (read ungated; write: owner + vaccination_management plan)
         Route::get('vaccination-requirements', [VaccinationRequirementController::class, 'index']);
-        Route::middleware('role:business_owner')->group(function () {
+        Route::middleware(['role:business_owner', 'plan:vaccination_management'])->group(function () {
             Route::post('vaccination-requirements', [VaccinationRequirementController::class, 'store']);
             Route::delete('vaccination-requirements/{vaccinationRequirement}', [VaccinationRequirementController::class, 'destroy']);
         });
-
-        // Occupancy dashboard
-        Route::get('occupancy', [OccupancyController::class, 'index']);
 
         // Reports — Staff+ with basic_reporting
         Route::middleware(['role:staff,business_owner', 'plan:basic_reporting'])->group(function () {

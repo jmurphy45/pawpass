@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\DogVaccination;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,6 +27,8 @@ class DogVaccinationControllerTest extends TestCase
     {
         parent::setUp();
         $this->setUpJwt();
+
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['vaccination_management']]);
 
         $this->tenant = Tenant::factory()->create(['slug' => 'vax-test', 'status' => 'active', 'plan' => 'starter']);
         URL::forceRootUrl('http://vax-test.pawpass.com');

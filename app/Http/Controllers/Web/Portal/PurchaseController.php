@@ -98,7 +98,7 @@ class PurchaseController extends Controller
         $dogs = collect($request->dog_ids)->map(fn ($id) => $customer->dogs()->findOrFail($id));
 
         $amountCents = (int) round((float) $package->price * 100);
-        $feePct      = (float) ($tenant->platform_fee_pct ?? 5);
+        $feePct      = $tenant->effectivePlatformFeePct($amountCents);
         $feeCents    = (int) round($amountCents * $feePct / 100);
 
         if ($customer->stripe_customer_id) {
@@ -109,14 +109,14 @@ class PurchaseController extends Controller
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }
 
-        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs) {
+        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs, $feePct) {
             $order = Order::create([
                 'tenant_id'        => $tenantId,
                 'customer_id'      => $customer->id,
                 'package_id'       => $package->id,
                 'status'           => 'pending',
                 'total_amount'     => $package->price,
-                'platform_fee_pct' => $customer->tenant->platform_fee_pct,
+                'platform_fee_pct' => $feePct,
             ]);
 
             foreach ($dogs as $dog) {

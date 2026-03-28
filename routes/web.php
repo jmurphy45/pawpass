@@ -12,6 +12,7 @@ use App\Http\Controllers\Web\Admin\DogController as AdminDogController;
 use App\Http\Controllers\Web\Admin\RosterController as AdminRosterController;
 use App\Http\Controllers\Web\Admin\CreditController as AdminCreditController;
 use App\Http\Controllers\Web\Admin\PackageController as AdminPackageController;
+use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptController;
 use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\Web\Portal\AttendanceController;
 use App\Http\Controllers\Web\Portal\DashboardController;
 use App\Http\Controllers\Web\Portal\DogController;
 use App\Http\Controllers\Web\Portal\HistoryController;
+use App\Http\Controllers\Web\Portal\AutoReplenishController;
 use App\Http\Controllers\Web\Portal\SubscriptionController;
 use App\Http\Controllers\Web\Portal\NotificationController;
 use App\Http\Controllers\Web\Portal\OrderReceiptController;
@@ -118,6 +120,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         // Payments
         Route::get('/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
         Route::post('/payments/{order}/refund', [AdminPaymentController::class, 'refund'])->name('admin.payments.refund');
+        Route::get('/orders/{order}/receipt', AdminOrderReceiptController::class)->name('admin.orders.receipt');
 
         // Settings (business_owner only enforced in controller)
         Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings.index');
@@ -197,6 +200,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::get('/dogs/{dog}/edit', [DogController::class, 'edit'])->name('portal.dogs.edit');
         Route::patch('/dogs/{dog}', [DogController::class, 'update'])->name('portal.dogs.update');
         Route::post('/dogs/{dog}/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('portal.subscriptions.cancel');
+        Route::post('/dogs/{dog}/auto-replenish/cancel', [AutoReplenishController::class, 'cancel'])->name('portal.auto-replenish.cancel');
 
         // Purchase
         Route::get('/purchase', [PurchaseController::class, 'index'])->name('portal.purchase');

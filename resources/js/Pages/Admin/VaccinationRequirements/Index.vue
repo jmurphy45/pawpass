@@ -53,12 +53,14 @@
       </form>
     </div>
   </AdminLayout>
+  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { router } from '@inertiajs/vue3';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 defineProps<{
   requirements: Array<{ id: string; vaccine_name: string }>;
@@ -82,8 +84,20 @@ function submitRequirement() {
   );
 }
 
+const confirmModal = ref<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>
+  ({ open: false, title: '', message: '', onConfirm: null });
+
+function askConfirm(title: string, message: string, onConfirm: () => void) {
+  confirmModal.value = { open: true, title, message, onConfirm };
+}
+function handleConfirm() { confirmModal.value.onConfirm?.(); confirmModal.value.open = false; }
+function handleCancel() { confirmModal.value.open = false; }
+
 function deleteRequirement(id: string) {
-  if (!confirm('Remove this vaccination requirement?')) return;
-  router.delete(route('admin.vaccination-requirements.destroy', { vaccinationRequirement: id }));
+  askConfirm(
+    'Remove Requirement',
+    'This vaccination requirement will be removed.',
+    () => router.delete(route('admin.vaccination-requirements.destroy', { vaccinationRequirement: id })),
+  );
 }
 </script>

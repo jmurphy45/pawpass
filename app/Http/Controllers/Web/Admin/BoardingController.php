@@ -11,6 +11,7 @@ use App\Models\ReservationAddon;
 use App\Models\OrderPayment;
 use App\Models\Reservation;
 use App\Models\Tenant;
+use App\Services\PlanFeatureCache;
 use App\Services\StripeService;
 use App\Services\VaccinationComplianceService;
 use Carbon\Carbon;
@@ -25,10 +26,20 @@ class BoardingController extends Controller
     public function __construct(
         private VaccinationComplianceService $compliance,
         private StripeService $stripe,
+        private PlanFeatureCache $planFeatureCache,
     ) {}
+
+    private function requireBoarding(): void
+    {
+        $tenant = Tenant::find(app('current.tenant.id'));
+        if (! $this->planFeatureCache->hasFeature($tenant?->plan ?? 'free', 'boarding')) {
+            abort(403);
+        }
+    }
 
     public function reservations(Request $request): Response
     {
+        $this->requireBoarding();
         $tenantId = app('current.tenant.id');
 
         $query = Reservation::with(['dog:id,name', 'customer:id,name', 'kennelUnit:id,name'])
@@ -56,6 +67,7 @@ class BoardingController extends Controller
 
     public function showReservation(Reservation $reservation): Response
     {
+        $this->requireBoarding();
         $tenantId = app('current.tenant.id');
 
         $reservation->load(['dog.vaccinations', 'customer', 'kennelUnit', 'reportCards', 'addons.addonType']);
@@ -141,7 +153,7 @@ class BoardingController extends Controller
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($customer?->stripe_payment_method_id && $stripeAccountId) {
-                $feePct   = $tenant->platform_fee_pct ?? 5.0;
+                $feePct   = $tenant->effectivePlatformFeePct($balance);
                 $feeCents = (int) round($balance * $feePct / 100);
                 $pi = $this->stripe->createPaymentIntent(
                     $balance,
@@ -263,6 +275,7 @@ class BoardingController extends Controller
 
     public function kennelUnits(): Response
     {
+        $this->requireBoarding();
         $units = KennelUnit::orderBy('sort_order')->orderBy('name')->get();
 
         return Inertia::render('Admin/Boarding/KennelUnits', [
@@ -385,6 +398,7 @@ class BoardingController extends Controller
 
     public function occupancy(Request $request): Response
     {
+        $this->requireBoarding();
         $from = $request->input('from', now()->toDateString());
         $to   = $request->input('to', now()->addDays(14)->toDateString());
 
