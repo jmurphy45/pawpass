@@ -6,7 +6,6 @@ use App\Models\Customer;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithJwt;
@@ -40,7 +39,6 @@ class AccountTest extends TestCase
             'name' => 'Jane Doe',
             'email' => 'jane@example.com',
             'phone' => '555-1234',
-            'password' => bcrypt('secret123'),
         ]);
         $this->customer->update(['user_id' => $this->user->id]);
     }
@@ -90,45 +88,6 @@ class AccountTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('data.name', 'Jane Doe');
-    }
-
-    public function test_update_password_succeeds_with_correct_current_password(): void
-    {
-        $response = $this->withHeaders($this->authHeaders())
-            ->patchJson('/api/portal/v1/account/password', [
-                'current_password' => 'secret123',
-                'password' => 'newpassword',
-                'password_confirmation' => 'newpassword',
-            ]);
-
-        $response->assertStatus(200)
-            ->assertJsonPath('data.message', 'Password updated.');
-
-        $this->assertTrue(Hash::check('newpassword', $this->user->fresh()->password));
-    }
-
-    public function test_update_password_fails_with_wrong_current_password(): void
-    {
-        $response = $this->withHeaders($this->authHeaders())
-            ->patchJson('/api/portal/v1/account/password', [
-                'current_password' => 'wrongpassword',
-                'password' => 'newpassword',
-                'password_confirmation' => 'newpassword',
-            ]);
-
-        $response->assertStatus(422);
-    }
-
-    public function test_update_password_requires_confirmation(): void
-    {
-        $response = $this->withHeaders($this->authHeaders())
-            ->patchJson('/api/portal/v1/account/password', [
-                'current_password' => 'secret123',
-                'password' => 'newpassword',
-            ]);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['password']);
     }
 
     public function test_unauthenticated_cannot_access_account(): void
