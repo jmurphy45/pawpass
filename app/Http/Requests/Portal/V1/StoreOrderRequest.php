@@ -29,6 +29,8 @@ class StoreOrderRequest extends FormRequest
                     ->where('customer_id', $customerId)
                     ->where('tenant_id', $tenantId),
             ],
+            'postal_code' => ['nullable', 'string', 'max:20'],
+            'country'     => ['nullable', 'string', 'size:2'],
         ];
     }
 }

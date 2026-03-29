@@ -35,16 +35,32 @@ class BillingController extends Controller
     public function subscribe(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'plan'  => ['required', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
-            'cycle' => ['required', 'string', 'in:monthly,annual'],
+            'plan'                         => ['required', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
+            'cycle'                        => ['required', 'string', 'in:monthly,annual'],
+            'billing_address'              => ['nullable', 'array'],
+            'billing_address.street'       => ['nullable', 'string'],
+            'billing_address.city'         => ['nullable', 'string'],
+            'billing_address.state'        => ['nullable', 'string', 'max:2'],
+            'billing_address.postal_code'  => ['nullable', 'string', 'max:20'],
+            'billing_address.country'      => ['nullable', 'string', 'in:US,CA'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
+
+        if (! empty($validated['billing_address'])) {
+            $tenant->update(['billing_address' => $validated['billing_address']]);
+            $tenant->refresh();
+        }
 
         if (! $tenant->platform_stripe_customer_id) {
             $customerId = $this->billing->createCustomer($tenant);
             $tenant->update(['platform_stripe_customer_id' => $customerId]);
             $tenant->refresh();
+        } elseif (! empty($validated['billing_address'])) {
+            $this->billing->updateCustomerAddress(
+                $tenant->platform_stripe_customer_id,
+                $validated['billing_address'],
+            );
         }
 
         $plan    = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();

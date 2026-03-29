@@ -86,6 +86,7 @@ Route::prefix('portal/v1')
 
             Route::middleware(['idempotency', 'stripe.onboarded'])->post('orders', [OrderController::class, 'store']);
             Route::get('orders', [OrderController::class, 'index']);
+            Route::get('orders/tax-preview', [OrderController::class, 'taxPreview']);
 
             Route::post('subscriptions', [SubscriptionController::class, 'store']);
             Route::get('subscriptions', [SubscriptionController::class, 'index']);

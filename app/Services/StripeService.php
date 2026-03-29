@@ -266,6 +266,37 @@ class StripeService
         ]);
     }
 
+    public function calculateTax(
+        int $subtotalCents,
+        string $currency,
+        string $stripeAccountId,
+        array $customerAddress,
+        string $reference = 'order',
+    ): object {
+        return $this->client->tax->calculations->create([
+            'currency'         => $currency,
+            'line_items'       => [[
+                'amount'    => $subtotalCents,
+                'reference' => $reference,
+            ]],
+            'customer_details' => [
+                'address'        => $customerAddress,
+                'address_source' => 'billing',
+            ],
+        ], ['stripe_account' => $stripeAccountId]);
+    }
+
+    public function createTaxTransaction(
+        string $taxCalculationId,
+        string $reference,
+        string $stripeAccountId,
+    ): object {
+        return $this->client->tax->transactions->createFromCalculation([
+            'calculation' => $taxCalculationId,
+            'reference'   => $reference,
+        ], ['stripe_account' => $stripeAccountId]);
+    }
+
     public function constructWebhookEvent(string $payload, string $sigHeader, string $secret): object
     {
         return Webhook::constructEvent($payload, $sigHeader, $secret);

@@ -46,5 +46,14 @@ class FeaturesServiceProvider extends ServiceProvider
         // Enable:  Feature::for(null)->activate('pricing_calculator')
         // Disable: Feature::for(null)->deactivate('pricing_calculator')
         Feature::define('pricing_calculator', fn (?Tenant $tenant) => false);
+
+        // Tax collection flags — off by default; toggle via tinker
+        // Enable:  Feature::for(null)->activate('tax_daycare_orders')
+        // Disable: Feature::for(null)->deactivate('tax_daycare_orders')
+        Feature::define('tax_daycare_orders', fn (?Tenant $tenant) => false);
+
+        // Enable:  Feature::for(null)->activate('tax_platform_subscriptions')
+        // Disable: Feature::for(null)->deactivate('tax_platform_subscriptions')
+        Feature::define('tax_platform_subscriptions', fn (?Tenant $tenant) => false);
     }
 }
