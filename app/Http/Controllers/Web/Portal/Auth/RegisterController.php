@@ -32,7 +32,7 @@ class RegisterController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'  => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email'],
             'phone' => ['nullable', 'string', 'max:30'],
         ]);

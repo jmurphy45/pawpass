@@ -24,8 +24,8 @@ class AcceptInviteController extends Controller
         $user = $this->findUserOrFail($token);
 
         $user->update([
-            'status'            => 'active',
-            'invite_token'      => null,
+            'status' => 'active',
+            'invite_token' => null,
             'invite_expires_at' => null,
         ]);
 
