@@ -134,6 +134,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::patch('/settings/notifications', [AdminSettingsController::class, 'updateNotifications'])->name('admin.settings.notifications');
         Route::post('/settings/staff/invite', [AdminSettingsController::class, 'inviteStaff'])->name('admin.settings.staff.invite');
         Route::patch('/settings/staff/{user}/deactivate', [AdminSettingsController::class, 'deactivateStaff'])->name('admin.settings.staff.deactivate');
+        Route::patch('/settings/billing-address', [AdminSettingsController::class, 'updateBillingAddress'])->name('admin.settings.billing-address');
 
         // Reports
         Route::get('/reports', [AdminReportController::class, 'index'])->name('admin.reports.index');
