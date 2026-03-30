@@ -124,7 +124,7 @@
                 <span>{{ capitalize(savedCard.brand) }} ····{{ savedCard.last4 }}</span>
                 <button type="button" @click="useNewCard = true" class="ml-auto text-xs text-indigo-600 hover:underline">Change</button>
               </div>
-              <div v-show="!savedCard || useNewCard || showPaymentForm" id="card-element" class="input py-3" />
+              <div v-show="showPaymentForm" id="card-element" class="input py-3" />
               <p v-if="cardError" class="mt-1.5 text-xs text-red-600">{{ cardError }}</p>
               <label class="mt-2 flex items-center gap-2 text-sm text-text-muted cursor-pointer">
                 <input type="checkbox" v-model="saveCard" class="h-4 w-4 rounded border-gray-300" />
@@ -366,14 +366,14 @@ async function purchase() {
       if (result.error) {
         cardError.value = 'Your saved card could not be charged. Please enter a new card.';
         useNewCard.value = true;
-        await mountPaymentElement(client_secret);
         showPaymentForm.value = true;
+        await mountPaymentElement(client_secret);
       } else {
         await callConfirmEndpoint(result.paymentIntent!.id);
       }
     } else {
-      await mountPaymentElement(client_secret);
       showPaymentForm.value = true;
+      await mountPaymentElement(client_secret);
     }
   } catch {
     cardError.value = 'An unexpected error occurred.';
