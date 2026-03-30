@@ -205,6 +205,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
 
         // Purchase
         Route::get('/purchase', [PurchaseController::class, 'index'])->name('portal.purchase');
+        Route::get('/purchase/tax-preview', [PurchaseController::class, 'taxPreview'])->name('portal.purchase.tax-preview');
         Route::post('/purchase', [PurchaseController::class, 'store'])->name('portal.purchase.store');
         Route::post('/purchase/confirm', [PurchaseController::class, 'confirm'])->name('portal.purchase.confirm');
 

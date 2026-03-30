@@ -152,12 +152,34 @@ class PurchaseController extends Controller
             }
         }
 
-        $saveCard     = $request->boolean('save_card');
-        $automaticTax = Feature::active('tax_daycare_orders');
+        $taxAmountCents = 0;
+        $taxCalcId = null;
+        if (Feature::active('tax_daycare_orders') && !empty($tenant->billing_address['postal_code']) && $tenant->stripe_account_id) {
+            try {
+                $calculation = $stripe->calculateTax(
+                    $amountCents,
+                    'usd',
+                    $tenant->stripe_account_id,
+                    [
+                        'postal_code' => $tenant->billing_address['postal_code'],
+                        'country'     => $tenant->billing_address['country'] ?? 'US',
+                    ],
+                    $package->id,
+                );
+                $taxAmountCents = $calculation->tax_amount_exclusive;
+                $taxCalcId = $calculation->id;
+                $order->update(['tax_amount_cents' => $taxAmountCents, 'stripe_tax_calc_id' => $taxCalcId]);
+            } catch (ApiErrorException $e) {
+                // Tax calculation failed — proceed without tax
+            }
+        }
+        $totalCents = $amountCents + $taxAmountCents;
+
+        $saveCard = $request->boolean('save_card');
 
         try {
             $intent = $stripe->createPaymentIntent(
-                amountCents: $amountCents,
+                amountCents: $totalCents,
                 currency: 'usd',
                 stripeAccountId: $tenant->stripe_account_id,
                 applicationFeeCents: $feeCents,
@@ -170,7 +192,6 @@ class PurchaseController extends Controller
                 ],
                 stripeCustomerId: $stripeCustomerId,
                 setupFutureUsage: $saveCard ? 'off_session' : null,
-                automaticTax: $automaticTax,
             );
         } catch (ApiErrorException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
@@ -189,7 +210,7 @@ class PurchaseController extends Controller
             'tenant_id'   => $tenantId,
             'order_id'    => $order->id,
             'stripe_pi_id' => $intent->id,
-            'amount_cents' => $amountCents,
+            'amount_cents' => $totalCents,
             'type'         => 'full',
             'status'       => 'pending',
         ]);
@@ -197,6 +218,50 @@ class PurchaseController extends Controller
         return response()->json([
             'client_secret'     => $intent->client_secret,
             'payment_method_id' => $savedPmId,
+            'tax_amount_cents'  => $taxAmountCents,
+        ]);
+    }
+
+    public function taxPreview(Request $request, StripeService $stripe): JsonResponse
+    {
+        $request->validate([
+            'package_id' => ['required', 'string'],
+        ]);
+
+        if (! Feature::active('tax_daycare_orders')) {
+            return response()->json(['tax_enabled' => false]);
+        }
+
+        $tenantId = app('current.tenant.id');
+        $tenant   = Tenant::find($tenantId);
+
+        if (! $tenant || empty($tenant->billing_address['postal_code']) || ! $tenant->stripe_account_id) {
+            return response()->json(['tax_enabled' => false]);
+        }
+
+        $package = Package::findOrFail($request->package_id);
+        $subtotalCents = (int) round((float) $package->price * 100);
+
+        try {
+            $calculation = $stripe->calculateTax(
+                $subtotalCents,
+                'usd',
+                $tenant->stripe_account_id,
+                [
+                    'postal_code' => $tenant->billing_address['postal_code'],
+                    'country'     => $tenant->billing_address['country'] ?? 'US',
+                ],
+                $package->id,
+            );
+        } catch (ApiErrorException $e) {
+            return response()->json(['tax_enabled' => false]);
+        }
+
+        return response()->json([
+            'tax_enabled'    => true,
+            'subtotal_cents' => $subtotalCents,
+            'tax_cents'      => $calculation->tax_amount_exclusive,
+            'total_cents'    => $subtotalCents + $calculation->tax_amount_exclusive,
         ]);
     }
 

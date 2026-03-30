@@ -155,6 +155,16 @@
                 <span class="text-text-muted">{{ selectedPackage.name }}</span>
                 <span class="font-semibold text-text-body">${{ (selectedPackage.price_cents / 100).toFixed(2) }}</span>
               </div>
+              <template v-if="tax_enabled && taxCents > 0">
+                <div class="flex items-center justify-between text-text-muted mt-1">
+                  <span>Est. tax</span>
+                  <span>${{ (taxCents / 100).toFixed(2) }}</span>
+                </div>
+                <div class="flex items-center justify-between font-semibold border-t border-gray-200 pt-2 mt-2">
+                  <span>Total</span>
+                  <span>${{ ((selectedPackage.price_cents + taxCents) / 100).toFixed(2) }}</span>
+                </div>
+              </template>
               <p v-if="autoReplenish" class="text-xs text-text-muted mt-1">Re-purchased automatically when credits reach zero · cancel anytime</p>
             </div>
 
@@ -170,7 +180,7 @@
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
               </svg>
               <template v-if="paying">Processing…</template>
-              <template v-else-if="selectedPackage">Pay ${{ (selectedPackage.price_cents / 100).toFixed(2) }}</template>
+              <template v-else-if="selectedPackage">Pay ${{ (displayTotal / 100).toFixed(2) }}</template>
               <template v-else>Pay Now</template>
             </button>
             <button
@@ -272,6 +282,15 @@ const activeDogIds = computed(() => {
 
 const success = ref(false);
 const cardError = ref('');
+const taxCents = ref(0);
+const taxLoading = ref(false);
+
+const displayTotal = computed(() => {
+  if (!selectedPackage.value) return 0;
+  return props.tax_enabled && taxCents.value > 0
+    ? selectedPackage.value.price_cents + taxCents.value
+    : selectedPackage.value.price_cents;
+});
 
 function getCsrfToken(): string {
   return (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '';
@@ -304,6 +323,25 @@ watch([selectedPackageId, activeDogIds], () => {
     paymentElement?.destroy();
     paymentElement = null;
     paymentElements = null;
+  }
+});
+
+watch(selectedPackageId, async (pkgId) => {
+  taxCents.value = 0;
+  if (!pkgId || !props.tax_enabled) return;
+  taxLoading.value = true;
+  try {
+    const resp = await fetch(route('portal.purchase.tax-preview') + `?package_id=${pkgId}`, {
+      headers: { 'X-CSRF-TOKEN': getCsrfToken() },
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      taxCents.value = data.tax_cents ?? 0;
+    }
+  } catch {
+    // silently ignore — no tax shown
+  } finally {
+    taxLoading.value = false;
   }
 });
 
