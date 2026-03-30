@@ -9,7 +9,7 @@
       <!-- Step indicator -->
       <div class="flex items-center justify-center mb-10 gap-4">
         <div
-          v-for="(label, i) in ['Pick a Plan', 'Business Details', 'Your Account']"
+          v-for="(label, i) in ['Pick a Plan', 'Business Details', 'Your Account', 'Billing']"
           :key="i"
           class="flex items-center gap-2"
         >
@@ -22,7 +22,7 @@
           <span class="text-sm" :class="step === i + 1 ? 'font-semibold text-gray-900' : 'text-gray-500'">
             {{ label }}
           </span>
-          <span v-if="i < 2" class="text-gray-300">›</span>
+          <span v-if="i < 3" class="text-gray-300">›</span>
         </div>
       </div>
 
@@ -163,37 +163,99 @@
             />
             <p v-if="errors.email" class="mt-1 text-xs text-red-600">{{ errors.email }}</p>
           </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              v-model="form.password"
-              type="password"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <p v-if="errors.password" class="mt-1 text-xs text-red-600">{{ errors.password }}</p>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-            <input
-              v-model="form.password_confirmation"
-              type="password"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <p v-if="errors.password_confirmation" class="mt-1 text-xs text-red-600">{{ errors.password_confirmation }}</p>
-          </div>
-        </div>
-
-        <div v-if="Object.keys(errors).length && step === 3" class="mt-4 p-3 bg-red-50 rounded-lg">
-          <p v-for="(msg, field) in errors" :key="field" class="text-xs text-red-600">{{ msg }}</p>
         </div>
 
         <div class="flex justify-between mt-8">
           <button class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900" @click="step = 2">Back</button>
           <button
             class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold disabled:opacity-40"
-            :disabled="submitting"
+            :disabled="!form.owner_name || !form.email"
+            @click="step = 4"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 4: Billing details -->
+      <div v-if="step === 4" class="max-w-lg mx-auto bg-white rounded-xl border border-gray-200 p-8">
+        <h2 class="text-xl font-bold text-gray-900 mb-2">Billing Details</h2>
+        <p class="text-sm text-gray-500 mb-6">Used for tax purposes. No credit card required during your free trial.</p>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+            <input
+              v-model="form.billing_street"
+              type="text"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="123 Main St"
+            />
+            <p v-if="errors['billing_address.street']" class="mt-1 text-xs text-red-600">{{ errors['billing_address.street'] }}</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input
+                v-model="form.billing_city"
+                type="text"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Springfield"
+              />
+              <p v-if="errors['billing_address.city']" class="mt-1 text-xs text-red-600">{{ errors['billing_address.city'] }}</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">State / Province</label>
+              <input
+                v-model="form.billing_state"
+                type="text"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="IL"
+              />
+              <p v-if="errors['billing_address.state']" class="mt-1 text-xs text-red-600">{{ errors['billing_address.state'] }}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+              <input
+                v-model="form.billing_postal_code"
+                type="text"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="62701"
+              />
+              <p v-if="errors['billing_address.postal_code']" class="mt-1 text-xs text-red-600">{{ errors['billing_address.postal_code'] }}</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <select
+                v-model="form.billing_country"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="GB">United Kingdom</option>
+                <option value="AU">Australia</option>
+                <option value="NZ">New Zealand</option>
+              </select>
+              <p v-if="errors['billing_address.country']" class="mt-1 text-xs text-red-600">{{ errors['billing_address.country'] }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="Object.keys(errors).length" class="mt-4 p-3 bg-red-50 rounded-lg">
+          <p v-for="(msg, field) in errors" :key="field" class="text-xs text-red-600">{{ msg }}</p>
+        </div>
+
+        <div class="flex justify-between mt-8">
+          <button class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900" @click="step = 3">Back</button>
+          <button
+            class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold disabled:opacity-40"
+            :disabled="submitting || !form.billing_street || !form.billing_city || !form.billing_postal_code"
             @click="submit"
           >
             {{ submitting ? 'Creating account...' : 'Start free trial' }}
@@ -210,7 +272,7 @@ import { ref, reactive } from 'vue'
 
 const appDomain = import.meta.env.VITE_APP_DOMAIN as string
 
-const props = defineProps<{
+defineProps<{
   plans: Array<{
     id: string
     slug: string
@@ -236,8 +298,11 @@ const form = reactive({
   slug: '',
   owner_name: '',
   email: '',
-  password: '',
-  password_confirmation: '',
+  billing_street: '',
+  billing_city: '',
+  billing_state: '',
+  billing_postal_code: '',
+  billing_country: 'US',
 })
 
 function autoSlug() {
@@ -254,13 +319,28 @@ function submit() {
   submitting.value = true
 
   router.post('/register', {
-    ...form,
+    business_name: form.business_name,
+    slug: form.slug,
+    owner_name: form.owner_name,
+    email: form.email,
     plan: selectedPlan.value,
     billing_cycle: billingCycle.value,
+    billing_address: {
+      street: form.billing_street,
+      city: form.billing_city,
+      state: form.billing_state,
+      postal_code: form.billing_postal_code,
+      country: form.billing_country,
+    },
   }, {
     onError: (errs) => {
       Object.assign(errors, errs)
       submitting.value = false
+      // If billing errors, stay on step 4; account errors go back to step 3
+      const hasBillingError = Object.keys(errs).some(k => k.startsWith('billing_address'))
+      const hasAccountError = Object.keys(errs).some(k => ['owner_name', 'email'].includes(k))
+      if (hasBillingError) step.value = 4
+      else if (hasAccountError) step.value = 3
     },
     onFinish: () => {
       submitting.value = false

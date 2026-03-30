@@ -216,7 +216,6 @@ class ShowcaseSeeder extends Seeder
     {
         return User::create(array_merge([
             'id'                => (string) Str::ulid(),
-            'password'          => Hash::make('password'),
             'email_verified_at' => now(),
             'status'            => 'active',
             'customer_id'       => null,

@@ -74,7 +74,7 @@ class StripeBillingService
             $params['default_payment_method'] = $paymentMethodId;
         }
 
-        $params['automatic_tax'] = ['enabled' => Feature::active('tax_platform_subscriptions')];
+        $params['automatic_tax'] = ['enabled' => Feature::active('tax_platform_subscriptions') && ! empty($tenant->billing_address)];
 
         return $this->client->subscriptions->create($params);
     }
@@ -125,12 +125,14 @@ class StripeBillingService
         string $cycle,
         int $trialDays
     ): object {
+        $taxEnabled = Feature::active('tax_platform_subscriptions') && ! empty($tenant->billing_address);
+
         return $this->client->subscriptions->create([
             'customer'          => $tenant->platform_stripe_customer_id,
             'items'             => [['price' => $priceId]],
             'metadata'          => ['tenant_id' => $tenant->id, 'cycle' => $cycle],
             'trial_period_days' => $trialDays,
-            'automatic_tax'     => ['enabled' => Feature::active('tax_platform_subscriptions')],
+            'automatic_tax'     => ['enabled' => $taxEnabled],
         ]);
     }
 
