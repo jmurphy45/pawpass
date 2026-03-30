@@ -21,6 +21,7 @@ class StripeService
         ?string $paymentMethodId = null,
         array $paymentMethodTypes = [],
         ?string $setupFutureUsage = null,
+        bool $automaticTax = false,
     ): object {
         $payload = [
             'amount' => $amountCents,
@@ -48,6 +49,9 @@ class StripeService
         }
         if ($setupFutureUsage) {
             $payload['setup_future_usage'] = $setupFutureUsage;
+        }
+        if ($automaticTax) {
+            $payload['automatic_tax'] = ['enabled' => true];
         }
         return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
     }

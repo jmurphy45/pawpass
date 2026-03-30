@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Laravel\Pennant\Feature;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -26,6 +27,12 @@ class PurchaseControllerStripeTest extends TestCase
     private Customer $customer;
 
     private Dog $dog;
+
+    protected function tearDown(): void
+    {
+        Feature::flushCache();
+        parent::tearDown();
+    }
 
     protected function setUp(): void
     {
@@ -83,6 +90,7 @@ class PurchaseControllerStripeTest extends TestCase
                     \Mockery::any(),
                     \Mockery::any(),
                     \Mockery::any(),
+                    \Mockery::any(),
                 )
                 ->andReturn((object) ['id' => 'pi_test', 'client_secret' => 'pi_secret']);
         });
@@ -126,6 +134,7 @@ class PurchaseControllerStripeTest extends TestCase
                     \Mockery::any(),
                     \Mockery::any(),
                     'cus_existing_conn',
+                    \Mockery::any(),
                     \Mockery::any(),
                     \Mockery::any(),
                     \Mockery::any(),
@@ -250,6 +259,94 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['dog_ids']);
+    }
+
+    public function test_store_passes_automatic_tax_true_when_flag_is_active(): void
+    {
+        Feature::define('tax_daycare_orders', fn () => true);
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '50.00',
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')
+                ->andReturn((object) ['id' => 'cus_tax']);
+
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->withArgs(function (
+                    int $amountCents,
+                    string $currency,
+                    string $stripeAccountId,
+                    int $applicationFeeCents,
+                    array $metadata,
+                    ?string $stripeCustomerId,
+                    bool $confirm,
+                    bool $offSession,
+                    ?string $paymentMethodId,
+                    array $paymentMethodTypes,
+                    ?string $setupFutureUsage,
+                    bool $automaticTax,
+                ): bool {
+                    return $automaticTax === true;
+                })
+                ->andReturn((object) ['id' => 'pi_tax', 'client_secret' => 'secret_tax']);
+        });
+
+        $this->actingAs($this->user);
+
+        $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id],
+        ])->assertStatus(200);
+    }
+
+    public function test_store_passes_automatic_tax_false_when_flag_is_inactive(): void
+    {
+        Feature::define('tax_daycare_orders', fn () => false);
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '50.00',
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')
+                ->andReturn((object) ['id' => 'cus_notax']);
+
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->withArgs(function (
+                    int $amountCents,
+                    string $currency,
+                    string $stripeAccountId,
+                    int $applicationFeeCents,
+                    array $metadata,
+                    ?string $stripeCustomerId,
+                    bool $confirm,
+                    bool $offSession,
+                    ?string $paymentMethodId,
+                    array $paymentMethodTypes,
+                    ?string $setupFutureUsage,
+                    bool $automaticTax,
+                ): bool {
+                    return $automaticTax === false;
+                })
+                ->andReturn((object) ['id' => 'pi_notax', 'client_secret' => 'secret_notax']);
+        });
+
+        $this->actingAs($this->user);
+
+        $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id],
+        ])->assertStatus(200);
     }
 
     public function test_confirm_issues_unlimited_credits_for_unlimited_package(): void

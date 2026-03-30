@@ -67,6 +67,7 @@ class PurchaseController extends Controller
             'stripe_key'                 => config('services.stripe.key'),
             'stripe_account_id'          => $tenant?->stripe_account_id,
             'auto_replenish_enabled'     => Feature::active('recurring_checkout'),
+            'tax_enabled'                => Feature::active('tax_daycare_orders'),
             'saved_card'                 => $customer->stripe_payment_method_id
                 ? ['last4' => $customer->stripe_pm_last4, 'brand' => $customer->stripe_pm_brand]
                 : null,
@@ -151,7 +152,8 @@ class PurchaseController extends Controller
             }
         }
 
-        $saveCard = $request->boolean('save_card');
+        $saveCard     = $request->boolean('save_card');
+        $automaticTax = Feature::active('tax_daycare_orders');
 
         try {
             $intent = $stripe->createPaymentIntent(
@@ -168,6 +170,7 @@ class PurchaseController extends Controller
                 ],
                 stripeCustomerId: $stripeCustomerId,
                 setupFutureUsage: $saveCard ? 'off_session' : null,
+                automaticTax: $automaticTax,
             );
         } catch (ApiErrorException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
