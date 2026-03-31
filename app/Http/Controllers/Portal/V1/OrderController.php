@@ -57,6 +57,14 @@ class OrderController extends Controller
             ]);
         }
 
+        if ($customer->stripe_customer_id) {
+            $stripeCustomerId = $customer->stripe_customer_id;
+        } else {
+            $stripeCustomer   = $this->stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
+            $stripeCustomerId = $stripeCustomer->id;
+            $customer->update(['stripe_customer_id' => $stripeCustomerId]);
+        }
+
         $subtotalCents = (int) round($package->price * 100);
         $effectiveFeePct = $tenant->effectivePlatformFeePct($subtotalCents);
         // Platform fee is on subtotal only — tax is a pass-through for the daycare
@@ -123,6 +131,7 @@ class OrderController extends Controller
             $tenant->stripe_account_id,
             $applicationFeeCents,
             $metadata,
+            $stripeCustomerId,
         );
 
         $order->lineItems()->create([
