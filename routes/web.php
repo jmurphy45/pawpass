@@ -16,6 +16,7 @@ use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptCo
 use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
+use App\Http\Controllers\Web\Admin\TaxController as AdminTaxController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController;
 use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController;
@@ -170,6 +171,10 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/billing/portal', [AdminBillingController::class, 'portal'])->name('admin.billing.portal');
         Route::get('/billing/account-session', [AdminBillingController::class, 'accountSession'])->name('admin.billing.account-session');
         Route::post('/billing/payment-method', [AdminBillingController::class, 'updatePaymentMethod'])->name('admin.billing.payment-method');
+
+        // Tax (business_owner only enforced in controller)
+        Route::get('/tax', [AdminTaxController::class, 'index'])->name('admin.tax.index');
+        Route::get('/tax/account-session', [AdminTaxController::class, 'accountSession'])->name('admin.tax.account-session');
     });
 });
 
