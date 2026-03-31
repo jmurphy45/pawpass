@@ -430,6 +430,7 @@ const flatNavItems = computed(() => {
       { name: 'Packages', href: route('admin.packages.index'), pattern: 'admin.packages.*' },
       { name: 'Settings', href: route('admin.settings.index'), pattern: 'admin.settings.*' },
       { name: 'Billing', href: route('admin.billing.index'), pattern: 'admin.billing.*' },
+      { name: 'Tax', href: route('admin.tax.index'), pattern: 'admin.tax.*' },
     );
   }
 
