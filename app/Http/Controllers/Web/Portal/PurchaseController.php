@@ -67,7 +67,7 @@ class PurchaseController extends Controller
             'stripe_key'                 => config('services.stripe.key'),
             'stripe_account_id'          => $tenant?->stripe_account_id,
             'auto_replenish_enabled'     => Feature::active('recurring_checkout'),
-            'tax_enabled'                => Feature::active('tax_daycare_orders'),
+            'tax_enabled'                => (bool) $tenant?->tax_collection_enabled,
             'saved_card'                 => $customer->stripe_payment_method_id
                 ? ['last4' => $customer->stripe_pm_last4, 'brand' => $customer->stripe_pm_brand]
                 : null,
@@ -154,7 +154,7 @@ class PurchaseController extends Controller
 
         $taxAmountCents = 0;
         $taxCalcId = null;
-        if (Feature::active('tax_daycare_orders') && !empty($tenant->billing_address['postal_code']) && $tenant->stripe_account_id) {
+        if ($tenant->tax_collection_enabled && !empty($tenant->billing_address['postal_code']) && $tenant->stripe_account_id) {
             try {
                 $calculation = $stripe->calculateTax(
                     $amountCents,
@@ -228,14 +228,10 @@ class PurchaseController extends Controller
             'package_id' => ['required', 'string'],
         ]);
 
-        if (! Feature::active('tax_daycare_orders')) {
-            return response()->json(['tax_enabled' => false]);
-        }
-
         $tenantId = app('current.tenant.id');
         $tenant   = Tenant::find($tenantId);
 
-        if (! $tenant || empty($tenant->billing_address['postal_code']) || ! $tenant->stripe_account_id) {
+        if (! $tenant || ! $tenant->tax_collection_enabled || empty($tenant->billing_address['postal_code']) || ! $tenant->stripe_account_id) {
             return response()->json(['tax_enabled' => false]);
         }
 

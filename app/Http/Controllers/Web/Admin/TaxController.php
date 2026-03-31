@@ -22,9 +22,21 @@ class TaxController extends Controller
         $tenant = Tenant::find(app('current.tenant.id'));
 
         return Inertia::render('Admin/Tax/Index', [
-            'stripe_key'        => config('services.stripe.key'),
-            'stripe_account_id' => $tenant->stripe_account_id,
+            'stripe_key'             => config('services.stripe.key'),
+            'stripe_account_id'      => $tenant->stripe_account_id,
+            'tax_collection_enabled' => (bool) $tenant->tax_collection_enabled,
         ]);
+    }
+
+    public function toggleCollection(): JsonResponse
+    {
+        $this->requireOwner();
+
+        $tenant = Tenant::find(app('current.tenant.id'));
+
+        $tenant->update(['tax_collection_enabled' => ! $tenant->tax_collection_enabled]);
+
+        return response()->json(['data' => ['tax_collection_enabled' => $tenant->tax_collection_enabled]]);
     }
 
     public function accountSession(): JsonResponse

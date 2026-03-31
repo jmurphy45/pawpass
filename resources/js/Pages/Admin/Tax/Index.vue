@@ -17,7 +17,36 @@
       </div>
 
       <template v-else>
-        <!-- Error state -->
+        <!-- Tax collection toggle -->
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-semibold text-gray-900">Collect Tax on Customer Purchases</h2>
+              <p class="text-sm text-gray-500 mt-0.5">
+                When enabled, tax will be calculated and added to customer purchases.
+                Requires a billing address set in
+                <a :href="route('admin.settings.index')" class="underline">Settings</a>.
+              </p>
+            </div>
+            <button
+              type="button"
+              @click="toggleTaxCollection"
+              :disabled="toggling"
+              class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+              :class="taxEnabled ? 'bg-indigo-600' : 'bg-gray-200'"
+              :aria-checked="taxEnabled"
+              role="switch"
+            >
+              <span
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200"
+                :class="taxEnabled ? 'translate-x-5' : 'translate-x-0'"
+              />
+            </button>
+          </div>
+          <p v-if="toggleError" class="mt-2 text-sm text-red-600">{{ toggleError }}</p>
+        </div>
+
+        <!-- Error state from Stripe Connect -->
         <div
           v-if="stripeError"
           class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-red-800 text-sm"
@@ -54,13 +83,31 @@
 import { onMounted, ref } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { loadConnectAndInitialize } from '@stripe/connect-js';
+import axios from 'axios';
 
 const props = defineProps<{
   stripe_key: string;
   stripe_account_id: string | null;
+  tax_collection_enabled: boolean;
 }>();
 
 const stripeError = ref<string | null>(null);
+const taxEnabled = ref(props.tax_collection_enabled);
+const toggling = ref(false);
+const toggleError = ref<string | null>(null);
+
+async function toggleTaxCollection() {
+  toggling.value = true;
+  toggleError.value = null;
+  try {
+    const resp = await axios.post(route('admin.tax.toggle-collection'));
+    taxEnabled.value = resp.data.data.tax_collection_enabled;
+  } catch {
+    toggleError.value = 'Failed to update tax collection setting. Please try again.';
+  } finally {
+    toggling.value = false;
+  }
+}
 
 onMounted(async () => {
   if (!props.stripe_account_id) return;

@@ -261,9 +261,10 @@ class PurchaseControllerStripeTest extends TestCase
 
     public function test_store_calculates_tax_and_adds_to_payment_intent_when_flag_active_and_tenant_has_address(): void
     {
-        Feature::define('tax_daycare_orders', fn () => true);
-
-        $this->tenant->update(['billing_address' => ['postal_code' => '10001', 'country' => 'US']]);
+        $this->tenant->update([
+            'tax_collection_enabled' => true,
+            'billing_address'        => ['postal_code' => '10001', 'country' => 'US'],
+        ]);
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
@@ -373,9 +374,10 @@ class PurchaseControllerStripeTest extends TestCase
 
     public function test_tax_preview_returns_amounts_when_flag_active_and_tenant_has_address(): void
     {
-        Feature::define('tax_daycare_orders', fn () => true);
-
-        $this->tenant->update(['billing_address' => ['postal_code' => '90210', 'country' => 'US']]);
+        $this->tenant->update([
+            'tax_collection_enabled' => true,
+            'billing_address'        => ['postal_code' => '90210', 'country' => 'US'],
+        ]);
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,

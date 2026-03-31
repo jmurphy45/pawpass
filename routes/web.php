@@ -175,6 +175,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         // Tax (business_owner only enforced in controller)
         Route::get('/tax', [AdminTaxController::class, 'index'])->name('admin.tax.index');
         Route::get('/tax/account-session', [AdminTaxController::class, 'accountSession'])->name('admin.tax.account-session');
+        Route::post('/tax/toggle-collection', [AdminTaxController::class, 'toggleCollection'])->name('admin.tax.toggle-collection');
     });
 });
 
