@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Models\Tenant;
+use App\Services\PlanFeatureCache;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -60,6 +62,16 @@ class PawPassNotification extends Notification implements ShouldQueue
 
         if ($this->type === 'auth.registration_confirmed' && isset($this->data['login_url'])) {
             $message->action('Log In', $this->data['login_url']);
+        }
+
+        if ($notifiable && $notifiable->tenant_id) {
+            $tenant = Tenant::find($notifiable->tenant_id);
+            if ($tenant && app(PlanFeatureCache::class)->hasFeature($tenant->plan, 'white_label')) {
+                $message->viewData = array_merge($message->viewData, [
+                    'logoUrl'      => $tenant->logo_url,
+                    'primaryColor' => $tenant->primary_color ?? '#4f46e5',
+                ]);
+            }
         }
 
         return $message;

@@ -15,6 +15,7 @@ use App\Http\Controllers\Web\Admin\PackageController as AdminPackageController;
 use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptController;
 use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Web\Admin\LogoController as AdminLogoController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
 use App\Http\Controllers\Web\Admin\TaxController as AdminTaxController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
@@ -136,6 +137,8 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::post('/settings/staff/invite', [AdminSettingsController::class, 'inviteStaff'])->name('admin.settings.staff.invite');
         Route::patch('/settings/staff/{user}/deactivate', [AdminSettingsController::class, 'deactivateStaff'])->name('admin.settings.staff.deactivate');
         Route::patch('/settings/billing-address', [AdminSettingsController::class, 'updateBillingAddress'])->name('admin.settings.billing-address');
+        Route::post('/settings/logo', [AdminLogoController::class, 'store'])->name('admin.settings.logo.store');
+        Route::delete('/settings/logo', [AdminLogoController::class, 'destroy'])->name('admin.settings.logo.destroy');
 
         // Reports
         Route::get('/reports', [AdminReportController::class, 'index'])->name('admin.reports.index');

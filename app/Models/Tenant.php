@@ -29,6 +29,7 @@ class Tenant extends Model
         'checkin_block_at_zero',
         'timezone',
         'primary_color',
+        'logo_url',
         'trial_started_at',
         'trial_ends_at',
         'plan',

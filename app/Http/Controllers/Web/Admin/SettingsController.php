@@ -39,6 +39,7 @@ class SettingsController extends Controller
                 'name'                           => $tenant->name,
                 'timezone'                       => $tenant->timezone,
                 'primary_color'                  => $tenant->primary_color,
+                'logo_url'                       => $tenant->logo_url,
                 'low_credit_threshold'           => $tenant->low_credit_threshold,
                 'checkin_block_at_zero'          => $tenant->checkin_block_at_zero,
                 'payout_schedule'                => $tenant->payout_schedule,

@@ -80,6 +80,53 @@
         </form>
       </div>
 
+      <!-- Business Logo -->
+      <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Business Logo</h2>
+        <p class="text-sm text-gray-500 mb-4">Shown in the admin portal, customer portal, emails, and receipts (Business plan required for emails &amp; PDFs).</p>
+
+        <div class="flex items-start gap-6">
+          <!-- Preview -->
+          <div class="flex-shrink-0 h-20 w-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden">
+            <img v-if="logoPreview" :src="logoPreview" alt="Logo preview" class="h-full w-full object-contain p-2" />
+            <span v-else class="text-xs text-gray-400">No logo</span>
+          </div>
+
+          <div class="flex-1 space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Upload new logo</label>
+              <input
+                ref="logoInput"
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                class="block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-gray-300 file:text-sm file:font-medium file:bg-white file:text-gray-700 hover:file:bg-gray-50"
+                @change="onLogoSelected"
+              />
+              <p class="mt-1 text-xs text-gray-400">JPG, PNG, GIF or WebP. Max 2 MB.</p>
+            </div>
+
+            <div class="flex gap-2">
+              <button
+                type="button"
+                :disabled="!pendingLogo || logoUploading"
+                class="btn-primary"
+                @click="uploadLogo"
+              >
+                {{ logoUploading ? 'Uploading…' : 'Upload Logo' }}
+              </button>
+              <button
+                v-if="props.business.logo_url"
+                type="button"
+                class="btn-ghost-danger"
+                @click="removeLogo"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Billing Address -->
       <div class="bg-white rounded-xl border border-gray-200 p-6">
         <h2 class="text-base font-semibold text-gray-900 mb-1">Billing Address</h2>
@@ -249,11 +296,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, router } from '@inertiajs/vue3';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 const props = defineProps<{
-  business: { name: string; timezone: string; primary_color: string; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string; business_type: string; auto_charge_at_zero_package_id: string | null };
+  business: { name: string; timezone: string; primary_color: string; logo_url: string | null; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string; business_type: string; auto_charge_at_zero_package_id: string | null };
   billing_address: { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
   notificationSettings: Array<{ type: string; is_enabled: boolean }>;
   staff: Array<{ id: string; name: string; email: string; role: string; status: string }>;
@@ -276,6 +323,46 @@ const businessForm = useForm({
 
 function submitBusiness() {
   businessForm.patch(route('admin.settings.business'));
+}
+
+// ── Logo upload ───────────────────────────────────────────────────────────────
+
+const logoInput = ref<HTMLInputElement | null>(null);
+const logoPreview = ref<string | null>(props.business.logo_url);
+const pendingLogo = ref<File | null>(null);
+const logoUploading = ref(false);
+
+function onLogoSelected(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+  pendingLogo.value = file;
+  if (file) {
+    logoPreview.value = URL.createObjectURL(file);
+  }
+}
+
+function uploadLogo() {
+  if (!pendingLogo.value) return;
+  logoUploading.value = true;
+  const data = new FormData();
+  data.append('logo', pendingLogo.value);
+  router.post(route('admin.settings.logo.store'), data, {
+    forceFormData: true,
+    onSuccess: () => {
+      pendingLogo.value = null;
+      if (logoInput.value) logoInput.value.value = '';
+    },
+    onFinish: () => { logoUploading.value = false; },
+  });
+}
+
+function removeLogo() {
+  router.delete(route('admin.settings.logo.destroy'), {
+    onSuccess: () => {
+      logoPreview.value = null;
+      pendingLogo.value = null;
+      if (logoInput.value) logoInput.value.value = '';
+    },
+  });
 }
 
 // ── Billing address ───────────────────────────────────────────────────────────

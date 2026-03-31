@@ -52,7 +52,11 @@
 
   <div class="header">
     <div>
+      @if(!empty($logoUrl))
+      <img src="{{ $logoUrl }}" alt="{{ $tenantName }}" style="height: 44px; width: auto; max-width: 160px; object-fit: contain; margin-bottom: 4px; display: block;" />
+      @else
       <div class="business-name">{{ $tenantName }}</div>
+      @endif
     </div>
     <div class="receipt-label">
       <div class="title">Receipt</div>

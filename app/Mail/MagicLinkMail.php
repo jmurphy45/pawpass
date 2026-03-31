@@ -2,7 +2,9 @@
 
 namespace App\Mail;
 
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\PlanFeatureCache;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -16,6 +18,7 @@ class MagicLinkMail extends Mailable
     public function __construct(
         public readonly User $user,
         public readonly string $rawToken,
+        public readonly ?Tenant $tenant = null,
     ) {}
 
     public function envelope(): Envelope
@@ -27,13 +30,18 @@ class MagicLinkMail extends Mailable
 
     public function content(): Content
     {
+        $hasWhiteLabel = $this->tenant &&
+            app(PlanFeatureCache::class)->hasFeature($this->tenant->plan, 'white_label');
+
         return new Content(
             view: 'emails.magic-link',
             text: 'emails.magic-link-text',
             with: [
-                'loginUrl' => route('magic-link.verify', ['token' => $this->rawToken]),
-                'expiresIn' => 15,
-                'userName' => $this->user->name,
+                'loginUrl'     => route('magic-link.verify', ['token' => $this->rawToken]),
+                'expiresIn'    => 15,
+                'userName'     => $this->user->name,
+                'logoUrl'      => $hasWhiteLabel ? $this->tenant->logo_url : null,
+                'primaryColor' => $hasWhiteLabel ? ($this->tenant->primary_color ?? '#4f46e5') : '#4f46e5',
             ],
         );
     }
