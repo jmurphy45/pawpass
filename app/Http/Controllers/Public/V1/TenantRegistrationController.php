@@ -25,7 +25,6 @@ class TenantRegistrationController extends Controller
             ],
             'owner_name'    => ['required', 'string', 'max:255'],
             'email'         => ['required', 'email', Rule::unique('users', 'email')],
-            'password'      => ['required', 'string', 'min:8', 'confirmed'],
             'plan'          => [
                 'required',
                 'string',

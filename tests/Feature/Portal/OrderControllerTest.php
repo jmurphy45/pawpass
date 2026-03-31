@@ -75,6 +75,9 @@ class OrderControllerTest extends TestCase
     private function mockStripe(string $piId = 'pi_test123', string $clientSecret = 'pi_test123_secret_abc'): void
     {
         $this->mock(StripeService::class, function (MockInterface $mock) use ($piId, $clientSecret) {
+            $mock->shouldReceive('createCustomer')
+                ->zeroOrMoreTimes()
+                ->andReturn((object) ['id' => 'cus_new123']);
             $mock->shouldReceive('createPaymentIntent')
                 ->once()
                 ->andReturn((object) ['id' => $piId, 'client_secret' => $clientSecret]);
@@ -173,6 +176,9 @@ class OrderControllerTest extends TestCase
     public function test_idempotency_replay_returns_same_order_without_second_stripe_call(): void
     {
         $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')
+                ->once()
+                ->andReturn((object) ['id' => 'cus_replay123']);
             $mock->shouldReceive('createPaymentIntent')
                 ->once() // only called once
                 ->andReturn((object) ['id' => 'pi_replay123', 'client_secret' => 'pi_replay123_secret']);
@@ -214,5 +220,75 @@ class OrderControllerTest extends TestCase
             ->assertJsonStructure(['data' => [['id', 'status', 'total_amount']]]);
 
         $this->assertCount(1, $response->json('data'));
+    }
+
+    public function test_creates_stripe_customer_when_none_exists(): void
+    {
+        $this->assertNull($this->customer->stripe_customer_id);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')
+                ->once()
+                ->andReturn((object) ['id' => 'cus_new456']);
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->andReturn((object) ['id' => 'pi_new456', 'client_secret' => 'pi_new456_secret']);
+        });
+
+        $this->withHeaders($this->authHeaders('idem-new-cus'))
+            ->postJson('/api/portal/v1/orders', [
+                'package_id' => $this->package->id,
+                'dog_ids' => [$this->dog->id],
+            ])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('customers', [
+            'id' => $this->customer->id,
+            'stripe_customer_id' => 'cus_new456',
+        ]);
+    }
+
+    public function test_reuses_existing_stripe_customer(): void
+    {
+        $this->customer->update(['stripe_customer_id' => 'cus_existing789']);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')->never();
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->andReturn((object) ['id' => 'pi_reuse789', 'client_secret' => 'pi_reuse789_secret']);
+        });
+
+        $this->withHeaders($this->authHeaders('idem-reuse-cus'))
+            ->postJson('/api/portal/v1/orders', [
+                'package_id' => $this->package->id,
+                'dog_ids' => [$this->dog->id],
+            ])
+            ->assertStatus(201);
+    }
+
+    public function test_payment_intent_restricts_to_card_and_bank_payment_methods(): void
+    {
+        $capturedTypes = null;
+
+        $this->mock(StripeService::class, function (MockInterface $mock) use (&$capturedTypes) {
+            $mock->shouldReceive('createCustomer')->zeroOrMoreTimes()->andReturn((object) ['id' => 'cus_pm2']);
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->andReturnUsing(function () use (&$capturedTypes) {
+                    // paymentMethodTypes is the 10th positional argument (index 9)
+                    $capturedTypes = func_get_arg(9);
+                    return (object) ['id' => 'pi_pm2', 'client_secret' => 'secret_pm2'];
+                });
+        });
+
+        $this->withHeaders($this->authHeaders('idem-pm-types'))
+            ->postJson('/api/portal/v1/orders', [
+                'package_id' => $this->package->id,
+                'dog_ids'    => [$this->dog->id],
+            ])
+            ->assertStatus(201);
+
+        $this->assertEquals(['card', 'us_bank_account'], $capturedTypes);
     }
 }

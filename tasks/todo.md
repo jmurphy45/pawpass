@@ -1,78 +1,97 @@
-# Phase: Add-on Services — Boarding + Daycare with Billing
+# Phase: Tax Collection
 
 ---
 
-## Step 1 — Migration: attendance_id on orders
+## Step 1 — Feature Flags
 
-- [x] New migration `2026_03_25_000008_add_attendance_id_to_orders.php`
-- [x] Update `Order` model: `attendance_id` fillable + `attendance()` BelongsTo
-  - Verification: migration runs on both main and test DB
-
----
-
-## Step 2 — Services Management Page (Owner-Only)
-
-- [x] Write failing tests in `tests/Feature/Web/Admin/ServicesControllerTest.php`
-- [x] Create `app/Http/Controllers/Web/Admin/ServicesController.php` (index/store/update/destroy)
-- [x] Add routes to `routes/web.php` (`admin.services.*`)
-- [x] Create `resources/js/Pages/Admin/Services/Index.vue` (table + inline create/edit form)
-- [x] Add "Services" nav link to `AdminLayout.vue` (sparkles icon, after Packages)
-  - Verification: 9 tests pass
+- [ ] Add `tax_daycare_orders` and `tax_platform_subscriptions` to `FeaturesServiceProvider`
+  - Verification: `Feature::active('tax_daycare_orders')` returns false by default
 
 ---
 
-## Step 3 — Delete Boarding Reservation Addon
+## Step 2 — Migrations
 
-- [x] Write failing tests (destroy allowed, 409 when checked_out)
-- [x] Add `BoardingController::destroyAddon`
-- [x] Add web route `DELETE /boarding/reservations/{reservation}/addons/{addon}`
-- [x] Add remove button (×) to `ReservationShow.vue` addon list
-  - Verification: 2 tests pass
+- [ ] `2026_03_29_000001_alter_orders_add_tax_columns` — `subtotal_cents`, `tax_amount_cents`, `stripe_tax_calc_id`
+- [ ] `2026_03_29_000002_alter_tenants_add_billing_address` — `billing_address jsonb nullable`
+  - Verification: migrations run cleanly on both DBs
 
 ---
 
-## Step 4 — Roster Inline Addon UI + Billing
+## Step 3 — Model Updates
 
-- [x] Write failing tests in `tests/Feature/Web/Admin/RosterControllerTest.php`
-- [x] Update `RosterController::index` — include `attendance_id`, `attendance_addons`, `addonTypes` prop
-- [x] Add `RosterController::chargeAttendanceAddons` private helper
-- [x] Update `RosterController::checkout` — charge addons at checkout
-- [x] Add `RosterController::storeAttendanceAddon` — save addon; charge immediately if already checked out
-- [x] Add `RosterController::destroyAttendanceAddon` — guard: 409 if order already exists
-- [x] Add routes: `POST/DELETE /roster/attendances/{attendance}/addons`
-- [x] Update `resources/js/Pages/Admin/Roster/Index.vue` — expandable inline addon panel per dog
-  - Verification: 7 tests pass
+- [ ] `Order` model: add tax fields to fillable + casts
+- [ ] `Tenant` model: add `billing_address` to fillable + casts
+  - Verification: models accept and cast new fields
 
 ---
 
-## Final Verification
+## Step 4 — StripeService Tax Methods
 
-- [x] `./vendor/bin/sail artisan test` — 913 tests pass (up from 895)
-- [x] `npm run build` — no TS errors, built in 4s
+- [ ] Add `calculateTax()` — calls `/v1/tax/calculations` on connected account
+- [ ] Add `createTaxTransaction()` — calls `/v1/tax/transactions/create_from_calculation`
+  - Verification: Unit tests pass for both methods
+
+---
+
+## Step 5 — StripeBillingService Updates
+
+- [ ] `createCustomer()` — pass address when `tenant.billing_address` is set
+- [ ] Add `updateCustomerAddress()` — syncs address to Stripe customer
+- [ ] `createSubscription()` — add `automatic_tax` based on `tax_platform_subscriptions` flag
+  - Verification: Tests verify automatic_tax.enabled toggled correctly
+
+---
+
+## Step 6 — OrderController Tax Logic
+
+- [ ] Add `postal_code` + `country` to `StoreOrderRequest` (nullable)
+- [ ] Calculate tax in `store()` when `tax_daycare_orders` flag is on
+- [ ] Platform fee on subtotal only
+- [ ] Store `subtotal_cents`, `tax_amount_cents`, `stripe_tax_calc_id` on order
+- [ ] Add `taxPreview()` endpoint
+- [ ] Add route for `GET portal/v1/orders/tax-preview`
+  - Verification: Tests cover flag-on, flag-off, no postal_code scenarios
+
+---
+
+## Step 7 — Webhook: Record Tax Transaction
+
+- [ ] In `handlePaymentIntentSucceeded()` — call `createTaxTransaction()` when `tax_calculation_id` in PI metadata
+  - Verification: Test webhook with tax metadata calls the Stripe tax transaction endpoint
+
+---
+
+## Step 8 — BillingController Address
+
+- [ ] Add `billing_address` validation to `subscribe()`
+- [ ] Store address on tenant + sync to Stripe customer
+  - Verification: Test subscribe with address stores correctly
+
+---
+
+## Step 9 — OrderResource Tax Fields
+
+- [ ] Add `subtotal_amount`, `tax_amount`, `total_amount` to response
+  - Verification: API response includes tax breakdown
 
 ---
 
 ## Review
 
 ### Summary of Changes
-- Migration: `attendance_id` (nullable FK) added to `orders` for daycare addon billing traceability
-- New `ServicesController` (web) + `Admin/Services/Index.vue` — owner-only CRUD for addon type catalog with context badges (both/boarding/daycare)
-- `AdminLayout.vue` — "Services" nav link (sparkles icon) in owner section
-- `BoardingController::destroyAddon` — delete reservation addon, guarded for checked_out status
-- `ReservationShow.vue` — × remove button per addon (hidden when reservation is checked_out)
-- `RosterController` — `chargeAttendanceAddons` helper creates Order + charges Stripe on checkout; `storeAttendanceAddon` handles both "add during stay" and "add after checkout (charge immediately)"; `destroyAttendanceAddon` with billing guard
-- `Roster/Index.vue` — expandable per-dog addon panel (click dog name), add/remove addons inline, addon count hint in subtitle
+- Two feature flags: `tax_daycare_orders`, `tax_platform_subscriptions`
+- Stripe Tax API integration for daycare orders (postal code → calculation → PaymentIntent)
+- Stripe `automatic_tax` on platform subscriptions
+- New DB columns on `orders` and `tenants`
+- Tax transaction recorded after successful payment via webhook
 
 ### Tests Added or Updated
-- `tests/Feature/Web/Admin/ServicesControllerTest.php` — 9 new tests
-- `tests/Feature/Web/Admin/BoardingControllerTest.php` — 2 new tests
-- `tests/Feature/Web/Admin/RosterControllerTest.php` — 7 new tests
+- `StripeServiceTest` — calculateTax, createTaxTransaction
+- `OrderControllerTest` — tax flag on/off, subtotal/tax breakdown
+- `StripeBillingServiceTest` — automatic_tax toggling, address on customer
+- `BillingControllerTest` — subscribe with billing address
+- `StripeWebhookControllerTest` — tax transaction on payment_intent.succeeded
 
 ### Build Status
-- Tests: 913 passing
-- Build: Successful (no TS errors)
-
-### Notes
-- `both`-context addon types (e.g. Nail Clip) appear in both the boarding ReservationShow dropdown and the roster inline panel
-- If no card on file at daycare checkout, an order is created with `status='pending'` for manual follow-up
-- `destroyAttendanceAddon` guards against removing addons that have already been billed (order exists for the attendance)
+- Tests: Pending
+- Build: Pending

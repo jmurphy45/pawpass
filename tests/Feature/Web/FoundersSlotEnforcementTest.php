@@ -49,6 +49,13 @@ class FoundersSlotEnforcementTest extends TestCase
             'password_confirmation' => 'password123',
             'plan'                  => 'founders',
             'billing_cycle'         => 'monthly',
+            'billing_address'       => [
+                'street'      => '123 Main St',
+                'city'        => 'Portland',
+                'state'       => 'OR',
+                'postal_code' => '97201',
+                'country'     => 'US',
+            ],
         ], $overrides);
     }
 

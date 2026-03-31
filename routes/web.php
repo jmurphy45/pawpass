@@ -16,6 +16,7 @@ use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptCo
 use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
+use App\Http\Controllers\Web\Admin\TaxController as AdminTaxController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController;
 use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController;
@@ -134,6 +135,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::patch('/settings/notifications', [AdminSettingsController::class, 'updateNotifications'])->name('admin.settings.notifications');
         Route::post('/settings/staff/invite', [AdminSettingsController::class, 'inviteStaff'])->name('admin.settings.staff.invite');
         Route::patch('/settings/staff/{user}/deactivate', [AdminSettingsController::class, 'deactivateStaff'])->name('admin.settings.staff.deactivate');
+        Route::patch('/settings/billing-address', [AdminSettingsController::class, 'updateBillingAddress'])->name('admin.settings.billing-address');
 
         // Reports
         Route::get('/reports', [AdminReportController::class, 'index'])->name('admin.reports.index');
@@ -169,6 +171,11 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/billing/portal', [AdminBillingController::class, 'portal'])->name('admin.billing.portal');
         Route::get('/billing/account-session', [AdminBillingController::class, 'accountSession'])->name('admin.billing.account-session');
         Route::post('/billing/payment-method', [AdminBillingController::class, 'updatePaymentMethod'])->name('admin.billing.payment-method');
+
+        // Tax (business_owner only enforced in controller)
+        Route::get('/tax', [AdminTaxController::class, 'index'])->name('admin.tax.index');
+        Route::get('/tax/account-session', [AdminTaxController::class, 'accountSession'])->name('admin.tax.account-session');
+        Route::post('/tax/toggle-collection', [AdminTaxController::class, 'toggleCollection'])->name('admin.tax.toggle-collection');
     });
 });
 
@@ -205,6 +212,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
 
         // Purchase
         Route::get('/purchase', [PurchaseController::class, 'index'])->name('portal.purchase');
+        Route::get('/purchase/tax-preview', [PurchaseController::class, 'taxPreview'])->name('portal.purchase.tax-preview');
         Route::post('/purchase', [PurchaseController::class, 'store'])->name('portal.purchase.store');
         Route::post('/purchase/confirm', [PurchaseController::class, 'confirm'])->name('portal.purchase.confirm');
 

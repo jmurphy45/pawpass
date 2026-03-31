@@ -117,14 +117,14 @@
             <!-- Card element / card on file -->
             <div>
               <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Payment</label>
-              <div v-if="savedCard && !useNewCard" class="rounded-lg bg-surface-subtle border border-gray-200 px-3 py-2 text-sm flex items-center gap-2">
+              <div v-if="savedCard && !useNewCard && !showPaymentForm" class="rounded-lg bg-surface-subtle border border-gray-200 px-3 py-2 text-sm flex items-center gap-2">
                 <svg class="h-4 w-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                 </svg>
                 <span>{{ capitalize(savedCard.brand) }} ····{{ savedCard.last4 }}</span>
                 <button type="button" @click="useNewCard = true" class="ml-auto text-xs text-indigo-600 hover:underline">Change</button>
               </div>
-              <div v-else id="card-element" class="input py-3" />
+              <div v-show="showPaymentForm" id="card-element" class="input py-3" />
               <p v-if="cardError" class="mt-1.5 text-xs text-red-600">{{ cardError }}</p>
               <label class="mt-2 flex items-center gap-2 text-sm text-text-muted cursor-pointer">
                 <input type="checkbox" v-model="saveCard" class="h-4 w-4 rounded border-gray-300" />
@@ -155,10 +155,21 @@
                 <span class="text-text-muted">{{ selectedPackage.name }}</span>
                 <span class="font-semibold text-text-body">${{ (selectedPackage.price_cents / 100).toFixed(2) }}</span>
               </div>
+              <template v-if="tax_enabled && taxCents > 0">
+                <div class="flex items-center justify-between text-text-muted mt-1">
+                  <span>Est. tax</span>
+                  <span>${{ (taxCents / 100).toFixed(2) }}</span>
+                </div>
+                <div class="flex items-center justify-between font-semibold border-t border-gray-200 pt-2 mt-2">
+                  <span>Total</span>
+                  <span>${{ ((selectedPackage.price_cents + taxCents) / 100).toFixed(2) }}</span>
+                </div>
+              </template>
               <p v-if="autoReplenish" class="text-xs text-text-muted mt-1">Re-purchased automatically when credits reach zero · cancel anytime</p>
             </div>
 
             <button
+              v-if="!showPaymentForm"
               @click="purchase"
               :disabled="!selectedPackageId || activeDogIds.length === 0 || paying"
               class="btn-primary w-full justify-center py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
@@ -169,8 +180,22 @@
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
               </svg>
               <template v-if="paying">Processing…</template>
-              <template v-else-if="selectedPackage">Pay ${{ (selectedPackage.price_cents / 100).toFixed(2) }}</template>
+              <template v-else-if="selectedPackage">Pay ${{ (displayTotal / 100).toFixed(2) }}</template>
               <template v-else>Pay Now</template>
+            </button>
+            <button
+              v-if="showPaymentForm"
+              @click="confirmNewCard"
+              :disabled="paying"
+              class="btn-primary w-full justify-center py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
+              :style="{ backgroundColor: accentColor }"
+            >
+              <svg v-if="paying" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              <template v-if="paying">Processing…</template>
+              <template v-else>Confirm Payment</template>
             </button>
 
             <!-- Trust indicator -->
@@ -195,12 +220,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 import type { Package, PageProps } from '@/types';
 import { loadStripe } from '@stripe/stripe-js';
-import type { Stripe, StripeCardElement } from '@stripe/stripe-js';
+import type { Stripe, StripeElements, StripePaymentElement } from '@stripe/stripe-js';
 
 interface DogOption { id: string; name: string; credits_expire_at: string | null; auto_replenish_enabled: boolean; auto_replenish_package_id: string | null; }
 interface PurchasePackage extends Package {
@@ -213,6 +238,7 @@ const props = defineProps<{
   stripe_key: string;
   stripe_account_id: string | null;
   auto_replenish_enabled: boolean;
+  tax_enabled: boolean;
   saved_card: { last4: string; brand: string } | null;
 }>();
 
@@ -256,48 +282,90 @@ const activeDogIds = computed(() => {
 
 const success = ref(false);
 const cardError = ref('');
+const taxCents = ref(0);
+const taxLoading = ref(false);
+
+const displayTotal = computed(() => {
+  if (!selectedPackage.value) return 0;
+  return props.tax_enabled && taxCents.value > 0
+    ? selectedPackage.value.price_cents + taxCents.value
+    : selectedPackage.value.price_cents;
+});
 
 function getCsrfToken(): string {
   return (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '';
 }
 
 let stripe: Stripe | null = null;
-let cardElement: StripeCardElement | null = null;
-
-function mountCardElement() {
-  if (!stripe) return;
-  const el = document.getElementById('card-element');
-  if (!el) return;
-  if (cardElement) {
-    cardElement.mount('#card-element');
-    return;
-  }
-  const elements = stripe.elements();
-  cardElement = elements.create('card', {
-    style: { base: { fontSize: '14px', color: '#2a2522', fontFamily: 'Instrument Sans, sans-serif' } },
-  });
-  cardElement.mount('#card-element');
-}
+let paymentElements: StripeElements | null = null;
+let paymentElement: StripePaymentElement | null = null;
+const showPaymentForm = ref(false);
 
 onMounted(async () => {
   if (!props.stripe_key) return;
   const opts = props.stripe_account_id ? { stripeAccount: props.stripe_account_id } : {};
   stripe = await loadStripe(props.stripe_key, opts);
+});
+
+async function mountPaymentElement(clientSecret: string) {
   if (!stripe) return;
-  if (!savedCard.value) {
-    mountCardElement();
+  paymentElement?.destroy();
+  paymentElement = null;
+  paymentElements = stripe.elements({ clientSecret });
+  paymentElement = paymentElements.create('payment', { layout: 'tabs' });
+  await nextTick();
+  paymentElement.mount('#card-element');
+}
+
+watch([selectedPackageId, activeDogIds], () => {
+  if (showPaymentForm.value) {
+    showPaymentForm.value = false;
+    paymentElement?.destroy();
+    paymentElement = null;
+    paymentElements = null;
   }
 });
 
-watch(useNewCard, (val) => {
-  if (val) {
-    setTimeout(() => mountCardElement(), 0);
+watch(selectedPackageId, async (pkgId) => {
+  taxCents.value = 0;
+  if (!pkgId || !props.tax_enabled) return;
+  taxLoading.value = true;
+  try {
+    const resp = await fetch(route('portal.purchase.tax-preview') + `?package_id=${pkgId}`, {
+      headers: { 'X-CSRF-TOKEN': getCsrfToken() },
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      taxCents.value = data.tax_cents ?? 0;
+    }
+  } catch {
+    // silently ignore — no tax shown
+  } finally {
+    taxLoading.value = false;
   }
 });
+
+async function callConfirmEndpoint(paymentIntentId: string) {
+  await fetch(route('portal.purchase.confirm'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+    body: JSON.stringify({
+      payment_intent_id: paymentIntentId,
+      save_card: saveCard.value,
+      auto_replenish: autoReplenish.value,
+    }),
+  });
+  success.value = true;
+  showPaymentForm.value = false;
+  paymentElement?.destroy();
+  paymentElement = null;
+  paymentElements = null;
+  setTimeout(() => router.visit(route('portal.history')), 2000);
+}
 
 async function purchase() {
-  const usingCardOnFile = savedCard.value && !useNewCard.value;
-  if (!selectedPackageId.value || activeDogIds.value.length === 0 || !stripe || (!cardElement && !usingCardOnFile)) return;
+  const usingCardOnFile = !!(savedCard.value && !useNewCard.value);
+  if (!selectedPackageId.value || activeDogIds.value.length === 0 || !stripe) return;
 
   paying.value = true;
   cardError.value = '';
@@ -305,10 +373,7 @@ async function purchase() {
   try {
     const resp = await fetch(route('portal.purchase.store'), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': getCsrfToken(),
-      },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
       body: JSON.stringify({
         package_id: selectedPackageId.value,
         dog_ids: activeDogIds.value,
@@ -321,8 +386,8 @@ async function purchase() {
         cardError.value = 'Session expired — please refresh the page and try again.';
       } else {
         try {
-          const data = await resp.json();
-          cardError.value = data.message ?? 'Something went wrong.';
+          const err = await resp.json();
+          cardError.value = err.message ?? 'Something went wrong.';
         } catch {
           cardError.value = 'Something went wrong.';
         }
@@ -330,36 +395,45 @@ async function purchase() {
       return;
     }
 
-    const data = await resp.json();
-    const { client_secret, payment_method_id } = data;
+    const { client_secret, payment_method_id } = await resp.json();
 
-    const result = await stripe.confirmCardPayment(client_secret, {
-      payment_method: usingCardOnFile ? payment_method_id : { card: cardElement! },
-    });
-
-    if (result.error) {
-      if (usingCardOnFile) {
+    if (usingCardOnFile) {
+      const result = await stripe.confirmCardPayment(client_secret, {
+        payment_method: payment_method_id,
+      });
+      if (result.error) {
         cardError.value = 'Your saved card could not be charged. Please enter a new card.';
         useNewCard.value = true;
-        setTimeout(() => mountCardElement(), 0);
+        showPaymentForm.value = true;
+        await mountPaymentElement(client_secret);
       } else {
-        cardError.value = result.error.message ?? 'Payment failed.';
+        await callConfirmEndpoint(result.paymentIntent!.id);
       }
     } else {
-      await fetch(route('portal.purchase.confirm'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': getCsrfToken(),
-        },
-        body: JSON.stringify({
-          payment_intent_id: result.paymentIntent.id,
-          save_card: saveCard.value,
-          auto_replenish: autoReplenish.value,
-        }),
-      });
-      success.value = true;
-      setTimeout(() => router.visit(route('portal.history')), 2000);
+      showPaymentForm.value = true;
+      await mountPaymentElement(client_secret);
+    }
+  } catch {
+    cardError.value = 'An unexpected error occurred.';
+  } finally {
+    paying.value = false;
+  }
+}
+
+async function confirmNewCard() {
+  if (!stripe || !paymentElements) return;
+  paying.value = true;
+  cardError.value = '';
+  try {
+    const result = await stripe.confirmPayment({
+      elements: paymentElements,
+      confirmParams: { return_url: window.location.href },
+      redirect: 'if_required',
+    });
+    if (result.error) {
+      cardError.value = result.error.message ?? 'Payment failed.';
+    } else {
+      await callConfirmEndpoint(result.paymentIntent!.id);
     }
   } catch {
     cardError.value = 'An unexpected error occurred.';

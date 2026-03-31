@@ -12,6 +12,8 @@ class OrderResource extends JsonResource
         return [
             'id' => $this->id,
             'status' => $this->status,
+            'subtotal_amount' => $this->subtotal_cents ? number_format($this->subtotal_cents / 100, 2) : null,
+            'tax_amount' => number_format(($this->tax_amount_cents ?? 0) / 100, 2),
             'total_amount' => $this->total_amount,
             'platform_fee_pct' => $this->platform_fee_pct,
             'package' => $this->whenLoaded('package', fn () => [

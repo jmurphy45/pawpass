@@ -15,7 +15,7 @@ class MagicLinkService
      *
      * @param  array<string, mixed>  $fpComponents  Fingerprint components from the frontend.
      */
-    public function generateToken(User $user, array $fpComponents, string $ip): string
+    public function generateToken(User $user, array $fpComponents, string $ip, int $expiryMinutes = 15): string
     {
         $rawToken = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
         $tokenHash = hash('sha256', $rawToken);
@@ -27,7 +27,7 @@ class MagicLinkService
             'fp_hash' => $fpHash,
             'fp_components' => $fpComponents,
             'ip_address' => $ip,
-            'expires_at' => now()->addMinutes(15),
+            'expires_at' => now()->addMinutes($expiryMinutes),
         ]);
 
         AuthAuditLog::create([

@@ -67,6 +67,7 @@ class PurchaseController extends Controller
             'stripe_key'                 => config('services.stripe.key'),
             'stripe_account_id'          => $tenant?->stripe_account_id,
             'auto_replenish_enabled'     => Feature::active('recurring_checkout'),
+            'tax_enabled'                => (bool) $tenant?->tax_collection_enabled,
             'saved_card'                 => $customer->stripe_payment_method_id
                 ? ['last4' => $customer->stripe_pm_last4, 'brand' => $customer->stripe_pm_brand]
                 : null,
@@ -109,13 +110,14 @@ class PurchaseController extends Controller
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }
 
-        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs, $feePct) {
+        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs, $feePct, $amountCents) {
             $order = Order::create([
                 'tenant_id'        => $tenantId,
                 'customer_id'      => $customer->id,
                 'package_id'       => $package->id,
                 'status'           => 'pending',
                 'total_amount'     => $package->price,
+                'subtotal_cents'   => $amountCents,
                 'platform_fee_pct' => $feePct,
             ]);
 
@@ -151,11 +153,34 @@ class PurchaseController extends Controller
             }
         }
 
+        $taxAmountCents = 0;
+        $taxCalcId = null;
+        if ($tenant->tax_collection_enabled && !empty($tenant->billing_address['postal_code']) && $tenant->stripe_account_id) {
+            try {
+                $calculation = $stripe->calculateTax(
+                    $amountCents,
+                    'usd',
+                    $tenant->stripe_account_id,
+                    [
+                        'postal_code' => $tenant->billing_address['postal_code'],
+                        'country'     => $tenant->billing_address['country'] ?? 'US',
+                    ],
+                    $package->id,
+                );
+                $taxAmountCents = $calculation->tax_amount_exclusive;
+                $taxCalcId = $calculation->id;
+                $order->update(['tax_amount_cents' => $taxAmountCents, 'stripe_tax_calc_id' => $taxCalcId]);
+            } catch (ApiErrorException $e) {
+                // Tax calculation failed — proceed without tax
+            }
+        }
+        $totalCents = $amountCents + $taxAmountCents;
+
         $saveCard = $request->boolean('save_card');
 
         try {
             $intent = $stripe->createPaymentIntent(
-                amountCents: $amountCents,
+                amountCents: $totalCents,
                 currency: 'usd',
                 stripeAccountId: $tenant->stripe_account_id,
                 applicationFeeCents: $feeCents,
@@ -168,6 +193,7 @@ class PurchaseController extends Controller
                 ],
                 stripeCustomerId: $stripeCustomerId,
                 setupFutureUsage: $saveCard ? 'off_session' : null,
+                paymentMethodTypes: ['card', 'us_bank_account'],
             );
         } catch (ApiErrorException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
@@ -186,7 +212,7 @@ class PurchaseController extends Controller
             'tenant_id'   => $tenantId,
             'order_id'    => $order->id,
             'stripe_pi_id' => $intent->id,
-            'amount_cents' => $amountCents,
+            'amount_cents' => $totalCents,
             'type'         => 'full',
             'status'       => 'pending',
         ]);
@@ -194,6 +220,46 @@ class PurchaseController extends Controller
         return response()->json([
             'client_secret'     => $intent->client_secret,
             'payment_method_id' => $savedPmId,
+            'tax_amount_cents'  => $taxAmountCents,
+        ]);
+    }
+
+    public function taxPreview(Request $request, StripeService $stripe): JsonResponse
+    {
+        $request->validate([
+            'package_id' => ['required', 'string'],
+        ]);
+
+        $tenantId = app('current.tenant.id');
+        $tenant   = Tenant::find($tenantId);
+
+        if (! $tenant || ! $tenant->tax_collection_enabled || empty($tenant->billing_address['postal_code']) || ! $tenant->stripe_account_id) {
+            return response()->json(['tax_enabled' => false]);
+        }
+
+        $package = Package::findOrFail($request->package_id);
+        $subtotalCents = (int) round((float) $package->price * 100);
+
+        try {
+            $calculation = $stripe->calculateTax(
+                $subtotalCents,
+                'usd',
+                $tenant->stripe_account_id,
+                [
+                    'postal_code' => $tenant->billing_address['postal_code'],
+                    'country'     => $tenant->billing_address['country'] ?? 'US',
+                ],
+                $package->id,
+            );
+        } catch (ApiErrorException $e) {
+            return response()->json(['tax_enabled' => false]);
+        }
+
+        return response()->json([
+            'tax_enabled'    => true,
+            'subtotal_cents' => $subtotalCents,
+            'tax_cents'      => $calculation->tax_amount_exclusive,
+            'total_cents'    => $subtotalCents + $calculation->tax_amount_exclusive,
         ]);
     }
 

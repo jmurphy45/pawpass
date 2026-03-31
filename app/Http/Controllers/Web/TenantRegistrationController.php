@@ -66,16 +66,21 @@ class TenantRegistrationController extends Controller
                 Rule::unique('tenants', 'slug')->whereNull('deleted_at'),
             ],
             'owner_name'    => ['required', 'string', 'max:255'],
-            'email'         => ['required', 'email', Rule::unique('users', 'email')],
-            'password'      => ['required', 'string', 'min:8', 'confirmed'],
-            'plan'          => [
+            'email'                        => ['required', 'email', Rule::unique('users', 'email')],
+            'plan'                         => [
                 'required',
                 'string',
                 Rule::exists('platform_plans', 'slug')
                     ->where('is_active', true)
                     ->whereNotNull('stripe_monthly_price_id'),
             ],
-            'billing_cycle' => ['required', 'in:monthly,annual'],
+            'billing_cycle'                => ['required', 'in:monthly,annual'],
+            'billing_address'              => ['required', 'array'],
+            'billing_address.street'       => ['required', 'string', 'max:255'],
+            'billing_address.city'         => ['required', 'string', 'max:100'],
+            'billing_address.state'        => ['nullable', 'string', 'max:100'],
+            'billing_address.postal_code'  => ['required', 'string', 'max:20'],
+            'billing_address.country'      => ['required', 'string', 'size:2'],
         ]);
 
         try {

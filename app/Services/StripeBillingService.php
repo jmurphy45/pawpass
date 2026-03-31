@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Tenant;
+use Laravel\Pennant\Feature;
 use Stripe\StripeClient;
 
 class StripeBillingService
@@ -11,12 +12,36 @@ class StripeBillingService
 
     public function createCustomer(Tenant $tenant): string
     {
-        $customer = $this->client->customers->create([
+        $params = [
             'name'     => $tenant->name,
             'metadata' => ['tenant_id' => $tenant->id, 'slug' => $tenant->slug],
-        ]);
+        ];
+
+        if ($tenant->billing_address) {
+            $params['address'] = $this->formatAddress($tenant->billing_address);
+        }
+
+        $customer = $this->client->customers->create($params);
 
         return $customer->id;
+    }
+
+    public function updateCustomerAddress(string $customerId, array $address): void
+    {
+        $this->client->customers->update($customerId, [
+            'address' => $this->formatAddress($address),
+        ]);
+    }
+
+    private function formatAddress(array $address): array
+    {
+        return [
+            'line1'       => $address['street'] ?? '',
+            'city'        => $address['city'] ?? '',
+            'state'       => $address['state'] ?? '',
+            'postal_code' => $address['postal_code'] ?? '',
+            'country'     => $address['country'] ?? 'US',
+        ];
     }
 
     public function createSetupIntent(string $customerId): object
@@ -48,6 +73,8 @@ class StripeBillingService
         if ($paymentMethodId !== null) {
             $params['default_payment_method'] = $paymentMethodId;
         }
+
+        $params['automatic_tax'] = ['enabled' => Feature::active('tax_platform_subscriptions') && ! empty($tenant->billing_address)];
 
         return $this->client->subscriptions->create($params);
     }
@@ -98,11 +125,14 @@ class StripeBillingService
         string $cycle,
         int $trialDays
     ): object {
+        $taxEnabled = Feature::active('tax_platform_subscriptions') && ! empty($tenant->billing_address);
+
         return $this->client->subscriptions->create([
             'customer'          => $tenant->platform_stripe_customer_id,
             'items'             => [['price' => $priceId]],
             'metadata'          => ['tenant_id' => $tenant->id, 'cycle' => $cycle],
             'trial_period_days' => $trialDays,
+            'automatic_tax'     => ['enabled' => $taxEnabled],
         ]);
     }
 

@@ -11,7 +11,6 @@ use App\Models\PlatformSubscriptionEvent;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -46,6 +45,7 @@ class TenantRegistrationService
 
         $tempTenant = new Tenant(['name' => $validated['business_name'], 'slug' => $validated['slug']]);
         $tempTenant->id = $tenantId;
+        $tempTenant->billing_address = $validated['billing_address'] ?? null;
 
         // 2: Call Stripe before writing any DB records — if this throws, nothing is persisted
         Log::info('registration.stripe_start', ['slug' => $validated['slug'], 'plan' => $validated['plan'], 'price_id' => $priceId]);
@@ -71,13 +71,13 @@ class TenantRegistrationService
                 'platform_stripe_customer_id'   => $customerId,
                 'platform_stripe_sub_id'        => $stripeSub->id,
                 'platform_fee_pct'              => $plan->default_platform_fee_pct ?? 5.0,
+                'billing_address'               => $validated['billing_address'] ?? null,
             ]);
 
             $user = User::create([
                 'tenant_id'               => $tenant->id,
                 'name'                    => $validated['owner_name'],
                 'email'                   => $validated['email'],
-                'password'                => Hash::make($validated['password']),
                 'role'                    => 'business_owner',
                 'status'                  => 'active',
                 'email_verify_token'      => $token,

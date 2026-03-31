@@ -55,6 +55,52 @@
         </form>
       </div>
 
+      <!-- Billing Address -->
+      <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Billing Address</h2>
+        <p class="text-sm text-gray-500 mb-4">Used to calculate sales tax on customer purchases.</p>
+        <form @submit.prevent="submitBillingAddress" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+            <input v-model="billingAddressForm.street" type="text" placeholder="123 Main St" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+            <p v-if="billingAddressForm.errors.street" class="mt-1 text-sm text-red-600">{{ billingAddressForm.errors.street }}</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input v-model="billingAddressForm.city" type="text" placeholder="Springfield" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+              <p v-if="billingAddressForm.errors.city" class="mt-1 text-sm text-red-600">{{ billingAddressForm.errors.city }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">State / Province</label>
+              <input v-model="billingAddressForm.state" type="text" placeholder="IL" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+              <p v-if="billingAddressForm.errors.state" class="mt-1 text-sm text-red-600">{{ billingAddressForm.errors.state }}</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+              <input v-model="billingAddressForm.postal_code" type="text" placeholder="62701" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+              <p v-if="billingAddressForm.errors.postal_code" class="mt-1 text-sm text-red-600">{{ billingAddressForm.errors.postal_code }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <select v-model="billingAddressForm.country" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white">
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="GB">United Kingdom</option>
+                <option value="AU">Australia</option>
+                <option value="NZ">New Zealand</option>
+              </select>
+              <p v-if="billingAddressForm.errors.country" class="mt-1 text-sm text-red-600">{{ billingAddressForm.errors.country }}</p>
+            </div>
+          </div>
+          <button type="submit" :disabled="billingAddressForm.processing" class="btn-primary">
+            Save
+          </button>
+        </form>
+      </div>
+
       <!-- Notification Settings -->
       <div class="bg-white rounded-xl border border-gray-200 p-6">
         <h2 class="text-base font-semibold text-gray-900 mb-4">Notifications</h2>
@@ -183,6 +229,7 @@ import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 const props = defineProps<{
   business: { name: string; timezone: string; primary_color: string; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string; business_type: string };
+  billing_address: { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
   notificationSettings: Array<{ type: string; is_enabled: boolean }>;
   staff: Array<{ id: string; name: string; email: string; role: string; status: string }>;
 }>();
@@ -201,6 +248,20 @@ const businessForm = useForm({
 
 function submitBusiness() {
   businessForm.patch(route('admin.settings.business'));
+}
+
+// ── Billing address ───────────────────────────────────────────────────────────
+
+const billingAddressForm = useForm({
+  street:      props.billing_address.street ?? '',
+  city:        props.billing_address.city ?? '',
+  state:       props.billing_address.state ?? '',
+  postal_code: props.billing_address.postal_code ?? '',
+  country:     props.billing_address.country ?? 'US',
+});
+
+function submitBillingAddress() {
+  billingAddressForm.patch(route('admin.settings.billing-address'));
 }
 
 // ── Notification settings ─────────────────────────────────────────────────────

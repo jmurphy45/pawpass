@@ -95,12 +95,22 @@
           <div class="item-dogs">{{ $dogNames }}</div>
           @endif
         </td>
-        <td class="right">${{ $amount }}</td>
+        <td class="right">${{ $subtotalAmount }}</td>
       </tr>
     </tbody>
   </table>
 
   <table class="totals">
+    @if($taxAmount > 0)
+    <tr>
+      <td>Subtotal</td>
+      <td>${{ $subtotalAmount }}</td>
+    </tr>
+    <tr>
+      <td>Tax</td>
+      <td>${{ $taxAmount }}</td>
+    </tr>
+    @endif
     <tr class="total-row">
       <td>Total</td>
       <td>${{ $amount }}</td>

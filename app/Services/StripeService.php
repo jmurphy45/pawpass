@@ -21,6 +21,7 @@ class StripeService
         ?string $paymentMethodId = null,
         array $paymentMethodTypes = [],
         ?string $setupFutureUsage = null,
+        bool $automaticTax = false,
     ): object {
         $payload = [
             'amount' => $amountCents,
@@ -48,6 +49,9 @@ class StripeService
         }
         if ($setupFutureUsage) {
             $payload['setup_future_usage'] = $setupFutureUsage;
+        }
+        if ($automaticTax) {
+            $payload['automatic_tax'] = ['enabled' => true];
         }
         return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
     }
@@ -242,8 +246,9 @@ class StripeService
             'email' => $email,
             'business_profile' => ['name' => $businessName],
             'capabilities' => [
-                'card_payments' => ['requested' => true],
-                'transfers'     => ['requested' => true],
+                'card_payments'                => ['requested' => true],
+                'transfers'                    => ['requested' => true],
+                'us_bank_account_ach_payments' => ['requested' => true],
             ],
         ]);
     }
@@ -264,6 +269,37 @@ class StripeService
             'account' => $accountId,
             'components' => $components,
         ]);
+    }
+
+    public function calculateTax(
+        int $subtotalCents,
+        string $currency,
+        string $stripeAccountId,
+        array $customerAddress,
+        string $reference = 'order',
+    ): object {
+        return $this->client->tax->calculations->create([
+            'currency'         => $currency,
+            'line_items'       => [[
+                'amount'    => $subtotalCents,
+                'reference' => $reference,
+            ]],
+            'customer_details' => [
+                'address'        => $customerAddress,
+                'address_source' => 'billing',
+            ],
+        ], ['stripe_account' => $stripeAccountId]);
+    }
+
+    public function createTaxTransaction(
+        string $taxCalculationId,
+        string $reference,
+        string $stripeAccountId,
+    ): object {
+        return $this->client->tax->transactions->createFromCalculation([
+            'calculation' => $taxCalculationId,
+            'reference'   => $reference,
+        ], ['stripe_account' => $stripeAccountId]);
     }
 
     public function constructWebhookEvent(string $payload, string $sigHeader, string $secret): object

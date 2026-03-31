@@ -23,6 +23,9 @@ class OrderReceiptController extends Controller
             $order->tenant->stripe_account_id
         );
 
+        $subtotalCents = $order->subtotal_cents ?: (int) round((float) $order->total_amount * 100);
+        $taxCents      = $order->tax_amount_cents ?? 0;
+
         $pdf = Pdf::loadView('pdf.receipt', [
             'tenantName'             => $order->tenant->name,
             'orderId'                => $order->id,
@@ -32,6 +35,8 @@ class OrderReceiptController extends Controller
             'status'                 => $order->status,
             'packageName'            => $order->package?->name ?? 'Unknown',
             'dogNames'               => $order->orderDogs->map(fn ($od) => $od->dog?->name)->filter()->join(', '),
+            'subtotalAmount'         => number_format($subtotalCents / 100, 2),
+            'taxAmount'              => number_format($taxCents / 100, 2),
             'amount'                 => number_format((float) $order->total_amount, 2),
             'charge'                 => $charge,
         ]);

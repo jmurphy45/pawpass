@@ -40,6 +40,7 @@ class SettingsController extends Controller
                 'payout_schedule'      => $tenant->payout_schedule,
                 'business_type'        => $tenant->business_type ?? 'daycare',
             ],
+            'billing_address'      => $tenant->billing_address ?? [],
             'notificationSettings' => $notificationSettings,
             'staff'                => $staffList,
         ]);
@@ -63,6 +64,24 @@ class SettingsController extends Controller
         $tenant->update($validated);
 
         return back()->with('success', 'Business settings updated.');
+    }
+
+    public function updateBillingAddress(Request $request): RedirectResponse
+    {
+        $this->requireOwner();
+
+        $validated = $request->validate([
+            'street'      => ['required', 'string', 'max:255'],
+            'city'        => ['required', 'string', 'max:100'],
+            'state'       => ['sometimes', 'nullable', 'string', 'max:100'],
+            'postal_code' => ['required', 'string', 'max:20'],
+            'country'     => ['required', 'string', 'size:2'],
+        ]);
+
+        $tenant = Tenant::find(app('current.tenant.id'));
+        $tenant->update(['billing_address' => $validated]);
+
+        return back()->with('success', 'Billing address updated.');
     }
 
     public function updateNotifications(Request $request): RedirectResponse

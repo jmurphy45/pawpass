@@ -39,6 +39,8 @@ class Tenant extends Model
         'plan_cancel_at_period_end',
         'plan_past_due_since',
         'business_type',
+        'billing_address',
+        'tax_collection_enabled',
     ];
 
     protected $hidden = [
@@ -57,6 +59,8 @@ class Tenant extends Model
             'plan_current_period_end' => 'datetime',
             'plan_past_due_since' => 'datetime',
             'plan_cancel_at_period_end' => 'boolean',
+            'billing_address' => 'array',
+            'tax_collection_enabled' => 'boolean',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',

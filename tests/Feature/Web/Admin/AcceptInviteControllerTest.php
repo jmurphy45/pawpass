@@ -69,14 +69,11 @@ class AcceptInviteControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
-    public function test_accept_sets_password_and_activates_user(): void
+    public function test_accept_activates_user_and_redirects_to_dashboard(): void
     {
         $user = $this->pendingUser();
 
-        $response = $this->post('/admin/invite/valid-token-abc', [
-            'password'              => 'Password1!',
-            'password_confirmation' => 'Password1!',
-        ]);
+        $response = $this->post('/admin/invite/valid-token-abc');
 
         $response->assertRedirect(route('admin.dashboard'));
 
@@ -87,38 +84,11 @@ class AcceptInviteControllerTest extends TestCase
         $this->assertTrue(Auth::check());
     }
 
-    public function test_accept_requires_password_confirmation(): void
-    {
-        $this->pendingUser();
-
-        $response = $this->post('/admin/invite/valid-token-abc', [
-            'password'              => 'Password1!',
-            'password_confirmation' => 'wrong',
-        ]);
-
-        $response->assertSessionHasErrors('password');
-    }
-
-    public function test_accept_requires_minimum_password_length(): void
-    {
-        $this->pendingUser();
-
-        $response = $this->post('/admin/invite/valid-token-abc', [
-            'password'              => 'short',
-            'password_confirmation' => 'short',
-        ]);
-
-        $response->assertSessionHasErrors('password');
-    }
-
     public function test_accept_returns_404_for_expired_token(): void
     {
         $this->pendingUser(['invite_expires_at' => now()->subHour()]);
 
-        $response = $this->post('/admin/invite/valid-token-abc', [
-            'password'              => 'Password1!',
-            'password_confirmation' => 'Password1!',
-        ]);
+        $response = $this->post('/admin/invite/valid-token-abc');
 
         $response->assertStatus(404);
     }
