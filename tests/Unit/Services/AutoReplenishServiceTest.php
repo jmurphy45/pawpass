@@ -13,7 +13,6 @@ use App\Services\NotificationService;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
-use Laravel\Pennant\Feature;
 use Mockery\MockInterface;
 use Stripe\Exception\CardException;
 use Tests\TestCase;
@@ -223,13 +222,11 @@ class AutoReplenishServiceTest extends TestCase
         $this->assertDatabaseHas('orders', ['status' => 'failed']);
     }
 
-    public function test_trigger_sync_applies_tax_when_flag_active_and_billing_address_set(): void
+    public function test_trigger_sync_applies_tax_when_tax_collection_enabled_and_billing_address_set(): void
     {
         $dog = $this->makeDog();
         $tenant = $dog->tenant;
-        $tenant->update(['billing_address' => ['postal_code' => '90210', 'country' => 'US']]);
-
-        Feature::for($tenant)->activate('tax_daycare_orders');
+        $tenant->update(['billing_address' => ['postal_code' => '90210', 'country' => 'US'], 'tax_collection_enabled' => true]);
 
         $fakeCalc   = (object) ['id' => 'txc_sync_test', 'tax_amount_exclusive' => 150];
         $fakeIntent = (object) ['id' => 'pi_sync_tax', 'status' => 'succeeded'];
@@ -262,7 +259,7 @@ class AutoReplenishServiceTest extends TestCase
         $this->assertDatabaseHas('orders', ['tax_amount_cents' => 150, 'stripe_tax_calc_id' => 'txc_sync_test']);
     }
 
-    public function test_trigger_sync_skips_tax_when_flag_inactive(): void
+    public function test_trigger_sync_skips_tax_when_tax_collection_disabled(): void
     {
         $dog = $this->makeDog();
         $dog->tenant->update(['billing_address' => ['postal_code' => '90210', 'country' => 'US']]);
@@ -287,9 +284,7 @@ class AutoReplenishServiceTest extends TestCase
     {
         $dog = $this->makeDog();
         $tenant = $dog->tenant;
-        $tenant->update(['billing_address' => null]);
-
-        Feature::for($tenant)->activate('tax_daycare_orders');
+        $tenant->update(['billing_address' => null, 'tax_collection_enabled' => true]);
 
         $fakeIntent = (object) ['id' => 'pi_sync_noaddr', 'status' => 'succeeded'];
 
@@ -399,13 +394,11 @@ class AutoReplenishServiceTest extends TestCase
         $this->assertDatabaseCount('orders', 0);
     }
 
-    public function test_trigger_for_package_applies_tax_when_flag_active_and_billing_address_set(): void
+    public function test_trigger_for_package_applies_tax_when_tax_collection_enabled_and_billing_address_set(): void
     {
         [$dog, $package] = $this->makeDogAndPackage();
         $tenant = $dog->tenant;
-        $tenant->update(['billing_address' => ['postal_code' => '10001', 'country' => 'US']]);
-
-        Feature::for($tenant)->activate('tax_daycare_orders');
+        $tenant->update(['billing_address' => ['postal_code' => '10001', 'country' => 'US'], 'tax_collection_enabled' => true]);
 
         $fakeCalc   = (object) ['id' => 'txc_tfp_test', 'tax_amount_exclusive' => 200];
         $fakeIntent = (object) ['id' => 'pi_tfp_tax', 'status' => 'succeeded'];
@@ -437,7 +430,7 @@ class AutoReplenishServiceTest extends TestCase
         $this->assertDatabaseHas('orders', ['tax_amount_cents' => 200, 'stripe_tax_calc_id' => 'txc_tfp_test']);
     }
 
-    public function test_trigger_for_package_skips_tax_when_flag_inactive(): void
+    public function test_trigger_for_package_skips_tax_when_tax_collection_disabled(): void
     {
         [$dog, $package] = $this->makeDogAndPackage();
         $dog->tenant->update(['billing_address' => ['postal_code' => '10001', 'country' => 'US']]);
@@ -462,9 +455,7 @@ class AutoReplenishServiceTest extends TestCase
     {
         [$dog, $package] = $this->makeDogAndPackage();
         $tenant = $dog->tenant;
-        $tenant->update(['billing_address' => null]);
-
-        Feature::for($tenant)->activate('tax_daycare_orders');
+        $tenant->update(['billing_address' => null, 'tax_collection_enabled' => true]);
 
         $fakeIntent = (object) ['id' => 'pi_tfp_noaddr', 'status' => 'succeeded'];
 

@@ -10,7 +10,6 @@ use App\Models\OrderPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\DogCreditService;
-use Laravel\Pennant\Feature;
 
 class AutoReplenishService
 {
@@ -319,7 +318,7 @@ class AutoReplenishService
      */
     private function resolveTax(int $subtotalCents, \App\Models\Tenant $tenant, Package $package): array
     {
-        if (! Feature::for($tenant)->active('tax_daycare_orders')) {
+        if (! $tenant->tax_collection_enabled) {
             return [0, null];
         }
 
