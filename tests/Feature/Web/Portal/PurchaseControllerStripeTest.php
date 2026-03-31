@@ -442,6 +442,65 @@ class PurchaseControllerStripeTest extends TestCase
         $response->assertStatus(200)->assertJson(['tax_enabled' => false]);
     }
 
+    public function test_store_sets_subtotal_cents_on_order(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '75.00',
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')->andReturn((object) ['id' => 'cus_sub']);
+            $mock->shouldReceive('createPaymentIntent')->andReturn((object) ['id' => 'pi_sub', 'client_secret' => 'secret_sub']);
+        });
+
+        $this->actingAs($this->user);
+
+        $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id],
+        ])->assertStatus(200);
+
+        $order = Order::where('package_id', $package->id)->latest()->first();
+        $this->assertNotNull($order);
+        $this->assertSame(7500, $order->subtotal_cents);
+    }
+
+    public function test_store_payment_intent_restricts_to_card_and_bank_payment_methods(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '50.00',
+            'is_active' => true,
+        ]);
+
+        $capturedTypes = null;
+
+        $this->mock(StripeService::class, function (MockInterface $mock) use (&$capturedTypes) {
+            $mock->shouldReceive('createCustomer')->andReturn((object) ['id' => 'cus_pm']);
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->andReturnUsing(function () use (&$capturedTypes) {
+                    $args = func_get_args();
+                    // paymentMethodTypes is the 10th argument (index 9, named param)
+                    $capturedTypes = $args[9] ?? null;
+                    return (object) ['id' => 'pi_pm', 'client_secret' => 'secret_pm'];
+                });
+        });
+
+        $this->actingAs($this->user);
+
+        $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id],
+        ])->assertStatus(200);
+
+        $this->assertEquals(['card', 'us_bank_account'], $capturedTypes);
+    }
+
     public function test_confirm_issues_unlimited_credits_for_unlimited_package(): void
     {
         $package = Package::factory()->create([

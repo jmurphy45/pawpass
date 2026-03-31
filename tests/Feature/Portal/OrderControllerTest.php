@@ -266,4 +266,29 @@ class OrderControllerTest extends TestCase
             ])
             ->assertStatus(201);
     }
+
+    public function test_payment_intent_restricts_to_card_and_bank_payment_methods(): void
+    {
+        $capturedTypes = null;
+
+        $this->mock(StripeService::class, function (MockInterface $mock) use (&$capturedTypes) {
+            $mock->shouldReceive('createCustomer')->zeroOrMoreTimes()->andReturn((object) ['id' => 'cus_pm2']);
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->andReturnUsing(function () use (&$capturedTypes) {
+                    // paymentMethodTypes is the 10th positional argument (index 9)
+                    $capturedTypes = func_get_arg(9);
+                    return (object) ['id' => 'pi_pm2', 'client_secret' => 'secret_pm2'];
+                });
+        });
+
+        $this->withHeaders($this->authHeaders('idem-pm-types'))
+            ->postJson('/api/portal/v1/orders', [
+                'package_id' => $this->package->id,
+                'dog_ids'    => [$this->dog->id],
+            ])
+            ->assertStatus(201);
+
+        $this->assertEquals(['card', 'us_bank_account'], $capturedTypes);
+    }
 }

@@ -110,13 +110,14 @@ class PurchaseController extends Controller
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }
 
-        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs, $feePct) {
+        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs, $feePct, $amountCents) {
             $order = Order::create([
                 'tenant_id'        => $tenantId,
                 'customer_id'      => $customer->id,
                 'package_id'       => $package->id,
                 'status'           => 'pending',
                 'total_amount'     => $package->price,
+                'subtotal_cents'   => $amountCents,
                 'platform_fee_pct' => $feePct,
             ]);
 
@@ -192,6 +193,7 @@ class PurchaseController extends Controller
                 ],
                 stripeCustomerId: $stripeCustomerId,
                 setupFutureUsage: $saveCard ? 'off_session' : null,
+                paymentMethodTypes: ['card', 'us_bank_account'],
             );
         } catch (ApiErrorException $e) {
             return response()->json(['message' => $e->getMessage()], 422);

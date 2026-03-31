@@ -132,6 +132,7 @@ class OrderController extends Controller
             $applicationFeeCents,
             $metadata,
             $stripeCustomerId,
+            paymentMethodTypes: ['card', 'us_bank_account'],
         );
 
         $order->lineItems()->create([

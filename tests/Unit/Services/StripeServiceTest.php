@@ -291,8 +291,9 @@ class StripeServiceTest extends TestCase
                 'email' => 'owner@example.com',
                 'business_profile' => ['name' => 'My Daycare'],
                 'capabilities' => [
-                    'card_payments' => ['requested' => true],
-                    'transfers'     => ['requested' => true],
+                    'card_payments'                => ['requested' => true],
+                    'transfers'                    => ['requested' => true],
+                    'us_bank_account_ach_payments' => ['requested' => true],
                 ],
             ])
             ->andReturn((object) ['id' => 'acct_new']);
