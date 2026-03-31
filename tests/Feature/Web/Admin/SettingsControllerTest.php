@@ -243,6 +243,30 @@ class SettingsControllerTest extends TestCase
         );
     }
 
+    public function test_can_auto_replenish_is_true_when_feature_active_for_tenant(): void
+    {
+        Feature::for($this->tenant)->activate('auto_replenish');
+        $this->actingAs($this->owner);
+
+        $response = $this->get('/admin/settings');
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('can_auto_replenish', true)
+        );
+    }
+
+    public function test_can_auto_replenish_is_false_when_feature_inactive_for_tenant(): void
+    {
+        Feature::for($this->tenant)->deactivate('auto_replenish');
+        $this->actingAs($this->owner);
+
+        $response = $this->get('/admin/settings');
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('can_auto_replenish', false)
+        );
+    }
+
     public function test_update_business_saves_auto_charge_package_id(): void
     {
         Queue::fake();

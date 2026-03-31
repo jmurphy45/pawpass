@@ -49,7 +49,7 @@ class SettingsController extends Controller
             'notificationSettings' => $notificationSettings,
             'staff'                => $staffList,
             'packages'             => $packages,
-            'can_auto_replenish'   => Feature::active('auto_replenish'),
+            'can_auto_replenish'   => Feature::for($tenant)->active('auto_replenish'),
         ]);
     }
 
