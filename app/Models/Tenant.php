@@ -41,6 +41,7 @@ class Tenant extends Model
         'business_type',
         'billing_address',
         'tax_collection_enabled',
+        'auto_charge_at_zero_package_id',
     ];
 
     protected $hidden = [
@@ -114,6 +115,11 @@ class Tenant extends Model
     public function packages(): HasMany
     {
         return $this->hasMany(Package::class);
+    }
+
+    public function autoChargePackage(): BelongsTo
+    {
+        return $this->belongsTo(Package::class, 'auto_charge_at_zero_package_id');
     }
 
     public function kennelUnits(): HasMany

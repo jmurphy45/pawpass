@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Package;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AutoReplenishService;
@@ -28,9 +29,15 @@ class RosterControllerTest extends TestCase
         parent::setUp();
         $this->setUpJwt();
 
+        PlatformPlan::factory()->create([
+            'slug'     => 'starter',
+            'features' => ['auto_replenish'],
+        ]);
+
         $this->tenant = Tenant::factory()->create([
-            'slug' => 'rostertest',
-            'status' => 'active',
+            'slug'                 => 'rostertest',
+            'status'               => 'active',
+            'plan'                 => 'starter',
             'low_credit_threshold' => 2,
             'checkin_block_at_zero' => true,
         ]);
@@ -425,6 +432,139 @@ class RosterControllerTest extends TestCase
 
         $autoReplenish = $this->mock(AutoReplenishService::class);
         $autoReplenish->shouldNotReceive('triggerSync');
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/roster/checkin', [
+                'dogs' => [['dog_id' => $dog->id]],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.status', 'error')
+            ->assertJsonPath('data.0.error_code', 'ZERO_CREDITS_BLOCKED');
+    }
+
+    public function test_tenant_level_auto_charge_fires_when_plan_feature_active(): void
+    {
+        $this->tenant->update(['checkin_block_at_zero' => false]);
+
+        // tenant is on 'starter' plan which has auto_replenish in setUp
+        $package = Package::factory()->autoReplenish()->create([
+            'tenant_id' => $this->tenant->id,
+            'credit_count' => 5,
+        ]);
+
+        $this->tenant->update(['auto_charge_at_zero_package_id' => $package->id]);
+
+        $customer = Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_payment_method_id' => 'pm_test',
+        ]);
+
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 0]);
+
+        $this->mock(AutoReplenishService::class)
+            ->shouldReceive('triggerForPackage')
+            ->once()
+            ->andReturnUsing(function () use ($dog) {
+                $dog->increment('credit_balance', 5);
+                return true;
+            });
+
+        $this->mock(DogCreditService::class)->shouldIgnoreMissing();
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/roster/checkin', [
+                'dogs' => [['dog_id' => $dog->id]],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.status', 'checked_in');
+
+        $this->assertDatabaseHas('attendances', ['dog_id' => $dog->id]);
+    }
+
+    public function test_per_dog_auto_replenish_takes_priority_over_tenant_package(): void
+    {
+        $this->tenant->update(['checkin_block_at_zero' => false]);
+
+        // tenant is on 'starter' plan which has auto_replenish in setUp
+        $tenantPackage = Package::factory()->autoReplenish()->create(['tenant_id' => $this->tenant->id]);
+        $dogPackage    = Package::factory()->autoReplenish()->create(['tenant_id' => $this->tenant->id]);
+
+        $this->tenant->update(['auto_charge_at_zero_package_id' => $tenantPackage->id]);
+
+        $customer = Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_payment_method_id' => 'pm_test',
+        ]);
+
+        $dog = Dog::factory()->forCustomer($customer)->create([
+            'credit_balance' => 0,
+            'auto_replenish_enabled' => true,
+            'auto_replenish_package_id' => $dogPackage->id,
+        ]);
+
+        $mock = $this->mock(AutoReplenishService::class);
+        $mock->shouldReceive('triggerSync')
+            ->once()
+            ->andReturnUsing(function () use ($dog) {
+                $dog->increment('credit_balance', 5);
+                return true;
+            });
+        $mock->shouldNotReceive('triggerForPackage');
+
+        $this->mock(DogCreditService::class)->shouldIgnoreMissing();
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/roster/checkin', [
+                'dogs' => [['dog_id' => $dog->id]],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.status', 'checked_in');
+    }
+
+    public function test_tenant_auto_charge_skipped_when_plan_feature_inactive(): void
+    {
+        $this->tenant->update(['checkin_block_at_zero' => false, 'plan' => 'free']);
+
+        // no PlatformPlan for 'free' exists → PlanFeatureCache returns false → auto_replenish inactive
+
+        $package = Package::factory()->autoReplenish()->create(['tenant_id' => $this->tenant->id]);
+        $this->tenant->update(['auto_charge_at_zero_package_id' => $package->id]);
+
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 0]);
+
+        $mock = $this->mock(AutoReplenishService::class);
+        $mock->shouldNotReceive('triggerSync');
+        $mock->shouldNotReceive('triggerForPackage');
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/roster/checkin', [
+                'dogs' => [['dog_id' => $dog->id]],
+            ]);
+
+        // check-in proceeds but credit deduction fails → ZERO_CREDITS_BLOCKED
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.status', 'error')
+            ->assertJsonPath('data.0.error_code', 'ZERO_CREDITS_BLOCKED');
+    }
+
+    public function test_tenant_auto_charge_skipped_when_no_package_configured(): void
+    {
+        $this->tenant->update([
+            'checkin_block_at_zero'          => false,
+            'auto_charge_at_zero_package_id' => null,
+        ]);
+
+        // tenant is on 'starter' plan (has auto_replenish) but no package configured
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 0]);
+
+        $mock = $this->mock(AutoReplenishService::class);
+        $mock->shouldNotReceive('triggerSync');
+        $mock->shouldNotReceive('triggerForPackage');
 
         $response = $this->withHeaders($this->authHeaders())
             ->postJson('/api/admin/v1/roster/checkin', [

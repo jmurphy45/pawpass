@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
+use Laravel\Pennant\Feature;
 use Tests\TestCase;
 
 class SettingsControllerTest extends TestCase
@@ -217,5 +220,78 @@ class SettingsControllerTest extends TestCase
             ->component('Admin/Settings/Index')
             ->where('billing_address.postal_code', '60601')
         );
+    }
+
+    public function test_settings_index_includes_packages_and_auto_charge_fields(): void
+    {
+        Queue::fake();
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+        ]);
+
+        $this->actingAs($this->owner);
+
+        $response = $this->get('/admin/settings');
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Settings/Index')
+            ->has('packages')
+            ->has('can_auto_replenish')
+            ->where('business.auto_charge_at_zero_package_id', null)
+        );
+    }
+
+    public function test_update_business_saves_auto_charge_package_id(): void
+    {
+        Queue::fake();
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+        ]);
+
+        $this->actingAs($this->owner);
+
+        $response = $this->patch('/admin/settings/business', [
+            'auto_charge_at_zero_package_id' => $package->id,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertSame($package->id, $this->tenant->fresh()->auto_charge_at_zero_package_id);
+    }
+
+    public function test_update_business_clears_auto_charge_package_id_when_null(): void
+    {
+        Queue::fake();
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+        ]);
+
+        $this->tenant->update(['auto_charge_at_zero_package_id' => $package->id]);
+
+        $this->actingAs($this->owner);
+
+        $response = $this->patch('/admin/settings/business', [
+            'auto_charge_at_zero_package_id' => null,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertNull($this->tenant->fresh()->auto_charge_at_zero_package_id);
+    }
+
+    public function test_update_business_rejects_invalid_package_id(): void
+    {
+        $this->actingAs($this->owner);
+
+        $response = $this->patch('/admin/settings/business', [
+            'auto_charge_at_zero_package_id' => 'nonexistent_pkg_id',
+        ]);
+
+        $response->assertSessionHasErrors(['auto_charge_at_zero_package_id']);
     }
 }

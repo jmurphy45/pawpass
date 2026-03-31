@@ -31,6 +31,31 @@
             <input id="checkin_block" v-model="businessForm.checkin_block_at_zero" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
             <label for="checkin_block" class="text-sm font-medium text-gray-700">Block check-in when credits reach zero</label>
           </div>
+
+          <!-- Auto-charge package: shown when zero-credit check-ins are allowed -->
+          <div v-if="!businessForm.checkin_block_at_zero" class="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-0.5">Auto-charge package at check-in</label>
+              <p class="text-xs text-gray-500 mb-2">When a dog checks in with zero credits, automatically charge their saved card for this package and issue credits.</p>
+            </div>
+            <template v-if="can_auto_replenish">
+              <select
+                v-model="businessForm.auto_charge_at_zero_package_id"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white"
+              >
+                <option value="">— None (allow check-in without charging) —</option>
+                <option v-for="pkg in packages" :key="pkg.id" :value="pkg.id">
+                  {{ pkg.name }} (${{ Number(pkg.price).toFixed(2) }})
+                </option>
+              </select>
+              <p v-if="businessForm.errors.auto_charge_at_zero_package_id" class="text-sm text-red-600">
+                {{ businessForm.errors.auto_charge_at_zero_package_id }}
+              </p>
+            </template>
+            <p v-else class="text-xs text-indigo-600 font-medium">
+              Upgrade your plan to enable automatic charging at check-in.
+            </p>
+          </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
             <select v-model="businessForm.business_type" class="w-48 rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white">
@@ -228,22 +253,25 @@ import { useForm } from '@inertiajs/vue3';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 const props = defineProps<{
-  business: { name: string; timezone: string; primary_color: string; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string; business_type: string };
+  business: { name: string; timezone: string; primary_color: string; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string; business_type: string; auto_charge_at_zero_package_id: string | null };
   billing_address: { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
   notificationSettings: Array<{ type: string; is_enabled: boolean }>;
   staff: Array<{ id: string; name: string; email: string; role: string; status: string }>;
+  packages: Array<{ id: string; name: string; price: string }>;
+  can_auto_replenish: boolean;
 }>();
 
 // ── Business form ─────────────────────────────────────────────────────────────
 
 const businessForm = useForm({
-  name:                  props.business.name,
-  timezone:              props.business.timezone,
-  primary_color:         props.business.primary_color,
-  low_credit_threshold:  props.business.low_credit_threshold,
-  checkin_block_at_zero: props.business.checkin_block_at_zero,
-  payout_schedule:       props.business.payout_schedule,
-  business_type:         props.business.business_type,
+  name:                           props.business.name,
+  timezone:                       props.business.timezone,
+  primary_color:                  props.business.primary_color,
+  low_credit_threshold:           props.business.low_credit_threshold,
+  checkin_block_at_zero:          props.business.checkin_block_at_zero,
+  payout_schedule:                props.business.payout_schedule,
+  business_type:                  props.business.business_type,
+  auto_charge_at_zero_package_id: props.business.auto_charge_at_zero_package_id ?? '',
 });
 
 function submitBusiness() {
