@@ -148,6 +148,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/reports/customers', [AdminReportController::class, 'customers'])->name('admin.reports.customers');
         Route::get('/reports/attendance', [AdminReportController::class, 'attendance'])->name('admin.reports.attendance');
         Route::get('/reports/credit-status', [AdminReportController::class, 'creditStatus'])->name('admin.reports.credit-status');
+        Route::get('/reports/vaccinations', [AdminReportController::class, 'vaccinations'])->middleware('plan:vaccination_management')->name('admin.reports.vaccinations');
 
         // Vaccination Requirements
         Route::get('/vaccination-requirements', [AdminVaccinationRequirementController::class, 'index'])->name('admin.vaccination-requirements.index');

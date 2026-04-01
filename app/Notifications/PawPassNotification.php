@@ -84,6 +84,28 @@ class PawPassNotification extends Notification implements ShouldQueue
         return $body;
     }
 
+    private function buildVaccinationSoonMessage(): array
+    {
+        $count = $this->data['vaccination_count'] ?? 0;
+        $dogs  = $this->data['dog_count'] ?? 0;
+
+        return [
+            'Vaccinations Expiring Soon',
+            "You have {$count} vaccination(s) for {$dogs} dog(s) coming due in the next 30 days. Please schedule updated vaccines soon.",
+        ];
+    }
+
+    private function buildVaccinationUrgentMessage(): array
+    {
+        $count = $this->data['vaccination_count'] ?? 0;
+        $dogs  = $this->data['dog_count'] ?? 0;
+
+        return [
+            'Urgent: Vaccinations Expiring Soon',
+            "Action required: {$count} vaccination(s) for {$dogs} dog(s) expire within 7 days. Please act now to avoid a lapse in compliance.",
+        ];
+    }
+
     private function buildMessage(): array
     {
         return match ($this->type) {
@@ -101,6 +123,8 @@ class PawPassNotification extends Notification implements ShouldQueue
             'auto_replenish.succeeded' => ['Credits Auto-Renewed', 'Your credits have been automatically topped up.'],
             'auto_replenish.failed' => ['Auto-Replenish Failed', 'We couldn\'t charge your card to top up credits. Please update your payment method.'],
             'announcement' => [$this->data['subject'] ?? 'Announcement', $this->data['body'] ?? ''],
+            'vaccinations.expiring_soon' => $this->buildVaccinationSoonMessage(),
+            'vaccinations.expiring_urgent' => $this->buildVaccinationUrgentMessage(),
             default => [$this->type, $this->type],
         };
     }
