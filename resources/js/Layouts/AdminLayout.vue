@@ -161,6 +161,19 @@
           Broadcast
         </Link>
 
+        <!-- Help -->
+        <Link
+          :href="route('admin.help')"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          :class="isActive('admin.help') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
+          :style="isActive('admin.help') ? { backgroundColor: accentColor } : {}"
+        >
+          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+          </svg>
+          Help
+        </Link>
+
         <!-- Owner only -->
         <template v-if="isOwner">
           <div class="section-heading">Owner</div>
@@ -433,6 +446,8 @@ const flatNavItems = computed(() => {
   if (hasBroadcast.value) {
     items.push({ name: 'Broadcast', href: route('admin.notifications.broadcast'), pattern: 'admin.notifications.*' });
   }
+
+  items.push({ name: 'Help', href: route('admin.help'), pattern: 'admin.help' });
 
   if (isOwner.value) {
     items.push(

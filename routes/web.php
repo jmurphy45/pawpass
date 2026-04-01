@@ -23,6 +23,7 @@ use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController
 use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController;
 use App\Http\Controllers\Web\Admin\VaccinationRequirementController as AdminVaccinationRequirementController;
 use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
+use App\Http\Controllers\Web\Admin\HelpController as AdminHelpController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
 use App\Http\Controllers\Web\Portal\Auth\RegisterController;
@@ -175,6 +176,9 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/billing/portal', [AdminBillingController::class, 'portal'])->name('admin.billing.portal');
         Route::get('/billing/account-session', [AdminBillingController::class, 'accountSession'])->name('admin.billing.account-session');
         Route::post('/billing/payment-method', [AdminBillingController::class, 'updatePaymentMethod'])->name('admin.billing.payment-method');
+
+        // Help / FAQ
+        Route::get('/help', [AdminHelpController::class, 'index'])->name('admin.help');
 
         // Tax (business_owner only enforced in controller)
         Route::get('/tax', [AdminTaxController::class, 'index'])->name('admin.tax.index');
