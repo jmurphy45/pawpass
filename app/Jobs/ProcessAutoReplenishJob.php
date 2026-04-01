@@ -4,10 +4,11 @@ namespace App\Jobs;
 
 use App\Models\Dog;
 use App\Services\AutoReplenishService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
-class ProcessAutoReplenishJob implements ShouldQueue
+class ProcessAutoReplenishJob implements ShouldQueue, ShouldBeUnique
 {
     use Queueable;
 
@@ -16,6 +17,11 @@ class ProcessAutoReplenishJob implements ShouldQueue
     public function __construct(public readonly string $dogId)
     {
         $this->onQueue('default');
+    }
+
+    public function uniqueId(): string
+    {
+        return $this->dogId;
     }
 
     public function handle(AutoReplenishService $service): void

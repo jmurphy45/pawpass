@@ -60,6 +60,10 @@ class AutoReplenishService
      */
     public function triggerForPackage(Dog $dog, Package $package): bool
     {
+        if ($dog->autoReplenishConfigured()) {
+            return false;
+        }
+
         $customer = $dog->customer;
 
         if (! $customer?->stripe_payment_method_id) {
@@ -106,14 +110,21 @@ class AutoReplenishService
             return;
         }
 
-        // Idempotency guard: skip if a pending auto-replenish order was created recently
-        $recentPending = Order::where('customer_id', $customer->id)
-            ->where('status', 'pending')
+        // Idempotency guard: skip if an async order is pending OR a sync charge just completed.
+        // The 60-second window for 'paid' bridges the sync-charge → async-job race and prevents
+        // double-charging on 1-credit packages. Pending check uses 10-min window to protect
+        // against stale orders that never resolved.
+        $recentOrder = Order::where('customer_id', $customer->id)
+            ->where(function ($q) {
+                $q->where('status', 'pending')
+                    ->where('created_at', '>=', now()->subMinutes(10))
+                    ->orWhere(fn ($q2) => $q2->where('status', 'paid')
+                        ->where('created_at', '>=', now()->subMinutes(1)));
+            })
             ->whereHas('orderDogs', fn ($q) => $q->where('dog_id', $dog->id))
-            ->where('created_at', '>=', now()->subMinutes(10))
             ->exists();
 
-        if ($recentPending) {
+        if ($recentOrder) {
             return;
         }
 
@@ -213,7 +224,20 @@ class AutoReplenishService
      */
     private function charge(Dog $dog, Package $package, \App\Models\Tenant $tenant): bool
     {
-        $customer      = $dog->customer;
+        $customer = $dog->customer;
+
+        // If a pending auto-replenish order already exists for this dog, an async charge is
+        // in-flight. Return true optimistically — the block lifts as soon as the order resolves,
+        // not after an arbitrary time window.
+        $inFlight = Order::where('customer_id', $customer->id)
+            ->where('status', 'pending')
+            ->whereHas('orderDogs', fn ($q) => $q->where('dog_id', $dog->id))
+            ->exists();
+
+        if ($inFlight) {
+            return true;
+        }
+
         $subtotalCents = (int) round((float) $package->price * 100);
         $feePct        = $tenant->effectivePlatformFeePct($subtotalCents);
         $feeCents      = (int) round($subtotalCents * $feePct / 100);

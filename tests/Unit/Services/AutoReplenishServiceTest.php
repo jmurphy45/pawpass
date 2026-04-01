@@ -471,4 +471,94 @@ class AutoReplenishServiceTest extends TestCase
 
         $this->assertTrue($result);
     }
+
+    // ── double-billing guards ─────────────────────────────────────────────────
+
+    public function test_trigger_skips_when_recent_paid_order_exists(): void
+    {
+        $this->mock(StripeService::class)->shouldNotReceive('createPaymentIntent');
+
+        $dog = $this->makeDog();
+        $order = Order::factory()->create([
+            'tenant_id'   => $dog->tenant_id,
+            'customer_id' => $dog->customer_id,
+            'status'      => 'paid',
+            'created_at'  => now()->subSeconds(30),
+        ]);
+        $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
+
+        app(AutoReplenishService::class)->trigger($dog);
+
+        $this->assertDatabaseCount('orders', 1);
+    }
+
+    public function test_trigger_does_not_skip_when_paid_order_is_older_than_60_seconds(): void
+    {
+        $dog = $this->makeDog();
+        $stale = Order::factory()->create([
+            'tenant_id'   => $dog->tenant_id,
+            'customer_id' => $dog->customer_id,
+            'status'      => 'paid',
+            'created_at'  => now()->subMinutes(2),
+        ]);
+        $stale->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
+
+        $fakeIntent = (object) ['id' => 'pi_stale_paid', 'status' => 'succeeded'];
+        $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeIntent) {
+            $mock->shouldReceive('createPaymentIntent')->once()->andReturn($fakeIntent);
+        });
+
+        app(AutoReplenishService::class)->trigger($dog);
+
+        $this->assertDatabaseCount('orders', 2);
+    }
+
+    public function test_trigger_sync_returns_true_without_new_charge_when_pending_order_exists(): void
+    {
+        $this->mock(StripeService::class)->shouldNotReceive('createPaymentIntent');
+
+        $dog = $this->makeDog();
+        $order = Order::factory()->create([
+            'tenant_id'   => $dog->tenant_id,
+            'customer_id' => $dog->customer_id,
+            'status'      => 'pending',
+        ]);
+        $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
+
+        $result = app(AutoReplenishService::class)->triggerSync($dog);
+
+        $this->assertTrue($result);
+        $this->assertDatabaseCount('orders', 1);
+    }
+
+    public function test_trigger_for_package_returns_true_without_new_charge_when_pending_order_exists(): void
+    {
+        $this->mock(StripeService::class)->shouldNotReceive('createPaymentIntent');
+
+        [$dog, $package] = $this->makeDogAndPackage();
+        $order = Order::factory()->create([
+            'tenant_id'   => $dog->tenant_id,
+            'customer_id' => $dog->customer_id,
+            'status'      => 'pending',
+        ]);
+        $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
+
+        $result = app(AutoReplenishService::class)->triggerForPackage($dog, $package);
+
+        $this->assertTrue($result);
+        $this->assertDatabaseCount('orders', 1);
+    }
+
+    public function test_trigger_for_package_returns_false_when_dog_has_own_auto_replenish(): void
+    {
+        $this->mock(StripeService::class)->shouldNotReceive('createPaymentIntent');
+
+        $dog = $this->makeDog(); // auto_replenish_enabled=true, auto_replenish_package_id set
+        [, $tenantPackage] = $this->makeDogAndPackage();
+
+        $result = app(AutoReplenishService::class)->triggerForPackage($dog, $tenantPackage);
+
+        $this->assertFalse($result);
+        $this->assertDatabaseCount('orders', 0);
+    }
 }
