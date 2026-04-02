@@ -71,6 +71,7 @@ Route::prefix('portal/v1')
         Route::post('auth/verify-email', [VerifyEmailController::class, 'verify']);
         Route::post('auth/forgot-password', [ForgotPasswordController::class, 'send']);
         Route::post('auth/reset-password', [ResetPasswordController::class, 'reset']);
+        Route::get('kennel-units/check-availability', [PortalKennelUnitController::class, 'checkAvailability']);
 
         // Authenticated routes
         Route::middleware(['auth.jwt', 'bindings'])->group(function () {

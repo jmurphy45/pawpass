@@ -85,6 +85,105 @@
       </div>
     </section>
 
+    <!-- Boarding section: only for kennel/hybrid tenants -->
+    <section
+      v-if="tenant.business_type === 'kennel' || tenant.business_type === 'hybrid'"
+      class="px-6 py-16 bg-white border-t border-gray-100"
+    >
+      <div class="mx-auto max-w-5xl">
+        <h2 class="text-2xl font-bold text-gray-900 text-center mb-2">Boarding Options</h2>
+        <p class="text-center text-gray-500 text-sm mb-10">Comfortable stays for your dog while you're away.</p>
+
+        <!-- Static units grid -->
+        <div v-if="kennel_units && kennel_units.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          <div
+            v-for="unit in kennel_units"
+            :key="unit.id"
+            class="bg-gray-50 rounded-2xl border border-gray-200 p-6 flex flex-col"
+          >
+            <span
+              class="self-start rounded-full px-2.5 py-0.5 text-xs font-medium mb-3 capitalize"
+              :style="{ backgroundColor: `${tenant.primary_color}18`, color: tenant.primary_color }"
+            >{{ unit.type }}</span>
+            <h3 class="text-lg font-bold text-gray-900">{{ unit.name }}</h3>
+            <p v-if="unit.description" class="mt-1 text-sm text-gray-500 flex-1">{{ unit.description }}</p>
+            <div v-if="unit.nightly_rate_cents" class="mt-4">
+              <span class="text-2xl font-extrabold text-gray-900">${{ (unit.nightly_rate_cents / 100).toFixed(0) }}</span>
+              <span class="text-sm text-gray-400">/night</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Availability checker card -->
+        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-8">
+          <h3 class="text-lg font-bold text-gray-900 mb-6">Check Availability</h3>
+          <div class="flex flex-col sm:flex-row gap-4 items-end">
+            <div class="flex-1">
+              <label class="block text-xs font-medium text-gray-600 mb-1">Check-in</label>
+              <input
+                v-model="checkIn"
+                type="date"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+              />
+            </div>
+            <div class="flex-1">
+              <label class="block text-xs font-medium text-gray-600 mb-1">Check-out</label>
+              <input
+                v-model="checkOut"
+                type="date"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+              />
+            </div>
+            <button
+              class="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              :style="{ backgroundColor: tenant.primary_color }"
+              :disabled="!checkIn || !checkOut || checkingAvailability"
+              @click="checkAvailability"
+            >
+              {{ checkingAvailability ? 'Checking…' : 'Check Availability' }}
+            </button>
+          </div>
+
+          <p v-if="availabilityError" class="mt-4 text-sm text-red-600">{{ availabilityError }}</p>
+
+          <div v-if="availability !== null" class="mt-6">
+            <div v-if="availability.length === 0" class="text-sm text-gray-500 text-center py-4">
+              No units available for those dates. Try a different date range.
+            </div>
+            <div v-else>
+              <p class="text-sm font-medium text-gray-700 mb-4">
+                {{ availability.length }} unit{{ availability.length !== 1 ? 's' : '' }} available
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <div
+                  v-for="unit in availability"
+                  :key="unit.id"
+                  class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3"
+                >
+                  <div>
+                    <p class="text-sm font-semibold text-gray-900">{{ unit.name }}</p>
+                    <p class="text-xs text-gray-400 capitalize">{{ unit.type }}</p>
+                  </div>
+                  <p v-if="unit.nightly_rate_cents" class="text-sm font-bold text-gray-900">
+                    ${{ (unit.nightly_rate_cents / 100).toFixed(0) }}/night
+                  </p>
+                </div>
+              </div>
+              <div class="text-center">
+                <a
+                  :href="`/my/boarding/create?starts_at=${checkIn}&ends_at=${checkOut}`"
+                  class="inline-block rounded-lg px-8 py-3 text-sm font-semibold text-white shadow-md hover:opacity-90 transition-opacity"
+                  :style="{ backgroundColor: tenant.primary_color }"
+                >
+                  Book a Stay
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer -->
     <footer class="mt-16 py-8 text-center border-t border-gray-100">
       <p class="text-xs text-gray-400">
@@ -666,11 +765,21 @@ interface PackageData {
   dog_limit: number | null
 }
 
+interface KennelUnitData {
+  id: string
+  name: string
+  type: string
+  description: string | null
+  nightly_rate_cents: number | null
+  capacity: number
+}
+
 const props = defineProps<{
   plans: Plan[]
   show_pricing_calculator: boolean
   tenant: TenantData | null
   packages: PackageData[]
+  kennel_units?: KennelUnitData[]
 }>()
 
 // ── Nav state ────────────────────────────────────────────────
@@ -684,6 +793,31 @@ let observer: IntersectionObserver | null = null
 const loginOpen = ref(false)
 const loginSlug = ref('')
 const loginDropdownRef = ref<HTMLElement | null>(null)
+
+// ── Boarding availability checker ────────────────────────────
+const checkIn = ref('')
+const checkOut = ref('')
+const availability = ref<KennelUnitData[] | null>(null)
+const checkingAvailability = ref(false)
+const availabilityError = ref<string | null>(null)
+
+async function checkAvailability() {
+  if (!checkIn.value || !checkOut.value) return
+  checkingAvailability.value = true
+  availabilityError.value = null
+  availability.value = null
+  try {
+    const params = new URLSearchParams({ starts_at: checkIn.value, ends_at: checkOut.value })
+    const resp = await fetch(`/api/portal/v1/kennel-units/check-availability?${params}`)
+    if (!resp.ok) { availabilityError.value = 'Unable to check availability. Please try again.'; return }
+    const json = await resp.json()
+    availability.value = json.data
+  } catch {
+    availabilityError.value = 'Network error. Please try again.'
+  } finally {
+    checkingAvailability.value = false
+  }
+}
 
 function goToLogin() {
   const slug = loginSlug.value.trim()

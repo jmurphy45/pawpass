@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\KennelUnit;
 use App\Models\Package;
 use App\Models\PlatformPlan;
 use App\Models\Tenant;
@@ -51,6 +52,25 @@ class HomeController extends Controller
                             'dog_limit'    => $p->dog_limit,
                         ])
                         ->values();
+
+                    $kennelUnits = [];
+
+                    if (in_array($tenant->business_type, ['kennel', 'hybrid'], true)) {
+                        $kennelUnits = KennelUnit::allTenants()
+                            ->where('tenant_id', $tenant->id)
+                            ->where('is_active', true)
+                            ->orderBy('sort_order')
+                            ->get(['id', 'name', 'type', 'description', 'nightly_rate_cents', 'capacity'])
+                            ->map(fn ($u) => [
+                                'id'                 => $u->id,
+                                'name'               => $u->name,
+                                'type'               => $u->type,
+                                'description'        => $u->description,
+                                'nightly_rate_cents' => $u->nightly_rate_cents,
+                                'capacity'           => $u->capacity,
+                            ])
+                            ->values();
+                    }
                 }
             }
         }
@@ -58,9 +78,10 @@ class HomeController extends Controller
         // If this is a known tenant subdomain, render the tenant landing page
         if ($tenantData) {
             return inertia('Home', [
-                'tenant'   => $tenantData,
-                'packages' => $tenantPackages,
-                'plans'    => [],
+                'tenant'       => $tenantData,
+                'packages'     => $tenantPackages,
+                'kennel_units' => $kennelUnits,
+                'plans'        => [],
                 'show_pricing_calculator' => false,
             ]);
         }
