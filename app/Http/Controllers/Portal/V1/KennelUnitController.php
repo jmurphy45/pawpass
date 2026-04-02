@@ -16,11 +16,6 @@ class KennelUnitController extends Controller
     public function checkAvailability(Request $request): JsonResponse
     {
         $tenantId = app('current.tenant.id');
-        $tenant   = \App\Models\Tenant::find($tenantId);
-
-        if ($tenant && $tenant->isDaycare()) {
-            return response()->json(['error' => 'FORBIDDEN'], 403);
-        }
 
         $request->validate([
             'starts_at' => ['required', 'date'],

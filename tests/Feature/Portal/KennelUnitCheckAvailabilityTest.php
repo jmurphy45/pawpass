@@ -29,7 +29,7 @@ class KennelUnitCheckAvailabilityTest extends TestCase
         URL::forceRootUrl('http://checkavailability.pawpass.com');
     }
 
-    public function test_returns_403_for_daycare_tenant(): void
+    public function test_returns_available_units_for_daycare_tenant(): void
     {
         $tenant = Tenant::factory()->create([
             'slug'          => 'daycareonly',
@@ -38,8 +38,11 @@ class KennelUnitCheckAvailabilityTest extends TestCase
         ]);
         URL::forceRootUrl('http://daycareonly.pawpass.com');
 
+        KennelUnit::factory()->count(2)->create(['tenant_id' => $tenant->id, 'is_active' => true]);
+
         $this->getJson('/api/portal/v1/kennel-units/check-availability?starts_at='.now()->addDay()->toDateString().'&ends_at='.now()->addDays(3)->toDateString())
-            ->assertStatus(403);
+            ->assertStatus(200)
+            ->assertJsonCount(2, 'data');
     }
 
     public function test_returns_422_when_ends_at_missing(): void
