@@ -88,7 +88,7 @@
     <!-- Footer -->
     <footer class="mt-16 py-8 text-center border-t border-gray-100">
       <p class="text-xs text-gray-400">
-        Powered by <a href="https://pawpass.com" class="underline hover:text-gray-600 transition-colors">PawPass</a>
+        Powered by <a :href="`https://platform.${appDomain}`" class="underline hover:text-gray-600 transition-colors">PawPass</a>
       </p>
     </footer>
   </div>
