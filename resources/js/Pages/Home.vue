@@ -1,5 +1,100 @@
 <template>
-  <div class="min-h-screen font-sans" style="background-color: #faf9f6;">
+  <!-- ===== TENANT LANDING PAGE ===== -->
+  <div v-if="tenant" class="min-h-screen font-sans" style="background-color: #faf9f6;">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <!-- Tenant branding -->
+        <div class="flex items-center gap-3">
+          <img v-if="tenant.logo_url" :src="tenant.logo_url" :alt="tenant.name" class="h-8 w-auto max-w-[120px] object-contain" />
+          <span v-else class="text-xl font-bold text-gray-900">{{ tenant.name }}</span>
+        </div>
+        <!-- Actions -->
+        <div class="flex items-center gap-3">
+          <a :href="`/my/register`" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Register</a>
+          <a
+            :href="`/my/login`"
+            class="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors shadow-sm"
+            :style="{ backgroundColor: tenant.primary_color }"
+          >Log in</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="px-6 py-20 text-center" :style="{ background: `linear-gradient(135deg, ${tenant.primary_color}14 0%, #faf9f6 60%)` }">
+      <div class="mx-auto max-w-2xl">
+        <span
+          v-if="tenant.business_type"
+          class="inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide mb-6"
+          :style="{ backgroundColor: `${tenant.primary_color}18`, color: tenant.primary_color }"
+        >
+          {{ tenant.business_type === 'daycare' ? 'Dog Daycare' : tenant.business_type === 'boarding' ? 'Dog Boarding' : 'Daycare & Boarding' }}
+        </span>
+        <h1 class="text-4xl font-extrabold tracking-tight text-gray-900 md:text-5xl">
+          Welcome to {{ tenant.name }}
+        </h1>
+        <p class="mt-4 text-lg text-gray-500">Purchase a package below or log in to manage your account.</p>
+        <div class="mt-8 flex justify-center gap-3">
+          <a
+            href="/my/purchase"
+            class="rounded-lg px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:opacity-90"
+            :style="{ backgroundColor: tenant.primary_color }"
+          >View Packages</a>
+          <a href="/my/register" class="rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+            Create Account
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Packages -->
+    <section v-if="packages.length > 0" class="px-6 py-16">
+      <div class="mx-auto max-w-5xl">
+        <h2 class="text-2xl font-bold text-gray-900 text-center mb-2">Packages</h2>
+        <p class="text-center text-gray-500 text-sm mb-10">Purchase online and start using your credits right away.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            v-for="pkg in packages"
+            :key="pkg.id"
+            class="bg-white rounded-2xl border border-gray-200 p-6 flex flex-col shadow-sm hover:shadow-md transition-shadow"
+          >
+            <!-- Type badge -->
+            <span class="self-start rounded-full px-2.5 py-0.5 text-xs font-medium mb-4"
+              :style="{ backgroundColor: `${tenant.primary_color}18`, color: tenant.primary_color }"
+            >
+              {{ pkg.type === 'one_time' ? 'One-time' : pkg.type === 'subscription' ? 'Subscription' : 'Unlimited' }}
+            </span>
+            <h3 class="text-lg font-bold text-gray-900">{{ pkg.name }}</h3>
+            <p v-if="pkg.description" class="mt-1 text-sm text-gray-500 flex-1">{{ pkg.description }}</p>
+            <div class="mt-4 flex items-end justify-between">
+              <div>
+                <span class="text-3xl font-extrabold text-gray-900">${{ pkg.price % 1 === 0 ? pkg.price.toFixed(0) : pkg.price.toFixed(2) }}</span>
+                <span v-if="pkg.type === 'subscription'" class="text-sm text-gray-400">/mo</span>
+              </div>
+              <span v-if="pkg.credit_count" class="text-sm text-gray-500">{{ pkg.credit_count }} credits</span>
+              <span v-else class="text-sm text-gray-500">Unlimited</span>
+            </div>
+            <a
+              href="/my/purchase"
+              class="mt-5 block w-full rounded-lg py-2.5 text-center text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              :style="{ backgroundColor: tenant.primary_color }"
+            >Buy Now</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-16 py-8 text-center border-t border-gray-100">
+      <p class="text-xs text-gray-400">
+        Powered by <a href="https://pawpass.com" class="underline hover:text-gray-600 transition-colors">PawPass</a>
+      </p>
+    </footer>
+  </div>
+
+  <!-- ===== PLATFORM MARKETING PAGE ===== -->
+  <div v-else class="min-h-screen font-sans" style="background-color: #faf9f6;">
     <!-- ===== NAV ===== -->
     <nav
       class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
@@ -528,6 +623,7 @@
       </div>
     </footer>
   </div>
+  <!-- end v-else platform page -->
 </template>
 
 <script setup lang="ts">
@@ -552,9 +648,29 @@ interface Plan {
   staff_limit: number
 }
 
+interface TenantData {
+  name: string
+  slug: string
+  logo_url: string | null
+  primary_color: string
+  business_type: string | null
+}
+
+interface PackageData {
+  id: string
+  name: string
+  description: string | null
+  type: string
+  price: number
+  credit_count: number | null
+  dog_limit: number | null
+}
+
 const props = defineProps<{
   plans: Plan[]
   show_pricing_calculator: boolean
+  tenant: TenantData | null
+  packages: PackageData[]
 }>()
 
 // ── Nav state ────────────────────────────────────────────────
