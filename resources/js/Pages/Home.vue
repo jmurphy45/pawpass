@@ -85,9 +85,9 @@
       </div>
     </section>
 
-    <!-- Boarding section: only for kennel/hybrid tenants -->
+    <!-- Boarding section: shown when tenant has kennel units -->
     <section
-      v-if="tenant.business_type === 'kennel' || tenant.business_type === 'hybrid'"
+      v-if="kennel_units && kennel_units.length > 0"
       class="px-6 py-16 bg-white border-t border-gray-100"
     >
       <div class="mx-auto max-w-5xl">

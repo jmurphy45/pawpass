@@ -53,24 +53,20 @@ class HomeController extends Controller
                         ])
                         ->values();
 
-                    $kennelUnits = [];
-
-                    if (in_array($tenant->business_type, ['kennel', 'hybrid'], true)) {
-                        $kennelUnits = KennelUnit::allTenants()
-                            ->where('tenant_id', $tenant->id)
-                            ->where('is_active', true)
-                            ->orderBy('sort_order')
-                            ->get(['id', 'name', 'type', 'description', 'nightly_rate_cents', 'capacity'])
-                            ->map(fn ($u) => [
-                                'id'                 => $u->id,
-                                'name'               => $u->name,
-                                'type'               => $u->type,
-                                'description'        => $u->description,
-                                'nightly_rate_cents' => $u->nightly_rate_cents,
-                                'capacity'           => $u->capacity,
-                            ])
-                            ->values();
-                    }
+                    $kennelUnits = KennelUnit::allTenants()
+                        ->where('tenant_id', $tenant->id)
+                        ->where('is_active', true)
+                        ->orderBy('sort_order')
+                        ->get(['id', 'name', 'type', 'description', 'nightly_rate_cents', 'capacity'])
+                        ->map(fn ($u) => [
+                            'id'                 => $u->id,
+                            'name'               => $u->name,
+                            'type'               => $u->type,
+                            'description'        => $u->description,
+                            'nightly_rate_cents' => $u->nightly_rate_cents,
+                            'capacity'           => $u->capacity,
+                        ])
+                        ->values();
                 }
             }
         }

@@ -65,7 +65,7 @@ class HomeControllerTest extends TestCase
             );
     }
 
-    public function test_kennel_units_empty_for_daycare_tenant(): void
+    public function test_passes_kennel_units_for_daycare_tenant_when_units_exist(): void
     {
         $tenant = Tenant::factory()->create([
             'slug'          => 'daycareco',
@@ -74,12 +74,13 @@ class HomeControllerTest extends TestCase
         ]);
         URL::forceRootUrl('http://daycareco.pawpass.com');
 
-        KennelUnit::factory()->create(['tenant_id' => $tenant->id, 'is_active' => true]);
+        KennelUnit::factory()->count(2)->create(['tenant_id' => $tenant->id, 'is_active' => true]);
+        KennelUnit::factory()->create(['tenant_id' => $tenant->id, 'is_active' => false]);
 
         $this->get('/')
             ->assertInertia(fn ($page) => $page
                 ->component('Home')
-                ->has('kennel_units', 0)
+                ->has('kennel_units', 2)
             );
     }
 
