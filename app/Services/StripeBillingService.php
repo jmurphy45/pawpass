@@ -187,6 +187,11 @@ class StripeBillingService
         ])->data;
     }
 
+    public function retrieveSubscription(string $subscriptionId): object
+    {
+        return $this->client->subscriptions->retrieve($subscriptionId);
+    }
+
     public function constructWebhookEvent(string $payload, string $sigHeader, string $secret): object
     {
         return \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);

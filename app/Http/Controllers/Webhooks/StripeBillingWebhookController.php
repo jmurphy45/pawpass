@@ -96,6 +96,12 @@ class StripeBillingWebhookController extends Controller
         return response()->json(['data' => 'ok']);
     }
 
+    private const STATUS_MAP = [
+        'trialing' => 'trialing',
+        'active'   => 'active',
+        'past_due' => 'past_due',
+    ];
+
     private function handleSubscriptionUpdated(object $stripeSub): JsonResponse
     {
         $tenant = $this->resolveTenant($stripeSub);
@@ -104,10 +110,17 @@ class StripeBillingWebhookController extends Controller
             return response()->json(['data' => 'ok']);
         }
 
-        $tenant->update([
+        $update = [
             'plan_current_period_end'   => $this->resolvePeriodEnd($stripeSub),
             'plan_cancel_at_period_end' => (bool) $stripeSub->cancel_at_period_end,
-        ]);
+        ];
+
+        $newStatus = self::STATUS_MAP[$stripeSub->status ?? ''] ?? null;
+        if ($newStatus && $tenant->status !== $newStatus) {
+            $update['status'] = $newStatus;
+        }
+
+        $tenant->update($update);
 
         return response()->json(['data' => 'ok']);
     }

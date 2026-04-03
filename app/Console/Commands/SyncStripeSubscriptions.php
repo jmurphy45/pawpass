@@ -34,7 +34,10 @@ class SyncStripeSubscriptions extends Command
         $dryRun = $this->option('dry-run');
         $tenantId = $this->option('tenant');
 
-        $query = Tenant::whereNotNull('platform_stripe_customer_id');
+        $query = Tenant::where(function ($q) {
+            $q->whereNotNull('platform_stripe_customer_id')
+              ->orWhereNotNull('platform_stripe_sub_id');
+        });
 
         if ($tenantId) {
             $query->where('id', $tenantId);
@@ -45,11 +48,17 @@ class SyncStripeSubscriptions extends Command
 
         $query->chunkById(100, function ($tenants) use ($dryRun, &$synced, &$skipped) {
             foreach ($tenants as $tenant) {
-                $subs = $this->billing->listSubscriptionsForCustomer($tenant->platform_stripe_customer_id);
-
-                $activeSub = collect($subs)->first(
-                    fn ($s) => in_array($s->status, self::SYNCABLE_STATUSES, true)
-                );
+                if ($tenant->platform_stripe_customer_id) {
+                    $subs = $this->billing->listSubscriptionsForCustomer($tenant->platform_stripe_customer_id);
+                    $activeSub = collect($subs)->first(
+                        fn ($s) => in_array($s->status, self::SYNCABLE_STATUSES, true)
+                    );
+                } elseif ($tenant->platform_stripe_sub_id) {
+                    $sub = $this->billing->retrieveSubscription($tenant->platform_stripe_sub_id);
+                    $activeSub = in_array($sub->status, self::SYNCABLE_STATUSES, true) ? $sub : null;
+                } else {
+                    $activeSub = null;
+                }
 
                 if (! $activeSub) {
                     $this->line("  SKIP {$tenant->slug} — no active/trialing subscription in Stripe");

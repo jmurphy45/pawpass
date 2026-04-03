@@ -122,6 +122,50 @@ class StripeBillingWebhookTest extends TestCase
         $this->postWebhook()->assertStatus(200);
     }
 
+    public function test_subscription_updated_syncs_status_to_past_due(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                 => 'trialing',
+            'platform_stripe_sub_id' => 'sub_going_past_due',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_going_past_due',
+            'status'               => 'past_due',
+            'current_period_end'   => now()->addMonth()->timestamp,
+            'cancel_at_period_end' => false,
+            'metadata'             => (object) ['tenant_id' => $tenant->id],
+        ]);
+
+        $this->mockBillingVerify($event);
+
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('past_due', $tenant->fresh()->status);
+    }
+
+    public function test_subscription_updated_syncs_status_to_active(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                 => 'trialing',
+            'platform_stripe_sub_id' => 'sub_going_active',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_going_active',
+            'status'               => 'active',
+            'current_period_end'   => now()->addMonth()->timestamp,
+            'cancel_at_period_end' => false,
+            'metadata'             => (object) ['tenant_id' => $tenant->id],
+        ]);
+
+        $this->mockBillingVerify($event);
+
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('active', $tenant->fresh()->status);
+    }
+
     public function test_subscription_updated_updates_period_end(): void
     {
         $tenant = Tenant::factory()->create([
