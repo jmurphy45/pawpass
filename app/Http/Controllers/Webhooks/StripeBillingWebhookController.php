@@ -49,6 +49,16 @@ class StripeBillingWebhookController extends Controller
         };
     }
 
+    private function resolvePeriodEnd(object $stripeSub): ?Carbon
+    {
+        $timestamp = $stripeSub->items->data[0]->current_period_end
+            ?? $stripeSub->current_period_end
+            ?? $stripeSub->trial_end
+            ?? null;
+
+        return $timestamp ? Carbon::createFromTimestamp($timestamp) : null;
+    }
+
     private function resolveTenant(object $stripeSub): ?Tenant
     {
         $tenantId = $stripeSub->metadata->tenant_id ?? null;
@@ -73,7 +83,7 @@ class StripeBillingWebhookController extends Controller
         $tenant->update([
             'platform_stripe_sub_id'  => $stripeSub->id,
             'status'                  => $status,
-            'plan_current_period_end' => Carbon::createFromTimestamp($stripeSub->current_period_end),
+            'plan_current_period_end' => $this->resolvePeriodEnd($stripeSub),
             'plan_cancel_at_period_end' => false,
         ]);
 
@@ -95,7 +105,7 @@ class StripeBillingWebhookController extends Controller
         }
 
         $tenant->update([
-            'plan_current_period_end'   => Carbon::createFromTimestamp($stripeSub->current_period_end),
+            'plan_current_period_end'   => $this->resolvePeriodEnd($stripeSub),
             'plan_cancel_at_period_end' => (bool) $stripeSub->cancel_at_period_end,
         ]);
 

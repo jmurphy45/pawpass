@@ -58,7 +58,11 @@ class SyncStripeSubscriptions extends Command
                 }
 
                 $newStatus = self::STATUS_MAP[$activeSub->status];
-                $periodEnd = Carbon::createFromTimestamp($activeSub->current_period_end);
+                $periodEndTimestamp = $activeSub->items->data[0]->current_period_end
+                    ?? $activeSub->current_period_end
+                    ?? $activeSub->trial_end
+                    ?? null;
+                $periodEnd = $periodEndTimestamp ? Carbon::createFromTimestamp($periodEndTimestamp) : null;
                 $cancelAtEnd = (bool) $activeSub->cancel_at_period_end;
 
                 $changes = [];
@@ -71,7 +75,7 @@ class SyncStripeSubscriptions extends Command
                     $changes['status'] = $newStatus;
                 }
 
-                if (! $tenant->plan_current_period_end || ! $tenant->plan_current_period_end->eq($periodEnd)) {
+                if ($periodEnd && (! $tenant->plan_current_period_end || ! $tenant->plan_current_period_end->eq($periodEnd))) {
                     $changes['plan_current_period_end'] = $periodEnd;
                 }
 
