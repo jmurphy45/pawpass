@@ -133,7 +133,7 @@ class StripeBillingWebhookController extends Controller
         Log::info('StripeBillingWebhook: subscription updated', [
             'stripe_sub_id'   => $stripeSub->id ?? null,
             'metadata_tenant' => $stripeSub->metadata->tenant_id ?? null,
-            'tenant_id'       => $tenant->id ?? null,
+            'tenant'       => json_encode($tenant->toArray() ?? []),
         ]);
 
         if (! $tenant) {
