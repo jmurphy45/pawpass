@@ -66,6 +66,10 @@ class StripeBillingWebhookController extends Controller
     private function resolveTenant(object $stripeSub): ?Tenant
     {
         $tenantId = $stripeSub->metadata->tenant_id ?? null;
+        Log::info('StripeBillingWebhook: resolving tenant', [
+            'stripe_sub_id'   => $stripeSub->id ?? null,
+            'metadata_tenant' => $tenantId,
+        ]);
 
         if ($tenantId) {
             return Tenant::find($tenantId);
@@ -133,7 +137,6 @@ class StripeBillingWebhookController extends Controller
         Log::info('StripeBillingWebhook: subscription updated', [
             'stripe_sub_id'   => $stripeSub->id ?? null,
             'metadata_tenant' => $stripeSub->metadata->tenant_id ?? null,
-            'tenant'       => json_encode($tenant->toArray() ?? []),
         ]);
 
         if (! $tenant) {
