@@ -29,11 +29,18 @@
 
         <!-- Plan badge -->
         <div
-          v-if="tenantPlan === 'trialing' || tenantPlan === 'free_tier'"
+          v-if="tenantStatus === 'trialing' || tenantStatus === 'free_tier'"
           class="inline-flex items-center self-start px-2 py-0.5 rounded-full text-xs font-medium"
           style="background-color: rgba(245,158,11,0.12); color: #fcd34d;"
         >
-          {{ tenantPlan === 'trialing' ? 'Trial' : 'Free' }}
+          {{ tenantStatus === 'trialing' ? 'Trial' : 'Free' }}
+        </div>
+        <div
+          v-else-if="tenantStatus === 'past_due'"
+          class="inline-flex items-center self-start px-2 py-0.5 rounded-full text-xs font-medium"
+          style="background-color: rgba(239,68,68,0.15); color: #fca5a5;"
+        >
+          Past Due
         </div>
       </div>
 
@@ -413,6 +420,7 @@ const mobileMenuOpen = ref(false);
 
 const isOwner = computed(() => auth.value.user?.role === 'business_owner');
 const tenantPlan = computed(() => page.props.tenantPlan);
+const tenantStatus = computed(() => page.props.tenantStatus);
 const { hasFeature } = useFeatures();
 const hasReports = computed(() => hasFeature('basic_reporting'));
 const hasBoarding = computed(() => hasFeature('boarding'));
