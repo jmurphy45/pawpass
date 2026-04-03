@@ -179,6 +179,14 @@ class StripeBillingService
         return $customer->invoice_settings->default_payment_method ?: null;
     }
 
+    public function listSubscriptionsForCustomer(string $customerId): array
+    {
+        return $this->client->subscriptions->all([
+            'customer' => $customerId,
+            'limit'    => 10,
+        ])->data;
+    }
+
     public function constructWebhookEvent(string $payload, string $sigHeader, string $secret): object
     {
         return \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);

@@ -53,11 +53,11 @@ class StripeBillingWebhookController extends Controller
     {
         $tenantId = $stripeSub->metadata->tenant_id ?? null;
 
-        if (! $tenantId) {
-            return null;
+        if ($tenantId) {
+            return Tenant::find($tenantId);
         }
 
-        return Tenant::find($tenantId);
+        return Tenant::where('platform_stripe_sub_id', $stripeSub->id)->first();
     }
 
     private function handleSubscriptionCreated(object $stripeSub): JsonResponse
