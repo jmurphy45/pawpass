@@ -22,6 +22,7 @@ class StripeService
         array $paymentMethodTypes = [],
         ?string $setupFutureUsage = null,
         bool $automaticTax = false,
+        ?string $captureMethod = null,
     ): object {
         $payload = [
             'amount' => $amountCents,
@@ -53,6 +54,9 @@ class StripeService
         if ($automaticTax) {
             $payload['automatic_tax'] = ['enabled' => true];
         }
+        if ($captureMethod) {
+            $payload['capture_method'] = $captureMethod;
+        }
         return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
     }
 
@@ -70,6 +74,19 @@ class StripeService
             'capture_method'         => 'manual',
             'metadata'               => $metadata,
         ], ['stripe_account' => $stripeAccountId]);
+    }
+
+    public function updatePaymentIntentAmount(
+        string $piId,
+        int $amountCents,
+        string $stripeAccountId,
+        ?int $applicationFeeCents = null,
+    ): object {
+        $params = ['amount' => $amountCents];
+        if ($applicationFeeCents !== null) {
+            $params['application_fee_amount'] = $applicationFeeCents;
+        }
+        return $this->client->paymentIntents->update($piId, $params, ['stripe_account' => $stripeAccountId]);
     }
 
     public function capturePaymentIntent(string $piId, string $stripeAccountId): object

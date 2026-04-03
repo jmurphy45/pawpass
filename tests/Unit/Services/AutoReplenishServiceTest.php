@@ -183,7 +183,7 @@ class AutoReplenishServiceTest extends TestCase
         $result = $service->triggerSync($dog);
 
         $this->assertTrue($result);
-        $this->assertDatabaseHas('orders', ['customer_id' => $customer->id, 'status' => 'paid']);
+        $this->assertDatabaseHas('orders', ['customer_id' => $customer->id, 'status' => 'authorized']);
     }
 
     public function test_trigger_sync_returns_false_when_pi_status_not_succeeded(): void
@@ -338,7 +338,7 @@ class AutoReplenishServiceTest extends TestCase
         $result = $service->triggerForPackage($dog, $package);
 
         $this->assertTrue($result);
-        $this->assertDatabaseHas('orders', ['customer_id' => $dog->customer->id, 'status' => 'paid']);
+        $this->assertDatabaseHas('orders', ['customer_id' => $dog->customer->id, 'status' => 'authorized']);
     }
 
     public function test_trigger_for_package_returns_false_when_pi_fails(): void

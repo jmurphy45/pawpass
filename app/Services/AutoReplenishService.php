@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Attendance;
 use App\Models\Dog;
 use App\Models\Order;
 use App\Models\Package;
@@ -23,7 +24,7 @@ class AutoReplenishService
      * Synchronously charge using the per-dog configured package.
      * Returns true if credits were issued, false on any failure or missing config.
      */
-    public function triggerSync(Dog $dog): bool
+    public function triggerSync(Dog $dog, ?Attendance $attendance = null): bool
     {
         if (! $dog->auto_replenish_enabled) {
             return false;
@@ -51,14 +52,14 @@ class AutoReplenishService
             return false;
         }
 
-        return $this->charge($dog, $package, $tenant);
+        return $this->charge($dog, $package, $tenant, $attendance);
     }
 
     /**
      * Synchronously charge using an explicitly provided package (tenant-level default).
      * Returns true if credits were issued, false on any failure or missing config.
      */
-    public function triggerForPackage(Dog $dog, Package $package): bool
+    public function triggerForPackage(Dog $dog, Package $package, ?Attendance $attendance = null): bool
     {
         if ($dog->autoReplenishConfigured()) {
             return false;
@@ -76,7 +77,7 @@ class AutoReplenishService
             return false;
         }
 
-        return $this->charge($dog, $package, $tenant);
+        return $this->charge($dog, $package, $tenant, $attendance);
     }
 
     /**
@@ -222,20 +223,27 @@ class AutoReplenishService
     /**
      * Core synchronous charge logic shared by triggerSync() and triggerForPackage().
      */
-    private function charge(Dog $dog, Package $package, \App\Models\Tenant $tenant): bool
+    private function charge(Dog $dog, Package $package, \App\Models\Tenant $tenant, ?Attendance $attendance = null): bool
     {
         $customer = $dog->customer;
 
-        // If a pending auto-replenish order already exists for this dog, an async charge is
-        // in-flight. Return true optimistically — the block lifts as soon as the order resolves,
-        // not after an arbitrary time window.
-        $inFlight = Order::where('customer_id', $customer->id)
-            ->where('status', 'pending')
-            ->whereHas('orderDogs', fn ($q) => $q->where('dog_id', $dog->id))
-            ->exists();
-
-        if ($inFlight) {
-            return true;
+        // Idempotency guard: if an attendance is linked, use it as the anchor to prevent
+        // double-charging the same check-in. Otherwise fall back to the dog-scoped pending check.
+        if ($attendance) {
+            $alreadyCharged = Order::where('attendance_id', $attendance->id)
+                ->whereIn('status', ['authorized', 'pending', 'paid'])
+                ->exists();
+            if ($alreadyCharged) {
+                return true;
+            }
+        } else {
+            $inFlight = Order::where('customer_id', $customer->id)
+                ->where('status', 'pending')
+                ->whereHas('orderDogs', fn ($q) => $q->where('dog_id', $dog->id))
+                ->exists();
+            if ($inFlight) {
+                return true;
+            }
         }
 
         $subtotalCents = (int) round((float) $package->price * 100);
@@ -245,11 +253,12 @@ class AutoReplenishService
         [$taxAmountCents, $taxCalcId] = $this->resolveTax($subtotalCents, $tenant, $package);
         $totalCents = $subtotalCents + $taxAmountCents;
 
-        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct, $subtotalCents, $taxAmountCents, $taxCalcId, $totalCents) {
+        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct, $subtotalCents, $taxAmountCents, $taxCalcId, $totalCents, $attendance) {
             $order = Order::create([
                 'tenant_id'          => $tenant->id,
                 'customer_id'        => $customer->id,
                 'package_id'         => $package->id,
+                'attendance_id'      => $attendance?->id,
                 'status'             => 'pending',
                 'total_amount'       => $totalCents / 100,
                 'subtotal_cents'     => $subtotalCents,
@@ -291,9 +300,10 @@ class AutoReplenishService
                 offSession: true,
                 paymentMethodId: $customer->stripe_payment_method_id,
                 paymentMethodTypes: ['card'],
+                captureMethod: 'manual',
             );
 
-            if ($intent->status !== 'succeeded') {
+            if (! in_array($intent->status, ['requires_capture', 'succeeded'])) {
                 $order->update(['status' => 'failed']);
 
                 return false;
@@ -313,11 +323,10 @@ class AutoReplenishService
                     'stripe_pi_id' => $intent->id,
                     'amount_cents' => $totalCents,
                     'type'         => 'full',
-                    'status'       => 'paid',
-                    'paid_at'      => now(),
+                    'status'       => 'authorized',
                 ]);
 
-                $order->update(['status' => 'paid']);
+                $order->update(['status' => 'authorized']);
 
                 $this->credits->issueFromOrder($order, $dog);
             });
@@ -331,6 +340,10 @@ class AutoReplenishService
             ]);
 
             $order->update(['status' => 'failed']);
+
+            if ($customer = $dog->customer) {
+                $customer->increment('outstanding_balance_cents', $totalCents);
+            }
 
             return false;
         }
