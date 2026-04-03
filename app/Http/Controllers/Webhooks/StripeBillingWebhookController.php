@@ -130,6 +130,12 @@ class StripeBillingWebhookController extends Controller
     {
         $tenant = $this->resolveTenant($stripeSub);
 
+        Log::info('StripeBillingWebhook: subscription updated', [
+            'stripe_sub_id'   => $stripeSub->id ?? null,
+            'metadata_tenant' => $stripeSub->metadata->tenant_id ?? null,
+            'tenant_id'       => $tenant->id ?? null,
+        ]);
+
         if (! $tenant) {
             Log::warning('StripeBillingWebhook: tenant not found', [
                 'event_type'      => 'customer.subscription.updated',
