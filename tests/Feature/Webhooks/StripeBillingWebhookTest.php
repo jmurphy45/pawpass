@@ -284,6 +284,57 @@ class StripeBillingWebhookTest extends TestCase
         $this->assertNull($tenant->platform_stripe_sub_id);
     }
 
+    public function test_subscription_updated_with_canceled_status_downgrades_to_free_tier(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                    => 'active',
+            'plan'                      => 'pro',
+            'platform_stripe_sub_id'    => 'sub_being_canceled',
+            'plan_cancel_at_period_end' => true,
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_being_canceled',
+            'status'               => 'canceled',
+            'current_period_end'   => now()->subMinute()->timestamp,
+            'cancel_at_period_end' => false,
+            'metadata'             => (object) ['tenant_id' => $tenant->id],
+        ]);
+
+        $this->mockBillingVerify($event);
+        $this->postWebhook()->assertStatus(200);
+
+        $tenant->refresh();
+        $this->assertEquals('free_tier', $tenant->status);
+        $this->assertEquals('free', $tenant->plan);
+        $this->assertNull($tenant->platform_stripe_sub_id);
+        $this->assertFalse($tenant->plan_cancel_at_period_end);
+        $this->assertNull($tenant->plan_current_period_end);
+    }
+
+    public function test_subscription_updated_with_incomplete_expired_downgrades_to_free_tier(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                 => 'active',
+            'plan'                   => 'starter',
+            'platform_stripe_sub_id' => 'sub_incomplete',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_incomplete',
+            'status'               => 'incomplete_expired',
+            'current_period_end'   => now()->subMinute()->timestamp,
+            'cancel_at_period_end' => false,
+            'metadata'             => (object) ['tenant_id' => $tenant->id],
+        ]);
+
+        $this->mockBillingVerify($event);
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('free_tier', $tenant->fresh()->status);
+        $this->assertEquals('free', $tenant->fresh()->plan);
+    }
+
     public function test_logs_raw_webhook(): void
     {
         $this->mockBillingVerify($this->makeEvent('customer.subscription.deleted', [
