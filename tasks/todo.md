@@ -22,7 +22,7 @@
 - [x] Create `app/Console/Commands/GenerateSitemapCommand.php`
 - [x] Register command + schedule at 3:30 AM in `bootstrap/app.php`
 
-## Final Verification
+## Step 5 — StripeBillingService Updates
 
 - [x] `./vendor/bin/sail artisan test` — 1066 passed, no regressions
 - [x] `npm run build` — clean, no TS/Vite errors
