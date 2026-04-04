@@ -130,7 +130,7 @@
               <p v-if="daycare.phone" class="text-xs text-gray-500">{{ daycare.phone }}</p>
 
               <a
-                :href="`https://${daycare.slug}.pawpass.com`"
+                :href="`https://${daycare.slug}.${appDomain}`"
                 target="_blank"
                 class="mt-auto inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700"
               >
@@ -151,6 +151,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
+
+const appDomain = import.meta.env.VITE_APP_DOMAIN ?? 'pawpass.com';
 
 interface DaycareResult {
   name: string;
