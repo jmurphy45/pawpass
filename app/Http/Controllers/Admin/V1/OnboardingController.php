@@ -28,6 +28,7 @@ class OnboardingController extends Controller
             $tenant->name,
             $tenant->billing_address,
             "https://{$tenant->slug}.pawpass.com",
+            auth()->user()->name,
         );
         $tenant->update(['stripe_account_id' => $account->id]);
 

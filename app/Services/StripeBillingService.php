@@ -13,9 +13,15 @@ class StripeBillingService
     public function createCustomer(Tenant $tenant): string
     {
         $params = [
-            'name'     => $tenant->name,
-            'metadata' => ['tenant_id' => $tenant->id, 'slug' => $tenant->slug],
+            'description' => $tenant->name,
+            'metadata'    => ['tenant_id' => $tenant->id, 'slug' => $tenant->slug, 'business_name' => $tenant->name],
         ];
+
+        $owner = $tenant->owner;
+        if ($owner) {
+            $params['name']  = $owner->name;
+            $params['email'] = $owner->email;
+        }
 
         if ($tenant->billing_address) {
             $params['address'] = $this->formatAddress($tenant->billing_address);

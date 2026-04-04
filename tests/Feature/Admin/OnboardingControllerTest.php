@@ -119,6 +119,7 @@ class OnboardingControllerTest extends TestCase
                     $this->tenant->name,
                     \Mockery::on(fn ($addr) => $addr['street'] === '123 Main St' && $addr['city'] === 'Springfield'),
                     "https://onboarding.pawpass.com",
+                    $this->owner->name,
                 )
                 ->andReturn((object) ['id' => 'acct_prefilled']);
         });

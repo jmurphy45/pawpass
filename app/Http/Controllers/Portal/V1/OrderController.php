@@ -60,7 +60,7 @@ class OrderController extends Controller
         if ($customer->stripe_customer_id) {
             $stripeCustomerId = $customer->stripe_customer_id;
         } else {
-            $stripeCustomer   = $this->stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
+            $stripeCustomer   = $this->stripe->createCustomer($customer->email, $customer->name, $tenant->stripe_account_id);
             $stripeCustomerId = $stripeCustomer->id;
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }

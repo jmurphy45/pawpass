@@ -264,6 +264,7 @@ class StripeService
         string $businessName,
         ?array $billingAddress = null,
         ?string $businessUrl = null,
+        ?string $ownerName = null,
     ): object {
         $company = ['name' => $businessName];
         if ($billingAddress) {
@@ -281,11 +282,19 @@ class StripeService
             $businessProfile['url'] = $businessUrl;
         }
 
+        $individual = ['email' => $email];
+        if ($ownerName) {
+            $parts = explode(' ', trim($ownerName), 2);
+            $individual['first_name'] = $parts[0];
+            $individual['last_name']  = $parts[1] ?? '';
+        }
+
         return $this->client->accounts->create([
             'type'          => 'express',
             'email'         => $email,
             'business_type' => 'company',
             'company'       => $company,
+            'individual'    => $individual,
             'business_profile' => $businessProfile,
             'capabilities'  => [
                 'card_payments'                => ['requested' => true],
