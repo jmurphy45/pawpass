@@ -58,4 +58,13 @@ class OrderPaymentFactory extends Factory
     {
         return $this->state(['status' => 'refunded', 'refunded_at' => now()]);
     }
+
+    public function authorized(): static
+    {
+        return $this->state([
+            'status'       => 'authorized',
+            'paid_at'      => null,
+            'stripe_pi_id' => 'pi_'.Str::random(24),
+        ]);
+    }
 }

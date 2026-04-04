@@ -122,6 +122,50 @@ class StripeBillingWebhookTest extends TestCase
         $this->postWebhook()->assertStatus(200);
     }
 
+    public function test_subscription_updated_syncs_status_to_past_due(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                 => 'trialing',
+            'platform_stripe_sub_id' => 'sub_going_past_due',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_going_past_due',
+            'status'               => 'past_due',
+            'current_period_end'   => now()->addMonth()->timestamp,
+            'cancel_at_period_end' => false,
+            'metadata'             => (object) ['tenant_id' => $tenant->id],
+        ]);
+
+        $this->mockBillingVerify($event);
+
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('past_due', $tenant->fresh()->status);
+    }
+
+    public function test_subscription_updated_syncs_status_to_active(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                 => 'trialing',
+            'platform_stripe_sub_id' => 'sub_going_active',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_going_active',
+            'status'               => 'active',
+            'current_period_end'   => now()->addMonth()->timestamp,
+            'cancel_at_period_end' => false,
+            'metadata'             => (object) ['tenant_id' => $tenant->id],
+        ]);
+
+        $this->mockBillingVerify($event);
+
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('active', $tenant->fresh()->status);
+    }
+
     public function test_subscription_updated_updates_period_end(): void
     {
         $tenant = Tenant::factory()->create([
@@ -238,6 +282,104 @@ class StripeBillingWebhookTest extends TestCase
         $this->assertEquals('free_tier', $tenant->status);
         $this->assertEquals('free', $tenant->plan);
         $this->assertNull($tenant->platform_stripe_sub_id);
+    }
+
+    public function test_subscription_updated_with_canceled_status_downgrades_to_free_tier(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                    => 'active',
+            'plan'                      => 'pro',
+            'platform_stripe_sub_id'    => 'sub_being_canceled',
+            'plan_cancel_at_period_end' => true,
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_being_canceled',
+            'status'               => 'canceled',
+            'current_period_end'   => now()->subMinute()->timestamp,
+            'cancel_at_period_end' => false,
+            'metadata'             => (object) ['tenant_id' => $tenant->id],
+        ]);
+
+        $this->mockBillingVerify($event);
+        $this->postWebhook()->assertStatus(200);
+
+        $tenant->refresh();
+        $this->assertEquals('free_tier', $tenant->status);
+        $this->assertEquals('free', $tenant->plan);
+        $this->assertNull($tenant->platform_stripe_sub_id);
+        $this->assertFalse($tenant->plan_cancel_at_period_end);
+        $this->assertNull($tenant->plan_current_period_end);
+    }
+
+    public function test_subscription_updated_with_incomplete_expired_downgrades_to_free_tier(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                 => 'active',
+            'plan'                   => 'starter',
+            'platform_stripe_sub_id' => 'sub_incomplete',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_incomplete',
+            'status'               => 'incomplete_expired',
+            'current_period_end'   => now()->subMinute()->timestamp,
+            'cancel_at_period_end' => false,
+            'metadata'             => (object) ['tenant_id' => $tenant->id],
+        ]);
+
+        $this->mockBillingVerify($event);
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('free_tier', $tenant->fresh()->status);
+        $this->assertEquals('free', $tenant->fresh()->plan);
+    }
+
+    public function test_subscription_updated_resolves_tenant_by_sub_id_when_metadata_tenant_stale(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                 => 'trialing',
+            'platform_stripe_sub_id' => 'sub_stale_meta',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_stale_meta',
+            'status'               => 'past_due',
+            'current_period_end'   => now()->addMonth()->timestamp,
+            'cancel_at_period_end' => false,
+            'customer'             => 'cus_stale',
+            'metadata'             => (object) ['tenant_id' => '01ZZZZZZZZZZZZZZZZZZZZZZZZ'], // stale/wrong
+        ]);
+
+        $this->mockBillingVerify($event);
+
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('past_due', $tenant->fresh()->status);
+    }
+
+    public function test_subscription_updated_resolves_tenant_by_customer_id_when_sub_id_not_stored(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                      => 'trialing',
+            'platform_stripe_sub_id'      => null,
+            'platform_stripe_customer_id' => 'cus_fallback_test',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_no_sub_match',
+            'status'               => 'past_due',
+            'current_period_end'   => now()->addMonth()->timestamp,
+            'cancel_at_period_end' => false,
+            'customer'             => 'cus_fallback_test',
+            'metadata'             => (object) [],
+        ]);
+
+        $this->mockBillingVerify($event);
+
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('past_due', $tenant->fresh()->status);
     }
 
     public function test_logs_raw_webhook(): void

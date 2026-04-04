@@ -1,97 +1,55 @@
-# Phase: Tax Collection
+# Task: Public Daycare Directory ("Find a Daycare Near You")
 
----
+## Phase A — Business Location Data
 
-## Step 1 — Feature Flags
+- [x] Migration: add directory fields to tenants
+- [x] Update Tenant model fillable + casts
+- [x] Write failing tests for public API `/api/public/v1/daycares`
+- [x] Implement `DaycareDirectoryController` (Public/V1) + add route
+- [x] Update `UpdateBusinessSettingsRequest` to accept directory fields
+- [x] Update `Admin\V1\SettingsController::tenantData()` to return directory fields
+- [x] Update `Web\Admin\SettingsController` to accept + save directory fields
+- [x] Update Settings `Index.vue` — add Public Directory section
 
-- [ ] Add `tax_daycare_orders` and `tax_platform_subscriptions` to `FeaturesServiceProvider`
-  - Verification: `Feature::active('tax_daycare_orders')` returns false by default
+## Phase B — Web Directory Page
 
----
+- [x] Add `DaycareDirectoryController` (Web) + routes in `web.php`
+- [x] Create `resources/js/Pages/FindADaycare.vue`
 
-## Step 2 — Migrations
+## Phase C — Sitemap
 
-- [ ] `2026_03_29_000001_alter_orders_add_tax_columns` — `subtotal_cents`, `tax_amount_cents`, `stripe_tax_calc_id`
-- [ ] `2026_03_29_000002_alter_tenants_add_billing_address` — `billing_address jsonb nullable`
-  - Verification: migrations run cleanly on both DBs
-
----
-
-## Step 3 — Model Updates
-
-- [ ] `Order` model: add tax fields to fillable + casts
-- [ ] `Tenant` model: add `billing_address` to fillable + casts
-  - Verification: models accept and cast new fields
-
----
-
-## Step 4 — StripeService Tax Methods
-
-- [ ] Add `calculateTax()` — calls `/v1/tax/calculations` on connected account
-- [ ] Add `createTaxTransaction()` — calls `/v1/tax/transactions/create_from_calculation`
-  - Verification: Unit tests pass for both methods
-
----
+- [x] `composer require spatie/laravel-sitemap`
+- [x] Create `app/Console/Commands/GenerateSitemapCommand.php`
+- [x] Register command + schedule at 3:30 AM in `bootstrap/app.php`
 
 ## Step 5 — StripeBillingService Updates
 
-- [ ] `createCustomer()` — pass address when `tenant.billing_address` is set
-- [ ] Add `updateCustomerAddress()` — syncs address to Stripe customer
-- [ ] `createSubscription()` — add `automatic_tax` based on `tax_platform_subscriptions` flag
-  - Verification: Tests verify automatic_tax.enabled toggled correctly
-
----
-
-## Step 6 — OrderController Tax Logic
-
-- [ ] Add `postal_code` + `country` to `StoreOrderRequest` (nullable)
-- [ ] Calculate tax in `store()` when `tax_daycare_orders` flag is on
-- [ ] Platform fee on subtotal only
-- [ ] Store `subtotal_cents`, `tax_amount_cents`, `stripe_tax_calc_id` on order
-- [ ] Add `taxPreview()` endpoint
-- [ ] Add route for `GET portal/v1/orders/tax-preview`
-  - Verification: Tests cover flag-on, flag-off, no postal_code scenarios
-
----
-
-## Step 7 — Webhook: Record Tax Transaction
-
-- [ ] In `handlePaymentIntentSucceeded()` — call `createTaxTransaction()` when `tax_calculation_id` in PI metadata
-  - Verification: Test webhook with tax metadata calls the Stripe tax transaction endpoint
-
----
-
-## Step 8 — BillingController Address
-
-- [ ] Add `billing_address` validation to `subscribe()`
-- [ ] Store address on tenant + sync to Stripe customer
-  - Verification: Test subscribe with address stores correctly
-
----
-
-## Step 9 — OrderResource Tax Fields
-
-- [ ] Add `subtotal_amount`, `tax_amount`, `total_amount` to response
-  - Verification: API response includes tax breakdown
+- [x] `./vendor/bin/sail artisan test` — 1066 passed, no regressions
+- [x] `npm run build` — clean, no TS/Vite errors
 
 ---
 
 ## Review
 
 ### Summary of Changes
-- Two feature flags: `tax_daycare_orders`, `tax_platform_subscriptions`
-- Stripe Tax API integration for daycare orders (postal code → calculation → PaymentIntent)
-- Stripe `automatic_tax` on platform subscriptions
-- New DB columns on `orders` and `tenants`
-- Tax transaction recorded after successful payment via webhook
+- Migration `2026_04_04_000001` adds 7 columns to tenants: `business_address`, `business_city`, `business_state`, `business_zip`, `business_phone`, `business_description`, `is_publicly_listed`
+- `Tenant` model: new fields in `$fillable`, `is_publicly_listed` cast to boolean
+- `DaycareDirectoryController` (Public/V1): `GET /api/public/v1/daycares` — search by city/state or zip, optional date range for boarding availability
+- `DaycareDirectoryController` (Web): Inertia page at `/find-a-daycare` and `/find-a-daycare/{state}/{city}`
+- `FindADaycare.vue`: public search page with city/state or zip search, boarding date filter, result cards
+- Settings controllers (API + Web): accept and expose all 7 new directory fields
+- Settings `Index.vue`: new "Public Directory" form section
+- `GenerateSitemapCommand`: `php artisan sitemap:generate` builds `public/sitemap.xml` with static pages + city pages + tenant subdomain URLs; scheduled at 3:30 AM UTC
 
 ### Tests Added or Updated
-- `StripeServiceTest` — calculateTax, createTaxTransaction
-- `OrderControllerTest` — tax flag on/off, subtotal/tax breakdown
-- `StripeBillingServiceTest` — automatic_tax toggling, address on customer
-- `BillingControllerTest` — subscribe with billing address
-- `StripeWebhookControllerTest` — tax transaction on payment_intent.succeeded
+- `tests/Feature/Public/DaycareDirectoryTest.php` — 12 tests covering visibility, search filters, response shape, boarding availability logic
 
 ### Build Status
-- Tests: Pending
-- Build: Pending
+- Tests: 1066 passed (no regressions)
+- Build: Successful
+
+### Notes
+- Tenants opt-in via `is_publicly_listed = true`; defaults to false
+- `spatie/laravel-sitemap ^8.1` installed
+- Geocoding/radius search deferred — city+state+zip text search sufficient for v1
+- `config('app.domain')` used in sitemap for tenant subdomain URLs; set `APP_DOMAIN=pawpass.com` in production env if needed

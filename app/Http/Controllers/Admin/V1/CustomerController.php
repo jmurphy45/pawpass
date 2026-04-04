@@ -69,7 +69,7 @@ class CustomerController extends Controller
         $tenant = Tenant::find($tenantId);
         if ($tenant->stripe_account_id) {
             $stripeCustomer = $this->stripe->createCustomer(
-                $customer->email ?? '',
+                $customer->email,
                 $customer->name,
                 $tenant->stripe_account_id,
             );

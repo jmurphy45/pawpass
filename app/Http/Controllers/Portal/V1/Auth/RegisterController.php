@@ -6,10 +6,13 @@ use App\Auth\JwtService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\RegisterRequest;
 use App\Models\Customer;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -18,6 +21,7 @@ class RegisterController extends Controller
     public function __construct(
         private JwtService $jwt,
         private NotificationService $notifications,
+        private StripeService $stripe,
     ) {}
 
     public function register(RegisterRequest $request): JsonResponse
@@ -60,6 +64,23 @@ class RegisterController extends Controller
 
             return $user;
         });
+
+        $tenant = Tenant::find($tenantId);
+        if ($tenant->stripe_account_id) {
+            try {
+                $stripeCustomer = $this->stripe->createCustomer(
+                    $user->email,
+                    $user->name,
+                    $tenant->stripe_account_id,
+                );
+                Customer::where('id', $user->customer_id)->update(['stripe_customer_id' => $stripeCustomer->id]);
+            } catch (\Throwable $e) {
+                Log::warning('Portal API registration Stripe sync failed', [
+                    'user_id' => $user->id,
+                    'error'   => $e->getMessage(),
+                ]);
+            }
+        }
 
         $this->notifications->dispatch('auth.verify_email', $tenantId, $user->id, [
             'name' => $user->name,

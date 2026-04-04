@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Auth;
 use App\Auth\MagicLink\Action;
 use App\Http\Controllers\Controller;
 use App\Mail\MagicLinkMail;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\MagicLinkService;
 use Illuminate\Http\RedirectResponse;
@@ -60,8 +61,10 @@ class MagicLinkController extends Controller
 
         Log::info('MagicLink token generated', ['user_id' => $user->id, 'ip' => $ip]);
 
+        $tenant = $user->tenant_id ? Tenant::find($user->tenant_id) : null;
+
         try {
-            Mail::to($user->email)->send(new MagicLinkMail($user, $rawToken));
+            Mail::to($user->email)->send(new MagicLinkMail($user, $rawToken, $tenant));
             Log::info('MagicLink mail sent', ['user_id' => $user->id]);
         } catch (\Throwable $e) {
             Log::error('MagicLink mail failed', [

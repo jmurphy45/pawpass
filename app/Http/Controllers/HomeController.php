@@ -2,22 +2,87 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\KennelUnit;
+use App\Models\Package;
 use App\Models\PlatformPlan;
+use App\Models\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Laravel\Pennant\Feature;
 
 class HomeController extends Controller
 {
     public function __invoke(Request $request)
     {
-        $isTenant = config('app.tenant_id') !== null;
-        if ($isTenant) {
-            Log::info('HomeController invoked on tenant', ['tenant_id' => config('app.tenant_id')]);
-        } else {
-            Log::info('HomeController invoked on main domain', []);
+        // Detect tenant subdomain
+        $tenantData = null;
+        $tenantPackages = [];
+
+        $host = $request->getHost();
+        $parts = explode('.', $host);
+
+        if (count($parts) >= 2) {
+            $subdomain = $parts[0];
+
+            if ($subdomain !== 'platform' && $subdomain !== 'www') {
+                $tenant = Tenant::where('slug', $subdomain)
+                    ->whereIn('status', ['active', 'trialing', 'free_tier', 'past_due'])
+                    ->first();
+
+                if ($tenant) {
+                    $tenantData = [
+                        'name'          => $tenant->name,
+                        'slug'          => $tenant->slug,
+                        'logo_url'      => $tenant->logo_url,
+                        'primary_color' => $tenant->primary_color ?? '#4f46e5',
+                        'business_type' => $tenant->business_type,
+                    ];
+
+                    $tenantPackages = Package::allTenants()
+                        ->where('tenant_id', $tenant->id)
+                        ->where('is_active', true)
+                        ->orderBy('price')
+                        ->get(['id', 'name', 'description', 'type', 'price', 'credit_count', 'dog_limit'])
+                        ->map(fn ($p) => [
+                            'id'           => $p->id,
+                            'name'         => $p->name,
+                            'description'  => $p->description,
+                            'type'         => $p->type,
+                            'price'        => (float) $p->price,
+                            'credit_count' => $p->credit_count,
+                            'dog_limit'    => $p->dog_limit,
+                        ])
+                        ->values();
+
+                    $kennelUnits = KennelUnit::allTenants()
+                        ->where('tenant_id', $tenant->id)
+                        ->where('is_active', true)
+                        ->orderBy('sort_order')
+                        ->get(['id', 'name', 'type', 'description', 'nightly_rate_cents', 'capacity'])
+                        ->map(fn ($u) => [
+                            'id'                 => $u->id,
+                            'name'               => $u->name,
+                            'type'               => $u->type,
+                            'description'        => $u->description,
+                            'nightly_rate_cents' => $u->nightly_rate_cents,
+                            'capacity'           => $u->capacity,
+                        ])
+                        ->values();
+                }
+            }
         }
 
+        // If this is a known tenant subdomain, render the tenant landing page
+        if ($tenantData) {
+            return inertia('Home', [
+                'tenant'       => $tenantData,
+                'packages'     => $tenantPackages,
+                'kennel_units' => $kennelUnits,
+                'plans'        => [],
+                'show_pricing_calculator' => false,
+            ]);
+        }
+
+        // Platform marketing page
         $plans = PlatformPlan::with('features')
             ->where('is_active', true)
             ->where('monthly_price_cents', '>', 0)
@@ -49,8 +114,10 @@ class HomeController extends Controller
         });
 
         return inertia('Home', [
-            'plans'                  => $mapped,
-            'show_pricing_calculator' => Feature::for(null)->active('pricing_calculator') || $request->boolean('show_calculator'),
+            'plans'                   => $mapped,
+            'show_pricing_calculator' => true,
+            'tenant'                  => null,
+            'packages'                => [],
         ]);
     }
 }

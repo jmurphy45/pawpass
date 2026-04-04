@@ -287,10 +287,13 @@ class StripeServiceTest extends TestCase
         $accounts->shouldReceive('create')
             ->once()
             ->with([
-                'type' => 'express',
-                'email' => 'owner@example.com',
+                'type'          => 'express',
+                'email'         => 'owner@example.com',
+                'business_type' => 'company',
+                'company'       => ['name' => 'My Daycare'],
+                'individual'    => ['email' => 'owner@example.com'],
                 'business_profile' => ['name' => 'My Daycare'],
-                'capabilities' => [
+                'capabilities'  => [
                     'card_payments'                => ['requested' => true],
                     'transfers'                    => ['requested' => true],
                     'us_bank_account_ach_payments' => ['requested' => true],

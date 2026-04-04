@@ -29,6 +29,7 @@ class PlatformFeatureSeeder extends Seeder
             ['slug' => 'boarding',                 'name' => 'Boarding & Reservations',      'description' => 'Kennel reservations, report cards, and occupancy tracking.', 'is_marketing' => true,  'sort_order' => 170],
             ['slug' => 'addon_services',           'name' => 'Add-on Services',              'description' => 'Charge customers per-service add-ons at check-in.',          'is_marketing' => true,  'sort_order' => 180],
             ['slug' => 'broadcast_notifications',  'name' => 'Broadcast Notifications',      'description' => 'Send announcements to all customers at once.',               'is_marketing' => true,  'sort_order' => 190],
+            ['slug' => 'auto_replenish',            'name' => 'Auto-Replenish at Check-in',   'description' => 'Automatically charge saved cards when a dog checks in with zero credits.', 'is_marketing' => true, 'sort_order' => 200],
         ];
 
         foreach ($features as $feature) {

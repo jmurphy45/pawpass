@@ -22,6 +22,7 @@ class StripeService
         array $paymentMethodTypes = [],
         ?string $setupFutureUsage = null,
         bool $automaticTax = false,
+        ?string $captureMethod = null,
     ): object {
         $payload = [
             'amount' => $amountCents,
@@ -53,6 +54,9 @@ class StripeService
         if ($automaticTax) {
             $payload['automatic_tax'] = ['enabled' => true];
         }
+        if ($captureMethod) {
+            $payload['capture_method'] = $captureMethod;
+        }
         return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
     }
 
@@ -70,6 +74,19 @@ class StripeService
             'capture_method'         => 'manual',
             'metadata'               => $metadata,
         ], ['stripe_account' => $stripeAccountId]);
+    }
+
+    public function updatePaymentIntentAmount(
+        string $piId,
+        int $amountCents,
+        string $stripeAccountId,
+        ?int $applicationFeeCents = null,
+    ): object {
+        $params = ['amount' => $amountCents];
+        if ($applicationFeeCents !== null) {
+            $params['application_fee_amount'] = $applicationFeeCents;
+        }
+        return $this->client->paymentIntents->update($piId, $params, ['stripe_account' => $stripeAccountId]);
     }
 
     public function capturePaymentIntent(string $piId, string $stripeAccountId): object
@@ -97,9 +114,12 @@ class StripeService
         return $this->client->refunds->create(['payment_intent' => $paymentIntentId], $opts);
     }
 
-    public function createCustomer(string $email, string $name, ?string $stripeAccountId = null): object
+    public function createCustomer(?string $email, string $name, ?string $stripeAccountId = null): object
     {
-        $params = ['email' => $email, 'name' => $name];
+        $params = ['name' => $name];
+        if ($email !== null && $email !== '') {
+            $params['email'] = $email;
+        }
         if ($stripeAccountId) {
             return $this->client->customers->create($params, ['stripe_account' => $stripeAccountId]);
         }
@@ -239,13 +259,44 @@ class StripeService
         );
     }
 
-    public function createConnectAccount(string $email, string $businessName): object
-    {
+    public function createConnectAccount(
+        string $email,
+        string $businessName,
+        ?array $billingAddress = null,
+        ?string $businessUrl = null,
+        ?string $ownerName = null,
+    ): object {
+        $company = ['name' => $businessName];
+        if ($billingAddress) {
+            $company['address'] = [
+                'line1'       => $billingAddress['street'] ?? null,
+                'city'        => $billingAddress['city'] ?? null,
+                'state'       => $billingAddress['state'] ?? null,
+                'postal_code' => $billingAddress['postal_code'] ?? null,
+                'country'     => $billingAddress['country'] ?? 'US',
+            ];
+        }
+
+        $businessProfile = ['name' => $businessName];
+        if ($businessUrl) {
+            $businessProfile['url'] = $businessUrl;
+        }
+
+        $individual = ['email' => $email];
+        if ($ownerName) {
+            $parts = explode(' ', trim($ownerName), 2);
+            $individual['first_name'] = $parts[0];
+            $individual['last_name']  = $parts[1] ?? '';
+        }
+
         return $this->client->accounts->create([
-            'type' => 'express',
-            'email' => $email,
-            'business_profile' => ['name' => $businessName],
-            'capabilities' => [
+            'type'          => 'express',
+            'email'         => $email,
+            'business_type' => 'company',
+            'company'       => $company,
+            'individual'    => $individual,
+            'business_profile' => $businessProfile,
+            'capabilities'  => [
                 'card_payments'                => ['requested' => true],
                 'transfers'                    => ['requested' => true],
                 'us_bank_account_ach_payments' => ['requested' => true],

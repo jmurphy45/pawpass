@@ -56,6 +56,7 @@ class TenantRegistrationControllerTest extends TestCase
         $this->mock(StripeBillingService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')->andReturn('cus_new_123');
             $mock->shouldReceive('createTrialSubscription')->andReturn((object) ['id' => 'sub_trial_123']);
+            $mock->shouldReceive('updateSubscriptionMetadata');
         });
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -94,6 +95,8 @@ class TenantRegistrationControllerTest extends TestCase
                     return $trialDays === 21 && $cycle === 'monthly';
                 })
                 ->andReturn((object) ['id' => 'sub_check_123']);
+
+            $mock->shouldReceive('updateSubscriptionMetadata');
         });
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -109,6 +112,7 @@ class TenantRegistrationControllerTest extends TestCase
         $this->mock(StripeBillingService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')->andReturn('cus_stored_456');
             $mock->shouldReceive('createTrialSubscription')->andReturn((object) ['id' => 'sub_stored_456']);
+            $mock->shouldReceive('updateSubscriptionMetadata');
         });
 
         $this->mock(StripeService::class, function (MockInterface $mock) {

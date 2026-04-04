@@ -3,6 +3,49 @@
     <div class="space-y-6">
       <h1 class="text-2xl font-bold text-text-body">Dashboard</h1>
 
+      <!-- Onboarding checklist -->
+      <div v-if="visibleSteps.length > 0 && !dismissed" class="bg-white rounded-xl border border-border-warm overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-border-warm">
+          <div>
+            <h2 class="text-sm font-semibold text-text-body">Getting Started</h2>
+            <p class="text-xs text-text-muted mt-0.5">{{ completedCount }} of {{ visibleSteps.length }} steps complete</p>
+          </div>
+          <button @click="dismiss" class="text-text-muted hover:text-text-body transition-colors p-1 -mr-1">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <!-- Progress bar -->
+        <div class="h-1 bg-surface-subtle">
+          <div
+            class="h-1 bg-indigo-500 transition-all duration-500"
+            :style="{ width: `${(completedCount / visibleSteps.length) * 100}%` }"
+          />
+        </div>
+        <ul class="divide-y divide-border-warm">
+          <li v-for="step in visibleSteps" :key="step.key" class="flex items-center gap-3 px-5 py-3.5">
+            <!-- Status icon -->
+            <div v-if="step.done" class="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+              <svg class="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+            </div>
+            <div v-else class="h-5 w-5 rounded-full border-2 border-border-warm shrink-0" />
+            <!-- Label -->
+            <span class="flex-1 text-sm" :class="step.done ? 'text-text-muted line-through' : 'text-text-body'">{{ step.label }}</span>
+            <!-- Action link -->
+            <Link
+              v-if="!step.done"
+              :href="route(step.route)"
+              class="text-xs font-medium text-indigo-600 hover:text-indigo-800 shrink-0"
+            >
+              Go →
+            </Link>
+          </li>
+        </ul>
+      </div>
+
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="stat-card">
@@ -101,13 +144,41 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import type { PageProps } from '@/types';
 
-defineProps<{
+interface OnboardingStep {
+  key: string;
+  label: string;
+  done: boolean;
+  owner_only: boolean;
+  route: string;
+}
+
+const props = defineProps<{
   checkinsToday: number;
   customersCount: number;
   dogsCount: number;
   lowCreditDogs: Array<{ id: string; name: string; credit_balance: number; customer_name: string | null }>;
   recentAttendance: Array<{ id: string; dog_name: string | null; customer_name: string | null; checked_in_at: string; checked_out_at: string | null }>;
+  onboarding: OnboardingStep[];
 }>();
+
+const page = usePage<PageProps>();
+const isOwner = computed(() => page.props.auth?.user?.role === 'business_owner');
+
+const dismissed = ref(localStorage.getItem('onboarding_dismissed') === '1');
+
+function dismiss() {
+  localStorage.setItem('onboarding_dismissed', '1');
+  dismissed.value = true;
+}
+
+const visibleSteps = computed(() =>
+  props.onboarding.filter(s => !s.owner_only || isOwner.value)
+);
+
+const completedCount = computed(() => visibleSteps.value.filter(s => s.done).length);
 </script>

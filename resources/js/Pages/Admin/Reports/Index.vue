@@ -37,6 +37,20 @@
         </div>
       </section>
 
+      <!-- Compliance Reports (vaccination_management plan feature) -->
+      <section v-if="hasVaccinationManagement">
+        <h2 class="text-lg font-semibold text-gray-700 mb-3">Compliance</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <a
+            :href="route('admin.reports.vaccinations')"
+            class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+          >
+            <h3 class="font-semibold text-gray-900 text-sm">Vaccination Compliance</h3>
+            <p class="mt-1 text-xs text-gray-500">All dogs with per-vaccine status and expiry dates.</p>
+          </a>
+        </div>
+      </section>
+
       <!-- Financial Reports (Pro+) -->
       <section>
         <h2 class="text-lg font-semibold text-gray-700 mb-3">Financial</h2>
@@ -91,4 +105,5 @@ const isOwner = computed(() => auth.value.user?.role === 'business_owner');
 const { hasFeature } = useFeatures();
 const hasBasicReporting = computed(() => hasFeature('basic_reporting'));
 const hasFinancialReports = computed(() => hasFeature('financial_reports'));
+const hasVaccinationManagement = computed(() => hasFeature('vaccination_management'));
 </script>

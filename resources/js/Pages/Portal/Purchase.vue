@@ -7,9 +7,9 @@
       </div>
 
       <!-- Two-column layout on desktop -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Package grid -->
-        <div class="lg:col-span-2 space-y-4">
+        <div class="space-y-4">
           <div
             v-for="pkg in packages"
             :key="pkg.id"
@@ -77,7 +77,7 @@
         </div>
 
         <!-- Checkout panel -->
-        <div class="lg:col-span-1">
+        <div>
           <div class="card-padded sticky top-24 space-y-5">
             <h2 class="text-sm font-semibold text-text-body">Checkout</h2>
 

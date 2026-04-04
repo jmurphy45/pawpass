@@ -46,6 +46,7 @@ class PaymentController extends Controller
             return [
                 'id'            => $payment->id,
                 'order_id'      => $order->id,
+                'short_ref'     => '#'.strtoupper(substr($order->id, -6)),
                 'type'          => $order->type,
                 'payment_type'  => $payment->type,
                 'stripe_pi_id'  => $payment->stripe_pi_id,
@@ -53,6 +54,7 @@ class PaymentController extends Controller
                 'description'   => $desc,
                 'amount_cents'  => $payment->amount_cents,
                 'status'        => $payment->status,
+                'paid_at'       => $payment->paid_at?->toIso8601String(),
                 'created_at'    => $payment->created_at->toIso8601String(),
                 'refunded_at'   => $payment->refunded_at?->toIso8601String(),
             ];

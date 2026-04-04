@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\PlanFeatureCache;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -29,13 +30,17 @@ class CustomerWelcomeMail extends Mailable
 
     public function content(): Content
     {
+        $hasWhiteLabel = app(PlanFeatureCache::class)->hasFeature($this->tenant->plan, 'white_label');
+
         return new Content(
             view: 'emails.customer-welcome',
             text: 'emails.customer-welcome-text',
             with: [
-                'loginUrl' => route('magic-link.verify', ['token' => $this->rawToken]),
-                'userName' => $this->user->name,
-                'tenantName' => $this->tenant->name,
+                'loginUrl'     => route('magic-link.verify', ['token' => $this->rawToken]),
+                'userName'     => $this->user->name,
+                'tenantName'   => $this->tenant->name,
+                'logoUrl'      => $hasWhiteLabel ? $this->tenant->logo_url : null,
+                'primaryColor' => $hasWhiteLabel ? ($this->tenant->primary_color ?? '#4f46e5') : '#4f46e5',
             ],
         );
     }

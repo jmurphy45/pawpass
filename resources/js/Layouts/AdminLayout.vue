@@ -8,24 +8,39 @@
       <!-- Logo area -->
       <div class="px-4 pt-5 pb-3">
         <Link :href="route('admin.dashboard')" class="flex items-center gap-2.5 mb-3">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="14" cy="14" r="14" fill="#4f46e5"/>
-            <ellipse cx="10" cy="9" rx="2.5" ry="3" fill="white" opacity="0.9"/>
-            <ellipse cx="18" cy="9" rx="2.5" ry="3" fill="white" opacity="0.9"/>
-            <ellipse cx="7" cy="15" rx="2.2" ry="3" transform="rotate(-20 7 15)" fill="white" opacity="0.9"/>
-            <ellipse cx="21" cy="15" rx="2.2" ry="3" transform="rotate(20 21 15)" fill="white" opacity="0.9"/>
-            <ellipse cx="14" cy="19" rx="5" ry="4" fill="white"/>
-          </svg>
-          <span class="text-white font-bold text-lg tracking-tight">{{ tenant?.name ?? 'PawPass' }}</span>
+          <img
+            v-if="tenant?.logo_url"
+            :src="tenant.logo_url"
+            :alt="tenant.name"
+            class="h-7 w-auto max-w-[120px] object-contain"
+          />
+          <template v-else>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="14" cy="14" r="14" fill="#4f46e5"/>
+              <ellipse cx="10" cy="9" rx="2.5" ry="3" fill="white" opacity="0.9"/>
+              <ellipse cx="18" cy="9" rx="2.5" ry="3" fill="white" opacity="0.9"/>
+              <ellipse cx="7" cy="15" rx="2.2" ry="3" transform="rotate(-20 7 15)" fill="white" opacity="0.9"/>
+              <ellipse cx="21" cy="15" rx="2.2" ry="3" transform="rotate(20 21 15)" fill="white" opacity="0.9"/>
+              <ellipse cx="14" cy="19" rx="5" ry="4" fill="white"/>
+            </svg>
+            <span class="text-white font-bold text-lg tracking-tight">{{ tenant?.name ?? 'PawPass' }}</span>
+          </template>
         </Link>
 
         <!-- Plan badge -->
         <div
-          v-if="tenantPlan === 'trialing' || tenantPlan === 'free_tier'"
+          v-if="tenantStatus === 'trialing' || tenantStatus === 'free_tier'"
           class="inline-flex items-center self-start px-2 py-0.5 rounded-full text-xs font-medium"
           style="background-color: rgba(245,158,11,0.12); color: #fcd34d;"
         >
-          {{ tenantPlan === 'trialing' ? 'Trial' : 'Free' }}
+          {{ tenantStatus === 'trialing' ? 'Trial' : 'Free' }}
+        </div>
+        <div
+          v-else-if="tenantStatus === 'past_due'"
+          class="inline-flex items-center self-start px-2 py-0.5 rounded-full text-xs font-medium"
+          style="background-color: rgba(239,68,68,0.15); color: #fca5a5;"
+        >
+          Past Due
         </div>
       </div>
 
@@ -153,6 +168,19 @@
           Broadcast
         </Link>
 
+        <!-- Help -->
+        <Link
+          :href="route('admin.help')"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          :class="isActive('admin.help') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
+          :style="isActive('admin.help') ? { backgroundColor: accentColor } : {}"
+        >
+          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+          </svg>
+          Help
+        </Link>
+
         <!-- Owner only -->
         <template v-if="isOwner">
           <div class="section-heading">Owner</div>
@@ -263,8 +291,9 @@
         class="md:hidden fixed top-0 left-0 right-0 z-20 flex items-center justify-between h-14 px-4"
         style="background-color: #0f0e0d;"
       >
-        <Link :href="route('admin.dashboard')" class="text-white text-lg font-bold">
-          {{ tenant?.name ?? 'PawPass' }}
+        <Link :href="route('admin.dashboard')" class="flex items-center">
+          <img v-if="tenant?.logo_url" :src="tenant.logo_url" :alt="tenant.name" class="h-7 w-auto max-w-[100px] object-contain" />
+          <span v-else class="text-white text-lg font-bold">{{ tenant?.name ?? 'PawPass' }}</span>
         </Link>
         <button @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 text-white/60">
           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -391,6 +420,7 @@ const mobileMenuOpen = ref(false);
 
 const isOwner = computed(() => auth.value.user?.role === 'business_owner');
 const tenantPlan = computed(() => page.props.tenantPlan);
+const tenantStatus = computed(() => page.props.tenantStatus);
 const { hasFeature } = useFeatures();
 const hasReports = computed(() => hasFeature('basic_reporting'));
 const hasBoarding = computed(() => hasFeature('boarding'));
@@ -424,6 +454,8 @@ const flatNavItems = computed(() => {
   if (hasBroadcast.value) {
     items.push({ name: 'Broadcast', href: route('admin.notifications.broadcast'), pattern: 'admin.notifications.*' });
   }
+
+  items.push({ name: 'Help', href: route('admin.help'), pattern: 'admin.help' });
 
   if (isOwner.value) {
     items.push(

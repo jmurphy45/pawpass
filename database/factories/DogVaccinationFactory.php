@@ -41,4 +41,34 @@ class DogVaccinationFactory extends Factory
     {
         return $this->state(['expires_at' => null]);
     }
+
+    public function expiringSoon(): static
+    {
+        return $this->state([
+            'administered_at' => now()->subMonths(11)->toDateString(),
+            'expires_at'      => now()->addDays(20)->toDateString(),
+            'warning_sent_at' => null,
+            'urgent_sent_at'  => null,
+        ]);
+    }
+
+    public function expiringUrgent(): static
+    {
+        return $this->state([
+            'administered_at' => now()->subMonths(11)->toDateString(),
+            'expires_at'      => now()->addDays(5)->toDateString(),
+            'warning_sent_at' => null,
+            'urgent_sent_at'  => null,
+        ]);
+    }
+
+    public function warningSent(): static
+    {
+        return $this->state(['warning_sent_at' => now()->subDay()]);
+    }
+
+    public function urgentSent(): static
+    {
+        return $this->state(['urgent_sent_at' => now()->subDay()]);
+    }
 }

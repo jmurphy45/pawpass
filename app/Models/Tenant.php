@@ -29,6 +29,7 @@ class Tenant extends Model
         'checkin_block_at_zero',
         'timezone',
         'primary_color',
+        'logo_url',
         'trial_started_at',
         'trial_ends_at',
         'plan',
@@ -41,6 +42,14 @@ class Tenant extends Model
         'business_type',
         'billing_address',
         'tax_collection_enabled',
+        'auto_charge_at_zero_package_id',
+        'business_address',
+        'business_city',
+        'business_state',
+        'business_zip',
+        'business_phone',
+        'business_description',
+        'is_publicly_listed',
     ];
 
     protected $hidden = [
@@ -61,6 +70,7 @@ class Tenant extends Model
             'plan_cancel_at_period_end' => 'boolean',
             'billing_address' => 'array',
             'tax_collection_enabled' => 'boolean',
+            'is_publicly_listed' => 'boolean',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',
@@ -114,6 +124,11 @@ class Tenant extends Model
     public function packages(): HasMany
     {
         return $this->hasMany(Package::class);
+    }
+
+    public function autoChargePackage(): BelongsTo
+    {
+        return $this->belongsTo(Package::class, 'auto_charge_at_zero_package_id');
     }
 
     public function kennelUnits(): HasMany

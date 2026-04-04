@@ -31,6 +31,31 @@
             <input id="checkin_block" v-model="businessForm.checkin_block_at_zero" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
             <label for="checkin_block" class="text-sm font-medium text-gray-700">Block check-in when credits reach zero</label>
           </div>
+
+          <!-- Auto-charge package: shown when zero-credit check-ins are allowed -->
+          <div v-if="!businessForm.checkin_block_at_zero" class="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-0.5">Auto-charge package at check-in</label>
+              <p class="text-xs text-gray-500 mb-2">When a dog checks in with zero credits, automatically charge their saved card for this package and issue credits.</p>
+            </div>
+            <template v-if="can_auto_replenish">
+              <select
+                v-model="businessForm.auto_charge_at_zero_package_id"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white"
+              >
+                <option value="">— None (allow check-in without charging) —</option>
+                <option v-for="pkg in packages" :key="pkg.id" :value="pkg.id">
+                  {{ pkg.name }} (${{ Number(pkg.price).toFixed(2) }})
+                </option>
+              </select>
+              <p v-if="businessForm.errors.auto_charge_at_zero_package_id" class="text-sm text-red-600">
+                {{ businessForm.errors.auto_charge_at_zero_package_id }}
+              </p>
+            </template>
+            <p v-else class="text-xs text-indigo-600 font-medium">
+              Upgrade your plan to enable automatic charging at check-in.
+            </p>
+          </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
             <select v-model="businessForm.business_type" class="w-48 rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white">
@@ -52,6 +77,95 @@
           <button type="submit" :disabled="businessForm.processing" class="btn-primary">
             Save
           </button>
+        </form>
+      </div>
+
+      <!-- Business Logo -->
+      <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Business Logo</h2>
+        <p class="text-sm text-gray-500 mb-4">Shown in the admin portal, customer portal, emails, and receipts (Business plan required for emails &amp; PDFs).</p>
+
+        <div class="flex items-start gap-6">
+          <!-- Preview -->
+          <div class="flex-shrink-0 h-20 w-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden">
+            <img v-if="logoPreview" :src="logoPreview" alt="Logo preview" class="h-full w-full object-contain p-2" />
+            <span v-else class="text-xs text-gray-400">No logo</span>
+          </div>
+
+          <div class="flex-1 space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Upload new logo</label>
+              <input
+                ref="logoInput"
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                class="block text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-gray-300 file:text-sm file:font-medium file:bg-white file:text-gray-700 hover:file:bg-gray-50"
+                @change="onLogoSelected"
+              />
+              <p class="mt-1 text-xs text-gray-400">JPG, PNG, GIF or WebP. Max 2 MB.</p>
+            </div>
+
+            <div class="flex gap-2">
+              <button
+                type="button"
+                :disabled="!pendingLogo || logoUploading"
+                class="btn-primary"
+                @click="uploadLogo"
+              >
+                {{ logoUploading ? 'Uploading…' : 'Upload Logo' }}
+              </button>
+              <button
+                v-if="props.business.logo_url"
+                type="button"
+                class="btn-ghost-danger"
+                @click="removeLogo"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Public Directory -->
+      <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Public Directory</h2>
+        <p class="text-sm text-gray-500 mb-4">List your business in the PawPass public directory so pet owners can find you online.</p>
+        <form @submit.prevent="submitDirectory" class="space-y-4">
+          <div class="flex items-center gap-3">
+            <input id="is_publicly_listed" v-model="directoryForm.is_publicly_listed" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+            <label for="is_publicly_listed" class="text-sm font-medium text-gray-700">List my business in the public directory</label>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+            <input v-model="directoryForm.business_address" type="text" placeholder="123 Main St" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input v-model="directoryForm.business_city" type="text" placeholder="Austin" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">State (2-letter)</label>
+              <input v-model="directoryForm.business_state" type="text" placeholder="TX" maxlength="2" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm uppercase" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+              <input v-model="directoryForm.business_zip" type="text" placeholder="78701" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Public Phone</label>
+              <input v-model="directoryForm.business_phone" type="text" placeholder="512-555-0100" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Short Description <span class="text-gray-400 font-normal">(max 280 chars)</span></label>
+            <textarea v-model="directoryForm.business_description" rows="3" placeholder="Tell pet owners a bit about your business…" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" maxlength="280" />
+            <p class="mt-1 text-xs text-gray-400">{{ (directoryForm.business_description ?? '').length }}/280</p>
+          </div>
+          <button type="submit" :disabled="directoryForm.processing" class="btn-primary">Save</button>
         </form>
       </div>
 
@@ -224,30 +338,96 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, router } from '@inertiajs/vue3';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 const props = defineProps<{
-  business: { name: string; timezone: string; primary_color: string; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string; business_type: string };
+  business: {
+    name: string; timezone: string; primary_color: string; logo_url: string | null;
+    low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string;
+    business_type: string; auto_charge_at_zero_package_id: string | null;
+    business_address: string | null; business_city: string | null; business_state: string | null;
+    business_zip: string | null; business_phone: string | null; business_description: string | null;
+    is_publicly_listed: boolean;
+  };
   billing_address: { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
   notificationSettings: Array<{ type: string; is_enabled: boolean }>;
   staff: Array<{ id: string; name: string; email: string; role: string; status: string }>;
+  packages: Array<{ id: string; name: string; price: string }>;
+  can_auto_replenish: boolean;
 }>();
 
 // ── Business form ─────────────────────────────────────────────────────────────
 
 const businessForm = useForm({
-  name:                  props.business.name,
-  timezone:              props.business.timezone,
-  primary_color:         props.business.primary_color,
-  low_credit_threshold:  props.business.low_credit_threshold,
-  checkin_block_at_zero: props.business.checkin_block_at_zero,
-  payout_schedule:       props.business.payout_schedule,
-  business_type:         props.business.business_type,
+  name:                           props.business.name,
+  timezone:                       props.business.timezone,
+  primary_color:                  props.business.primary_color,
+  low_credit_threshold:           props.business.low_credit_threshold,
+  checkin_block_at_zero:          props.business.checkin_block_at_zero,
+  payout_schedule:                props.business.payout_schedule,
+  business_type:                  props.business.business_type,
+  auto_charge_at_zero_package_id: props.business.auto_charge_at_zero_package_id ?? '',
 });
 
 function submitBusiness() {
   businessForm.patch(route('admin.settings.business'));
+}
+
+// ── Directory form ────────────────────────────────────────────────────────────
+
+const directoryForm = useForm({
+  business_address:     props.business.business_address ?? '',
+  business_city:        props.business.business_city ?? '',
+  business_state:       props.business.business_state ?? '',
+  business_zip:         props.business.business_zip ?? '',
+  business_phone:       props.business.business_phone ?? '',
+  business_description: props.business.business_description ?? '',
+  is_publicly_listed:   props.business.is_publicly_listed,
+});
+
+function submitDirectory() {
+  directoryForm.patch(route('admin.settings.business'));
+}
+
+// ── Logo upload ───────────────────────────────────────────────────────────────
+
+const logoInput = ref<HTMLInputElement | null>(null);
+const logoPreview = ref<string | null>(props.business.logo_url);
+const pendingLogo = ref<File | null>(null);
+const logoUploading = ref(false);
+
+function onLogoSelected(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+  pendingLogo.value = file;
+  if (file) {
+    logoPreview.value = URL.createObjectURL(file);
+  }
+}
+
+function uploadLogo() {
+  if (!pendingLogo.value) return;
+  logoUploading.value = true;
+  const data = new FormData();
+  data.append('logo', pendingLogo.value);
+  router.post(route('admin.settings.logo.store'), data, {
+    forceFormData: true,
+    onSuccess: () => {
+      pendingLogo.value = null;
+      if (logoInput.value) logoInput.value.value = '';
+    },
+    onFinish: () => { logoUploading.value = false; },
+  });
+}
+
+function removeLogo() {
+  router.delete(route('admin.settings.logo.destroy'), {
+    onSuccess: () => {
+      logoPreview.value = null;
+      pendingLogo.value = null;
+      if (logoInput.value) logoInput.value.value = '';
+    },
+  });
 }
 
 // ── Billing address ───────────────────────────────────────────────────────────

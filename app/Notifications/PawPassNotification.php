@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Models\Tenant;
+use App\Services\PlanFeatureCache;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -62,6 +64,16 @@ class PawPassNotification extends Notification implements ShouldQueue
             $message->action('Log In', $this->data['login_url']);
         }
 
+        if ($notifiable && $notifiable->tenant_id) {
+            $tenant = Tenant::find($notifiable->tenant_id);
+            if ($tenant && app(PlanFeatureCache::class)->hasFeature($tenant->plan, 'white_label')) {
+                $message->viewData = array_merge($message->viewData, [
+                    'logoUrl'      => $tenant->logo_url,
+                    'primaryColor' => $tenant->primary_color ?? '#4f46e5',
+                ]);
+            }
+        }
+
         return $message;
     }
 
@@ -70,6 +82,28 @@ class PawPassNotification extends Notification implements ShouldQueue
         [, $body] = $this->buildMessage();
 
         return $body;
+    }
+
+    private function buildVaccinationSoonMessage(): array
+    {
+        $count = $this->data['vaccination_count'] ?? 0;
+        $dogs  = $this->data['dog_count'] ?? 0;
+
+        return [
+            'Vaccinations Expiring Soon',
+            "You have {$count} vaccination(s) for {$dogs} dog(s) coming due in the next 30 days. Please schedule updated vaccines soon.",
+        ];
+    }
+
+    private function buildVaccinationUrgentMessage(): array
+    {
+        $count = $this->data['vaccination_count'] ?? 0;
+        $dogs  = $this->data['dog_count'] ?? 0;
+
+        return [
+            'Urgent: Vaccinations Expiring Soon',
+            "Action required: {$count} vaccination(s) for {$dogs} dog(s) expire within 7 days. Please act now to avoid a lapse in compliance.",
+        ];
     }
 
     private function buildMessage(): array
@@ -89,6 +123,8 @@ class PawPassNotification extends Notification implements ShouldQueue
             'auto_replenish.succeeded' => ['Credits Auto-Renewed', 'Your credits have been automatically topped up.'],
             'auto_replenish.failed' => ['Auto-Replenish Failed', 'We couldn\'t charge your card to top up credits. Please update your payment method.'],
             'announcement' => [$this->data['subject'] ?? 'Announcement', $this->data['body'] ?? ''],
+            'vaccinations.expiring_soon' => $this->buildVaccinationSoonMessage(),
+            'vaccinations.expiring_urgent' => $this->buildVaccinationUrgentMessage(),
             default => [$this->type, $this->type],
         };
     }

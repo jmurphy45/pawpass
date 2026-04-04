@@ -40,7 +40,15 @@ class VaccinationComplianceService
                 default                    => 'valid',
             };
 
-            return ['vaccine_name' => $req->vaccine_name, 'status' => $status];
+            $expiresAt      = $vax?->expires_at?->toDateString();
+            $daysRemaining  = $vax?->expires_at ? (int) now()->diffInDays($vax->expires_at, false) : null;
+
+            return [
+                'vaccine_name'   => $req->vaccine_name,
+                'status'         => $status,
+                'expires_at'     => $expiresAt,
+                'days_remaining' => $daysRemaining,
+            ];
         })->values()->all();
     }
 

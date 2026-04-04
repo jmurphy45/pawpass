@@ -18,7 +18,7 @@ class FeaturesServiceProvider extends ServiceProvider
         'white_label', 'unlimited_staff', 'priority_support',
         'recurring_checkout', 'vaccination_management',
         'advanced_credit_ops', 'boarding', 'addon_services',
-        'broadcast_notifications',
+        'broadcast_notifications', 'auto_replenish',
     ];
 
     public function boot(): void

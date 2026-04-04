@@ -13,9 +13,15 @@ class StripeBillingService
     public function createCustomer(Tenant $tenant): string
     {
         $params = [
-            'name'     => $tenant->name,
-            'metadata' => ['tenant_id' => $tenant->id, 'slug' => $tenant->slug],
+            'description' => $tenant->name,
+            'metadata'    => ['tenant_id' => $tenant->id, 'slug' => $tenant->slug, 'business_name' => $tenant->name],
         ];
+
+        $owner = $tenant->owner;
+        if ($owner) {
+            $params['name']  = $owner->name;
+            $params['email'] = $owner->email;
+        }
 
         if ($tenant->billing_address) {
             $params['address'] = $this->formatAddress($tenant->billing_address);
@@ -177,6 +183,24 @@ class StripeBillingService
         ]);
 
         return $customer->invoice_settings->default_payment_method ?: null;
+    }
+
+    public function listSubscriptionsForCustomer(string $customerId): array
+    {
+        return $this->client->subscriptions->all([
+            'customer' => $customerId,
+            'limit'    => 10,
+        ])->data;
+    }
+
+    public function retrieveSubscription(string $subscriptionId): object
+    {
+        return $this->client->subscriptions->retrieve($subscriptionId);
+    }
+
+    public function updateSubscriptionMetadata(string $subscriptionId, array $metadata): void
+    {
+        $this->client->subscriptions->update($subscriptionId, ['metadata' => $metadata]);
     }
 
     public function constructWebhookEvent(string $payload, string $sigHeader, string $secret): object

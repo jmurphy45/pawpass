@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Attendance;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Package;
@@ -34,8 +35,16 @@ class OrderFactory extends Factory
 
     public function refunded(): static
     {
-        return $this->state([
-            'status' => 'refunded',
-        ]);
+        return $this->state(['status' => 'refunded']);
+    }
+
+    public function authorized(): static
+    {
+        return $this->state(['status' => 'authorized']);
+    }
+
+    public function withAttendance(Attendance $attendance): static
+    {
+        return $this->state(['attendance_id' => $attendance->id]);
     }
 }
