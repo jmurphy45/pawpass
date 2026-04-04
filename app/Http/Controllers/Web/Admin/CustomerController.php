@@ -101,7 +101,7 @@ class CustomerController extends Controller
         if ($tenant->stripe_account_id) {
             try {
                 $stripeCustomer = $this->stripe->createCustomer(
-                    $customer->email ?? '',
+                    $customer->email,
                     $customer->name,
                     $tenant->stripe_account_id,
                 );

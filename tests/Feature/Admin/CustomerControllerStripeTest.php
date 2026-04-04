@@ -121,4 +121,27 @@ class CustomerControllerStripeTest extends TestCase
 
         $response->assertStatus(201);
     }
+
+    public function test_store_creates_stripe_customer_without_email_when_no_email_provided(): void
+    {
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')
+                ->once()
+                ->with(null, 'No Email Customer', 'acct_cust_test')
+                ->andReturn((object) ['id' => 'cus_noemail']);
+        });
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/customers', [
+                'name' => 'No Email Customer',
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('customers', [
+            'name' => 'No Email Customer',
+            'stripe_customer_id' => 'cus_noemail',
+            'email' => null,
+        ]);
+    }
 }

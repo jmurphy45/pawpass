@@ -114,9 +114,12 @@ class StripeService
         return $this->client->refunds->create(['payment_intent' => $paymentIntentId], $opts);
     }
 
-    public function createCustomer(string $email, string $name, ?string $stripeAccountId = null): object
+    public function createCustomer(?string $email, string $name, ?string $stripeAccountId = null): object
     {
-        $params = ['email' => $email, 'name' => $name];
+        $params = ['name' => $name];
+        if ($email !== null && $email !== '') {
+            $params['email'] = $email;
+        }
         if ($stripeAccountId) {
             return $this->client->customers->create($params, ['stripe_account' => $stripeAccountId]);
         }
@@ -256,13 +259,35 @@ class StripeService
         );
     }
 
-    public function createConnectAccount(string $email, string $businessName): object
-    {
+    public function createConnectAccount(
+        string $email,
+        string $businessName,
+        ?array $billingAddress = null,
+        ?string $businessUrl = null,
+    ): object {
+        $company = ['name' => $businessName];
+        if ($billingAddress) {
+            $company['address'] = [
+                'line1'       => $billingAddress['street'] ?? null,
+                'city'        => $billingAddress['city'] ?? null,
+                'state'       => $billingAddress['state'] ?? null,
+                'postal_code' => $billingAddress['postal_code'] ?? null,
+                'country'     => $billingAddress['country'] ?? 'US',
+            ];
+        }
+
+        $businessProfile = ['name' => $businessName];
+        if ($businessUrl) {
+            $businessProfile['url'] = $businessUrl;
+        }
+
         return $this->client->accounts->create([
-            'type' => 'express',
-            'email' => $email,
-            'business_profile' => ['name' => $businessName],
-            'capabilities' => [
+            'type'          => 'express',
+            'email'         => $email,
+            'business_type' => 'company',
+            'company'       => $company,
+            'business_profile' => $businessProfile,
+            'capabilities'  => [
                 'card_payments'                => ['requested' => true],
                 'transfers'                    => ['requested' => true],
                 'us_bank_account_ach_payments' => ['requested' => true],

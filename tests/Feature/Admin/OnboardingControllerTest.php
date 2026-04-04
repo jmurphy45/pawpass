@@ -99,6 +99,37 @@ class OnboardingControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    public function test_create_connect_account_passes_billing_address_when_available(): void
+    {
+        $this->tenant->update([
+            'billing_address' => [
+                'street'      => '123 Main St',
+                'city'        => 'Springfield',
+                'state'       => 'IL',
+                'postal_code' => '62701',
+                'country'     => 'US',
+            ],
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createConnectAccount')
+                ->once()
+                ->with(
+                    $this->owner->email,
+                    $this->tenant->name,
+                    \Mockery::on(fn ($addr) => $addr['street'] === '123 Main St' && $addr['city'] === 'Springfield'),
+                    "https://onboarding.pawpass.com",
+                )
+                ->andReturn((object) ['id' => 'acct_prefilled']);
+        });
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson('/api/admin/v1/onboarding/connect');
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.stripe_account_id', 'acct_prefilled');
+    }
+
     // --- createAccountLink ---
 
     public function test_owner_can_create_account_link(): void

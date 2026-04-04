@@ -41,7 +41,12 @@ class ProvisionStripeConnectAccountJob implements ShouldQueue
         }
 
         try {
-            $account = $stripe->createConnectAccount($owner->email, $tenant->name);
+            $account = $stripe->createConnectAccount(
+                $owner->email,
+                $tenant->name,
+                $tenant->billing_address,
+                "https://{$tenant->slug}.pawpass.com",
+            );
             $tenant->update(['stripe_account_id' => $account->id]);
             Log::info('stripe_connect.provisioned', ['tenant_id' => $tenant->id, 'account_id' => $account->id]);
         } catch (Throwable $e) {
