@@ -9,10 +9,10 @@
           <p class="text-sm text-text-muted mt-0.5">Manage all guest stays</p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input v-model="filters.from" type="date" @change="applyFilters" class="input text-sm py-1.5 w-36" />
+          <input v-model="filters.from" type="date" @change="applyFilters" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition py-1.5 w-36" />
           <span class="text-text-muted text-xs">→</span>
-          <input v-model="filters.to" type="date" @change="applyFilters" class="input text-sm py-1.5 w-36" />
-          <a :href="route('admin.boarding.occupancy')" class="btn-secondary text-sm">Occupancy</a>
+          <input v-model="filters.to" type="date" @change="applyFilters" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition py-1.5 w-36" />
+          <Link :href="route('admin.boarding.occupancy')"><AppButton variant="secondary" size="sm">Occupancy</AppButton></Link>
         </div>
       </div>
 
@@ -30,7 +30,7 @@
       </div>
 
       <!-- List -->
-      <div class="card overflow-hidden">
+      <AppCard class="overflow-hidden">
 
         <!-- Empty state -->
         <div v-if="reservations.data.length === 0" class="rv-empty">
@@ -74,7 +74,7 @@
 
             <!-- Status -->
             <div class="rv-status-col">
-              <span class="badge" :class="statusBadge(r.status)">{{ statusLabel(r.status) }}</span>
+              <AppBadge :color="statusBadgeColor(r.status)">{{ statusLabel(r.status) }}</AppBadge>
             </div>
 
             <!-- Arrow -->
@@ -85,7 +85,7 @@
             </div>
           </li>
         </ul>
-      </div>
+      </AppCard>
 
       <!-- Pagination -->
       <div v-if="reservations.last_page > 1" class="flex gap-2 justify-center text-sm">
@@ -104,7 +104,7 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const props = defineProps<{
@@ -174,14 +174,14 @@ function statusLabel(status: string): string {
   }[status] ?? status;
 }
 
-function statusBadge(status: string): string {
+function statusBadgeColor(status: string): string {
   return {
-    pending:     'badge-yellow',
-    confirmed:   'badge-blue',
-    checked_in:  'badge-green',
-    checked_out: 'badge-gray',
-    cancelled:   'badge-red',
-  }[status] ?? 'badge-gray';
+    pending:     'yellow',
+    confirmed:   'blue',
+    checked_in:  'green',
+    checked_out: 'gray',
+    cancelled:   'red',
+  }[status] ?? 'gray';
 }
 </script>
 

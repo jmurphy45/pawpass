@@ -24,7 +24,7 @@
           <Link :href="route('portal.dogs.index')" class="text-sm text-text-muted hover:text-text-body">Manage →</Link>
         </div>
 
-        <div v-if="dogs.length === 0" class="card p-12 text-center">
+        <AppCard v-if="dogs.length === 0" class="p-12 text-center">
           <div class="flex justify-center mb-3">
             <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-border-warm">
               <ellipse cx="24" cy="16" rx="7" ry="9" fill="currentColor" opacity="0.4"/>
@@ -36,14 +36,14 @@
           </div>
           <p class="font-semibold text-text-body">No dogs yet</p>
           <p class="text-sm text-text-muted mt-1">Add your first dog to start tracking credits</p>
-          <Link :href="route('portal.dogs.create')" class="btn-primary mt-4 inline-flex">Add a Dog</Link>
-        </div>
+          <Link :href="route('portal.dogs.create')"><AppButton variant="primary" class="mt-4">Add a Dog</AppButton></Link>
+        </AppCard>
 
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div
+          <AppCard
             v-for="dog in dogs"
             :key="dog.id"
-            class="card overflow-hidden hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
+            class="overflow-hidden hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
           >
             <!-- Gradient header strip -->
             <div
@@ -82,7 +82,7 @@
                 class="mt-3 block text-center text-xs font-medium text-text-muted hover:text-text-body"
               >Buy Credits →</Link>
             </div>
-          </div>
+          </AppCard>
         </div>
       </section>
 
@@ -92,63 +92,71 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Link
             :href="route('portal.purchase')"
-            class="card p-4 flex items-center gap-3 hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
+            class="block hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
           >
-            <div class="dp-action-icon" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); box-shadow: 0 4px 12px #4f46e525;">
-              <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm font-semibold text-text-body">Buy Credits</p>
-              <p class="text-xs text-text-muted">Top up your balance</p>
-            </div>
+            <AppCard class="p-4 flex items-center gap-3">
+              <div class="dp-action-icon" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); box-shadow: 0 4px 12px #4f46e525;">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-text-body">Buy Credits</p>
+                <p class="text-xs text-text-muted">Top up your balance</p>
+              </div>
+            </AppCard>
           </Link>
 
           <Link
             :href="route('portal.attendance')"
-            class="card p-4 flex items-center gap-3 hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
+            class="block hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
           >
-            <div class="dp-action-icon" style="background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); box-shadow: 0 4px 12px #d9770625;">
-              <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm font-semibold text-text-body">Attendance</p>
-              <p class="text-xs text-text-muted">View visit history</p>
-            </div>
+            <AppCard class="p-4 flex items-center gap-3">
+              <div class="dp-action-icon" style="background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); box-shadow: 0 4px 12px #d9770625;">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-text-body">Attendance</p>
+                <p class="text-xs text-text-muted">View visit history</p>
+              </div>
+            </AppCard>
           </Link>
 
           <Link
             :href="route('portal.history')"
-            class="card p-4 flex items-center gap-3 hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
+            class="block hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
           >
-            <div class="dp-action-icon" style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); box-shadow: 0 4px 12px #7c3aed25;">
-              <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm font-semibold text-text-body">Invoices</p>
-              <p class="text-xs text-text-muted">Purchase history</p>
-            </div>
+            <AppCard class="p-4 flex items-center gap-3">
+              <div class="dp-action-icon" style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); box-shadow: 0 4px 12px #7c3aed25;">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-text-body">Invoices</p>
+                <p class="text-xs text-text-muted">Purchase history</p>
+              </div>
+            </AppCard>
           </Link>
 
           <Link
             v-if="showBoarding"
             :href="route('portal.boarding.index')"
-            class="card p-4 flex items-center gap-3 hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
+            class="block hover:-translate-y-0.5 hover:shadow-card-md transition-all duration-200"
           >
-            <div class="dp-action-icon" style="background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%); box-shadow: 0 4px 12px #0d948825;">
-              <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm font-semibold text-text-body">Boarding</p>
-              <p class="text-xs text-text-muted">Manage stays</p>
-            </div>
+            <AppCard class="p-4 flex items-center gap-3">
+              <div class="dp-action-icon" style="background: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%); box-shadow: 0 4px 12px #0d948825;">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-text-body">Boarding</p>
+                <p class="text-xs text-text-muted">Manage stays</p>
+              </div>
+            </AppCard>
           </Link>
         </div>
       </section>
@@ -159,8 +167,8 @@
           <h2 class="text-base font-semibold text-text-body">Recent Notifications</h2>
           <Link :href="route('portal.notifications')" class="text-sm text-text-muted hover:text-text-body">View all →</Link>
         </div>
-        <div class="card overflow-hidden">
-          <div v-for="n in recentNotifications" :key="n.id" class="list-row gap-3">
+        <AppCard class="overflow-hidden">
+          <div v-for="n in recentNotifications" :key="n.id" class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-3">
             <div class="dp-notif-icon shrink-0" :style="{ background: notifBg(n.type ?? '') }">
               <svg v-if="n.type?.includes('credits.empty')" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -184,7 +192,7 @@
             </div>
             <span v-if="!n.read_at" class="h-2 w-2 rounded-full bg-amber-400 shrink-0 animate-pulse" />
           </div>
-        </div>
+        </AppCard>
       </section>
     </div>
   </PortalLayout>

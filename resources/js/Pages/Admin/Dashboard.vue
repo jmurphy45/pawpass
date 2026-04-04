@@ -50,14 +50,14 @@
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Low Credit Dogs -->
-        <div class="card overflow-hidden">
+        <AppCard class="overflow-hidden">
           <div class="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 class="text-sm font-semibold text-text-body">Low Credit Dogs</h2>
-            <span v-if="lowCreditDogs.length > 0" class="badge badge-red">{{ lowCreditDogs.length }}</span>
+            <AppBadge v-if="lowCreditDogs.length > 0" color="red">{{ lowCreditDogs.length }}</AppBadge>
           </div>
           <div v-if="lowCreditDogs.length === 0" class="px-5 py-6 text-sm text-text-muted">No low credit dogs.</div>
           <ul v-else>
-            <li v-for="dog in lowCreditDogs" :key="dog.id" class="list-row">
+            <li v-for="dog in lowCreditDogs" :key="dog.id" class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0">
               <div class="h-8 w-8 rounded-full bg-surface-subtle flex items-center justify-center text-sm font-semibold text-text-body shrink-0 mr-3">
                 {{ dog.name[0]?.toUpperCase() }}
               </div>
@@ -65,21 +65,21 @@
                 <p class="text-sm font-medium text-text-body truncate">{{ dog.name }}</p>
                 <p class="text-xs text-text-muted truncate">{{ dog.customer_name }}</p>
               </div>
-              <span class="badge ml-3" :class="dog.credit_balance <= 0 ? 'badge-red' : 'badge-yellow'">
+              <AppBadge class="ml-3" :color="dog.credit_balance <= 0 ? 'red' : 'yellow'">
                 {{ dog.credit_balance }} cr
-              </span>
+              </AppBadge>
             </li>
           </ul>
-        </div>
+        </AppCard>
 
         <!-- Recent Attendance -->
-        <div class="card overflow-hidden">
+        <AppCard class="overflow-hidden">
           <div class="px-5 py-4 border-b border-border">
             <h2 class="text-sm font-semibold text-text-body">Recent Attendance</h2>
           </div>
           <div v-if="recentAttendance.length === 0" class="px-5 py-6 text-sm text-text-muted">No recent attendance.</div>
           <ul v-else>
-            <li v-for="entry in recentAttendance" :key="entry.id" class="list-row">
+            <li v-for="entry in recentAttendance" :key="entry.id" class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0">
               <div class="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 mr-3"
                 :class="entry.checked_out_at ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'"
               >
@@ -94,7 +94,7 @@
               </span>
             </li>
           </ul>
-        </div>
+        </AppCard>
       </div>
     </div>
   </AdminLayout>

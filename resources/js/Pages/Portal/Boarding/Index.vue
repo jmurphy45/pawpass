@@ -8,7 +8,9 @@
           <h1 class="text-2xl font-bold text-text-body">Boarding Stays</h1>
           <p class="text-sm text-text-muted mt-0.5">Your reservations &amp; upcoming stays</p>
         </div>
-        <Link :href="route('portal.boarding.create')" class="btn-primary text-sm">New Reservation</Link>
+        <Link :href="route('portal.boarding.create')">
+          <AppButton variant="primary" class="text-sm">New Reservation</AppButton>
+        </Link>
       </div>
 
       <!-- Status tabs -->
@@ -25,7 +27,7 @@
       </div>
 
       <!-- Empty state -->
-      <div v-if="reservations.data.length === 0" class="card p-12 text-center">
+      <AppCard v-if="reservations.data.length === 0" class="p-12 text-center">
         <div class="mx-auto h-14 w-14 rounded-full bg-surface-subtle flex items-center justify-center mb-3">
           <svg class="h-7 w-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -33,11 +35,13 @@
         </div>
         <p class="font-semibold text-text-body">No reservations yet</p>
         <p class="text-sm text-text-muted mt-1">Book a boarding stay for your dog</p>
-        <Link :href="route('portal.boarding.create')" class="btn-primary text-sm mt-4 inline-block">Book a Stay</Link>
-      </div>
+        <Link :href="route('portal.boarding.create')">
+          <AppButton variant="primary" class="text-sm mt-4">Book a Stay</AppButton>
+        </Link>
+      </AppCard>
 
       <!-- List -->
-      <div v-else class="card overflow-hidden">
+      <AppCard v-else class="overflow-hidden">
         <ul class="rv-list">
           <li v-for="r in reservations.data" :key="r.id" class="rv-row" :style="{ '--rv-status': statusColor(r.status) }">
             <Link :href="route('portal.boarding.show', r.id)" class="rv-row-link" />
@@ -58,7 +62,7 @@
             </div>
 
             <div class="rv-right">
-              <span class="badge" :class="statusBadge(r.status)">{{ statusLabel(r.status) }}</span>
+              <AppBadge :color="statusBadgeColor(r.status)">{{ statusLabel(r.status) }}</AppBadge>
               <div v-if="r.nightly_rate_cents" class="rv-rate">${{ (r.nightly_rate_cents / 100).toFixed(0) }}/night</div>
             </div>
 
@@ -69,20 +73,18 @@
             </div>
           </li>
         </ul>
-      </div>
+      </AppCard>
 
       <!-- Pagination -->
       <div v-if="reservations.last_page > 1" class="flex gap-2 justify-center text-sm">
         <Link
           v-if="reservations.current_page > 1"
           :href="route('portal.boarding.index', { page: reservations.current_page - 1, status: selectedStatus || undefined })"
-          class="btn-secondary text-xs py-1.5 px-3"
-        >Previous</Link>
+        ><AppButton variant="secondary" class="text-xs py-1.5 px-3">Previous</AppButton></Link>
         <Link
           v-if="reservations.current_page < reservations.last_page"
           :href="route('portal.boarding.index', { page: reservations.current_page + 1, status: selectedStatus || undefined })"
-          class="btn-secondary text-xs py-1.5 px-3"
-        >Next</Link>
+        ><AppButton variant="secondary" class="text-xs py-1.5 px-3">Next</AppButton></Link>
       </div>
     </div>
   </PortalLayout>
@@ -150,14 +152,14 @@ function statusLabel(status: string): string {
   }[status] ?? status;
 }
 
-function statusBadge(status: string): string {
+function statusBadgeColor(status: string): string {
   return {
-    pending:     'badge-yellow',
-    confirmed:   'badge-blue',
-    checked_in:  'badge-green',
-    checked_out: 'badge-gray',
-    cancelled:   'badge-red',
-  }[status] ?? 'badge-gray';
+    pending:     'yellow',
+    confirmed:   'blue',
+    checked_in:  'green',
+    checked_out: 'gray',
+    cancelled:   'red',
+  }[status] ?? 'gray';
 }
 </script>
 

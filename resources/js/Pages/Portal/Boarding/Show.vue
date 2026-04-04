@@ -8,11 +8,11 @@
         <h1 class="text-2xl font-bold text-text-body">
           {{ reservation.dog?.name ?? 'Reservation' }}
         </h1>
-        <span class="badge" :class="statusBadge(reservation.status)">{{ statusLabel(reservation.status) }}</span>
+        <AppBadge :color="statusBadgeColor(reservation.status)">{{ statusLabel(reservation.status) }}</AppBadge>
       </div>
 
       <!-- Stay details -->
-      <div class="rs-card" :style="{ '--rs-status': statusColor(reservation.status) }">
+      <AppCard class="overflow-hidden" :style="{ borderTop: `3px solid ${statusColor(reservation.status)}` }">
         <div class="rs-card-head">
           <div class="rs-card-icon">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -39,10 +39,10 @@
             <dd>${{ (reservation.nightly_rate_cents / 100).toFixed(2) }}</dd>
           </div>
         </dl>
-      </div>
+      </AppCard>
 
       <!-- Care instructions -->
-      <div v-if="hasCareInstructions" class="rs-card">
+      <AppCard v-if="hasCareInstructions" class="overflow-hidden">
         <div class="rs-card-head">
           <div class="rs-card-icon">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -57,10 +57,10 @@
             <p class="rs-care-value">{{ (reservation as any)[field.key] }}</p>
           </div>
         </div>
-      </div>
+      </AppCard>
 
       <!-- Daily Report Cards -->
-      <div class="rs-card">
+      <AppCard class="overflow-hidden">
         <div class="rs-card-head">
           <div class="rs-card-icon">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -78,10 +78,10 @@
             <p class="rs-report-notes">{{ card.notes }}</p>
           </div>
         </div>
-      </div>
+      </AppCard>
 
       <!-- Cancel -->
-      <div v-if="reservation.status === 'pending'" class="rs-card rs-card--danger">
+      <AppCard v-if="reservation.status === 'pending'" class="overflow-hidden" style="border-top: 3px solid #ef4444;">
         <div class="rs-card-head">
           <div class="rs-card-icon rs-card-icon--danger">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -97,15 +97,16 @@
           <div v-if="cancelForm.errors.status" class="mb-3 rounded-lg p-3 text-sm bg-red-50 text-red-700 border border-red-200">
             {{ cancelForm.errors.status }}
           </div>
-          <button
-            @click="cancelReservation"
+          <AppButton
+            variant="secondary"
             :disabled="cancelForm.processing"
-            class="btn-secondary text-sm border-red-300 text-red-600 hover:bg-red-50"
+            class="text-sm border-red-300 text-red-600 hover:bg-red-50"
+            @click="cancelReservation"
           >
             {{ cancelForm.processing ? 'Cancelling…' : 'Cancel Reservation' }}
-          </button>
+          </AppButton>
         </div>
-      </div>
+      </AppCard>
 
     </div>
   </PortalLayout>
@@ -174,14 +175,14 @@ function statusLabel(status: string): string {
   }[status] ?? status;
 }
 
-function statusBadge(status: string): string {
+function statusBadgeColor(status: string): string {
   return ({
-    pending: 'badge-yellow',
-    confirmed: 'badge-blue',
-    checked_in: 'badge-green',
-    checked_out: 'badge-gray',
-    cancelled: 'badge-red',
-  } as Record<string, string>)[status] ?? 'badge-gray';
+    pending: 'yellow',
+    confirmed: 'blue',
+    checked_in: 'green',
+    checked_out: 'gray',
+    cancelled: 'red',
+  } as Record<string, string>)[status] ?? 'gray';
 }
 
 function cancelReservation() {
@@ -190,20 +191,6 @@ function cancelReservation() {
 </script>
 
 <style scoped>
-/* ── Card shell ── */
-.rs-card {
-  background: #ffffff;
-  border: 1px solid #e5e0d8;
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  overflow: hidden;
-  border-top: 3px solid var(--rs-status, #e5e0d8);
-}
-
-.rs-card--danger {
-  --rs-status: #ef4444;
-}
-
 /* ── Card header ── */
 .rs-card-head {
   display: flex;

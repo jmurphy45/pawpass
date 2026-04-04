@@ -3,7 +3,7 @@
     <div class="space-y-6">
       <h1 class="text-2xl font-bold text-text-body">Invoices</h1>
 
-      <div v-if="orders.data.length === 0" class="card p-12 text-center">
+      <AppCard v-if="orders.data.length === 0" class="p-12 text-center">
         <div class="mx-auto h-14 w-14 rounded-full bg-surface-subtle flex items-center justify-center mb-3">
           <svg class="h-7 w-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
@@ -11,16 +11,16 @@
         </div>
         <p class="font-semibold text-text-body">No orders yet</p>
         <p class="text-sm text-text-muted mt-1">Your purchase history will appear here</p>
-        <Link :href="route('portal.purchase')" class="btn-primary mt-4 inline-flex">Buy your first package →</Link>
-      </div>
+        <Link :href="route('portal.purchase')"><AppButton variant="primary" class="mt-4">Buy your first package →</AppButton></Link>
+      </AppCard>
 
-      <div v-else class="card overflow-hidden">
+      <AppCard v-else class="overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide bg-surface-subtle border-b border-border">
           <span>Package</span>
           <span>Amount</span>
         </div>
         <ul>
-          <li v-for="order in orders.data" :key="order.id" class="list-row gap-4">
+          <li v-for="order in orders.data" :key="order.id" class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-4">
             <!-- Status indicator -->
             <div
               class="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
@@ -47,7 +47,7 @@
 
             <div class="text-right shrink-0">
               <p class="font-semibold text-text-body">${{ (order.amount_cents / 100).toFixed(2) }}</p>
-              <span class="badge mt-1" :class="statusClasses(order.status)">{{ order.status }}</span>
+              <AppBadge :color="statusColor(order.status)" class="mt-1">{{ order.status }}</AppBadge>
               <a
                 v-if="order.has_receipt"
                 :href="route('portal.orders.receipt', { order: order.id })"
@@ -56,7 +56,7 @@
             </div>
           </li>
         </ul>
-      </div>
+      </AppCard>
 
       <!-- Pagination -->
       <div v-if="orders.meta.last_page > 1" class="flex items-center justify-between text-sm">
@@ -65,13 +65,11 @@
           <Link
             v-if="orders.meta.current_page > 1"
             :href="route('portal.history', { page: orders.meta.current_page - 1 })"
-            class="btn-secondary text-xs py-1.5 px-3"
-          >Previous</Link>
+          ><AppButton variant="secondary" class="text-xs py-1.5 px-3">Previous</AppButton></Link>
           <Link
             v-if="orders.meta.current_page < orders.meta.last_page"
             :href="route('portal.history', { page: orders.meta.current_page + 1 })"
-            class="btn-secondary text-xs py-1.5 px-3"
-          >Next</Link>
+          ><AppButton variant="secondary" class="text-xs py-1.5 px-3">Next</AppButton></Link>
         </div>
       </div>
     </div>
@@ -89,12 +87,12 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function statusClasses(status: string) {
+function statusColor(status: string): string {
   return {
-    paid:     'badge-green',
-    pending:  'badge-yellow',
-    refunded: 'badge-gray',
-    failed:   'badge-red',
-  }[status] ?? 'badge-gray';
+    paid:     'green',
+    pending:  'yellow',
+    refunded: 'gray',
+    failed:   'red',
+  }[status] ?? 'gray';
 }
 </script>

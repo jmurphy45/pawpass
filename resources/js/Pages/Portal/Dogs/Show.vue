@@ -39,7 +39,7 @@
       </div>
 
       <!-- Dog info grid -->
-      <div class="card-padded grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <AppCard :padded="true" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div>
           <p class="text-xs font-semibold text-text-muted uppercase tracking-wide">Breed</p>
           <p class="mt-1 font-medium text-text-body">{{ dog.breed ?? '—' }}</p>
@@ -67,12 +67,12 @@
           <p class="text-xs font-semibold text-text-muted uppercase tracking-wide">Pass Expires</p>
           <p class="mt-1 font-medium text-indigo-600">{{ formatDate(dog.unlimited_pass_expires_at) }}</p>
         </div>
-      </div>
+      </AppCard>
 
       <!-- Vaccinations -->
       <div v-if="vaccinations.length > 0 || true">
         <h2 class="text-base font-semibold text-text-body mb-3">Vaccinations</h2>
-        <div class="card divide-y divide-border-warm">
+        <AppCard class="divide-y divide-border-warm">
           <div v-if="vaccinations.length === 0" class="px-4 py-4 text-sm text-text-muted text-center">
             No vaccination records on file.
           </div>
@@ -104,58 +104,60 @@
               :class="v.is_valid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
             >{{ v.is_valid ? 'Valid' : 'Expired' }}</span>
           </div>
-        </div>
+        </AppCard>
         <p class="text-xs text-text-muted mt-2">To update vaccination records, contact us directly.</p>
       </div>
 
       <!-- Auto-Replenish -->
       <div v-if="dog.auto_replenish_enabled && dog.auto_replenish_package">
         <h2 class="text-base font-semibold text-text-body mb-3">Auto-Replenish</h2>
-        <div class="card px-4 py-3 flex items-center justify-between gap-4">
+        <AppCard class="px-4 py-3 flex items-center justify-between gap-4">
           <div>
             <p class="font-medium text-text-body">{{ dog.auto_replenish_package!.name }}</p>
             <p class="text-xs text-text-muted mt-0.5">Auto-replenish when credits run out · Card saved securely</p>
           </div>
-          <button
-            type="button"
-            class="btn-secondary text-xs py-1.5 px-3 text-red-600 border-red-200 hover:bg-red-50"
+          <AppButton
+            variant="secondary"
+            size="sm"
             :disabled="cancellingReplenish"
+            class="text-red-600 border-red-200 hover:bg-red-50"
             @click="cancelAutoReplenish"
-          >{{ cancellingReplenish ? 'Cancelling…' : 'Cancel Auto-Replenish' }}</button>
-        </div>
+          >{{ cancellingReplenish ? 'Cancelling…' : 'Cancel Auto-Replenish' }}</AppButton>
+        </AppCard>
       </div>
 
       <!-- Recurring Plans -->
       <div v-if="subscriptions.length > 0">
         <h2 class="text-base font-semibold text-text-body mb-3">Recurring Plans</h2>
-        <div class="card divide-y divide-border-warm">
+        <AppCard class="divide-y divide-border-warm">
           <div v-for="s in subscriptions" :key="s.id" class="px-4 py-3 flex items-center justify-between gap-4">
             <div>
               <p class="font-medium text-text-body">{{ s.package.name }}</p>
               <p v-if="s.cancelled_at" class="text-xs text-amber-600 mt-0.5">Cancels at end of period</p>
               <p v-else-if="s.current_period_end" class="text-xs text-text-muted mt-0.5">Renews {{ formatDate(s.current_period_end) }}</p>
             </div>
-            <button
+            <AppButton
               v-if="!s.cancelled_at"
-              type="button"
-              class="btn-secondary text-xs py-1.5 px-3 text-red-600 border-red-200 hover:bg-red-50"
+              variant="secondary"
+              size="sm"
               :disabled="cancelling === s.id"
+              class="text-red-600 border-red-200 hover:bg-red-50"
               @click="cancelSubscription(s.id)"
-            >{{ cancelling === s.id ? 'Cancelling…' : 'Cancel Plan' }}</button>
+            >{{ cancelling === s.id ? 'Cancelling…' : 'Cancel Plan' }}</AppButton>
             <span v-else class="text-xs text-amber-600 font-medium">Pending Cancel</span>
           </div>
-        </div>
+        </AppCard>
       </div>
 
       <!-- Credit ledger -->
       <div>
         <h2 class="text-base font-semibold text-text-body mb-3">Credit History</h2>
 
-        <div v-if="ledger.data.length === 0" class="card p-10 text-center">
+        <AppCard v-if="ledger.data.length === 0" class="p-10 text-center">
           <p class="text-sm text-text-muted">No credit transactions yet.</p>
-        </div>
+        </AppCard>
 
-        <div v-else class="card overflow-x-auto">
+        <AppCard v-else class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
               <tr style="border-bottom: 1px solid #e5e0d8; background-color: #faf9f6;">
@@ -188,7 +190,7 @@
               </tr>
             </tbody>
           </table>
-        </div>
+        </AppCard>
 
         <!-- Pagination -->
         <div v-if="ledger.meta.last_page > 1" class="flex items-center justify-between mt-4 text-sm">
@@ -197,19 +199,17 @@
             <Link
               v-if="ledger.meta.current_page > 1"
               :href="route('portal.dogs.show', { dog: dog.id, page: ledger.meta.current_page - 1 })"
-              class="btn-secondary text-xs py-1.5 px-3"
-            >Previous</Link>
+            ><AppButton variant="secondary" class="text-xs py-1.5 px-3">Previous</AppButton></Link>
             <Link
               v-if="ledger.meta.current_page < ledger.meta.last_page"
               :href="route('portal.dogs.show', { dog: dog.id, page: ledger.meta.current_page + 1 })"
-              class="btn-secondary text-xs py-1.5 px-3"
-            >Next</Link>
+            ><AppButton variant="secondary" class="text-xs py-1.5 px-3">Next</AppButton></Link>
           </div>
         </div>
       </div>
     </div>
   </PortalLayout>
-  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
+  <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
@@ -217,7 +217,6 @@ import { computed, ref } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 import type { CreditLedger, PaginatedResponse, PageProps } from '@/types';
-import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 interface DogDetail {
   id: string;

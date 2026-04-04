@@ -4,7 +4,7 @@
       <h1 class="text-2xl font-bold text-text-body">Account Settings</h1>
 
       <!-- Profile section -->
-      <section class="card overflow-hidden">
+      <AppCard class="overflow-hidden">
         <div class="ac-section-head">
           <div class="ac-section-icon">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -19,7 +19,7 @@
             <input
               v-model="profileForm.name"
               type="text"
-              class="input w-full"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
               :class="{ 'border-red-500': profileForm.errors.name }"
             />
             <p v-if="profileForm.errors.name" class="mt-1 text-xs text-red-600">{{ profileForm.errors.name }}</p>
@@ -30,7 +30,7 @@
             <input
               v-model="profileForm.email"
               type="email"
-              class="input w-full"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
               :class="{ 'border-red-500': profileForm.errors.email }"
             />
             <p v-if="profileForm.errors.email" class="mt-1 text-xs text-red-600">{{ profileForm.errors.email }}</p>
@@ -41,20 +41,21 @@
             <input
               v-model="profileForm.phone"
               type="tel"
-              class="input w-full"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
             />
           </div>
 
-          <button
+          <AppButton
             type="submit"
+            variant="primary"
             :disabled="profileForm.processing"
-            class="btn-primary text-sm disabled:opacity-60"
-          >{{ profileForm.processing ? 'Saving…' : 'Save Profile' }}</button>
+            class="text-sm disabled:opacity-60"
+          >{{ profileForm.processing ? 'Saving…' : 'Save Profile' }}</AppButton>
         </form>
-      </section>
+      </AppCard>
 
       <!-- Notification preferences -->
-      <section class="card overflow-hidden">
+      <AppCard class="overflow-hidden">
         <div class="ac-section-head">
           <div class="ac-section-icon">
             <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -103,13 +104,14 @@
             </table>
           </div>
 
-          <button
+          <AppButton
+            variant="primary"
             @click="savePrefs"
             :disabled="prefsForm.processing"
-            class="btn-primary text-sm mt-4 disabled:opacity-60"
-          >{{ prefsForm.processing ? 'Saving…' : 'Save Preferences' }}</button>
+            class="text-sm mt-4 disabled:opacity-60"
+          >{{ prefsForm.processing ? 'Saving…' : 'Save Preferences' }}</AppButton>
         </div>
-      </section>
+      </AppCard>
     </div>
   </PortalLayout>
 </template>

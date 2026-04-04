@@ -78,7 +78,7 @@
 
         <!-- Checkout panel -->
         <div class="lg:col-span-1">
-          <div class="card-padded sticky top-24 space-y-5">
+          <AppCard :padded="true" class="sticky top-24 space-y-5">
             <h2 class="text-sm font-semibold text-text-body">Checkout</h2>
 
             <!-- Dog selector -->
@@ -88,7 +88,7 @@
               <select
                 v-if="!selectedPackage || selectedPackage.max_dogs === 1"
                 v-model="selectedDogId"
-                class="input"
+                class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
               >
                 <option value="">— choose a dog —</option>
                 <option v-for="dog in dogs" :key="dog.id" :value="dog.id">{{ dog.name }}</option>
@@ -124,7 +124,7 @@
                 <span>{{ capitalize(savedCard.brand) }} ····{{ savedCard.last4 }}</span>
                 <button type="button" @click="useNewCard = true" class="ml-auto text-xs text-indigo-600 hover:underline">Change</button>
               </div>
-              <div v-else id="card-element" class="input py-3" />
+              <div v-else id="card-element" class="w-full rounded-lg border border-border-warm px-3 py-3 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" />
               <p v-if="cardError" class="mt-1.5 text-xs text-red-600">{{ cardError }}</p>
               <label class="mt-2 flex items-center gap-2 text-sm text-text-muted cursor-pointer">
                 <input type="checkbox" v-model="saveCard" class="h-4 w-4 rounded border-gray-300" />
@@ -158,10 +158,11 @@
               <p v-if="autoReplenish" class="text-xs text-text-muted mt-1">Re-purchased automatically when credits reach zero · cancel anytime</p>
             </div>
 
-            <button
+            <AppButton
+              variant="primary"
               @click="purchase"
               :disabled="!selectedPackageId || activeDogIds.length === 0 || paying"
-              class="btn-primary w-full justify-center py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
+              class="w-full justify-center py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
               :style="{ backgroundColor: accentColor }"
             >
               <svg v-if="paying" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -171,7 +172,7 @@
               <template v-if="paying">Processing…</template>
               <template v-else-if="selectedPackage">Pay ${{ (selectedPackage.price_cents / 100).toFixed(2) }}</template>
               <template v-else>Pay Now</template>
-            </button>
+            </AppButton>
 
             <!-- Trust indicator -->
             <p class="text-center text-xs text-text-muted flex items-center justify-center gap-1.5">
@@ -187,7 +188,7 @@
               </svg>
               Payment successful! Credits will appear shortly.
             </div>
-          </div>
+          </AppCard>
         </div>
       </div>
     </div>

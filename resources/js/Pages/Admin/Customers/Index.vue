@@ -6,15 +6,15 @@
           <h1 class="text-2xl font-bold text-text-body">Customers</h1>
           <p class="text-sm text-text-muted mt-0.5">{{ customers.data.length }} total</p>
         </div>
-        <Link :href="route('admin.customers.create')" class="btn-primary">Add Customer</Link>
+        <Link :href="route('admin.customers.create')"><AppButton variant="primary">Add Customer</AppButton></Link>
       </div>
 
-      <div class="card overflow-hidden">
+      <AppCard class="overflow-hidden">
         <div v-if="customers.data.length === 0" class="px-5 py-8 text-center text-sm text-text-muted">
           No customers yet.
         </div>
         <ul v-else>
-          <li v-for="customer in customers.data" :key="customer.id" class="list-row gap-3">
+          <li v-for="customer in customers.data" :key="customer.id" class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-3">
             <!-- Avatar initials -->
             <div class="h-9 w-9 rounded-full bg-surface-subtle flex items-center justify-center text-sm font-semibold text-text-body shrink-0">
               {{ customer.name[0]?.toUpperCase() }}
@@ -38,7 +38,7 @@
             </Link>
           </li>
         </ul>
-      </div>
+      </AppCard>
     </div>
   </AdminLayout>
 </template>

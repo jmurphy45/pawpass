@@ -10,15 +10,15 @@
         <h1 class="text-2xl font-bold text-text-body">Add a Dog</h1>
       </div>
 
-      <div class="card-padded">
+      <AppCard :padded="true">
         <form @submit.prevent="submit" class="space-y-5">
           <div>
             <label class="block text-sm font-medium text-text-body mb-1.5">Dog's Name <span class="text-red-500">*</span></label>
             <input
               v-model="form.name"
               type="text"
-              class="input"
-              :class="{ 'input-error': form.errors.name }"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+              :class="{ 'border-red-500': form.errors.name }"
               placeholder="e.g. Buddy"
             />
             <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">{{ form.errors.name }}</p>
@@ -29,7 +29,7 @@
             <input
               v-model="form.breed"
               type="text"
-              class="input"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
               placeholder="e.g. Golden Retriever"
             />
           </div>
@@ -51,25 +51,25 @@
             <input
               v-model="form.dob"
               type="date"
-              class="input"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
             />
           </div>
 
           <div class="flex gap-3 pt-2">
-            <Link
-              :href="route('portal.dogs.index')"
-              class="btn-secondary flex-1 justify-center"
-            >Cancel</Link>
-            <button
+            <Link :href="route('portal.dogs.index')" class="flex-1">
+              <AppButton variant="secondary" class="w-full justify-center">Cancel</AppButton>
+            </Link>
+            <AppButton
               type="submit"
+              variant="primary"
               :disabled="form.processing"
-              class="btn-primary flex-1 justify-center"
+              class="flex-1 justify-center"
             >
               {{ form.processing ? 'Saving…' : 'Add Dog' }}
-            </button>
+            </AppButton>
           </div>
         </form>
-      </div>
+      </AppCard>
     </div>
   </PortalLayout>
 </template>

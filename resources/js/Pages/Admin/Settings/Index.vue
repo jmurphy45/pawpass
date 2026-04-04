@@ -49,9 +49,9 @@
             </select>
             <p v-if="businessForm.errors.payout_schedule" class="mt-1 text-sm text-red-600">{{ businessForm.errors.payout_schedule }}</p>
           </div>
-          <button type="submit" :disabled="businessForm.processing" class="btn-primary">
+          <AppButton type="submit" variant="primary" :disabled="businessForm.processing">
             Save
-          </button>
+          </AppButton>
         </form>
       </div>
 
@@ -108,9 +108,9 @@
         </div>
 
         <div class="mt-4">
-          <button type="button" @click="submitNotifications" :disabled="notifForm.processing" class="btn-primary">
+          <AppButton type="button" variant="primary" @click="submitNotifications" :disabled="notifForm.processing">
             Save
-          </button>
+          </AppButton>
         </div>
       </div>
 
@@ -138,13 +138,14 @@
                   <span :class="statusClass(member.status)">{{ member.status.replace('_', ' ') }}</span>
                 </td>
                 <td class="py-2.5 text-right">
-                  <button
+                  <AppButton
                     v-if="member.status !== 'suspended' && !(member.role === 'business_owner' && activeOwnerCount <= 1)"
                     type="button"
+                    variant="danger"
+                    size="sm"
                     @click="deactivateStaff(member.id)"
                     :disabled="deactivatingId === member.id"
-                    class="btn-ghost-danger"
-                  >Deactivate</button>
+                  >Deactivate</AppButton>
                 </td>
               </tr>
             </tbody>
@@ -165,21 +166,20 @@
               <p v-if="inviteForm.errors.email" class="mt-1 text-sm text-red-600">{{ inviteForm.errors.email }}</p>
             </div>
           </div>
-          <button type="submit" :disabled="inviteForm.processing" class="btn-primary">
+          <AppButton type="submit" variant="primary" :disabled="inviteForm.processing">
             Send Invite
-          </button>
+          </AppButton>
         </form>
       </div>
     </div>
   </AdminLayout>
-  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
+  <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm } from '@inertiajs/vue3';
-import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 const props = defineProps<{
   business: { name: string; timezone: string; primary_color: string; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string; business_type: string };

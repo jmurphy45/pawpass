@@ -7,18 +7,18 @@
           <h1 class="text-2xl font-bold text-text-body">Today's Roster</h1>
           <p class="text-sm text-text-muted mt-0.5">{{ checkedInCount }} of {{ roster.length }} checked in</p>
         </div>
-        <span class="inline-flex items-center badge badge-gray self-start sm:self-auto">{{ todayLabel }}</span>
+        <AppBadge color="gray" class="self-start sm:self-auto">{{ todayLabel }}</AppBadge>
       </div>
 
       <!-- Roster list -->
-      <div class="card overflow-hidden">
+      <AppCard class="overflow-hidden">
         <div v-if="roster.length === 0" class="px-5 py-8 text-center text-sm text-text-muted">
           No dogs on the roster today.
         </div>
         <ul v-else>
           <template v-for="dog in roster" :key="dog.id">
             <!-- Main row -->
-            <li class="list-row gap-3">
+            <li class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-3">
               <!-- Avatar with status dot -->
               <div class="relative shrink-0">
                 <div class="h-9 w-9 rounded-full bg-surface-subtle flex items-center justify-center text-sm font-semibold text-text-body">
@@ -50,30 +50,22 @@
               </div>
 
               <!-- Credit badge (hidden on mobile) -->
-              <span
-                class="hidden sm:inline-flex badge"
-                :class="{
-                  'badge-red': dog.credit_balance <= 0,
-                  'badge-yellow': dog.credit_status === 'low' && dog.credit_balance > 0,
-                  'badge-gray': dog.credit_status === 'ok',
-                }"
-              >{{ dog.credit_balance }} cr</span>
+              <AppBadge
+                class="hidden sm:inline-flex"
+                :color="dog.credit_balance <= 0 ? 'red' : dog.credit_status === 'low' ? 'yellow' : 'gray'"
+              >{{ dog.credit_balance }} cr</AppBadge>
 
               <!-- Status badge -->
-              <span class="badge" :class="{
-                'badge-green': dog.attendance_state === 'checked_in',
-                'badge-gray': dog.attendance_state === 'not_in',
-                'badge-blue': dog.attendance_state === 'done',
-              }">
+              <AppBadge :color="dog.attendance_state === 'checked_in' ? 'green' : dog.attendance_state === 'done' ? 'blue' : 'gray'">
                 {{ dog.attendance_state === 'checked_in' ? 'In' : dog.attendance_state === 'done' ? 'Done' : 'Out' }}
-              </span>
+              </AppBadge>
 
               <!-- Action buttons -->
               <form v-if="dog.attendance_state === 'not_in'" @submit.prevent="checkin(dog.id)">
-                <button type="submit" class="btn-primary text-xs py-1 px-3">Check In</button>
+                <AppButton type="submit" variant="primary" size="sm">Check In</AppButton>
               </form>
               <form v-if="dog.attendance_state === 'checked_in'" @submit.prevent="checkout(dog.id)">
-                <button type="submit" class="btn-secondary text-xs py-1 px-3">Check Out</button>
+                <AppButton type="submit" variant="secondary" size="sm">Check Out</AppButton>
               </form>
               <div v-if="dog.attendance_state === 'done'" class="w-20" />
             </li>
@@ -110,22 +102,23 @@
                 @submit.prevent="addAddon(dog.attendance_id!)"
                 class="flex gap-2 pt-1 border-t border-border"
               >
-                <select v-model="addonSelections[dog.id]" class="input text-xs flex-1 py-1">
+                <select v-model="addonSelections[dog.id]" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 flex-1 py-1 text-xs">
                   <option value="">Select add-on…</option>
                   <option v-for="at in addonTypes" :key="at.id" :value="at.id">
                     {{ at.name }} (${{ (at.price_cents / 100).toFixed(2) }})
                   </option>
                 </select>
-                <button
+                <AppButton
                   type="submit"
+                  variant="primary"
+                  size="sm"
                   :disabled="!addonSelections[dog.id]"
-                  class="btn-primary text-xs py-1 px-3"
-                >Add</button>
+                >Add</AppButton>
               </form>
             </li>
           </template>
         </ul>
-      </div>
+      </AppCard>
     </div>
   </AdminLayout>
 </template>

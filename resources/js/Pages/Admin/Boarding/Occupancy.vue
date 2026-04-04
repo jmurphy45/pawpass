@@ -3,24 +3,24 @@
     <div class="space-y-6">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <h1 class="text-2xl font-bold text-text-body">Occupancy</h1>
-        <a :href="route('admin.boarding.reservations')" class="btn-secondary text-sm self-start sm:self-auto">List View</a>
+        <Link :href="route('admin.boarding.reservations')"><AppButton variant="secondary" size="sm">List View</AppButton></Link>
       </div>
 
       <!-- Date range selector -->
-      <div class="card p-4 flex flex-wrap gap-3 items-end">
+      <AppCard :padded="true" class="flex flex-wrap gap-3 items-end">
         <div>
           <label class="block text-xs text-text-muted mb-1">From</label>
-          <input v-model="rangeForm.from" type="date" class="input text-sm py-1.5" />
+          <input v-model="rangeForm.from" type="date" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition py-1.5" />
         </div>
         <div>
           <label class="block text-xs text-text-muted mb-1">To</label>
-          <input v-model="rangeForm.to" type="date" class="input text-sm py-1.5" />
+          <input v-model="rangeForm.to" type="date" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition py-1.5" />
         </div>
-        <button @click="applyRange" class="btn-primary text-sm py-1.5 px-4">Apply</button>
-      </div>
+        <AppButton variant="primary" @click="applyRange">Apply</AppButton>
+      </AppCard>
 
       <!-- Grid -->
-      <div class="card overflow-x-auto">
+      <AppCard class="overflow-x-auto">
         <div v-if="units.length === 0" class="px-5 py-8 text-center text-sm text-text-muted">
           No active kennel units.
         </div>
@@ -46,14 +46,14 @@
             </tr>
           </tbody>
         </table>
-      </div>
+      </AppCard>
     </div>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
 import { reactive, computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 interface Reservation {
