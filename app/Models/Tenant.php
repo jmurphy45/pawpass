@@ -43,6 +43,13 @@ class Tenant extends Model
         'billing_address',
         'tax_collection_enabled',
         'auto_charge_at_zero_package_id',
+        'business_address',
+        'business_city',
+        'business_state',
+        'business_zip',
+        'business_phone',
+        'business_description',
+        'is_publicly_listed',
     ];
 
     protected $hidden = [
@@ -63,6 +70,7 @@ class Tenant extends Model
             'plan_cancel_at_period_end' => 'boolean',
             'billing_address' => 'array',
             'tax_collection_enabled' => 'boolean',
+            'is_publicly_listed' => 'boolean',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',

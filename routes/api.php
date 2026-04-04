@@ -16,6 +16,7 @@ use App\Http\Controllers\Platform\V1\PlatformFeatureController;
 use App\Http\Controllers\Platform\V1\ReportController as PlatformReportController;
 use App\Http\Controllers\Platform\V1\PlatformPlanController;
 use App\Http\Controllers\Platform\V1\TenantFeatureOverrideController;
+use App\Http\Controllers\Public\V1\DaycareDirectoryController;
 use App\Http\Controllers\Public\V1\PlansController;
 use App\Http\Controllers\Public\V1\TenantRegistrationController as PublicTenantRegistrationController;
 use App\Http\Controllers\Admin\V1\CreditController;
@@ -55,6 +56,7 @@ Route::prefix('public/v1')
     ->group(function () {
         Route::get('plans', [PlansController::class, 'index']);
         Route::post('tenants/register', [PublicTenantRegistrationController::class, 'store'])->middleware('throttle:5,1');
+        Route::get('daycares', [DaycareDirectoryController::class, 'index']);
     });
 
 /*

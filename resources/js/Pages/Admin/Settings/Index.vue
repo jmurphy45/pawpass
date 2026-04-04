@@ -127,6 +127,48 @@
         </div>
       </div>
 
+      <!-- Public Directory -->
+      <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Public Directory</h2>
+        <p class="text-sm text-gray-500 mb-4">List your business in the PawPass public directory so pet owners can find you online.</p>
+        <form @submit.prevent="submitDirectory" class="space-y-4">
+          <div class="flex items-center gap-3">
+            <input id="is_publicly_listed" v-model="directoryForm.is_publicly_listed" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+            <label for="is_publicly_listed" class="text-sm font-medium text-gray-700">List my business in the public directory</label>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+            <input v-model="directoryForm.business_address" type="text" placeholder="123 Main St" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input v-model="directoryForm.business_city" type="text" placeholder="Austin" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">State (2-letter)</label>
+              <input v-model="directoryForm.business_state" type="text" placeholder="TX" maxlength="2" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm uppercase" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+              <input v-model="directoryForm.business_zip" type="text" placeholder="78701" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Public Phone</label>
+              <input v-model="directoryForm.business_phone" type="text" placeholder="512-555-0100" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Short Description <span class="text-gray-400 font-normal">(max 280 chars)</span></label>
+            <textarea v-model="directoryForm.business_description" rows="3" placeholder="Tell pet owners a bit about your business…" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" maxlength="280" />
+            <p class="mt-1 text-xs text-gray-400">{{ (directoryForm.business_description ?? '').length }}/280</p>
+          </div>
+          <button type="submit" :disabled="directoryForm.processing" class="btn-primary">Save</button>
+        </form>
+      </div>
+
       <!-- Billing Address -->
       <div class="bg-white rounded-xl border border-gray-200 p-6">
         <h2 class="text-base font-semibold text-gray-900 mb-1">Billing Address</h2>
@@ -300,7 +342,14 @@ import { useForm, router } from '@inertiajs/vue3';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 const props = defineProps<{
-  business: { name: string; timezone: string; primary_color: string; logo_url: string | null; low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string; business_type: string; auto_charge_at_zero_package_id: string | null };
+  business: {
+    name: string; timezone: string; primary_color: string; logo_url: string | null;
+    low_credit_threshold: number; checkin_block_at_zero: boolean; payout_schedule: string;
+    business_type: string; auto_charge_at_zero_package_id: string | null;
+    business_address: string | null; business_city: string | null; business_state: string | null;
+    business_zip: string | null; business_phone: string | null; business_description: string | null;
+    is_publicly_listed: boolean;
+  };
   billing_address: { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
   notificationSettings: Array<{ type: string; is_enabled: boolean }>;
   staff: Array<{ id: string; name: string; email: string; role: string; status: string }>;
@@ -323,6 +372,22 @@ const businessForm = useForm({
 
 function submitBusiness() {
   businessForm.patch(route('admin.settings.business'));
+}
+
+// ── Directory form ────────────────────────────────────────────────────────────
+
+const directoryForm = useForm({
+  business_address:     props.business.business_address ?? '',
+  business_city:        props.business.business_city ?? '',
+  business_state:       props.business.business_state ?? '',
+  business_zip:         props.business.business_zip ?? '',
+  business_phone:       props.business.business_phone ?? '',
+  business_description: props.business.business_description ?? '',
+  is_publicly_listed:   props.business.is_publicly_listed,
+});
+
+function submitDirectory() {
+  directoryForm.patch(route('admin.settings.business'));
 }
 
 // ── Logo upload ───────────────────────────────────────────────────────────────

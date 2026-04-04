@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Web\DaycareDirectoryController;
 use App\Http\Controllers\Web\TenantRegistrationController;
 use App\Http\Controllers\Web\Admin\Auth\AcceptInviteController;
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
@@ -51,6 +52,10 @@ Route::prefix('auth/magic-link')->group(function () {
     Route::get('/confirm',  [MagicLinkController::class, 'confirmShow'])->name('magic-link.confirm');
     Route::post('/confirm', [MagicLinkController::class, 'confirm'])->name('magic-link.confirm.store');
 });
+
+// Public daycare directory
+Route::get('/find-a-daycare', [DaycareDirectoryController::class, 'index'])->name('daycare.directory');
+Route::get('/find-a-daycare/{state}/{city}', [DaycareDirectoryController::class, 'index'])->name('daycare.directory.city');
 
 // Tenant self-registration (no tenant middleware — this creates a new tenant)
 Route::get('/register', [TenantRegistrationController::class, 'create'])->name('tenant.register');

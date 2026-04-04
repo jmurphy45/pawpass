@@ -45,6 +45,13 @@ class SettingsController extends Controller
                 'payout_schedule'                => $tenant->payout_schedule,
                 'business_type'                  => $tenant->business_type ?? 'daycare',
                 'auto_charge_at_zero_package_id' => $tenant->auto_charge_at_zero_package_id,
+                'business_address'               => $tenant->business_address,
+                'business_city'                  => $tenant->business_city,
+                'business_state'                 => $tenant->business_state,
+                'business_zip'                   => $tenant->business_zip,
+                'business_phone'                 => $tenant->business_phone,
+                'business_description'           => $tenant->business_description,
+                'is_publicly_listed'             => (bool) $tenant->is_publicly_listed,
             ],
             'billing_address'      => $tenant->billing_address ?? [],
             'notificationSettings' => $notificationSettings,
@@ -67,6 +74,13 @@ class SettingsController extends Controller
             'payout_schedule'                => ['sometimes', 'string'],
             'business_type'                  => ['sometimes', 'string', 'in:daycare,kennel,hybrid'],
             'auto_charge_at_zero_package_id' => ['sometimes', 'nullable', 'string', 'exists:packages,id'],
+            'business_address'               => ['sometimes', 'nullable', 'string', 'max:255'],
+            'business_city'                  => ['sometimes', 'nullable', 'string', 'max:100'],
+            'business_state'                 => ['sometimes', 'nullable', 'string', 'size:2'],
+            'business_zip'                   => ['sometimes', 'nullable', 'string', 'max:10'],
+            'business_phone'                 => ['sometimes', 'nullable', 'string', 'max:30'],
+            'business_description'           => ['sometimes', 'nullable', 'string', 'max:280'],
+            'is_publicly_listed'             => ['sometimes', 'boolean'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
