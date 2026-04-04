@@ -192,6 +192,11 @@ class StripeBillingService
         return $this->client->subscriptions->retrieve($subscriptionId);
     }
 
+    public function updateSubscriptionMetadata(string $subscriptionId, array $metadata): void
+    {
+        $this->client->subscriptions->update($subscriptionId, ['metadata' => $metadata]);
+    }
+
     public function constructWebhookEvent(string $payload, string $sigHeader, string $secret): object
     {
         return \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);

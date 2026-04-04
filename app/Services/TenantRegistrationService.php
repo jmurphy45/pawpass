@@ -42,6 +42,7 @@ class TenantRegistrationService
 
         // 1: Generate the tenant ID upfront so Stripe metadata has the real ID before any DB writes
         $tenantId = (string) Str::ulid();
+        Log::info('registration.tenant_id_generated', ['tenant_id' => $tenantId, 'slug' => $validated['slug']]);
 
         $tempTenant = new Tenant(['name' => $validated['business_name'], 'slug' => $validated['slug']]);
         $tempTenant->id = $tenantId;
@@ -96,8 +97,17 @@ class TenantRegistrationService
                 ],
             ]);
 
+            Log::info('registration.tenant_persisted', ['tenant_id' => $tenant->id, 'stripe_sub_id' => $stripeSub->id]);
+
             return [$tenant, $user];
         });
+
+        // Confirm metadata now that tenant is guaranteed in DB (repairs any pre-commit drift)
+        $this->billing->updateSubscriptionMetadata($stripeSub->id, [
+            'tenant_id' => $tenant->id,
+            'slug'      => $tenant->slug,
+        ]);
+        Log::info('registration.stripe_metadata_confirmed', ['tenant_id' => $tenant->id, 'stripe_sub_id' => $stripeSub->id]);
 
         ProvisionStripeConnectAccountJob::dispatch($tenant);
 

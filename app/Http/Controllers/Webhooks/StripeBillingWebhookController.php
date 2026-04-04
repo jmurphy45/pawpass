@@ -65,17 +65,61 @@ class StripeBillingWebhookController extends Controller
 
     private function resolveTenant(object $stripeSub): ?Tenant
     {
-        $tenantId = $stripeSub->metadata->tenant_id ?? null;
+        $stripeSubId = $stripeSub->id ?? null;
+        $metadataTenantId = $stripeSub->metadata->tenant_id ?? null;
+        $stripeCustomerId = is_string($stripeSub->customer ?? null) ? $stripeSub->customer : null;
+
         Log::info('StripeBillingWebhook: resolving tenant', [
-            'stripe_sub_id'   => $stripeSub->id ?? null,
-            'metadata_tenant' => $tenantId,
+            'stripe_sub_id'    => $stripeSubId,
+            'metadata_tenant'  => $metadataTenantId,
+            'stripe_customer'  => $stripeCustomerId,
         ]);
 
-        if ($tenantId) {
-            return Tenant::find($tenantId);
+        // 1. Canonical: subscription ID stored in DB at registration time
+        $tenant = Tenant::where('platform_stripe_sub_id', $stripeSubId)->first();
+        if ($tenant) {
+            if ($metadataTenantId && $metadataTenantId !== $tenant->id) {
+                Log::warning('StripeBillingWebhook: stale metadata tenant_id, resolved by platform_stripe_sub_id', [
+                    'stripe_sub_id'      => $stripeSubId,
+                    'metadata_tenant_id' => $metadataTenantId,
+                    'resolved_tenant_id' => $tenant->id,
+                ]);
+            }
+            return $tenant;
         }
 
-        return Tenant::where('platform_stripe_sub_id', $stripeSub->id)->first();
+        // 2. Metadata fallback: may be stale after retried registrations
+        if ($metadataTenantId) {
+            $tenant = Tenant::find($metadataTenantId);
+            if ($tenant) {
+                Log::warning('StripeBillingWebhook: platform_stripe_sub_id lookup missed, resolved by metadata tenant_id', [
+                    'stripe_sub_id'      => $stripeSubId,
+                    'metadata_tenant_id' => $metadataTenantId,
+                ]);
+                return $tenant;
+            }
+        }
+
+        // 3. Customer ID fallback: last resort
+        if ($stripeCustomerId) {
+            $tenant = Tenant::where('platform_stripe_customer_id', $stripeCustomerId)->first();
+            if ($tenant) {
+                Log::warning('StripeBillingWebhook: resolved by platform_stripe_customer_id fallback', [
+                    'stripe_sub_id'      => $stripeSubId,
+                    'stripe_customer_id' => $stripeCustomerId,
+                    'resolved_tenant_id' => $tenant->id,
+                ]);
+                return $tenant;
+            }
+        }
+
+        Log::error('StripeBillingWebhook: tenant not found by any lookup', [
+            'stripe_sub_id'      => $stripeSubId,
+            'metadata_tenant_id' => $metadataTenantId,
+            'stripe_customer_id' => $stripeCustomerId,
+        ]);
+
+        return null;
     }
 
     private function handleSubscriptionCreated(object $stripeSub): JsonResponse

@@ -335,6 +335,53 @@ class StripeBillingWebhookTest extends TestCase
         $this->assertEquals('free', $tenant->fresh()->plan);
     }
 
+    public function test_subscription_updated_resolves_tenant_by_sub_id_when_metadata_tenant_stale(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                 => 'trialing',
+            'platform_stripe_sub_id' => 'sub_stale_meta',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_stale_meta',
+            'status'               => 'past_due',
+            'current_period_end'   => now()->addMonth()->timestamp,
+            'cancel_at_period_end' => false,
+            'customer'             => 'cus_stale',
+            'metadata'             => (object) ['tenant_id' => '01ZZZZZZZZZZZZZZZZZZZZZZZZ'], // stale/wrong
+        ]);
+
+        $this->mockBillingVerify($event);
+
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('past_due', $tenant->fresh()->status);
+    }
+
+    public function test_subscription_updated_resolves_tenant_by_customer_id_when_sub_id_not_stored(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status'                      => 'trialing',
+            'platform_stripe_sub_id'      => null,
+            'platform_stripe_customer_id' => 'cus_fallback_test',
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.updated', [
+            'id'                   => 'sub_no_sub_match',
+            'status'               => 'past_due',
+            'current_period_end'   => now()->addMonth()->timestamp,
+            'cancel_at_period_end' => false,
+            'customer'             => 'cus_fallback_test',
+            'metadata'             => (object) [],
+        ]);
+
+        $this->mockBillingVerify($event);
+
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('past_due', $tenant->fresh()->status);
+    }
+
     public function test_logs_raw_webhook(): void
     {
         $this->mockBillingVerify($this->makeEvent('customer.subscription.deleted', [

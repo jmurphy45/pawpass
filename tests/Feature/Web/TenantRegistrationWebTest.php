@@ -71,6 +71,7 @@ class TenantRegistrationWebTest extends TestCase
         $this->mock(StripeBillingService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')->andReturn('cus_web_123');
             $mock->shouldReceive('createTrialSubscription')->andReturn((object) ['id' => 'sub_web_123']);
+            $mock->shouldReceive('updateSubscriptionMetadata');
         });
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
