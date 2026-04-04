@@ -10,7 +10,10 @@ trait HasUlid
     {
         static::creating(function ($model) {
             if (empty($model->{$model->getKeyName()})) {
-                $model->{$model->getKeyName()} = (string) Str::ulid();
+                do {
+                    $id = (string) Str::ulid();
+                } while ($model::withoutGlobalScopes()->where($model->getKeyName(), $id)->exists());
+                $model->{$model->getKeyName()} = $id;
             }
         });
     }
