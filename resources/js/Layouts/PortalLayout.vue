@@ -1,186 +1,273 @@
 <template>
-  <div class="min-h-screen bg-surface flex flex-col overflow-x-clip">
-    <!-- Top Navbar -->
-    <nav class="bg-white shadow-sm border-b border-border-warm sticky top-0 z-30">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-        <!-- Logo / Tenant Name -->
-        <Link :href="route('portal.dashboard')" class="flex items-center gap-2">
-          <img v-if="tenant?.logo_url" :src="tenant.logo_url" :alt="tenant.name" class="h-8 w-auto" />
-          <span
-            v-else
-            class="text-xl font-bold tracking-tight"
-            :style="{ color: accentColor }"
-          >{{ tenant?.name ?? 'PawPass' }}</span>
-        </Link>
+  <div>
+    <!-- Mobile slide-over sidebar -->
+    <TransitionRoot as="template" :show="sidebarOpen">
+      <Dialog class="relative z-50 lg:hidden" @close="sidebarOpen = false">
+        <TransitionChild
+          as="template"
+          enter="transition-opacity ease-linear duration-300"
+          enter-from="opacity-0"
+          enter-to="opacity-100"
+          leave="transition-opacity ease-linear duration-300"
+          leave-from="opacity-100"
+          leave-to="opacity-0"
+        >
+          <div class="fixed inset-0 bg-gray-900/80" />
+        </TransitionChild>
 
-        <!-- Desktop nav items -->
-        <div class="hidden md:flex items-center gap-6">
-          <Link
-            :href="route('portal.dashboard')"
-            class="text-sm font-medium border-b-2 pb-0.5 transition-colors"
-            :class="isActive('portal.dashboard') ? 'text-text-body font-semibold' : 'text-text-muted hover:text-text-body border-transparent'"
-            :style="{ borderBottomColor: isActive('portal.dashboard') ? accentColor : 'transparent' }"
-          >Dashboard</Link>
-          <Link
-            :href="route('portal.dogs.index')"
-            class="text-sm font-medium border-b-2 pb-0.5 transition-colors"
-            :class="isActive('portal.dogs.*') ? 'text-text-body font-semibold' : 'text-text-muted hover:text-text-body border-transparent'"
-            :style="{ borderBottomColor: isActive('portal.dogs.*') ? accentColor : 'transparent' }"
-          >My Dogs</Link>
-          <Link
-            :href="route('portal.purchase')"
-            class="text-sm font-medium border-b-2 pb-0.5 transition-colors"
-            :class="isActive('portal.purchase') ? 'text-text-body font-semibold' : 'text-text-muted hover:text-text-body border-transparent'"
-            :style="{ borderBottomColor: isActive('portal.purchase') ? accentColor : 'transparent' }"
-          >Buy Credits</Link>
-          <Link
-            :href="route('portal.history')"
-            class="text-sm font-medium border-b-2 pb-0.5 transition-colors"
-            :class="isActive('portal.history') ? 'text-text-body font-semibold' : 'text-text-muted hover:text-text-body border-transparent'"
-            :style="{ borderBottomColor: isActive('portal.history') ? accentColor : 'transparent' }"
-          >Invoices</Link>
-          <Link
-            :href="route('portal.attendance')"
-            class="text-sm font-medium border-b-2 pb-0.5 transition-colors"
-            :class="isActive('portal.attendance') ? 'text-text-body font-semibold' : 'text-text-muted hover:text-text-body border-transparent'"
-            :style="{ borderBottomColor: isActive('portal.attendance') ? accentColor : 'transparent' }"
-          >Attendance</Link>
-          <Link
-            v-if="showBoarding"
-            :href="route('portal.boarding.index')"
-            class="text-sm font-medium border-b-2 pb-0.5 transition-colors"
-            :class="isActive('portal.boarding.*') ? 'text-text-body font-semibold' : 'text-text-muted hover:text-text-body border-transparent'"
-            :style="{ borderBottomColor: isActive('portal.boarding.*') ? accentColor : 'transparent' }"
-          >Boarding</Link>
+        <div class="fixed inset-0 flex">
+          <TransitionChild
+            as="template"
+            enter="transition ease-in-out duration-300 transform"
+            enter-from="-translate-x-full"
+            enter-to="translate-x-0"
+            leave="transition ease-in-out duration-300 transform"
+            leave-from="translate-x-0"
+            leave-to="-translate-x-full"
+          >
+            <DialogPanel class="relative mr-16 flex w-full max-w-xs flex-1">
+              <TransitionChild
+                as="template"
+                enter="ease-in-out duration-300"
+                enter-from="opacity-0"
+                enter-to="opacity-100"
+                leave="ease-in-out duration-300"
+                leave-from="opacity-100"
+                leave-to="opacity-0"
+              >
+                <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
+                  <button type="button" class="-m-2.5 p-2.5" @click="sidebarOpen = false">
+                    <span class="sr-only">Close sidebar</span>
+                    <XMarkIcon class="size-6 text-white" aria-hidden="true" />
+                  </button>
+                </div>
+              </TransitionChild>
+
+              <!-- Mobile sidebar content -->
+              <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-indigo-800 px-6 pb-4 ring-1 ring-white/10">
+                <div class="flex h-16 shrink-0 items-center">
+                  <Link :href="route('portal.dashboard')" class="flex items-center gap-2.5" @click="sidebarOpen = false">
+                    <img v-if="tenant?.logo_url" :src="tenant.logo_url" :alt="tenant.name" class="h-8 w-auto" />
+                    <span v-else class="text-white font-bold text-lg tracking-tight">{{ tenant?.name ?? 'PawPass' }}</span>
+                  </Link>
+                </div>
+                <nav class="flex flex-1 flex-col">
+                  <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                    <li>
+                      <ul role="list" class="-mx-2 space-y-1">
+                        <li>
+                          <Link :href="route('portal.dashboard')" :class="[isActive('portal.dashboard') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <HomeIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Dashboard
+                          </Link>
+                        </li>
+                        <li>
+                          <Link :href="route('portal.dogs.index')" :class="[isActive('portal.dogs.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <UserGroupIcon class="size-6 shrink-0" aria-hidden="true" />
+                            My Dogs
+                          </Link>
+                        </li>
+                        <li>
+                          <Link :href="route('portal.purchase')" :class="[isActive('portal.purchase') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <PlusIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Buy Credits
+                          </Link>
+                        </li>
+                        <li>
+                          <Link :href="route('portal.history')" :class="[isActive('portal.history') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <ClipboardDocumentListIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Invoices
+                          </Link>
+                        </li>
+                        <li>
+                          <Link :href="route('portal.attendance')" :class="[isActive('portal.attendance') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <CalendarDaysIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Attendance
+                          </Link>
+                        </li>
+                        <li v-if="showBoarding">
+                          <Link :href="route('portal.boarding.index')" :class="[isActive('portal.boarding.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <HomeModernIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Boarding
+                          </Link>
+                        </li>
+                      </ul>
+                    </li>
+
+                    <!-- User footer -->
+                    <li class="-mx-6 mt-auto">
+                      <div class="border-t border-white/10 px-6 pt-3 pb-1 space-y-1">
+                        <Link :href="route('portal.notifications')" class="flex items-center gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-indigo-100 hover:bg-indigo-950/25 hover:text-white" @click="sidebarOpen = false">
+                          <BellIcon class="size-6 shrink-0" aria-hidden="true" />
+                          <span>Notifications</span>
+                          <span v-if="unreadCount > 0" class="ml-auto inline-flex items-center justify-center size-5 rounded-full bg-indigo-600 text-white text-xs font-bold">
+                            {{ unreadCount > 9 ? '9+' : unreadCount }}
+                          </span>
+                        </Link>
+                        <Link :href="route('portal.account')" class="flex items-center gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-indigo-100 hover:bg-indigo-950/25 hover:text-white" @click="sidebarOpen = false">
+                          <UserCircleIcon class="size-6 shrink-0" aria-hidden="true" />
+                          Account
+                        </Link>
+                      </div>
+                      <div class="flex items-center gap-x-4 px-6 py-3">
+                        <div class="size-8 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0 bg-indigo-600">
+                          {{ userInitial }}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <p class="text-sm/6 font-semibold text-white truncate">{{ auth.user?.name }}</p>
+                        </div>
+                        <form @submit.prevent="logout">
+                          <button type="submit" class="text-xs text-indigo-200 hover:text-red-400 transition-colors">
+                            Sign out
+                          </button>
+                        </form>
+                      </div>
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+            </DialogPanel>
+          </TransitionChild>
         </div>
+      </Dialog>
+    </TransitionRoot>
 
-        <!-- Right side actions -->
-        <div class="flex items-center gap-3">
-          <!-- Notification bell -->
-          <Link :href="route('portal.notifications')" class="relative p-2 text-gray-500 hover:text-gray-700">
-            <BellIcon class="h-6 w-6" />
-            <span
-              v-if="unreadCount > 0"
-              class="absolute top-1 right-1 flex items-center justify-center h-4 w-4 rounded-full text-white text-xs font-bold"
-              :style="{ backgroundColor: accentColor }"
-            >{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+    <!-- Desktop sidebar -->
+    <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+      <div class="relative flex grow flex-col gap-y-5 overflow-y-auto bg-indigo-800 px-6 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-white/10">
+        <!-- Logo -->
+        <div class="flex h-16 shrink-0 items-center">
+          <Link :href="route('portal.dashboard')" class="flex items-center gap-2.5">
+            <img v-if="tenant?.logo_url" :src="tenant.logo_url" :alt="tenant.name" class="h-8 w-auto" />
+            <span v-else class="text-white font-bold text-lg tracking-tight">{{ tenant?.name ?? 'PawPass' }}</span>
           </Link>
-
-          <!-- User dropdown (Headless UI Menu) -->
-          <Menu as="div" class="relative">
-            <MenuButton class="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 font-medium">
-              <span class="hidden sm:block">{{ auth.user?.name }}</span>
-              <ChevronDownIcon class="h-4 w-4" />
-            </MenuButton>
-
-            <transition
-              enter-active-class="transition ease-out duration-100"
-              enter-from-class="opacity-0 scale-95"
-              enter-to-class="opacity-100 scale-100"
-              leave-active-class="transition ease-in duration-75"
-              leave-from-class="opacity-100 scale-100"
-              leave-to-class="opacity-0 scale-95"
-            >
-              <MenuItems class="absolute right-0 mt-2 w-44 bg-white rounded-lg shadow-card-md border border-border-warm py-1 z-50 focus:outline-none">
-                <MenuItem v-slot="{ active }">
-                  <Link
-                    :href="route('portal.account')"
-                    :class="['block px-4 py-2 text-sm text-gray-700', active ? 'bg-surface-subtle' : '']"
-                  >Account</Link>
-                </MenuItem>
-                <MenuItem v-slot="{ active }">
-                  <form @submit.prevent="logout">
-                    <button
-                      type="submit"
-                      :class="['block w-full text-left px-4 py-2 text-sm text-red-600', active ? 'bg-red-50' : '']"
-                    >Sign out</button>
-                  </form>
-                </MenuItem>
-              </MenuItems>
-            </transition>
-          </Menu>
         </div>
-      </div>
-    </nav>
 
-    <!-- Flash messages -->
-    <div v-if="flash.success || flash.error" class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4 space-y-2">
-      <AppAlert v-if="flash.success" type="success" :message="flash.success" @dismiss="dismissFlash('success')" />
-      <AppAlert v-if="flash.error" type="error" :message="flash.error" @dismiss="dismissFlash('error')" />
+        <nav class="flex flex-1 flex-col">
+          <ul role="list" class="flex flex-1 flex-col gap-y-7">
+            <li>
+              <ul role="list" class="-mx-2 space-y-1">
+                <li>
+                  <Link :href="route('portal.dashboard')" :class="[isActive('portal.dashboard') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <HomeIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link :href="route('portal.dogs.index')" :class="[isActive('portal.dogs.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <UserGroupIcon class="size-6 shrink-0" aria-hidden="true" />
+                    My Dogs
+                  </Link>
+                </li>
+                <li>
+                  <Link :href="route('portal.purchase')" :class="[isActive('portal.purchase') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <PlusIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Buy Credits
+                  </Link>
+                </li>
+                <li>
+                  <Link :href="route('portal.history')" :class="[isActive('portal.history') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <ClipboardDocumentListIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Invoices
+                  </Link>
+                </li>
+                <li>
+                  <Link :href="route('portal.attendance')" :class="[isActive('portal.attendance') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <CalendarDaysIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Attendance
+                  </Link>
+                </li>
+                <li v-if="showBoarding">
+                  <Link :href="route('portal.boarding.index')" :class="[isActive('portal.boarding.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <HomeModernIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Boarding
+                  </Link>
+                </li>
+              </ul>
+            </li>
+
+            <!-- User footer -->
+            <li class="-mx-6 mt-auto">
+              <div class="border-t border-white/10 px-4 pt-3 pb-1 space-y-1">
+                <Link :href="route('portal.notifications')" class="flex items-center gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-indigo-100 hover:bg-indigo-950/25 hover:text-white">
+                  <BellIcon class="size-6 shrink-0" aria-hidden="true" />
+                  <span>Notifications</span>
+                  <span v-if="unreadCount > 0" class="ml-auto inline-flex items-center justify-center size-5 rounded-full bg-indigo-600 text-white text-xs font-bold">
+                    {{ unreadCount > 9 ? '9+' : unreadCount }}
+                  </span>
+                </Link>
+                <Link :href="route('portal.account')" class="flex items-center gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-indigo-100 hover:bg-indigo-950/25 hover:text-white">
+                  <UserCircleIcon class="size-6 shrink-0" aria-hidden="true" />
+                  Account
+                </Link>
+              </div>
+              <div class="flex items-center gap-x-4 px-6 py-3">
+                <div class="size-8 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0 bg-indigo-600">
+                  {{ userInitial }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm/6 font-semibold text-white truncate">{{ auth.user?.name }}</p>
+                </div>
+                <form @submit.prevent="logout">
+                  <button type="submit" class="text-xs text-indigo-200 hover:text-red-400 transition-colors">
+                    Sign out
+                  </button>
+                </form>
+              </div>
+            </li>
+          </ul>
+        </nav>
+      </div>
     </div>
 
-    <!-- Page content -->
-    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-      <slot />
-    </main>
+    <!-- Mobile top bar -->
+    <div class="sticky top-0 z-40 flex items-center gap-x-6 bg-indigo-800 px-4 py-4 shadow-sm after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-white/10 sm:px-6 lg:hidden">
+      <button type="button" class="-m-2.5 p-2.5 text-indigo-200 hover:text-white" @click="sidebarOpen = true">
+        <span class="sr-only">Open sidebar</span>
+        <Bars3Icon class="size-6" aria-hidden="true" />
+      </button>
+      <div class="flex-1 text-sm/6 font-semibold text-white">{{ tenant?.name ?? 'PawPass' }}</div>
+      <Link :href="route('portal.notifications')" class="relative p-1 text-indigo-200 hover:text-white">
+        <BellIcon class="size-6" aria-hidden="true" />
+        <span
+          v-if="unreadCount > 0"
+          class="absolute top-0 right-0 flex items-center justify-center size-4 rounded-full bg-indigo-600 text-white text-xs font-bold"
+        >{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+      </Link>
+    </div>
 
-    <!-- Mobile bottom nav -->
-    <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-border-warm flex z-30">
-      <Link
-        :href="route('portal.dashboard')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors"
-        :class="isActive('portal.dashboard') ? 'font-medium' : 'text-gray-400 hover:text-gray-900'"
-        :style="isActive('portal.dashboard') ? { color: accentColor } : {}"
-      >
-        <HomeIcon class="h-6 w-6" />
-        <span>Home</span>
-      </Link>
-      <Link
-        :href="route('portal.dogs.index')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors"
-        :class="isActive('portal.dogs.*') ? 'font-medium' : 'text-gray-400 hover:text-gray-900'"
-        :style="isActive('portal.dogs.*') ? { color: accentColor } : {}"
-      >
-        <UserGroupIcon class="h-6 w-6" />
-        <span>Dogs</span>
-      </Link>
-      <Link
-        :href="route('portal.purchase')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors"
-        :class="isActive('portal.purchase') ? 'font-medium' : 'text-gray-400 hover:text-gray-900'"
-        :style="isActive('portal.purchase') ? { color: accentColor } : {}"
-      >
-        <PlusIcon class="h-6 w-6" />
-        <span>Buy</span>
-      </Link>
-      <Link
-        :href="route('portal.history')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors"
-        :class="isActive('portal.history') ? 'font-medium' : 'text-gray-400 hover:text-gray-900'"
-        :style="isActive('portal.history') ? { color: accentColor } : {}"
-      >
-        <ClipboardDocumentListIcon class="h-6 w-6" />
-        <span>History</span>
-      </Link>
-      <Link
-        v-if="showBoarding"
-        :href="route('portal.boarding.index')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors"
-        :class="isActive('portal.boarding.*') ? 'font-medium' : 'text-gray-400 hover:text-gray-900'"
-        :style="isActive('portal.boarding.*') ? { color: accentColor } : {}"
-      >
-        <HomeModernIcon class="h-6 w-6" />
-        <span>Boarding</span>
-      </Link>
-    </nav>
-    <!-- Mobile bottom padding -->
-    <div class="md:hidden h-16" />
+    <!-- Main content -->
+    <main class="py-10 lg:pl-72">
+      <div class="px-4 sm:px-6 lg:px-8">
+        <!-- Flash messages -->
+        <div v-if="flash.success || flash.error" class="mb-6 space-y-2">
+          <AppAlert v-if="flash.success" type="success" :message="flash.success" @dismiss="dismissFlash('success')" />
+          <AppAlert v-if="flash.error" type="error" :message="flash.error" @dismiss="dismissFlash('error')" />
+        </div>
+
+        <slot />
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
-import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
+import { Dialog, DialogPanel, TransitionRoot, TransitionChild } from '@headlessui/vue';
 import {
+  Bars3Icon,
   BellIcon,
-  ChevronDownIcon,
+  CalendarDaysIcon,
   ClipboardDocumentListIcon,
   HomeIcon,
   HomeModernIcon,
   PlusIcon,
+  UserCircleIcon,
   UserGroupIcon,
+  XMarkIcon,
 } from '@heroicons/vue/24/outline';
+import AppAlert from '@/Components/AppAlert.vue';
 import type { PageProps } from '@/types';
 
 const page = usePage<PageProps>();
@@ -188,9 +275,11 @@ const tenant = computed(() => page.props.tenant);
 const auth = computed(() => page.props.auth);
 const unreadCount = computed(() => page.props.unreadCount);
 const flash = computed(() => page.props.flash ?? { success: null, error: null });
+const userInitial = computed(() => auth.value.user?.name?.[0]?.toUpperCase() ?? '?');
 
-const accentColor = computed(() => tenant.value?.primary_color ?? '#4f46e5');
 const showBoarding = computed(() => tenant.value?.business_type === 'kennel' || tenant.value?.business_type === 'hybrid');
+
+const sidebarOpen = ref(false);
 
 const dismissedFlash = ref<Record<string, boolean>>({});
 function dismissFlash(key: string) { dismissedFlash.value[key] = true; }

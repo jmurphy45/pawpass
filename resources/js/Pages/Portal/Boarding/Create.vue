@@ -7,22 +7,22 @@
       </div>
 
       <!-- Step 1: Dates -->
-      <div class="card p-5 space-y-4">
+      <AppCard :padded="true" class="space-y-4">
         <h2 class="font-semibold text-text-body">Stay Dates</h2>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="label">Check-in date</label>
-            <input v-model="localDates.starts_at" type="date" class="input w-full" :min="today" @change="onDatesChange" />
+            <input v-model="localDates.starts_at" type="date" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" :min="today" @change="onDatesChange" />
           </div>
           <div>
             <label class="label">Check-out date</label>
-            <input v-model="localDates.ends_at" type="date" class="input w-full" :min="localDates.starts_at || today" @change="onDatesChange" />
+            <input v-model="localDates.ends_at" type="date" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" :min="localDates.starts_at || today" @change="onDatesChange" />
           </div>
         </div>
-      </div>
+      </AppCard>
 
       <!-- Step 2: Available units (shown once dates are loaded server-side) -->
-      <div v-if="localDates.starts_at && localDates.ends_at" class="card p-5 space-y-3">
+      <AppCard v-if="localDates.starts_at && localDates.ends_at" :padded="true" class="space-y-3">
         <h2 class="font-semibold text-text-body">Select a Unit <span class="text-text-muted text-sm font-normal">(optional)</span></h2>
         <p v-if="availableUnits.length === 0" class="text-sm text-text-muted">No units available for the selected dates.</p>
         <div v-else class="space-y-2">
@@ -42,44 +42,44 @@
             </p>
           </label>
         </div>
-      </div>
+      </AppCard>
 
       <!-- Step 3: Dog -->
-      <div class="card p-5 space-y-3">
+      <AppCard :padded="true" class="space-y-3">
         <h2 class="font-semibold text-text-body">Which dog?</h2>
         <div v-if="dogs.length === 0" class="text-sm text-text-muted">
           No dogs on your account yet. <Link :href="route('portal.dogs.create')" class="text-primary hover:underline">Add a dog first.</Link>
         </div>
-        <select v-else v-model="form.dog_id" class="input w-full">
+        <select v-else v-model="form.dog_id" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
           <option value="">Select a dog</option>
           <option v-for="dog in dogs" :key="dog.id" :value="dog.id">{{ dog.name }}</option>
         </select>
-      </div>
+      </AppCard>
 
       <!-- Step 4: Care instructions -->
-      <div class="card p-5 space-y-4">
+      <AppCard :padded="true" class="space-y-4">
         <h2 class="font-semibold text-text-body">Care Instructions <span class="text-text-muted text-sm font-normal">(optional)</span></h2>
         <div>
           <label class="label">Feeding schedule</label>
-          <textarea v-model="form.feeding_schedule" class="input w-full h-20 resize-none" placeholder="e.g. 1 cup morning, 1 cup evening" />
+          <textarea v-model="form.feeding_schedule" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition h-20 resize-none" placeholder="e.g. 1 cup morning, 1 cup evening" />
         </div>
         <div>
           <label class="label">Medication notes</label>
-          <textarea v-model="form.medication_notes" class="input w-full h-20 resize-none" placeholder="Any medications or supplements" />
+          <textarea v-model="form.medication_notes" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition h-20 resize-none" placeholder="Any medications or supplements" />
         </div>
         <div>
           <label class="label">Behavioral notes</label>
-          <textarea v-model="form.behavioral_notes" class="input w-full h-20 resize-none" placeholder="e.g. Anxious around other large dogs" />
+          <textarea v-model="form.behavioral_notes" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition h-20 resize-none" placeholder="e.g. Anxious around other large dogs" />
         </div>
         <div>
           <label class="label">Emergency contact</label>
-          <input v-model="form.emergency_contact" type="text" class="input w-full" placeholder="Name and phone number" />
+          <input v-model="form.emergency_contact" type="text" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" placeholder="Name and phone number" />
         </div>
         <div>
           <label class="label">Additional notes</label>
-          <textarea v-model="form.notes" class="input w-full h-20 resize-none" placeholder="Anything else we should know?" />
+          <textarea v-model="form.notes" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition h-20 resize-none" placeholder="Anything else we should know?" />
         </div>
-      </div>
+      </AppCard>
 
       <!-- Errors -->
       <div v-if="form.errors.kennel_unit_id || form.errors.dog_id" class="rounded-lg p-3 text-sm bg-red-50 text-red-700 border border-red-200">
@@ -87,14 +87,15 @@
       </div>
 
       <div class="flex gap-3">
-        <button
+        <AppButton
           @click="submit"
           :disabled="form.processing || !form.dog_id || !localDates.starts_at || !localDates.ends_at"
-          class="btn-primary"
+          :loading="form.processing"
+          variant="primary"
         >
           {{ form.processing ? 'Requesting…' : 'Request Reservation' }}
-        </button>
-        <Link :href="route('portal.boarding.index')" class="btn-secondary">Cancel</Link>
+        </AppButton>
+        <Link :href="route('portal.boarding.index')"><AppButton variant="secondary">Cancel</AppButton></Link>
       </div>
     </div>
   </PortalLayout>

@@ -5,47 +5,9 @@
 
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="stat-card">
-          <div class="flex items-center gap-3">
-            <div class="h-9 w-9 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-              <svg class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Checked In Today</p>
-              <p class="text-3xl font-bold text-text-body leading-tight">{{ checkinsToday }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="flex items-center gap-3">
-            <div class="h-9 w-9 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-              <svg class="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Total Customers</p>
-              <p class="text-3xl font-bold text-text-body leading-tight">{{ customersCount }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="flex items-center gap-3">
-            <div class="h-9 w-9 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-              <svg class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-              </svg>
-            </div>
-            <div>
-              <p class="text-xs font-medium text-text-muted uppercase tracking-wide">Total Dogs</p>
-              <p class="text-3xl font-bold text-text-body leading-tight">{{ dogsCount }}</p>
-            </div>
-          </div>
-        </div>
+        <AppStatCard label="Checked In Today" :value="checkinsToday" />
+        <AppStatCard label="Total Customers" :value="customersCount" />
+        <AppStatCard label="Total Dogs" :value="dogsCount" />
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
