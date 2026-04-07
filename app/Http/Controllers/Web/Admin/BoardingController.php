@@ -399,8 +399,9 @@ class BoardingController extends Controller
     public function occupancy(Request $request): Response
     {
         $this->requireBoarding();
-        $from = $request->input('from', now()->toDateString());
-        $to   = $request->input('to', now()->addDays(14)->toDateString());
+        $view = $request->input('view', 'week');
+        $from = $request->input('from', now()->startOfWeek(\Carbon\CarbonInterface::MONDAY)->toDateString());
+        $to   = $request->input('to', now()->startOfWeek(\Carbon\CarbonInterface::MONDAY)->addDays(6)->toDateString());
 
         $units = KennelUnit::where('is_active', true)
             ->orderBy('sort_order')
@@ -416,6 +417,7 @@ class BoardingController extends Controller
             'units' => $units,
             'from'  => $from,
             'to'    => $to,
+            'view'  => $view,
         ]);
     }
 }

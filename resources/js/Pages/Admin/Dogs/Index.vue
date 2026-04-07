@@ -6,15 +6,15 @@
           <h1 class="text-2xl font-bold text-text-body">Dogs</h1>
           <p class="text-sm text-text-muted mt-0.5">{{ dogs.data.length }} total</p>
         </div>
-        <Link :href="route('admin.dogs.create')" class="btn-primary">Add Dog</Link>
+        <Link :href="route('admin.dogs.create')"><AppButton variant="primary">Add Dog</AppButton></Link>
       </div>
 
-      <div class="card overflow-hidden">
+      <AppCard class="overflow-hidden">
         <div v-if="dogs.data.length === 0" class="px-5 py-8 text-center text-sm text-text-muted">
           No dogs yet.
         </div>
         <ul v-else>
-          <li v-for="dog in dogs.data" :key="dog.id" class="list-row gap-3">
+          <li v-for="dog in dogs.data" :key="dog.id" class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-3">
             <!-- Avatar initials -->
             <div class="h-9 w-9 rounded-full bg-surface-subtle flex items-center justify-center text-sm font-semibold text-text-body shrink-0">
               {{ dog.name[0]?.toUpperCase() }}
@@ -27,14 +27,10 @@
             </div>
 
             <!-- Credit badge -->
-            <span
-              class="badge hidden sm:inline-flex"
-              :class="{
-                'badge-red': dog.credit_balance <= 0,
-                'badge-yellow': dog.credit_balance > 0 && dog.credit_balance <= 3,
-                'badge-green': dog.credit_balance > 3,
-              }"
-            >{{ dog.credit_balance }} cr</span>
+            <AppBadge
+              class="hidden sm:inline-flex"
+              :color="dog.credit_balance <= 0 ? 'red' : dog.credit_balance <= 3 ? 'yellow' : 'green'"
+            >{{ dog.credit_balance }} cr</AppBadge>
 
             <!-- View link with chevron -->
             <Link
@@ -48,7 +44,7 @@
             </Link>
           </li>
         </ul>
-      </div>
+      </AppCard>
     </div>
   </AdminLayout>
 </template>

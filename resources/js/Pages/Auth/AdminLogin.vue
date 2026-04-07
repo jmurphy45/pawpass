@@ -20,7 +20,7 @@
         <p class="mt-1.5 text-sm text-text-muted">Staff portal — sign in to your account</p>
       </div>
 
-      <div class="card-padded" style="box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);">
+      <AppCard :padded="true" style="box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);">
 
         <!-- Sent state -->
         <div v-if="sent" class="text-center py-2">
@@ -38,22 +38,23 @@
               v-model="email"
               type="email"
               autocomplete="email"
-              class="input"
-              :class="{ 'input-error': error }"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+              :class="{ 'border-red-500': error }"
               required
             />
             <p v-if="error" class="mt-1 text-xs text-red-600">{{ error }}</p>
           </div>
 
-          <button
+          <AppButton
             type="submit"
+            variant="primary"
             :disabled="loading"
-            class="btn-primary w-full justify-center py-2.5"
+            class="w-full justify-center py-2.5"
           >
             {{ loading ? 'Sending…' : 'Send sign-in link' }}
-          </button>
+          </AppButton>
         </form>
-      </div>
+      </AppCard>
     </div>
   </div>
 </template>

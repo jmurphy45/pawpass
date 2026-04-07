@@ -3,22 +3,22 @@
     <div class="space-y-6">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900">Kennel Units</h1>
-        <button v-if="isOwner" type="button" @click="openCreate" class="btn-primary">Add Unit</button>
+        <AppButton v-if="isOwner" variant="primary" type="button" @click="openCreate">Add Unit</AppButton>
       </div>
 
       <!-- Add / Edit form -->
-      <div v-if="showForm" class="bg-white rounded-xl border border-gray-200 p-6">
+      <AppCard v-if="showForm" :padded="true">
         <h2 class="text-base font-semibold text-gray-900 mb-4">{{ editingId ? 'Edit Unit' : 'New Unit' }}</h2>
         <form @submit.prevent="submitForm" class="space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input v-model="form.name" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" placeholder="e.g. Suite 1" />
+              <input v-model="form.name" type="text" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" placeholder="e.g. Suite 1" />
               <p v-if="form.errors.name" class="mt-1 text-sm text-red-600">{{ form.errors.name }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-              <select v-model="form.type" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white">
+              <select v-model="form.type" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
                 <option value="standard">Standard</option>
                 <option value="suite">Suite</option>
                 <option value="large">Large</option>
@@ -28,17 +28,17 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Capacity (dogs)</label>
-              <input v-model.number="form.capacity" type="number" min="1" max="100" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+              <input v-model.number="form.capacity" type="number" min="1" max="100" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" />
               <p v-if="form.errors.capacity" class="mt-1 text-sm text-red-600">{{ form.errors.capacity }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Nightly Rate ($)</label>
-              <input v-model="nightlyRateDollars" type="number" min="0" step="0.01" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" placeholder="0.00" />
+              <input v-model="nightlyRateDollars" type="number" min="0" step="0.01" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" placeholder="0.00" />
               <p v-if="form.errors.nightly_rate_cents" class="mt-1 text-sm text-red-600">{{ form.errors.nightly_rate_cents }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
-              <input v-model.number="form.sort_order" type="number" min="0" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+              <input v-model.number="form.sort_order" type="number" min="0" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" />
             </div>
             <div class="flex items-center gap-3 pt-6">
               <input id="is_active" v-model="form.is_active" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
@@ -47,19 +47,19 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea v-model="form.description" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" placeholder="Optional notes about this unit" />
+            <textarea v-model="form.description" rows="2" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" placeholder="Optional notes about this unit" />
           </div>
           <div class="flex gap-3">
-            <button type="submit" :disabled="form.processing" class="btn-primary">
+            <AppButton type="submit" variant="primary" :disabled="form.processing">
               {{ editingId ? 'Save Changes' : 'Create Unit' }}
-            </button>
-            <button type="button" @click="cancelForm" class="btn-ghost">Cancel</button>
+            </AppButton>
+            <AppButton type="button" variant="secondary" @click="cancelForm">Cancel</AppButton>
           </div>
         </form>
-      </div>
+      </AppCard>
 
       <!-- Units list -->
-      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <AppCard class="overflow-hidden">
         <div v-if="units.length === 0" class="px-6 py-12 text-center text-sm text-gray-500">
           No kennel units yet. Add your first unit to get started.
         </div>
@@ -87,10 +87,10 @@
             </div>
           </li>
         </ul>
-      </div>
+      </AppCard>
     </div>
   </AdminLayout>
-  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
+  <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
@@ -98,7 +98,6 @@ import { ref, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import type { PageProps } from '@/types';
-import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 interface KennelUnit {
   id: string;

@@ -1,22 +1,223 @@
 <template>
-  <div class="min-h-screen bg-surface flex overflow-x-clip">
-    <!-- Sidebar (desktop) -->
-    <aside
-      class="hidden md:flex md:flex-col w-60 fixed inset-y-0 z-30"
-      style="background-color: #0f0e0d; border-right: 1px solid rgba(255,255,255,0.06); box-shadow: 4px 0 24px rgba(0,0,0,0.15);"
-    >
-      <!-- Logo area -->
-      <div class="px-4 pt-5 pb-3">
-        <Link :href="route('admin.dashboard')" class="flex items-center gap-2.5 mb-3">
-          <img
-            v-if="tenant?.logo_url"
-            :src="tenant.logo_url"
-            :alt="tenant.name"
-            class="h-7 w-auto max-w-[120px] object-contain"
-          />
-          <template v-else>
+  <div>
+    <!-- Mobile slide-over sidebar -->
+    <TransitionRoot as="template" :show="sidebarOpen">
+      <Dialog class="relative z-50 lg:hidden" @close="sidebarOpen = false">
+        <TransitionChild
+          as="template"
+          enter="transition-opacity ease-linear duration-300"
+          enter-from="opacity-0"
+          enter-to="opacity-100"
+          leave="transition-opacity ease-linear duration-300"
+          leave-from="opacity-100"
+          leave-to="opacity-0"
+        >
+          <div class="fixed inset-0 bg-gray-900/80" />
+        </TransitionChild>
+
+        <div class="fixed inset-0 flex">
+          <TransitionChild
+            as="template"
+            enter="transition ease-in-out duration-300 transform"
+            enter-from="-translate-x-full"
+            enter-to="translate-x-0"
+            leave="transition ease-in-out duration-300 transform"
+            leave-from="translate-x-0"
+            leave-to="-translate-x-full"
+          >
+            <DialogPanel class="relative mr-16 flex w-full max-w-xs flex-1">
+              <TransitionChild
+                as="template"
+                enter="ease-in-out duration-300"
+                enter-from="opacity-0"
+                enter-to="opacity-100"
+                leave="ease-in-out duration-300"
+                leave-from="opacity-100"
+                leave-to="opacity-0"
+              >
+                <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
+                  <button type="button" class="-m-2.5 p-2.5" @click="sidebarOpen = false">
+                    <span class="sr-only">Close sidebar</span>
+                    <XMarkIcon class="size-6 text-white" aria-hidden="true" />
+                  </button>
+                </div>
+              </TransitionChild>
+
+              <!-- Mobile sidebar content -->
+              <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-indigo-800 px-6 pb-4 ring-1 ring-white/10">
+                <div class="flex h-16 shrink-0 items-center gap-2.5">
+                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="14" cy="14" r="14" fill="white" fill-opacity="0.2"/>
+                    <ellipse cx="10" cy="9" rx="2.5" ry="3" fill="white" opacity="0.9"/>
+                    <ellipse cx="18" cy="9" rx="2.5" ry="3" fill="white" opacity="0.9"/>
+                    <ellipse cx="7" cy="15" rx="2.2" ry="3" transform="rotate(-20 7 15)" fill="white" opacity="0.9"/>
+                    <ellipse cx="21" cy="15" rx="2.2" ry="3" transform="rotate(20 21 15)" fill="white" opacity="0.9"/>
+                    <ellipse cx="14" cy="19" rx="5" ry="4" fill="white"/>
+                  </svg>
+                  <span class="text-white font-bold text-lg tracking-tight">{{ tenant?.name ?? 'PawPass' }}</span>
+                  <span
+                    v-if="tenantPlan === 'trialing' || tenantPlan === 'free_tier'"
+                    class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-400/10 text-yellow-300"
+                  >{{ tenantPlan === 'trialing' ? 'Trial' : 'Free' }}</span>
+                </div>
+                <nav class="flex flex-1 flex-col">
+                  <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                    <!-- Main nav -->
+                    <li>
+                      <ul role="list" class="-mx-2 space-y-1">
+                        <li>
+                          <Link
+                            :href="route('admin.dashboard')"
+                            :class="[isActive('admin.dashboard') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']"
+                            @click="sidebarOpen = false"
+                          >
+                            <HomeIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Dashboard
+                          </Link>
+                        </li>
+                      </ul>
+                    </li>
+
+                    <!-- Operations -->
+                    <li>
+                      <div class="text-xs/6 font-semibold text-indigo-200">Operations</div>
+                      <ul role="list" class="-mx-2 mt-2 space-y-1">
+                        <li>
+                          <Link :href="route('admin.roster.index')" :class="[isActive('admin.roster.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <ListBulletIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Roster
+                          </Link>
+                        </li>
+                        <li v-if="hasBoarding">
+                          <Link :href="route('admin.boarding.reservations')" :class="[isActive('admin.boarding.reservations*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <HomeModernIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Boarding
+                          </Link>
+                        </li>
+                        <li v-if="hasBoarding">
+                          <Link :href="route('admin.boarding.units')" :class="[isActive('admin.boarding.units*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <Squares2X2Icon class="size-6 shrink-0" aria-hidden="true" />
+                            Kennel Units
+                          </Link>
+                        </li>
+                        <li>
+                          <Link :href="route('admin.customers.index')" :class="[isActive('admin.customers.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <UsersIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Customers
+                          </Link>
+                        </li>
+                        <li>
+                          <Link :href="route('admin.dogs.index')" :class="[isActive('admin.dogs.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <UserGroupIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Dogs
+                          </Link>
+                        </li>
+                      </ul>
+                    </li>
+
+                    <!-- Business -->
+                    <li>
+                      <div class="text-xs/6 font-semibold text-indigo-200">Business</div>
+                      <ul role="list" class="-mx-2 mt-2 space-y-1">
+                        <li>
+                          <Link :href="route('admin.payments.index')" :class="[isActive('admin.payments.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <CreditCardIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Payments
+                          </Link>
+                        </li>
+                        <li v-if="hasReports">
+                          <Link :href="route('admin.reports.index')" :class="[isActive('admin.reports.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <ChartBarIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Reports
+                          </Link>
+                        </li>
+                      </ul>
+                    </li>
+
+                    <!-- Communications -->
+                    <li v-if="hasBroadcast">
+                      <div class="text-xs/6 font-semibold text-indigo-200">Communications</div>
+                      <ul role="list" class="-mx-2 mt-2 space-y-1">
+                        <li>
+                          <Link :href="route('admin.notifications.broadcast')" :class="[isActive('admin.notifications.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <MegaphoneIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Broadcast
+                          </Link>
+                        </li>
+                      </ul>
+                    </li>
+
+                    <!-- Owner -->
+                    <li v-if="isOwner">
+                      <div class="text-xs/6 font-semibold text-indigo-200">Owner</div>
+                      <ul role="list" class="-mx-2 mt-2 space-y-1">
+                        <li>
+                          <Link :href="route('admin.packages.index')" :class="[isActive('admin.packages.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <ArchiveBoxIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Packages
+                          </Link>
+                        </li>
+                        <li v-if="hasAddonServices">
+                          <Link :href="route('admin.services.index')" :class="[isActive('admin.services.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <SparklesIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Services
+                          </Link>
+                        </li>
+                        <li>
+                          <Link :href="route('admin.vaccination-requirements.index')" :class="[isActive('admin.vaccination-requirements.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <ShieldCheckIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Vaccinations
+                          </Link>
+                        </li>
+                        <li>
+                          <Link :href="route('admin.settings.index')" :class="[isActive('admin.settings.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <Cog6ToothIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Settings
+                          </Link>
+                        </li>
+                        <li>
+                          <Link :href="route('admin.billing.index')" :class="[isActive('admin.billing.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <CurrencyDollarIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Billing
+                          </Link>
+                        </li>
+                      </ul>
+                    </li>
+
+                    <!-- User footer -->
+                    <li class="-mx-6 mt-auto">
+                      <div class="flex items-center gap-x-4 px-6 py-3 border-t border-white/10">
+                        <div
+                          class="size-8 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0 bg-indigo-600"
+                        >{{ userInitial }}</div>
+                        <div class="min-w-0 flex-1">
+                          <p class="text-sm/6 font-semibold text-white truncate">{{ auth.user?.name }}</p>
+                          <p class="text-xs text-indigo-200 truncate">{{ auth.user?.role?.replace('_', ' ') }}</p>
+                        </div>
+                        <form @submit.prevent="logout">
+                          <button type="submit" class="text-xs text-indigo-200 hover:text-red-400 transition-colors">
+                            Sign out
+                          </button>
+                        </form>
+                      </div>
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+            </DialogPanel>
+          </TransitionChild>
+        </div>
+      </Dialog>
+    </TransitionRoot>
+
+    <!-- Desktop sidebar -->
+    <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+      <div class="relative flex grow flex-col gap-y-5 overflow-y-auto bg-indigo-800 px-6 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-white/10">
+        <!-- Logo -->
+        <div class="flex h-16 shrink-0 items-center gap-2.5">
+          <Link :href="route('admin.dashboard')" class="flex items-center gap-2.5">
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="14" cy="14" r="14" fill="#4f46e5"/>
+              <circle cx="14" cy="14" r="14" fill="white" fill-opacity="0.2"/>
               <ellipse cx="10" cy="9" rx="2.5" ry="3" fill="white" opacity="0.9"/>
               <ellipse cx="18" cy="9" rx="2.5" ry="3" fill="white" opacity="0.9"/>
               <ellipse cx="7" cy="15" rx="2.2" ry="3" transform="rotate(-20 7 15)" fill="white" opacity="0.9"/>
@@ -24,388 +225,208 @@
               <ellipse cx="14" cy="19" rx="5" ry="4" fill="white"/>
             </svg>
             <span class="text-white font-bold text-lg tracking-tight">{{ tenant?.name ?? 'PawPass' }}</span>
-          </template>
-        </Link>
+          </Link>
+          <span
+            v-if="tenantPlan === 'trialing' || tenantPlan === 'free_tier'"
+            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-400/10 text-yellow-300"
+          >{{ tenantPlan === 'trialing' ? 'Trial' : 'Free' }}</span>
+        </div>
 
-        <!-- Plan badge -->
-        <div
-          v-if="tenantStatus === 'trialing' || tenantStatus === 'free_tier'"
-          class="inline-flex items-center self-start px-2 py-0.5 rounded-full text-xs font-medium"
-          style="background-color: rgba(245,158,11,0.12); color: #fcd34d;"
-        >
-          {{ tenantStatus === 'trialing' ? 'Trial' : 'Free' }}
-        </div>
-        <div
-          v-else-if="tenantStatus === 'past_due'"
-          class="inline-flex items-center self-start px-2 py-0.5 rounded-full text-xs font-medium"
-          style="background-color: rgba(239,68,68,0.15); color: #fca5a5;"
-        >
-          Past Due
-        </div>
+        <nav class="flex flex-1 flex-col">
+          <ul role="list" class="flex flex-1 flex-col gap-y-7">
+            <!-- Dashboard -->
+            <li>
+              <ul role="list" class="-mx-2 space-y-1">
+                <li>
+                  <Link
+                    :href="route('admin.dashboard')"
+                    :class="[isActive('admin.dashboard') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']"
+                  >
+                    <HomeIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Dashboard
+                  </Link>
+                </li>
+              </ul>
+            </li>
+
+            <!-- Operations -->
+            <li>
+              <div class="text-xs/6 font-semibold text-indigo-200">Operations</div>
+              <ul role="list" class="-mx-2 mt-2 space-y-1">
+                <li>
+                  <Link :href="route('admin.roster.index')" :class="[isActive('admin.roster.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <ListBulletIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Roster
+                  </Link>
+                </li>
+                <li v-if="hasBoarding">
+                  <Link :href="route('admin.boarding.reservations')" :class="[isActive('admin.boarding.reservations*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <HomeModernIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Boarding
+                  </Link>
+                </li>
+                <li v-if="hasBoarding">
+                  <Link :href="route('admin.boarding.units')" :class="[isActive('admin.boarding.units*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <Squares2X2Icon class="size-6 shrink-0" aria-hidden="true" />
+                    Kennel Units
+                  </Link>
+                </li>
+                <li>
+                  <Link :href="route('admin.customers.index')" :class="[isActive('admin.customers.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <UsersIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Customers
+                  </Link>
+                </li>
+                <li>
+                  <Link :href="route('admin.dogs.index')" :class="[isActive('admin.dogs.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <UserGroupIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Dogs
+                  </Link>
+                </li>
+              </ul>
+            </li>
+
+            <!-- Business -->
+            <li>
+              <div class="text-xs/6 font-semibold text-indigo-200">Business</div>
+              <ul role="list" class="-mx-2 mt-2 space-y-1">
+                <li>
+                  <Link :href="route('admin.payments.index')" :class="[isActive('admin.payments.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <CreditCardIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Payments
+                  </Link>
+                </li>
+                <li v-if="hasReports">
+                  <Link :href="route('admin.reports.index')" :class="[isActive('admin.reports.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <ChartBarIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Reports
+                  </Link>
+                </li>
+              </ul>
+            </li>
+
+            <!-- Communications -->
+            <li v-if="hasBroadcast">
+              <div class="text-xs/6 font-semibold text-indigo-200">Communications</div>
+              <ul role="list" class="-mx-2 mt-2 space-y-1">
+                <li>
+                  <Link :href="route('admin.notifications.broadcast')" :class="[isActive('admin.notifications.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <MegaphoneIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Broadcast
+                  </Link>
+                </li>
+              </ul>
+            </li>
+
+            <!-- Owner -->
+            <li v-if="isOwner">
+              <div class="text-xs/6 font-semibold text-indigo-200">Owner</div>
+              <ul role="list" class="-mx-2 mt-2 space-y-1">
+                <li>
+                  <Link :href="route('admin.packages.index')" :class="[isActive('admin.packages.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <ArchiveBoxIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Packages
+                  </Link>
+                </li>
+                <li v-if="hasAddonServices">
+                  <Link :href="route('admin.services.index')" :class="[isActive('admin.services.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <SparklesIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Services
+                  </Link>
+                </li>
+                <li>
+                  <Link :href="route('admin.vaccination-requirements.index')" :class="[isActive('admin.vaccination-requirements.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <ShieldCheckIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Vaccinations
+                  </Link>
+                </li>
+                <li>
+                  <Link :href="route('admin.settings.index')" :class="[isActive('admin.settings.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <Cog6ToothIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Settings
+                  </Link>
+                </li>
+                <li>
+                  <Link :href="route('admin.billing.index')" :class="[isActive('admin.billing.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <CurrencyDollarIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Billing
+                  </Link>
+                </li>
+              </ul>
+            </li>
+
+            <!-- User footer -->
+            <li class="-mx-6 mt-auto">
+              <div class="flex items-center gap-x-4 px-6 py-3 border-t border-white/10">
+                <div class="size-8 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0 bg-indigo-600">
+                  {{ userInitial }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm/6 font-semibold text-white truncate">{{ auth.user?.name }}</p>
+                  <p class="text-xs text-indigo-200 truncate">{{ auth.user?.role?.replace('_', ' ') }}</p>
+                </div>
+                <form @submit.prevent="logout">
+                  <button type="submit" class="text-xs text-indigo-200 hover:text-red-400 transition-colors">
+                    Sign out
+                  </button>
+                </form>
+              </div>
+            </li>
+          </ul>
+        </nav>
       </div>
-
-      <!-- Navigation -->
-      <nav class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
-        <!-- Dashboard -->
-        <Link
-          :href="route('admin.dashboard')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.dashboard') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.dashboard') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-          </svg>
-          Dashboard
-        </Link>
-
-        <!-- Operations -->
-        <div class="section-heading">Operations</div>
-
-        <Link
-          :href="route('admin.roster.index')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.roster.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.roster.*') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-          </svg>
-          Roster
-        </Link>
-
-        <Link
-          v-if="hasBoarding"
-          :href="route('admin.boarding.reservations')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.boarding.reservations*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.boarding.reservations*') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-          </svg>
-          Boarding
-        </Link>
-
-        <Link
-          v-if="hasBoarding"
-          :href="route('admin.boarding.units')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.boarding.units*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.boarding.units*') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
-          </svg>
-          Kennel Units
-        </Link>
-
-        <Link
-          :href="route('admin.customers.index')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.customers.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.customers.*') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-          </svg>
-          Customers
-        </Link>
-
-        <Link
-          :href="route('admin.dogs.index')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.dogs.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.dogs.*') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-          </svg>
-          Dogs
-        </Link>
-
-        <!-- Business -->
-        <div class="section-heading">Business</div>
-
-        <Link
-          :href="route('admin.payments.index')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.payments.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.payments.*') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
-          </svg>
-          Payments
-        </Link>
-
-        <Link
-          v-if="hasReports"
-          :href="route('admin.reports.index')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.reports.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.reports.*') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-          </svg>
-          Reports
-        </Link>
-
-        <!-- Communications -->
-        <div class="section-heading">Communications</div>
-
-        <Link
-          v-if="hasBroadcast"
-          :href="route('admin.notifications.broadcast')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.notifications.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.notifications.*') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 1 8.835-2.535m0 0A23.74 23.74 0 0 1 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m-1.394 5.52a23.926 23.926 0 0 1-3.25 2.88" />
-          </svg>
-          Broadcast
-        </Link>
-
-        <!-- Help -->
-        <Link
-          :href="route('admin.help')"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive('admin.help') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-          :style="isActive('admin.help') ? { backgroundColor: accentColor } : {}"
-        >
-          <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-          </svg>
-          Help
-        </Link>
-
-        <!-- Owner only -->
-        <template v-if="isOwner">
-          <div class="section-heading">Owner</div>
-
-          <Link
-            :href="route('admin.packages.index')"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            :class="isActive('admin.packages.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-            :style="isActive('admin.packages.*') ? { backgroundColor: accentColor } : {}"
-          >
-            <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
-            </svg>
-            Packages
-          </Link>
-
-          <Link
-            v-if="hasAddonServices"
-            :href="route('admin.services.index')"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            :class="isActive('admin.services.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-            :style="isActive('admin.services.*') ? { backgroundColor: accentColor } : {}"
-          >
-            <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
-            </svg>
-            Services
-          </Link>
-
-          <Link
-            :href="route('admin.vaccination-requirements.index')"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            :class="isActive('admin.vaccination-requirements.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-            :style="isActive('admin.vaccination-requirements.*') ? { backgroundColor: accentColor } : {}"
-          >
-            <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
-            </svg>
-            Vaccinations
-          </Link>
-
-          <Link
-            :href="route('admin.settings.index')"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            :class="isActive('admin.settings.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-            :style="isActive('admin.settings.*') ? { backgroundColor: accentColor } : {}"
-          >
-            <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-            </svg>
-            Settings
-          </Link>
-
-          <Link
-            :href="route('admin.billing.index')"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            :class="isActive('admin.billing.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-            :style="isActive('admin.billing.*') ? { backgroundColor: accentColor } : {}"
-          >
-            <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-            </svg>
-            Billing
-          </Link>
-
-          <Link
-            :href="route('admin.tax.index')"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            :class="isActive('admin.tax.*') ? 'text-white' : 'text-white/65 hover:bg-sidebar-hover'"
-            :style="isActive('admin.tax.*') ? { backgroundColor: accentColor } : {}"
-          >
-            <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0c1.1.128 1.907 1.077 1.907 2.185ZM9.75 9h.008v.008H9.75V9Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm4.125 4.5h.008v.008h-.008V13.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-            </svg>
-            Tax
-          </Link>
-        </template>
-      </nav>
-
-      <!-- User footer -->
-      <div class="px-3 py-4" style="border-top: 1px solid rgba(255,255,255,0.06);">
-        <div class="flex items-center gap-3 mb-2">
-          <div
-            class="h-8 w-8 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
-            :style="{ backgroundColor: accentColor }"
-          >{{ userInitial }}</div>
-          <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-white truncate">{{ auth.user?.name }}</p>
-            <p class="text-xs truncate" style="color: rgba(255,255,255,0.4);">{{ auth.user?.role?.replace('_', ' ') }}</p>
-          </div>
-        </div>
-        <form @submit.prevent="logout">
-          <button
-            type="submit"
-            class="w-full text-left text-xs px-2 py-1 rounded transition-colors text-white/40 hover:text-red-400"
-          >
-            Sign out
-          </button>
-        </form>
-      </div>
-    </aside>
-
-    <!-- Main content -->
-    <div class="md:ml-60 flex-1 min-w-0 flex flex-col min-h-screen overflow-x-clip">
-      <!-- Top bar (mobile) -->
-      <header
-        class="md:hidden fixed top-0 left-0 right-0 z-20 flex items-center justify-between h-14 px-4"
-        style="background-color: #0f0e0d;"
-      >
-        <Link :href="route('admin.dashboard')" class="flex items-center">
-          <img v-if="tenant?.logo_url" :src="tenant.logo_url" :alt="tenant.name" class="h-7 w-auto max-w-[100px] object-contain" />
-          <span v-else class="text-white text-lg font-bold">{{ tenant?.name ?? 'PawPass' }}</span>
-        </Link>
-        <button @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 text-white/60">
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-          </svg>
-        </button>
-      </header>
-
-      <!-- Mobile menu -->
-      <div
-        v-if="mobileMenuOpen"
-        class="md:hidden fixed top-14 left-0 right-0 z-20 px-4 py-3 space-y-1 overflow-y-auto max-h-[calc(100vh-3.5rem)]"
-        style="background-color: #0f0e0d; border-bottom: 1px solid rgba(255,255,255,0.06);"
-      >
-        <Link
-          v-for="item in flatNavItems"
-          :key="item.name"
-          :href="item.href"
-          class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-          :class="isActive(item.pattern) ? 'text-white' : 'text-white/65'"
-          :style="isActive(item.pattern) ? { backgroundColor: accentColor } : {}"
-          @click="mobileMenuOpen = false"
-        >
-          {{ item.name }}
-        </Link>
-        <form @submit.prevent="logout" class="pt-2" style="border-top: 1px solid rgba(255,255,255,0.06);">
-          <button type="submit" class="text-sm px-3 py-2 text-white/40">Sign out</button>
-        </form>
-      </div>
-
-      <!-- Spacer for fixed mobile header -->
-      <div class="md:hidden h-14" />
-
-      <!-- Flash messages -->
-      <div v-if="flash.success || flash.error" class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4">
-        <div
-          v-if="flash.success"
-          class="flex items-center gap-3 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-green-800 text-sm"
-        >
-          <svg class="h-5 w-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />
-          </svg>
-          {{ flash.success }}
-        </div>
-        <div
-          v-if="flash.error"
-          class="flex items-center gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-red-800 text-sm"
-        >
-          <svg class="h-5 w-5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" />
-          </svg>
-          {{ flash.error }}
-        </div>
-      </div>
-
-      <!-- Page content -->
-      <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-        <slot />
-      </main>
-      <!-- Mobile bottom padding -->
-      <div class="md:hidden h-16" />
     </div>
 
-    <!-- Mobile bottom nav -->
-    <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-border-warm flex z-30">
-      <Link
-        :href="route('admin.dashboard')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs"
-        :class="isActive('admin.dashboard') ? 'text-indigo-600' : 'text-gray-400'"
-      >
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-        </svg>
-        <span>Home</span>
-      </Link>
-      <Link
-        :href="route('admin.roster.index')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs"
-        :class="isActive('admin.roster.*') ? 'text-indigo-600' : 'text-gray-400'"
-      >
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-        </svg>
-        <span>Roster</span>
-      </Link>
-      <Link
-        :href="route('admin.customers.index')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs"
-        :class="isActive('admin.customers.*') ? 'text-indigo-600' : 'text-gray-400'"
-      >
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-        </svg>
-        <span>Customers</span>
-      </Link>
-      <Link
-        :href="route('admin.dogs.index')"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-xs"
-        :class="isActive('admin.dogs.*') ? 'text-indigo-600' : 'text-gray-400'"
-      >
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-        </svg>
-        <span>Dogs</span>
-      </Link>
-    </nav>
+    <!-- Mobile top bar -->
+    <div class="sticky top-0 z-40 flex items-center gap-x-6 bg-indigo-800 px-4 py-4 shadow-sm after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-white/10 sm:px-6 lg:hidden">
+      <button type="button" class="-m-2.5 p-2.5 text-indigo-200 hover:text-white" @click="sidebarOpen = true">
+        <span class="sr-only">Open sidebar</span>
+        <Bars3Icon class="size-6" aria-hidden="true" />
+      </button>
+      <div class="flex-1 text-sm/6 font-semibold text-white">{{ tenant?.name ?? 'PawPass' }}</div>
+      <div class="size-8 rounded-full flex items-center justify-center text-white font-semibold text-sm bg-indigo-600">
+        {{ userInitial }}
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <main class="py-10 lg:pl-72">
+      <div class="px-4 sm:px-6 lg:px-8">
+        <!-- Flash messages -->
+        <div v-if="flash.success || flash.error" class="mb-6 space-y-2">
+          <AppAlert v-if="flash.success" type="success" :message="flash.success" @dismiss="dismissFlash('success')" />
+          <AppAlert v-if="flash.error" type="error" :message="flash.error" @dismiss="dismissFlash('error')" />
+        </div>
+
+        <slot />
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { Dialog, DialogPanel, TransitionRoot, TransitionChild } from '@headlessui/vue';
+import {
+  ArchiveBoxIcon,
+  Bars3Icon,
+  ChartBarIcon,
+  Cog6ToothIcon,
+  CreditCardIcon,
+  CurrencyDollarIcon,
+  HomeIcon,
+  HomeModernIcon,
+  ListBulletIcon,
+  MegaphoneIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+  Squares2X2Icon,
+  UserGroupIcon,
+  UsersIcon,
+  XMarkIcon,
+} from '@heroicons/vue/24/outline';
+import AppAlert from '@/Components/AppAlert.vue';
 import type { PageProps } from '@/types';
 import { useFeatures } from '@/composables/useFeatures';
 
@@ -413,10 +434,9 @@ const page = usePage<PageProps>();
 const tenant = computed(() => page.props.tenant);
 const auth = computed(() => page.props.auth);
 const flash = computed(() => page.props.flash ?? { success: null, error: null });
-const accentColor = computed(() => tenant.value?.primary_color ?? '#4f46e5');
 const userInitial = computed(() => auth.value.user?.name?.[0]?.toUpperCase() ?? '?');
 
-const mobileMenuOpen = ref(false);
+const sidebarOpen = ref(false);
 
 const isOwner = computed(() => auth.value.user?.role === 'business_owner');
 const tenantPlan = computed(() => page.props.tenantPlan);
@@ -427,50 +447,13 @@ const hasBoarding = computed(() => hasFeature('boarding'));
 const hasAddonServices = computed(() => hasFeature('addon_services'));
 const hasBroadcast = computed(() => hasFeature('broadcast_notifications'));
 
+const dismissedFlash = ref<Record<string, boolean>>({});
+function dismissFlash(key: string) { dismissedFlash.value[key] = true; }
+
 function isActive(pattern: string): boolean {
   try { return !!(route as any)().current(pattern); } catch { return false; }
 }
 
-const flatNavItems = computed(() => {
-  const items: Array<{ name: string; href: string; pattern: string }> = [
-    { name: 'Dashboard', href: route('admin.dashboard'), pattern: 'admin.dashboard' },
-    { name: 'Roster', href: route('admin.roster.index'), pattern: 'admin.roster.*' },
-    { name: 'Customers', href: route('admin.customers.index'), pattern: 'admin.customers.*' },
-    { name: 'Dogs', href: route('admin.dogs.index'), pattern: 'admin.dogs.*' },
-    { name: 'Payments', href: route('admin.payments.index'), pattern: 'admin.payments.*' },
-  ];
-
-  if (hasBoarding.value) {
-    items.push(
-      { name: 'Boarding', href: route('admin.boarding.reservations'), pattern: 'admin.boarding.reservations*' },
-      { name: 'Kennel Units', href: route('admin.boarding.units'), pattern: 'admin.boarding.units*' },
-    );
-  }
-
-  if (hasReports.value) {
-    items.push({ name: 'Reports', href: route('admin.reports.index'), pattern: 'admin.reports.*' });
-  }
-
-  if (hasBroadcast.value) {
-    items.push({ name: 'Broadcast', href: route('admin.notifications.broadcast'), pattern: 'admin.notifications.*' });
-  }
-
-  items.push({ name: 'Help', href: route('admin.help'), pattern: 'admin.help' });
-
-  if (isOwner.value) {
-    items.push(
-      { name: 'Packages', href: route('admin.packages.index'), pattern: 'admin.packages.*' },
-      { name: 'Settings', href: route('admin.settings.index'), pattern: 'admin.settings.*' },
-      { name: 'Billing', href: route('admin.billing.index'), pattern: 'admin.billing.*' },
-      { name: 'Tax', href: route('admin.tax.index'), pattern: 'admin.tax.*' },
-    );
-  }
-
-  return items;
-});
-
 const logoutForm = useForm({});
-function logout() {
-  logoutForm.post(route('admin.logout'));
-}
+function logout() { logoutForm.post(route('admin.logout')); }
 </script>

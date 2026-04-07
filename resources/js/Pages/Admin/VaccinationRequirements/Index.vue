@@ -9,7 +9,7 @@
       </div>
 
       <!-- Current requirements -->
-      <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+      <AppCard class="divide-y divide-gray-100">
         <div v-if="requirements.length === 0" class="px-5 py-6 text-sm text-gray-500 text-center">
           No vaccination requirements configured. Dogs will not be checked for compliance.
         </div>
@@ -30,37 +30,36 @@
             @click="deleteRequirement(req.id)"
           >Remove</button>
         </div>
-      </div>
+      </AppCard>
 
       <!-- Add requirement form -->
-      <form class="bg-white rounded-xl border border-gray-200 p-4" @submit.prevent="submitRequirement">
+      <form class="bg-white rounded-xl border border-border-warm p-4" @submit.prevent="submitRequirement">
         <p class="text-sm font-medium text-gray-700 mb-3">Add Requirement</p>
         <div class="flex items-start gap-3">
           <div class="flex-1">
             <input
               v-model="form.vaccine_name"
               type="text"
-              class="input text-sm w-full"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
               placeholder="e.g. Rabies, Bordetella, DHPP"
               required
             />
             <p v-if="errors.vaccine_name" class="text-xs text-red-600 mt-1">{{ errors.vaccine_name }}</p>
           </div>
-          <button type="submit" class="btn-primary text-sm shrink-0" :disabled="submitting">
+          <AppButton type="submit" variant="primary" class="shrink-0" :disabled="submitting">
             {{ submitting ? 'Adding…' : 'Add' }}
-          </button>
+          </AppButton>
         </div>
       </form>
     </div>
   </AdminLayout>
-  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
+  <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { router } from '@inertiajs/vue3';
-import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 defineProps<{
   requirements: Array<{ id: string; vaccine_name: string }>;

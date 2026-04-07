@@ -8,12 +8,14 @@
           <h1 class="su-title">SMS Usage</h1>
           <p class="su-subtitle">Track your monthly SMS segment usage and billing history</p>
         </div>
-        <a :href="route('admin.notifications.broadcast')" class="btn-primary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="su-btn-icon">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 1 8.835-2.535m0 0A23.74 23.74 0 0 1 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m-1.394 5.52a23.926 23.926 0 0 1-3.25 2.88" />
-          </svg>
-          New Broadcast
-        </a>
+        <Link :href="route('admin.notifications.broadcast')">
+          <AppButton variant="primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="su-btn-icon">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 1 8.835-2.535m0 0A23.74 23.74 0 0 1 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m-1.394 5.52a23.926 23.926 0 0 1-3.25 2.88" />
+            </svg>
+            New Broadcast
+          </AppButton>
+        </Link>
       </div>
 
       <!-- Current period stats -->
@@ -154,12 +156,12 @@
                 <span v-else class="su-nil">—</span>
               </td>
               <td class="su-td-status">
-                <span v-if="row.period === currentPeriod" class="badge badge-blue">In progress</span>
-                <span v-else-if="row.billed_at" class="badge badge-green">
+                <AppBadge v-if="row.period === currentPeriod" color="blue">In progress</AppBadge>
+                <AppBadge v-else-if="row.billed_at" color="green">
                   Billed {{ formatDate(row.billed_at) }}
-                </span>
-                <span v-else-if="row.overage > 0" class="badge badge-amber">Pending billing</span>
-                <span v-else class="badge badge-gray">No charge</span>
+                </AppBadge>
+                <AppBadge v-else-if="row.overage > 0" color="amber">Pending billing</AppBadge>
+                <AppBadge v-else color="gray">No charge</AppBadge>
               </td>
             </tr>
           </tbody>
@@ -172,6 +174,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const props = defineProps<{

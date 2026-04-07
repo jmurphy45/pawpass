@@ -5,11 +5,11 @@
         <h1 class="text-2xl font-bold text-gray-900">{{ dog.name }}</h1>
         <Link :href="route('admin.dogs.edit', { dog: dog.id })" class="text-sm text-indigo-600 hover:underline">Edit</Link>
       </div>
-      <div class="bg-white rounded-xl border border-gray-200 p-5 space-y-2">
+      <AppCard :padded="true" class="space-y-2">
         <p class="text-sm text-gray-600">Breed: {{ dog.breed ?? '—' }}</p>
         <p class="text-sm text-gray-600">Credits: {{ dog.credit_balance }}</p>
         <p class="text-sm text-gray-600">Owner: {{ dog.customer_name }}</p>
-      </div>
+      </AppCard>
 
       <!-- Vaccinations -->
       <div>
@@ -66,29 +66,29 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs text-gray-500 mb-1">Vaccine name <span class="text-red-500">*</span></label>
-              <input v-model="form.vaccine_name" type="text" class="input text-sm w-full" placeholder="e.g. Rabies" required />
+              <input v-model="form.vaccine_name" type="text" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="e.g. Rabies" required />
             </div>
             <div>
               <label class="block text-xs text-gray-500 mb-1">Date administered <span class="text-red-500">*</span></label>
-              <input v-model="form.administered_at" type="date" class="input text-sm w-full" required />
+              <input v-model="form.administered_at" type="date" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" required />
             </div>
             <div>
               <label class="block text-xs text-gray-500 mb-1">Expiry date</label>
-              <input v-model="form.expires_at" type="date" class="input text-sm w-full" />
+              <input v-model="form.expires_at" type="date" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
             </div>
             <div>
               <label class="block text-xs text-gray-500 mb-1">Administered by</label>
-              <input v-model="form.administered_by" type="text" class="input text-sm w-full" placeholder="Vet name / clinic" />
+              <input v-model="form.administered_by" type="text" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="Vet name / clinic" />
             </div>
           </div>
           <div>
             <label class="block text-xs text-gray-500 mb-1">Notes</label>
-            <input v-model="form.notes" type="text" class="input text-sm w-full" placeholder="Optional notes" />
+            <input v-model="form.notes" type="text" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" placeholder="Optional notes" />
           </div>
           <div class="flex items-center gap-3">
-            <button type="submit" class="btn-primary text-sm" :disabled="submitting">
+            <AppButton type="submit" variant="primary" :disabled="submitting">
               {{ submitting ? 'Saving…' : 'Add Record' }}
-            </button>
+            </AppButton>
             <p v-if="errors.vaccine_name" class="text-xs text-red-600">{{ errors.vaccine_name }}</p>
           </div>
         </form>
@@ -108,14 +108,13 @@
       </div>
     </div>
   </AdminLayout>
-  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
+  <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
-import ConfirmModal from '@/Components/ConfirmModal.vue';
 
 interface Vaccination {
   id: string;

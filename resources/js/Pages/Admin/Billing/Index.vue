@@ -228,14 +228,13 @@
       </div>
     </Teleport>
   </AdminLayout>
-  <ConfirmModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
+  <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
-import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { loadConnectAndInitialize } from '@stripe/connect-js';
 import { loadStripe } from '@stripe/stripe-js';
 import type { Stripe, StripeCardElement } from '@stripe/stripe-js';

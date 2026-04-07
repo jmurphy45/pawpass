@@ -5,22 +5,20 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2.5">
           <h1 class="text-2xl font-bold text-text-body">Notifications</h1>
-          <span
-            v-if="unreadCount > 0"
-            class="badge badge-yellow"
-          >{{ unreadCount }}</span>
+          <AppBadge v-if="unreadCount > 0" color="yellow">{{ unreadCount }}</AppBadge>
         </div>
         <form @submit.prevent="readAll">
-          <button
+          <AppButton
             type="submit"
+            variant="secondary"
             :disabled="readAllForm.processing"
-            class="btn-secondary text-xs py-1.5 px-3 disabled:opacity-60"
-          >Mark all read</button>
+            class="text-xs py-1.5 px-3 disabled:opacity-60"
+          >Mark all read</AppButton>
         </form>
       </div>
 
       <!-- Empty state -->
-      <div v-if="notifications.data.length === 0" class="card p-12 text-center">
+      <AppCard v-if="notifications.data.length === 0" class="p-12 text-center">
         <div class="mx-auto mb-4 w-14 h-14 rounded-full bg-surface-subtle flex items-center justify-center">
           <svg class="h-7 w-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
@@ -28,10 +26,10 @@
         </div>
         <p class="font-semibold text-text-body">All caught up</p>
         <p class="text-sm text-text-muted mt-1">No notifications yet</p>
-      </div>
+      </AppCard>
 
       <!-- Notification list -->
-      <div v-else class="card overflow-hidden">
+      <AppCard v-else class="overflow-hidden">
         <div
           v-for="n in notifications.data"
           :key="n.id"
@@ -81,7 +79,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </AppCard>
 
       <!-- Pagination -->
       <div v-if="notifications.meta.last_page > 1" class="flex items-center justify-between text-sm">
@@ -90,13 +88,11 @@
           <Link
             v-if="notifications.meta.current_page > 1"
             :href="route('portal.notifications', { page: notifications.meta.current_page - 1 })"
-            class="btn-secondary text-xs py-1.5 px-3"
-          >Previous</Link>
+          ><AppButton variant="secondary" class="text-xs py-1.5 px-3">Previous</AppButton></Link>
           <Link
             v-if="notifications.meta.current_page < notifications.meta.last_page"
             :href="route('portal.notifications', { page: notifications.meta.current_page + 1 })"
-            class="btn-secondary text-xs py-1.5 px-3"
-          >Next</Link>
+          ><AppButton variant="secondary" class="text-xs py-1.5 px-3">Next</AppButton></Link>
         </div>
       </div>
     </div>

@@ -19,18 +19,19 @@
         <p class="mt-1.5 text-sm text-text-muted">You've been invited to the staff portal</p>
       </div>
 
-      <div class="card-padded" style="box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);">
+      <AppCard :padded="true" style="box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);">
         <p class="text-sm text-text-muted mb-5">Click below to activate your account and sign in. You'll use a magic link to sign in going forward.</p>
         <form @submit.prevent="submit">
-          <button
+          <AppButton
             type="submit"
+            variant="primary"
             :disabled="form.processing"
-            class="btn-primary w-full justify-center py-2.5"
+            class="w-full justify-center py-2.5"
           >
             {{ form.processing ? 'Activating…' : 'Accept invitation & sign in' }}
-          </button>
+          </AppButton>
         </form>
-      </div>
+      </AppCard>
     </div>
   </div>
 </template>
