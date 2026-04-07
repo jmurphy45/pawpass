@@ -113,7 +113,7 @@ class WebSubscriptionControllerTest extends TestCase
 
     public function test_cancel_non_active_subscription_redirects_back_with_error(): void
     {
-        $subscription = Subscription::factory()->pastDue()->create([
+        $subscription = Subscription::factory()->cancelled()->create([
             'tenant_id'  => $this->tenant->id,
             'customer_id' => $this->customer->id,
             'package_id' => $this->package->id,
@@ -125,6 +125,5 @@ class WebSubscriptionControllerTest extends TestCase
 
         $response->assertRedirect(route('portal.dogs.show', $this->dog->id));
         $response->assertSessionHas('error');
-        $this->assertNull($subscription->fresh()->cancelled_at);
     }
 }

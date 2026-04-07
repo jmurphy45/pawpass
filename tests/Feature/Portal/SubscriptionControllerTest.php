@@ -101,7 +101,7 @@ class SubscriptionControllerTest extends TestCase
             'customer_id' => $this->customer->id,
             'package_id' => $this->package->id,
             'dog_id' => $this->dog->id,
-            'status' => 'active',
+            'status' => 'pending',
             'stripe_customer_id' => 'cus_abc',
         ]);
     }
@@ -218,14 +218,16 @@ class SubscriptionControllerTest extends TestCase
             ->postJson("/api/portal/v1/subscriptions/{$subscription->id}/cancel");
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.status', 'active');
+            ->assertJsonPath('data.status', 'cancelled');
 
-        $this->assertNotNull($subscription->fresh()->cancelled_at);
+        $fresh = $subscription->fresh();
+        $this->assertNotNull($fresh->cancelled_at);
+        $this->assertEquals('cancelled', $fresh->status->value);
     }
 
     public function test_cancel_non_active_subscription_returns_409(): void
     {
-        $subscription = Subscription::factory()->pastDue()->create([
+        $subscription = Subscription::factory()->cancelled()->create([
             'tenant_id' => $this->tenant->id,
             'customer_id' => $this->customer->id,
             'package_id' => $this->package->id,

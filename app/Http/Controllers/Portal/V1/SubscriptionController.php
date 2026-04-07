@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Portal\V1;
 
+use App\Enums\SubscriptionStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\V1\StoreSubscriptionRequest;
 use App\Http\Resources\SubscriptionResource;
@@ -69,7 +70,6 @@ class SubscriptionController extends Controller
             'customer_id' => $customer->id,
             'package_id' => $package->id,
             'dog_id' => $dog->id,
-            'status' => 'active',
             'stripe_customer_id' => $stripeCustomerId,
         ]);
 
@@ -95,9 +95,9 @@ class SubscriptionController extends Controller
             return response()->json(['message' => 'Not found.'], 404);
         }
 
-        if ($subscription->status !== 'active') {
+        if (! $subscription->canTransitionTo(SubscriptionStatus::Cancelled)) {
             return response()->json([
-                'message' => 'Only active subscriptions can be cancelled.',
+                'message' => 'This subscription cannot be cancelled.',
                 'error_code' => 'NOT_CANCELLABLE',
             ], 409);
         }
@@ -108,6 +108,7 @@ class SubscriptionController extends Controller
         );
 
         $subscription->update(['cancelled_at' => now()]);
+        $subscription->transitionTo(SubscriptionStatus::Cancelled);
         $subscription->load(['package', 'dog']);
 
         return new SubscriptionResource($subscription);

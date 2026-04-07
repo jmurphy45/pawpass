@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SubscriptionStatus;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,15 +26,49 @@ class Subscription extends Model
         'cancelled_at',
     ];
 
+    protected $attributes = [
+        'status' => 'pending',
+    ];
+
     protected function casts(): array
     {
         return [
+            'status'               => SubscriptionStatus::class,
             'current_period_start' => 'immutable_datetime',
-            'current_period_end' => 'immutable_datetime',
-            'cancelled_at' => 'immutable_datetime',
-            'created_at' => 'immutable_datetime',
-            'updated_at' => 'immutable_datetime',
+            'current_period_end'   => 'immutable_datetime',
+            'cancelled_at'         => 'immutable_datetime',
+            'created_at'           => 'immutable_datetime',
+            'updated_at'           => 'immutable_datetime',
         ];
+    }
+
+    private const TRANSITIONS = [
+        'pending'   => ['active', 'cancelled'],
+        'active'    => ['past_due', 'cancelled'],
+        'past_due'  => ['active', 'unpaid', 'cancelled'],
+        'unpaid'    => ['cancelled'],
+        'cancelled' => [],
+    ];
+
+    public function allowedTransitions(): array
+    {
+        return self::TRANSITIONS[$this->status->value] ?? [];
+    }
+
+    public function canTransitionTo(SubscriptionStatus $status): bool
+    {
+        return in_array($status->value, $this->allowedTransitions(), true);
+    }
+
+    public function transitionTo(SubscriptionStatus $status): void
+    {
+        if (! $this->canTransitionTo($status)) {
+            throw new \LogicException(
+                "Cannot transition subscription from [{$this->status->value}] to [{$status->value}]."
+            );
+        }
+
+        $this->update(['status' => $status]);
     }
 
     public function tenant(): BelongsTo

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Webhooks;
 
+use App\Enums\SubscriptionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\RawWebhook;
 use App\Models\Reservation;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
 use App\Services\NotificationService;
@@ -51,6 +53,7 @@ class StripeWebhookController extends Controller
             'charge.dispute.created'                 => $this->handleDisputeCreated($event->data->object),
             'charge.dispute.closed'                  => $this->handleDisputeClosed($event->data->object),
             'account.updated'                        => $this->handleAccountUpdated($event->data->object),
+            'setup_intent.succeeded'                 => $this->handleSetupIntentSucceeded($event->data->object),
             default                                  => response()->json(['data' => 'ok']),
         };
     }
@@ -163,6 +166,25 @@ class StripeWebhookController extends Controller
 
     private function handleDisputeClosed(object $dispute): JsonResponse
     {
+        return response()->json(['data' => 'ok']);
+    }
+
+    private function handleSetupIntentSucceeded(object $si): JsonResponse
+    {
+        $subscriptionId = $si->metadata->local_subscription_id ?? null;
+
+        if (! $subscriptionId) {
+            return response()->json(['data' => 'ok']);
+        }
+
+        $subscription = Subscription::find($subscriptionId);
+
+        if (! $subscription || ! $subscription->canTransitionTo(SubscriptionStatus::Active)) {
+            return response()->json(['data' => 'ok']);
+        }
+
+        $subscription->transitionTo(SubscriptionStatus::Active);
+
         return response()->json(['data' => 'ok']);
     }
 
