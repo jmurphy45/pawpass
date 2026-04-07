@@ -87,6 +87,14 @@ class StripeWebhookController extends Controller
             }
         });
 
+        $taxCalcId = $pi->metadata->tax_calculation_id ?? null;
+        if ($taxCalcId) {
+            $tenant = \App\Models\Tenant::find($order->tenant_id);
+            if ($tenant?->stripe_account_id) {
+                $this->stripe->createTaxTransaction($taxCalcId, $order->id, $tenant->stripe_account_id);
+            }
+        }
+
         $order->load('customer');
         $userId = $order->customer?->user_id;
 

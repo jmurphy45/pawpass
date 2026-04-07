@@ -72,6 +72,9 @@ class OrderControllerMetadataTest extends TestCase
         $capturedMetadata = null;
 
         $this->mock(StripeService::class, function (MockInterface $mock) use (&$capturedMetadata) {
+            $mock->shouldReceive('createCustomer')
+                ->once()
+                ->andReturn((object) ['id' => 'cus_meta123']);
             $mock->shouldReceive('createPaymentIntent')
                 ->once()
                 ->withArgs(function ($amount, $currency, $account, $fee, $metadata) use (&$capturedMetadata) {

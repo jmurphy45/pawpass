@@ -131,6 +131,13 @@ class SettingsController extends Controller
             'low_credit_threshold' => $tenant->low_credit_threshold,
             'checkin_block_at_zero' => $tenant->checkin_block_at_zero,
             'payout_schedule' => $tenant->payout_schedule,
+            'business_address' => $tenant->business_address,
+            'business_city' => $tenant->business_city,
+            'business_state' => $tenant->business_state,
+            'business_zip' => $tenant->business_zip,
+            'business_phone' => $tenant->business_phone,
+            'business_description' => $tenant->business_description,
+            'is_publicly_listed' => (bool) $tenant->is_publicly_listed,
         ];
     }
 }

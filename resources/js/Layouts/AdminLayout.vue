@@ -440,6 +440,7 @@ const sidebarOpen = ref(false);
 
 const isOwner = computed(() => auth.value.user?.role === 'business_owner');
 const tenantPlan = computed(() => page.props.tenantPlan);
+const tenantStatus = computed(() => page.props.tenantStatus);
 const { hasFeature } = useFeatures();
 const hasReports = computed(() => hasFeature('basic_reporting'));
 const hasBoarding = computed(() => hasFeature('boarding'));

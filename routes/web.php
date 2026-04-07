@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Web\DaycareDirectoryController;
 use App\Http\Controllers\Web\TenantRegistrationController;
 use App\Http\Controllers\Web\Admin\Auth\AcceptInviteController;
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
@@ -15,12 +16,15 @@ use App\Http\Controllers\Web\Admin\PackageController as AdminPackageController;
 use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptController;
 use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Web\Admin\LogoController as AdminLogoController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
+use App\Http\Controllers\Web\Admin\TaxController as AdminTaxController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController;
 use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController;
 use App\Http\Controllers\Web\Admin\VaccinationRequirementController as AdminVaccinationRequirementController;
 use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
+use App\Http\Controllers\Web\Admin\HelpController as AdminHelpController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
 use App\Http\Controllers\Web\Portal\Auth\RegisterController;
@@ -48,6 +52,10 @@ Route::prefix('auth/magic-link')->group(function () {
     Route::get('/confirm',  [MagicLinkController::class, 'confirmShow'])->name('magic-link.confirm');
     Route::post('/confirm', [MagicLinkController::class, 'confirm'])->name('magic-link.confirm.store');
 });
+
+// Public daycare directory
+Route::get('/find-a-daycare', [DaycareDirectoryController::class, 'index'])->name('daycare.directory');
+Route::get('/find-a-daycare/{state}/{city}', [DaycareDirectoryController::class, 'index'])->name('daycare.directory.city');
 
 // Tenant self-registration (no tenant middleware — this creates a new tenant)
 Route::get('/register', [TenantRegistrationController::class, 'create'])->name('tenant.register');
@@ -134,6 +142,9 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::patch('/settings/notifications', [AdminSettingsController::class, 'updateNotifications'])->name('admin.settings.notifications');
         Route::post('/settings/staff/invite', [AdminSettingsController::class, 'inviteStaff'])->name('admin.settings.staff.invite');
         Route::patch('/settings/staff/{user}/deactivate', [AdminSettingsController::class, 'deactivateStaff'])->name('admin.settings.staff.deactivate');
+        Route::patch('/settings/billing-address', [AdminSettingsController::class, 'updateBillingAddress'])->name('admin.settings.billing-address');
+        Route::post('/settings/logo', [AdminLogoController::class, 'store'])->name('admin.settings.logo.store');
+        Route::delete('/settings/logo', [AdminLogoController::class, 'destroy'])->name('admin.settings.logo.destroy');
 
         // Reports
         Route::get('/reports', [AdminReportController::class, 'index'])->name('admin.reports.index');
@@ -143,6 +154,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/reports/customers', [AdminReportController::class, 'customers'])->name('admin.reports.customers');
         Route::get('/reports/attendance', [AdminReportController::class, 'attendance'])->name('admin.reports.attendance');
         Route::get('/reports/credit-status', [AdminReportController::class, 'creditStatus'])->name('admin.reports.credit-status');
+        Route::get('/reports/vaccinations', [AdminReportController::class, 'vaccinations'])->middleware('plan:vaccination_management')->name('admin.reports.vaccinations');
 
         // Vaccination Requirements
         Route::get('/vaccination-requirements', [AdminVaccinationRequirementController::class, 'index'])->name('admin.vaccination-requirements.index');
@@ -169,6 +181,14 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/billing/portal', [AdminBillingController::class, 'portal'])->name('admin.billing.portal');
         Route::get('/billing/account-session', [AdminBillingController::class, 'accountSession'])->name('admin.billing.account-session');
         Route::post('/billing/payment-method', [AdminBillingController::class, 'updatePaymentMethod'])->name('admin.billing.payment-method');
+
+        // Help / FAQ
+        Route::get('/help', [AdminHelpController::class, 'index'])->name('admin.help');
+
+        // Tax (business_owner only enforced in controller)
+        Route::get('/tax', [AdminTaxController::class, 'index'])->name('admin.tax.index');
+        Route::get('/tax/account-session', [AdminTaxController::class, 'accountSession'])->name('admin.tax.account-session');
+        Route::post('/tax/toggle-collection', [AdminTaxController::class, 'toggleCollection'])->name('admin.tax.toggle-collection');
     });
 });
 
@@ -205,6 +225,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
 
         // Purchase
         Route::get('/purchase', [PurchaseController::class, 'index'])->name('portal.purchase');
+        Route::get('/purchase/tax-preview', [PurchaseController::class, 'taxPreview'])->name('portal.purchase.tax-preview');
         Route::post('/purchase', [PurchaseController::class, 'store'])->name('portal.purchase.store');
         Route::post('/purchase/confirm', [PurchaseController::class, 'confirm'])->name('portal.purchase.confirm');
 

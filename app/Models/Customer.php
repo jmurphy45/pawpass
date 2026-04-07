@@ -25,14 +25,16 @@ class Customer extends Model
         'stripe_payment_method_id',
         'stripe_pm_last4',
         'stripe_pm_brand',
+        'outstanding_balance_cents',
     ];
 
     protected function casts(): array
     {
         return [
-            'created_at' => 'immutable_datetime',
-            'updated_at' => 'immutable_datetime',
-            'deleted_at' => 'immutable_datetime',
+            'created_at'                => 'immutable_datetime',
+            'updated_at'                => 'immutable_datetime',
+            'deleted_at'                => 'immutable_datetime',
+            'outstanding_balance_cents' => 'integer',
         ];
     }
 

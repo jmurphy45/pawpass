@@ -1,5 +1,359 @@
 <template>
-  <div class="min-h-screen font-sans" style="background-color: #faf9f6;">
+  <!-- ===== TENANT LANDING PAGE ===== -->
+  <div v-if="tenant" class="tenant-page min-h-screen" style="font-family: 'DM Sans', system-ui, sans-serif;">
+
+    <!-- ── Nav ── -->
+    <header
+      class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+      :class="tenantNavScrolled ? 'bg-white/95 backdrop-blur-sm shadow-sm' : 'bg-transparent'"
+      :style="tenantNavScrolled ? 'border-bottom: 1px solid #e8e0d8;' : ''"
+    >
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div class="flex items-center gap-3">
+          <img v-if="tenant.logo_url" :src="tenant.logo_url" :alt="tenant.name"
+            class="h-9 w-auto max-w-[140px] object-contain" />
+          <span v-else
+            class="tenant-serif text-xl font-bold tracking-tight transition-colors duration-300"
+            :class="tenantNavScrolled ? 'text-stone-900' : 'text-white'">
+            {{ tenant.name }}
+          </span>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="/my/register"
+            class="hidden sm:block text-sm font-medium transition-colors duration-300"
+            :class="tenantNavScrolled ? 'text-stone-600 hover:text-stone-900' : 'text-white/75 hover:text-white'">
+            Register
+          </a>
+          <a href="/my/login"
+            class="rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+            :style="{ backgroundColor: tenant.primary_color }">
+            Log in
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Hero ── -->
+    <section class="relative overflow-hidden flex flex-col justify-end" style="background: #1c1a17; min-height: 100vh;">
+      <!-- Grain texture -->
+      <div class="absolute inset-0 pointer-events-none opacity-[0.035]"
+        style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.75%22 numOctaves=%224%22 stitchTiles=%22stitch%22/></filter><rect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22 opacity=%221%22/></svg>');">
+      </div>
+      <!-- Accent glow -->
+      <div class="absolute top-1/4 right-1/3 w-[640px] h-[520px] rounded-full pointer-events-none"
+        :style="{ background: `radial-gradient(circle, ${tenant.primary_color} 0%, transparent 65%)`, opacity: 0.09, filter: 'blur(90px)' }">
+      </div>
+      <!-- Decorative paw — bottom right, very faint -->
+      <div class="absolute -bottom-12 -right-12 w-[440px] h-[440px] opacity-[0.025] pointer-events-none select-none text-white">
+        <svg viewBox="0 0 200 200" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="60" cy="55" rx="22" ry="28"/>
+          <ellipse cx="140" cy="55" rx="22" ry="28"/>
+          <ellipse cx="32" cy="108" rx="18" ry="24" transform="rotate(-18 32 108)"/>
+          <ellipse cx="168" cy="108" rx="18" ry="24" transform="rotate(18 168 108)"/>
+          <ellipse cx="100" cy="155" rx="52" ry="42"/>
+        </svg>
+      </div>
+
+      <div class="relative mx-auto w-full max-w-6xl px-6 pt-40 pb-28 md:pt-48 md:pb-36">
+        <!-- Business type chip -->
+        <div class="tenant-hero-item mb-8 inline-flex items-center gap-2.5 rounded-full border px-4 py-1.5"
+          :style="{ borderColor: `${tenant.primary_color}50`, backgroundColor: `${tenant.primary_color}18`, color: tenant.primary_color }">
+          <span class="h-1.5 w-1.5 rounded-full flex-shrink-0" :style="{ backgroundColor: tenant.primary_color }"></span>
+          <span class="text-[10px] font-bold uppercase tracking-[0.18em]">
+            {{ tenant.business_type === 'kennel' ? 'Dog Boarding' : tenant.business_type === 'hybrid' ? 'Daycare & Boarding' : 'Dog Daycare' }}
+          </span>
+        </div>
+
+        <!-- Headline -->
+        <h1 class="tenant-hero-item tenant-serif text-white leading-[1.02] tracking-tight"
+          style="font-size: clamp(2.8rem, 7vw, 5.5rem); font-weight: 700; max-width: 800px;">
+          Your dog's home<br>away from home.
+        </h1>
+
+        <!-- Business name as subheading -->
+        <p class="tenant-hero-item mt-5 text-lg md:text-xl font-medium text-white/40 tracking-wide" style="max-width: 480px;">
+          {{ tenant.name }}
+        </p>
+
+        <!-- CTAs -->
+        <div class="tenant-hero-item mt-10 flex flex-wrap gap-4 items-center">
+          <a href="/my/purchase"
+            class="inline-block rounded-xl px-8 py-3.5 text-sm font-semibold text-white shadow-xl transition-all hover:opacity-90"
+            :style="{ backgroundColor: tenant.primary_color }">
+            View Packages
+          </a>
+          <a href="/my/register"
+            class="inline-block rounded-xl border border-white/20 px-8 py-3.5 text-sm font-semibold text-white/75 hover:border-white/40 hover:text-white transition-all">
+            Create Account
+          </a>
+        </div>
+
+        <!-- Scroll hint -->
+        <div class="tenant-hero-item mt-16 flex items-center gap-2 text-white/20">
+          <svg class="w-4 h-4 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+          <span class="text-[10px] font-bold uppercase tracking-[0.2em]">Explore</span>
+        </div>
+      </div>
+
+      <!-- Sentinel for nav scroll detection -->
+      <div ref="tenantHeroSentinel" class="absolute bottom-0 left-0 right-0 h-px"></div>
+    </section>
+
+    <!-- ── Trust strip ── -->
+    <div style="background: #faf6f1; border-bottom: 1px solid #e8e0d8;" class="px-6 py-5">
+      <div class="mx-auto max-w-6xl flex flex-wrap items-center justify-center gap-x-10 gap-y-3">
+        <span v-for="trust in ['Licensed & Insured', 'Loving Care', 'Locally Owned', 'Open 7 Days a Week']"
+          :key="trust"
+          class="flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-stone-400">
+          <span class="h-0.5 w-4 rounded-full flex-shrink-0" :style="{ backgroundColor: tenant.primary_color }"></span>
+          {{ trust }}
+        </span>
+      </div>
+    </div>
+
+    <!-- ── Packages ── -->
+    <section v-if="packages.length > 0" style="background: #faf6f1;" class="px-6 py-24">
+      <div class="mx-auto max-w-6xl">
+        <div class="mb-14">
+          <span class="block text-[10px] font-bold uppercase tracking-[0.2em] mb-3" :style="{ color: tenant.primary_color }">Our Packages</span>
+          <h2 class="tenant-serif text-4xl md:text-5xl font-bold text-stone-900 leading-tight" style="max-width: 520px;">
+            Plans for every<br>kind of pup.
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            v-for="pkg in packages"
+            :key="pkg.id"
+            class="tenant-pkg-card bg-white rounded-2xl border border-stone-200/80 p-7 flex flex-col shadow-sm hover:shadow-lg transition-all duration-300"
+          >
+            <span class="self-start rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] mb-5"
+              :style="{ borderColor: `${tenant.primary_color}35`, backgroundColor: `${tenant.primary_color}12`, color: tenant.primary_color }">
+              {{ pkg.type === 'one_time' ? 'One-time' : pkg.type === 'subscription' ? 'Monthly' : 'Unlimited' }}
+            </span>
+            <h3 class="tenant-serif text-xl font-bold text-stone-900 mb-2">{{ pkg.name }}</h3>
+            <p v-if="pkg.description" class="text-sm text-stone-500 leading-relaxed flex-1 mb-5">{{ pkg.description }}</p>
+            <div v-else class="flex-1 mb-5"></div>
+
+            <div class="flex items-end justify-between mb-6">
+              <div class="flex items-baseline gap-1">
+                <span class="text-4xl font-extrabold text-stone-900 tracking-tight">
+                  ${{ pkg.price % 1 === 0 ? pkg.price.toFixed(0) : pkg.price.toFixed(2) }}
+                </span>
+                <span v-if="pkg.type === 'subscription'" class="text-sm text-stone-400 font-medium">/mo</span>
+              </div>
+              <span v-if="pkg.credit_count" class="text-sm font-semibold text-stone-400">{{ pkg.credit_count }} days</span>
+              <span v-else class="text-sm font-semibold text-stone-400">Unlimited</span>
+            </div>
+
+            <a href="/my/purchase"
+              class="block w-full rounded-xl py-3 text-center text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
+              :style="{ backgroundColor: tenant.primary_color }">
+              Get Started
+            </a>
+          </div>
+        </div>
+
+        <p class="mt-10 text-center text-sm text-stone-400">
+          Already have an account?
+          <a href="/my/login" class="font-semibold underline-offset-2 hover:underline transition-colors" :style="{ color: tenant.primary_color }">Log in</a>
+          to purchase.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Boarding ── -->
+    <section
+      v-if="kennel_units && kennel_units.length > 0"
+      class="relative overflow-hidden px-6 py-24"
+      style="background: #1c1a17;"
+    >
+      <!-- Grain -->
+      <div class="absolute inset-0 pointer-events-none opacity-[0.03]"
+        style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.75%22 numOctaves=%224%22 stitchTiles=%22stitch%22/></filter><rect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22 opacity=%221%22/></svg>');">
+      </div>
+
+      <div class="relative mx-auto max-w-6xl">
+        <div class="mb-14">
+          <span class="block text-[10px] font-bold uppercase tracking-[0.2em] mb-3" :style="{ color: tenant.primary_color }">Boarding & Overnight Stays</span>
+          <h2 class="tenant-serif text-4xl md:text-5xl font-bold text-white leading-tight" style="max-width: 520px;">
+            A restful stay<br>while you're away.
+          </h2>
+        </div>
+
+        <!-- Kennel units grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-14">
+          <div
+            v-for="unit in kennel_units"
+            :key="unit.id"
+            class="rounded-2xl p-6 flex flex-col"
+            style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);"
+          >
+            <span class="self-start rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] mb-4 capitalize"
+              :style="{ backgroundColor: `${tenant.primary_color}25`, color: tenant.primary_color }">
+              {{ unit.type }}
+            </span>
+            <h3 class="tenant-serif text-xl font-bold text-white mb-2">{{ unit.name }}</h3>
+            <p v-if="unit.description" class="text-sm leading-relaxed flex-1 mb-4 text-white/40">{{ unit.description }}</p>
+            <div v-else class="flex-1 mb-4"></div>
+            <div v-if="unit.nightly_rate_cents" class="flex items-baseline gap-1">
+              <span class="text-3xl font-extrabold text-white">${{ (unit.nightly_rate_cents / 100).toFixed(0) }}</span>
+              <span class="text-sm text-white/35">/night</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Availability checker -->
+        <div class="rounded-2xl p-8 md:p-10" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);">
+          <h3 class="tenant-serif text-2xl font-bold text-white mb-1">Check Availability</h3>
+          <p class="text-sm text-white/35 mb-8">Pick your dates and see which suites are open.</p>
+
+          <div class="flex flex-col sm:flex-row gap-4 items-end">
+            <div class="flex-1">
+              <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/30 mb-2">Check-in</label>
+              <input v-model="checkIn" type="date"
+                class="w-full rounded-xl border px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 transition-colors"
+                style="background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.12); color-scheme: dark;"
+              />
+            </div>
+            <div class="flex-1">
+              <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/30 mb-2">Check-out</label>
+              <input v-model="checkOut" type="date"
+                class="w-full rounded-xl border px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 transition-colors"
+                style="background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.12); color-scheme: dark;"
+              />
+            </div>
+            <button
+              class="rounded-xl px-8 py-3 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 flex-shrink-0"
+              :style="{ backgroundColor: tenant.primary_color }"
+              :disabled="!checkIn || !checkOut || checkingAvailability"
+              @click="checkAvailability">
+              {{ checkingAvailability ? 'Checking…' : 'Check Availability' }}
+            </button>
+          </div>
+
+          <p v-if="availabilityError" class="mt-5 text-sm text-red-400">{{ availabilityError }}</p>
+
+          <div v-if="availability !== null" class="mt-8">
+            <div v-if="availability.length === 0" class="text-sm text-white/35 text-center py-6">
+              No units available for those dates. Try a different date range.
+            </div>
+            <div v-else>
+              <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-white/35 mb-5">
+                {{ availability.length }} unit{{ availability.length !== 1 ? 's' : '' }} available
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+                <div v-for="unit in availability" :key="unit.id"
+                  class="flex items-center justify-between rounded-xl px-5 py-4"
+                  style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+                  <div>
+                    <p class="text-sm font-semibold text-white">{{ unit.name }}</p>
+                    <p class="text-xs text-white/30 capitalize mt-0.5">{{ unit.type }}</p>
+                  </div>
+                  <p v-if="unit.nightly_rate_cents" class="text-sm font-bold text-white">
+                    ${{ (unit.nightly_rate_cents / 100).toFixed(0) }}/night
+                  </p>
+                </div>
+              </div>
+              <a
+                :href="`/my/boarding/create?starts_at=${checkIn}&ends_at=${checkOut}`"
+                class="inline-block rounded-xl px-10 py-3.5 text-sm font-semibold text-white shadow-xl hover:opacity-90 transition-all"
+                :style="{ backgroundColor: tenant.primary_color }">
+                Book a Stay
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Why Choose Us ── -->
+    <section style="background: #fff;" class="px-6 py-24">
+      <div class="mx-auto max-w-6xl">
+        <div class="text-center mb-16">
+          <span class="block text-[10px] font-bold uppercase tracking-[0.2em] mb-3" :style="{ color: tenant.primary_color }">Why {{ tenant.name }}</span>
+          <h2 class="tenant-serif text-4xl md:text-5xl font-bold text-stone-900">The difference is<br>in the care.</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div class="flex flex-col items-start">
+            <div class="w-12 h-12 rounded-2xl mb-6 flex items-center justify-center flex-shrink-0"
+              :style="{ backgroundColor: `${tenant.primary_color}15` }">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
+                :style="{ color: tenant.primary_color }">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+            </div>
+            <h3 class="tenant-serif text-xl font-bold text-stone-900 mb-3">Safe &amp; Supervised</h3>
+            <p class="text-sm text-stone-500 leading-relaxed">Every dog is supervised by trained, caring staff throughout the entire day. Safety is always our first priority.</p>
+          </div>
+
+          <div class="flex flex-col items-start">
+            <div class="w-12 h-12 rounded-2xl mb-6 flex items-center justify-center flex-shrink-0"
+              :style="{ backgroundColor: `${tenant.primary_color}15` }">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
+                :style="{ color: tenant.primary_color }">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+              </svg>
+            </div>
+            <h3 class="tenant-serif text-xl font-bold text-stone-900 mb-3">Enriching Playtime</h3>
+            <p class="text-sm text-stone-500 leading-relaxed">Dogs are social creatures. Structured play, walks, and enrichment activities keep tails wagging all day long.</p>
+          </div>
+
+          <div class="flex flex-col items-start">
+            <div class="w-12 h-12 rounded-2xl mb-6 flex items-center justify-center flex-shrink-0"
+              :style="{ backgroundColor: `${tenant.primary_color}15` }">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
+                :style="{ color: tenant.primary_color }">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <h3 class="tenant-serif text-xl font-bold text-stone-900 mb-3">Easy Online Booking</h3>
+            <p class="text-sm text-stone-500 leading-relaxed">Manage your dog's schedule, purchase credits, and track visit history — all from your phone or computer.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Footer CTA ── -->
+    <section class="relative overflow-hidden px-6 py-28 text-center" style="background: #1c1a17;">
+      <div class="absolute inset-0 pointer-events-none opacity-[0.03]"
+        style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.75%22 numOctaves=%224%22 stitchTiles=%22stitch%22/></filter><rect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22 opacity=%221%22/></svg>');">
+      </div>
+      <div class="absolute inset-0 pointer-events-none opacity-[0.07]"
+        :style="{ background: `radial-gradient(circle at center, ${tenant.primary_color} 0%, transparent 65%)`, filter: 'blur(60px)' }">
+      </div>
+      <div class="relative mx-auto max-w-2xl">
+        <h2 class="tenant-serif text-4xl md:text-5xl font-bold text-white leading-tight mb-6">
+          Ready to join<br>the pack?
+        </h2>
+        <p class="text-base text-white/40 mb-10 max-w-md mx-auto">Create your account today and give your dog the care they deserve.</p>
+        <div class="flex flex-wrap gap-4 justify-center">
+          <a href="/my/register"
+            class="inline-block rounded-xl px-10 py-3.5 text-sm font-semibold text-white shadow-xl transition-all hover:opacity-90"
+            :style="{ backgroundColor: tenant.primary_color }">
+            Create Account
+          </a>
+          <a href="/my/login"
+            class="inline-block rounded-xl border border-white/20 px-10 py-3.5 text-sm font-semibold text-white/75 hover:border-white/40 hover:text-white transition-all">
+            Log in
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Footer ── -->
+    <footer style="background: #161410; border-top: 1px solid rgba(255,255,255,0.06);" class="px-6 py-8 text-center">
+      <p class="text-xs text-white/25">
+        Powered by <a :href="`https://platform.${appDomain}`" class="hover:text-white/50 transition-colors underline underline-offset-2">PawPass</a>
+      </p>
+    </footer>
+  </div>
+
+  <!-- ===== PLATFORM MARKETING PAGE ===== -->
+  <div v-else class="min-h-screen font-sans" style="background-color: #faf9f6;">
     <!-- ===== NAV ===== -->
     <nav
       class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
@@ -528,6 +882,7 @@
       </div>
     </footer>
   </div>
+  <!-- end v-else platform page -->
 </template>
 
 <script setup lang="ts">
@@ -552,9 +907,39 @@ interface Plan {
   staff_limit: number
 }
 
+interface TenantData {
+  name: string
+  slug: string
+  logo_url: string | null
+  primary_color: string
+  business_type: string | null
+}
+
+interface PackageData {
+  id: string
+  name: string
+  description: string | null
+  type: string
+  price: number
+  credit_count: number | null
+  dog_limit: number | null
+}
+
+interface KennelUnitData {
+  id: string
+  name: string
+  type: string
+  description: string | null
+  nightly_rate_cents: number | null
+  capacity: number
+}
+
 const props = defineProps<{
   plans: Plan[]
   show_pricing_calculator: boolean
+  tenant: TenantData | null
+  packages: PackageData[]
+  kennel_units?: KennelUnitData[]
 }>()
 
 // ── Nav state ────────────────────────────────────────────────
@@ -564,10 +949,40 @@ const navScrolled = ref(false)
 const heroSentinel = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
 
+// Tenant page nav scroll (separate from platform page)
+const tenantNavScrolled = ref(false)
+const tenantHeroSentinel = ref<HTMLElement | null>(null)
+let tenantObserver: IntersectionObserver | null = null
+
 // ── Login dropdown ───────────────────────────────────────────
 const loginOpen = ref(false)
 const loginSlug = ref('')
 const loginDropdownRef = ref<HTMLElement | null>(null)
+
+// ── Boarding availability checker ────────────────────────────
+const checkIn = ref('')
+const checkOut = ref('')
+const availability = ref<KennelUnitData[] | null>(null)
+const checkingAvailability = ref(false)
+const availabilityError = ref<string | null>(null)
+
+async function checkAvailability() {
+  if (!checkIn.value || !checkOut.value) return
+  checkingAvailability.value = true
+  availabilityError.value = null
+  availability.value = null
+  try {
+    const params = new URLSearchParams({ starts_at: checkIn.value, ends_at: checkOut.value })
+    const resp = await fetch(`/api/portal/v1/kennel-units/check-availability?${params}`)
+    if (!resp.ok) { availabilityError.value = 'Unable to check availability. Please try again.'; return }
+    const json = await resp.json()
+    availability.value = json.data
+  } catch {
+    availabilityError.value = 'Network error. Please try again.'
+  } finally {
+    checkingAvailability.value = false
+  }
+}
 
 function goToLogin() {
   const slug = loginSlug.value.trim()
@@ -591,11 +1006,20 @@ onMounted(() => {
     )
     observer.observe(heroSentinel.value)
   }
+
+  if (tenantHeroSentinel.value) {
+    tenantObserver = new IntersectionObserver(
+      ([entry]) => { tenantNavScrolled.value = !entry.isIntersecting },
+      { threshold: 0 }
+    )
+    tenantObserver.observe(tenantHeroSentinel.value)
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleOutsideClick)
   observer?.disconnect()
+  tenantObserver?.disconnect()
 })
 
 // ── Hero product mockup data ─────────────────────────────────
@@ -751,6 +1175,30 @@ const displayPlans = computed<DisplayPlan[]>(() => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
+
+/* Tenant page serif font class */
+.tenant-serif {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+}
+
+/* Tenant hero entrance animations */
+@keyframes tenantHeroUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tenant-hero-item {
+  opacity: 0;
+  animation: tenantHeroUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.tenant-hero-item:nth-child(1) { animation-delay: 0.1s; }
+.tenant-hero-item:nth-child(2) { animation-delay: 0.25s; }
+.tenant-hero-item:nth-child(3) { animation-delay: 0.4s; }
+.tenant-hero-item:nth-child(4) { animation-delay: 0.55s; }
+.tenant-hero-item:nth-child(5) { animation-delay: 0.7s; }
+
 /* Hero entrance animations */
 @keyframes heroFadeUp {
   from { opacity: 0; transform: translateY(20px); }

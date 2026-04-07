@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Web\Auth;
 use App\Auth\MagicLink\Action;
 use App\Http\Controllers\Controller;
 use App\Mail\MagicLinkMail;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\MagicLinkService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -38,6 +40,7 @@ class MagicLinkController extends Controller
         $ipKey = 'magic-link-ip:'.sha1($ip);
 
         if (RateLimiter::tooManyAttempts($emailKey, 5) || RateLimiter::tooManyAttempts($ipKey, 10)) {
+            Log::info('MagicLink rate limited', ['email_hash' => sha1($email), 'ip' => $ip]);
             // Still return 200 to avoid leaking info; the link just won't arrive
             return response()->noContent();
         }
@@ -47,11 +50,27 @@ class MagicLinkController extends Controller
 
         $user = User::where('email', $email)->first();
 
-        if ($user !== null) {
-            $fpComponents = $request->input('fp_components', []);
-            $rawToken = $this->magicLink->generateToken($user, $fpComponents, $ip);
+        if ($user === null) {
+            Log::info('MagicLink requested for unknown email', ['email_hash' => sha1($email), 'ip' => $ip]);
 
-            Mail::to($user->email)->send(new MagicLinkMail($user, $rawToken));
+            return response()->noContent();
+        }
+
+        $fpComponents = $request->input('fp_components', []);
+        $rawToken = $this->magicLink->generateToken($user, $fpComponents, $ip);
+
+        Log::info('MagicLink token generated', ['user_id' => $user->id, 'ip' => $ip]);
+
+        $tenant = $user->tenant_id ? Tenant::find($user->tenant_id) : null;
+
+        try {
+            Mail::to($user->email)->send(new MagicLinkMail($user, $rawToken, $tenant));
+            Log::info('MagicLink mail sent', ['user_id' => $user->id]);
+        } catch (\Throwable $e) {
+            Log::error('MagicLink mail failed', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
         }
 
         return response()->noContent();

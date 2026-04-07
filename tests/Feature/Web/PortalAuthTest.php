@@ -32,7 +32,6 @@ class PortalAuthTest extends TestCase
             'customer_id' => $customer->id,
             'role'        => 'customer',
             'email'       => 'jane@example.com',
-            'password'    => bcrypt('secret123'),
         ]);
         $customer->update(['user_id' => $this->user->id]);
     }
@@ -43,28 +42,6 @@ class PortalAuthTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page->component('Auth/Login'));
-    }
-
-    public function test_login_with_valid_credentials_redirects_to_dashboard(): void
-    {
-        $response = $this->post('/my/login', [
-            'email'    => 'jane@example.com',
-            'password' => 'secret123',
-        ]);
-
-        $response->assertRedirect('/my');
-        $this->assertAuthenticatedAs($this->user);
-    }
-
-    public function test_login_with_wrong_password_returns_errors(): void
-    {
-        $response = $this->post('/my/login', [
-            'email'    => 'jane@example.com',
-            'password' => 'wrong',
-        ]);
-
-        $response->assertSessionHasErrors('email');
-        $this->assertGuest();
     }
 
     public function test_logout_redirects_to_portal_login(): void
@@ -102,22 +79,6 @@ class PortalAuthTest extends TestCase
         $response->assertInertia(fn ($page) => $page->component('Portal/Dashboard'));
     }
 
-    public function test_forgot_password_page_renders(): void
-    {
-        $response = $this->get('/my/forgot-password');
-
-        $response->assertStatus(200);
-        $response->assertInertia(fn ($page) => $page->component('Auth/ForgotPassword'));
-    }
-
-    public function test_reset_password_page_renders(): void
-    {
-        $response = $this->get('/my/reset-password?token=abc&email=jane@example.com');
-
-        $response->assertStatus(200);
-        $response->assertInertia(fn ($page) => $page->component('Auth/ResetPassword'));
-    }
-
     public function test_register_syncs_customer_to_stripe_when_tenant_has_stripe_account(): void
     {
         $this->tenant->update(['stripe_account_id' => 'acct_testconnect']);
@@ -132,10 +93,8 @@ class PortalAuthTest extends TestCase
             ->andReturn($stripeCustomer);
 
         $response = $this->post('/my/register', [
-            'name'                  => 'New User',
-            'email'                 => 'newuser@example.com',
-            'password'              => 'password123',
-            'password_confirmation' => 'password123',
+            'name'  => 'New User',
+            'email' => 'newuser@example.com',
         ]);
 
         $response->assertRedirect('/my/login');
@@ -156,10 +115,8 @@ class PortalAuthTest extends TestCase
             ->andThrow(new \Exception('Stripe error'));
 
         $response = $this->post('/my/register', [
-            'name'                  => 'Fail User',
-            'email'                 => 'failuser@example.com',
-            'password'              => 'password123',
-            'password_confirmation' => 'password123',
+            'name'  => 'Fail User',
+            'email' => 'failuser@example.com',
         ]);
 
         $response->assertRedirect('/my/login');

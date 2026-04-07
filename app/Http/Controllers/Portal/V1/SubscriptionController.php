@@ -56,7 +56,7 @@ class SubscriptionController extends Controller
             $stripeCustomerId = $customer->stripe_customer_id;
         } else {
             $stripeCustomer = $this->stripe->createCustomer(
-                $customer->email ?? '',
+                $customer->email,
                 $customer->name,
                 $tenant->stripe_account_id,
             );

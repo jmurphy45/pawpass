@@ -1,78 +1,55 @@
-# Phase: Add-on Services — Boarding + Daycare with Billing
+# Task: Public Daycare Directory ("Find a Daycare Near You")
 
----
+## Phase A — Business Location Data
 
-## Step 1 — Migration: attendance_id on orders
+- [x] Migration: add directory fields to tenants
+- [x] Update Tenant model fillable + casts
+- [x] Write failing tests for public API `/api/public/v1/daycares`
+- [x] Implement `DaycareDirectoryController` (Public/V1) + add route
+- [x] Update `UpdateBusinessSettingsRequest` to accept directory fields
+- [x] Update `Admin\V1\SettingsController::tenantData()` to return directory fields
+- [x] Update `Web\Admin\SettingsController` to accept + save directory fields
+- [x] Update Settings `Index.vue` — add Public Directory section
 
-- [x] New migration `2026_03_25_000008_add_attendance_id_to_orders.php`
-- [x] Update `Order` model: `attendance_id` fillable + `attendance()` BelongsTo
-  - Verification: migration runs on both main and test DB
+## Phase B — Web Directory Page
 
----
+- [x] Add `DaycareDirectoryController` (Web) + routes in `web.php`
+- [x] Create `resources/js/Pages/FindADaycare.vue`
 
-## Step 2 — Services Management Page (Owner-Only)
+## Phase C — Sitemap
 
-- [x] Write failing tests in `tests/Feature/Web/Admin/ServicesControllerTest.php`
-- [x] Create `app/Http/Controllers/Web/Admin/ServicesController.php` (index/store/update/destroy)
-- [x] Add routes to `routes/web.php` (`admin.services.*`)
-- [x] Create `resources/js/Pages/Admin/Services/Index.vue` (table + inline create/edit form)
-- [x] Add "Services" nav link to `AdminLayout.vue` (sparkles icon, after Packages)
-  - Verification: 9 tests pass
+- [x] `composer require spatie/laravel-sitemap`
+- [x] Create `app/Console/Commands/GenerateSitemapCommand.php`
+- [x] Register command + schedule at 3:30 AM in `bootstrap/app.php`
 
----
+## Step 5 — StripeBillingService Updates
 
-## Step 3 — Delete Boarding Reservation Addon
-
-- [x] Write failing tests (destroy allowed, 409 when checked_out)
-- [x] Add `BoardingController::destroyAddon`
-- [x] Add web route `DELETE /boarding/reservations/{reservation}/addons/{addon}`
-- [x] Add remove button (×) to `ReservationShow.vue` addon list
-  - Verification: 2 tests pass
-
----
-
-## Step 4 — Roster Inline Addon UI + Billing
-
-- [x] Write failing tests in `tests/Feature/Web/Admin/RosterControllerTest.php`
-- [x] Update `RosterController::index` — include `attendance_id`, `attendance_addons`, `addonTypes` prop
-- [x] Add `RosterController::chargeAttendanceAddons` private helper
-- [x] Update `RosterController::checkout` — charge addons at checkout
-- [x] Add `RosterController::storeAttendanceAddon` — save addon; charge immediately if already checked out
-- [x] Add `RosterController::destroyAttendanceAddon` — guard: 409 if order already exists
-- [x] Add routes: `POST/DELETE /roster/attendances/{attendance}/addons`
-- [x] Update `resources/js/Pages/Admin/Roster/Index.vue` — expandable inline addon panel per dog
-  - Verification: 7 tests pass
-
----
-
-## Final Verification
-
-- [x] `./vendor/bin/sail artisan test` — 913 tests pass (up from 895)
-- [x] `npm run build` — no TS errors, built in 4s
+- [x] `./vendor/bin/sail artisan test` — 1066 passed, no regressions
+- [x] `npm run build` — clean, no TS/Vite errors
 
 ---
 
 ## Review
 
 ### Summary of Changes
-- Migration: `attendance_id` (nullable FK) added to `orders` for daycare addon billing traceability
-- New `ServicesController` (web) + `Admin/Services/Index.vue` — owner-only CRUD for addon type catalog with context badges (both/boarding/daycare)
-- `AdminLayout.vue` — "Services" nav link (sparkles icon) in owner section
-- `BoardingController::destroyAddon` — delete reservation addon, guarded for checked_out status
-- `ReservationShow.vue` — × remove button per addon (hidden when reservation is checked_out)
-- `RosterController` — `chargeAttendanceAddons` helper creates Order + charges Stripe on checkout; `storeAttendanceAddon` handles both "add during stay" and "add after checkout (charge immediately)"; `destroyAttendanceAddon` with billing guard
-- `Roster/Index.vue` — expandable per-dog addon panel (click dog name), add/remove addons inline, addon count hint in subtitle
+- Migration `2026_04_04_000001` adds 7 columns to tenants: `business_address`, `business_city`, `business_state`, `business_zip`, `business_phone`, `business_description`, `is_publicly_listed`
+- `Tenant` model: new fields in `$fillable`, `is_publicly_listed` cast to boolean
+- `DaycareDirectoryController` (Public/V1): `GET /api/public/v1/daycares` — search by city/state or zip, optional date range for boarding availability
+- `DaycareDirectoryController` (Web): Inertia page at `/find-a-daycare` and `/find-a-daycare/{state}/{city}`
+- `FindADaycare.vue`: public search page with city/state or zip search, boarding date filter, result cards
+- Settings controllers (API + Web): accept and expose all 7 new directory fields
+- Settings `Index.vue`: new "Public Directory" form section
+- `GenerateSitemapCommand`: `php artisan sitemap:generate` builds `public/sitemap.xml` with static pages + city pages + tenant subdomain URLs; scheduled at 3:30 AM UTC
 
 ### Tests Added or Updated
-- `tests/Feature/Web/Admin/ServicesControllerTest.php` — 9 new tests
-- `tests/Feature/Web/Admin/BoardingControllerTest.php` — 2 new tests
-- `tests/Feature/Web/Admin/RosterControllerTest.php` — 7 new tests
+- `tests/Feature/Public/DaycareDirectoryTest.php` — 12 tests covering visibility, search filters, response shape, boarding availability logic
 
 ### Build Status
-- Tests: 913 passing
-- Build: Successful (no TS errors)
+- Tests: 1066 passed (no regressions)
+- Build: Successful
 
 ### Notes
-- `both`-context addon types (e.g. Nail Clip) appear in both the boarding ReservationShow dropdown and the roster inline panel
-- If no card on file at daycare checkout, an order is created with `status='pending'` for manual follow-up
-- `destroyAttendanceAddon` guards against removing addons that have already been billed (order exists for the attendance)
+- Tenants opt-in via `is_publicly_listed = true`; defaults to false
+- `spatie/laravel-sitemap ^8.1` installed
+- Geocoding/radius search deferred — city+state+zip text search sufficient for v1
+- `config('app.domain')` used in sitemap for tenant subdomain URLs; set `APP_DOMAIN=pawpass.com` in production env if needed

@@ -52,7 +52,11 @@
 
   <div class="header">
     <div>
+      @if(!empty($logoUrl))
+      <img src="{{ $logoUrl }}" alt="{{ $tenantName }}" style="height: 44px; width: auto; max-width: 160px; object-fit: contain; margin-bottom: 4px; display: block;" />
+      @else
       <div class="business-name">{{ $tenantName }}</div>
+      @endif
     </div>
     <div class="receipt-label">
       <div class="title">Receipt</div>
@@ -95,12 +99,22 @@
           <div class="item-dogs">{{ $dogNames }}</div>
           @endif
         </td>
-        <td class="right">${{ $amount }}</td>
+        <td class="right">${{ $subtotalAmount }}</td>
       </tr>
     </tbody>
   </table>
 
   <table class="totals">
+    @if($taxAmount > 0)
+    <tr>
+      <td>Subtotal</td>
+      <td>${{ $subtotalAmount }}</td>
+    </tr>
+    <tr>
+      <td>Tax</td>
+      <td>${{ $taxAmount }}</td>
+    </tr>
+    @endif
     <tr class="total-row">
       <td>Total</td>
       <td>${{ $amount }}</td>

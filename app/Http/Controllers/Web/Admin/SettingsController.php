@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\NotificationService;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Pennant\Feature;
 
 class SettingsController extends Controller
 {
@@ -30,18 +32,32 @@ class SettingsController extends Controller
             ->orWhere('role', 'business_owner')
             ->get(['id', 'name', 'email', 'role', 'status']);
 
+        $packages = Package::where('type', 'one_time')->get(['id', 'name', 'price']);
+
         return Inertia::render('Admin/Settings/Index', [
             'business' => [
-                'name'                 => $tenant->name,
-                'timezone'             => $tenant->timezone,
-                'primary_color'        => $tenant->primary_color,
-                'low_credit_threshold' => $tenant->low_credit_threshold,
-                'checkin_block_at_zero' => $tenant->checkin_block_at_zero,
-                'payout_schedule'      => $tenant->payout_schedule,
-                'business_type'        => $tenant->business_type ?? 'daycare',
+                'name'                           => $tenant->name,
+                'timezone'                       => $tenant->timezone,
+                'primary_color'                  => $tenant->primary_color,
+                'logo_url'                       => $tenant->logo_url,
+                'low_credit_threshold'           => $tenant->low_credit_threshold,
+                'checkin_block_at_zero'          => $tenant->checkin_block_at_zero,
+                'payout_schedule'                => $tenant->payout_schedule,
+                'business_type'                  => $tenant->business_type ?? 'daycare',
+                'auto_charge_at_zero_package_id' => $tenant->auto_charge_at_zero_package_id,
+                'business_address'               => $tenant->business_address,
+                'business_city'                  => $tenant->business_city,
+                'business_state'                 => $tenant->business_state,
+                'business_zip'                   => $tenant->business_zip,
+                'business_phone'                 => $tenant->business_phone,
+                'business_description'           => $tenant->business_description,
+                'is_publicly_listed'             => (bool) $tenant->is_publicly_listed,
             ],
+            'billing_address'      => $tenant->billing_address ?? [],
             'notificationSettings' => $notificationSettings,
             'staff'                => $staffList,
+            'packages'             => $packages,
+            'can_auto_replenish'   => Feature::for($tenant)->active('auto_replenish'),
         ]);
     }
 
@@ -50,19 +66,45 @@ class SettingsController extends Controller
         $this->requireOwner();
 
         $validated = $request->validate([
-            'name'                 => ['sometimes', 'string', 'max:255'],
-            'timezone'             => ['sometimes', 'string', 'timezone'],
-            'primary_color'        => ['sometimes', 'string', 'max:20'],
-            'low_credit_threshold' => ['sometimes', 'integer', 'min:0'],
-            'checkin_block_at_zero' => ['sometimes', 'boolean'],
-            'payout_schedule'      => ['sometimes', 'string'],
-            'business_type'        => ['sometimes', 'string', 'in:daycare,kennel,hybrid'],
+            'name'                           => ['sometimes', 'string', 'max:255'],
+            'timezone'                       => ['sometimes', 'string', 'timezone'],
+            'primary_color'                  => ['sometimes', 'string', 'max:20'],
+            'low_credit_threshold'           => ['sometimes', 'integer', 'min:0'],
+            'checkin_block_at_zero'          => ['sometimes', 'boolean'],
+            'payout_schedule'                => ['sometimes', 'string'],
+            'business_type'                  => ['sometimes', 'string', 'in:daycare,kennel,hybrid'],
+            'auto_charge_at_zero_package_id' => ['sometimes', 'nullable', 'string', 'exists:packages,id'],
+            'business_address'               => ['sometimes', 'nullable', 'string', 'max:255'],
+            'business_city'                  => ['sometimes', 'nullable', 'string', 'max:100'],
+            'business_state'                 => ['sometimes', 'nullable', 'string', 'size:2'],
+            'business_zip'                   => ['sometimes', 'nullable', 'string', 'max:10'],
+            'business_phone'                 => ['sometimes', 'nullable', 'string', 'max:30'],
+            'business_description'           => ['sometimes', 'nullable', 'string', 'max:280'],
+            'is_publicly_listed'             => ['sometimes', 'boolean'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
         $tenant->update($validated);
 
         return back()->with('success', 'Business settings updated.');
+    }
+
+    public function updateBillingAddress(Request $request): RedirectResponse
+    {
+        $this->requireOwner();
+
+        $validated = $request->validate([
+            'street'      => ['required', 'string', 'max:255'],
+            'city'        => ['required', 'string', 'max:100'],
+            'state'       => ['sometimes', 'nullable', 'string', 'max:100'],
+            'postal_code' => ['required', 'string', 'max:20'],
+            'country'     => ['required', 'string', 'size:2'],
+        ]);
+
+        $tenant = Tenant::find(app('current.tenant.id'));
+        $tenant->update(['billing_address' => $validated]);
+
+        return back()->with('success', 'Billing address updated.');
     }
 
     public function updateNotifications(Request $request): RedirectResponse

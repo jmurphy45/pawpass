@@ -49,6 +49,13 @@ class FoundersSlotEnforcementTest extends TestCase
             'password_confirmation' => 'password123',
             'plan'                  => 'founders',
             'billing_cycle'         => 'monthly',
+            'billing_address'       => [
+                'street'      => '123 Main St',
+                'city'        => 'Portland',
+                'state'       => 'OR',
+                'postal_code' => '97201',
+                'country'     => 'US',
+            ],
         ], $overrides);
     }
 
@@ -76,6 +83,7 @@ class FoundersSlotEnforcementTest extends TestCase
         $this->mock(StripeBillingService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')->andReturn('cus_founders_123');
             $mock->shouldReceive('createTrialSubscription')->andReturn((object) ['id' => 'sub_founders_123']);
+            $mock->shouldReceive('updateSubscriptionMetadata');
         });
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -97,6 +105,7 @@ class FoundersSlotEnforcementTest extends TestCase
         $this->mock(StripeBillingService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')->andReturn('cus_founders_456');
             $mock->shouldReceive('createTrialSubscription')->andReturn((object) ['id' => 'sub_founders_456']);
+            $mock->shouldReceive('updateSubscriptionMetadata');
         });
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -116,6 +125,7 @@ class FoundersSlotEnforcementTest extends TestCase
         $this->mock(StripeBillingService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')->andReturn('cus_founders_789');
             $mock->shouldReceive('createTrialSubscription')->andReturn((object) ['id' => 'sub_founders_789']);
+            $mock->shouldReceive('updateSubscriptionMetadata');
         });
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -144,6 +154,7 @@ class FoundersSlotEnforcementTest extends TestCase
         $this->mock(StripeBillingService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')->andReturn('cus_starter_999');
             $mock->shouldReceive('createTrialSubscription')->andReturn((object) ['id' => 'sub_starter_999']);
+            $mock->shouldReceive('updateSubscriptionMetadata');
         });
 
         $this->mock(StripeService::class, function (MockInterface $mock) {

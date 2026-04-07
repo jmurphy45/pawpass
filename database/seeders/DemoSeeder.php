@@ -107,7 +107,6 @@ class DemoSeeder extends Seeder
             'name'              => $name,
             'email'             => $email,
             'email_verified_at' => now(),
-            'password'          => Hash::make('password'),
             'role'              => 'customer',
             'status'            => 'active',
         ]);
@@ -288,7 +287,6 @@ class DemoSeeder extends Seeder
             'name'              => 'Platform Admin',
             'email'             => 'admin@pawpass.test',
             'email_verified_at' => now(),
-            'password'          => Hash::make('password'),
             'role'              => 'platform_admin',
             'status'            => 'active',
         ]);
@@ -342,7 +340,7 @@ class DemoSeeder extends Seeder
         $owner = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Alex Morgan', 'email' => 'owner@happy-paws.test',
-            'email_verified_at' => now(), 'password' => Hash::make('password'),
+            'email_verified_at' => now(), 
             'role' => 'business_owner', 'status' => 'active',
         ]);
         $tenant->update(['owner_user_id' => $owner->id]);
@@ -350,14 +348,14 @@ class DemoSeeder extends Seeder
         $sarah = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Sarah Thompson', 'email' => 'sarah@happy-paws.test',
-            'email_verified_at' => now(), 'password' => Hash::make('password'),
+            'email_verified_at' => now(), 
             'role' => 'staff', 'status' => 'active',
         ]);
 
         $mike = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Mike Johnson', 'email' => 'mike@happy-paws.test',
-            'email_verified_at' => now(), 'password' => Hash::make('password'),
+            'email_verified_at' => now(), 
             'role' => 'staff', 'status' => 'active',
         ]);
 
@@ -671,7 +669,7 @@ class DemoSeeder extends Seeder
         $owner = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Jamie Rivera', 'email' => 'owner@coastal-canines.test',
-            'email_verified_at' => now(), 'password' => Hash::make('password'),
+            'email_verified_at' => now(), 
             'role' => 'business_owner', 'status' => 'active',
         ]);
         $tenant->update(['owner_user_id' => $owner->id]);
@@ -679,7 +677,7 @@ class DemoSeeder extends Seeder
         $staffUser = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Taylor Brooks', 'email' => 'staff@coastal-canines.test',
-            'email_verified_at' => now(), 'password' => Hash::make('password'),
+            'email_verified_at' => now(), 
             'role' => 'staff', 'status' => 'active',
         ]);
 
@@ -816,7 +814,7 @@ class DemoSeeder extends Seeder
         $owner = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Casey Bell', 'email' => 'owner@bark-box.test',
-            'email_verified_at' => now(), 'password' => Hash::make('password'),
+            'email_verified_at' => now(), 
             'role' => 'business_owner', 'status' => 'active',
         ]);
         $tenant->update(['owner_user_id' => $owner->id]);

@@ -11,6 +11,7 @@ use App\Services\StripeBillingService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Stripe\Exception\SignatureVerificationException;
 
 class StripeBillingWebhookController extends Controller
@@ -29,6 +30,9 @@ class StripeBillingWebhookController extends Controller
         try {
             $event = $this->billing->constructWebhookEvent($payload, $sigHeader, $secret);
         } catch (SignatureVerificationException) {
+            Log::error('StripeBillingWebhook: invalid signature', [
+                'sig_header_prefix' => substr($sigHeader, 0, 20),
+            ]);
             return response()->json(['message' => 'Invalid signature'], 400);
         }
 
@@ -49,15 +53,73 @@ class StripeBillingWebhookController extends Controller
         };
     }
 
+    private function resolvePeriodEnd(object $stripeSub): ?Carbon
+    {
+        $timestamp = $stripeSub->items->data[0]->current_period_end
+            ?? $stripeSub->current_period_end
+            ?? $stripeSub->trial_end
+            ?? null;
+
+        return $timestamp ? Carbon::createFromTimestamp($timestamp) : null;
+    }
+
     private function resolveTenant(object $stripeSub): ?Tenant
     {
-        $tenantId = $stripeSub->metadata->tenant_id ?? null;
+        $stripeSubId = $stripeSub->id ?? null;
+        $metadataTenantId = $stripeSub->metadata->tenant_id ?? null;
+        $stripeCustomerId = is_string($stripeSub->customer ?? null) ? $stripeSub->customer : null;
 
-        if (! $tenantId) {
-            return null;
+        Log::info('StripeBillingWebhook: resolving tenant', [
+            'stripe_sub_id'    => $stripeSubId,
+            'metadata_tenant'  => $metadataTenantId,
+            'stripe_customer'  => $stripeCustomerId,
+        ]);
+
+        // 1. Canonical: subscription ID stored in DB at registration time
+        $tenant = Tenant::where('platform_stripe_sub_id', $stripeSubId)->first();
+        if ($tenant) {
+            if ($metadataTenantId && $metadataTenantId !== $tenant->id) {
+                Log::warning('StripeBillingWebhook: stale metadata tenant_id, resolved by platform_stripe_sub_id', [
+                    'stripe_sub_id'      => $stripeSubId,
+                    'metadata_tenant_id' => $metadataTenantId,
+                    'resolved_tenant_id' => $tenant->id,
+                ]);
+            }
+            return $tenant;
         }
 
-        return Tenant::find($tenantId);
+        // 2. Metadata fallback: may be stale after retried registrations
+        if ($metadataTenantId) {
+            $tenant = Tenant::find($metadataTenantId);
+            if ($tenant) {
+                Log::warning('StripeBillingWebhook: platform_stripe_sub_id lookup missed, resolved by metadata tenant_id', [
+                    'stripe_sub_id'      => $stripeSubId,
+                    'metadata_tenant_id' => $metadataTenantId,
+                ]);
+                return $tenant;
+            }
+        }
+
+        // 3. Customer ID fallback: last resort
+        if ($stripeCustomerId) {
+            $tenant = Tenant::where('platform_stripe_customer_id', $stripeCustomerId)->first();
+            if ($tenant) {
+                Log::warning('StripeBillingWebhook: resolved by platform_stripe_customer_id fallback', [
+                    'stripe_sub_id'      => $stripeSubId,
+                    'stripe_customer_id' => $stripeCustomerId,
+                    'resolved_tenant_id' => $tenant->id,
+                ]);
+                return $tenant;
+            }
+        }
+
+        Log::error('StripeBillingWebhook: tenant not found by any lookup', [
+            'stripe_sub_id'      => $stripeSubId,
+            'metadata_tenant_id' => $metadataTenantId,
+            'stripe_customer_id' => $stripeCustomerId,
+        ]);
+
+        return null;
     }
 
     private function handleSubscriptionCreated(object $stripeSub): JsonResponse
@@ -73,7 +135,7 @@ class StripeBillingWebhookController extends Controller
         $tenant->update([
             'platform_stripe_sub_id'  => $stripeSub->id,
             'status'                  => $status,
-            'plan_current_period_end' => Carbon::createFromTimestamp($stripeSub->current_period_end),
+            'plan_current_period_end' => $this->resolvePeriodEnd($stripeSub),
             'plan_cancel_at_period_end' => false,
         ]);
 
@@ -86,18 +148,68 @@ class StripeBillingWebhookController extends Controller
         return response()->json(['data' => 'ok']);
     }
 
+    private const STATUS_MAP = [
+        'trialing' => 'trialing',
+        'active'   => 'active',
+        'past_due' => 'past_due',
+    ];
+
+    private const DOWNGRADE_STATUSES = ['canceled', 'incomplete_expired', 'unpaid'];
+
+    private function downgradeTenantToFree(Tenant $tenant): void
+    {
+        $tenant->update([
+            'status'                    => 'free_tier',
+            'plan'                      => 'free',
+            'platform_stripe_sub_id'    => null,
+            'plan_current_period_end'   => null,
+            'plan_cancel_at_period_end' => false,
+            'plan_past_due_since'       => null,
+        ]);
+
+        PlatformSubscriptionEvent::create([
+            'tenant_id'  => $tenant->id,
+            'event_type' => 'downgraded',
+            'payload'    => ['reason' => 'subscription_deleted'],
+        ]);
+    }
+
     private function handleSubscriptionUpdated(object $stripeSub): JsonResponse
     {
         $tenant = $this->resolveTenant($stripeSub);
 
+        Log::info('StripeBillingWebhook: subscription updated', [
+            'stripe_sub_id'   => $stripeSub->id ?? null,
+            'metadata_tenant' => $stripeSub->metadata->tenant_id ?? null,
+        ]);
+
         if (! $tenant) {
+            Log::warning('StripeBillingWebhook: tenant not found', [
+                'event_type'      => 'customer.subscription.updated',
+                'stripe_sub_id'   => $stripeSub->id ?? null,
+                'metadata_tenant' => $stripeSub->metadata->tenant_id ?? null,
+            ]);
             return response()->json(['data' => 'ok']);
         }
 
-        $tenant->update([
-            'plan_current_period_end'   => Carbon::createFromTimestamp($stripeSub->current_period_end),
+        $stripeStatus = $stripeSub->status ?? '';
+
+        if (in_array($stripeStatus, self::DOWNGRADE_STATUSES, true)) {
+            $this->downgradeTenantToFree($tenant);
+            return response()->json(['data' => 'ok']);
+        }
+
+        $update = [
+            'plan_current_period_end'   => $this->resolvePeriodEnd($stripeSub),
             'plan_cancel_at_period_end' => (bool) $stripeSub->cancel_at_period_end,
-        ]);
+        ];
+
+        $newStatus = self::STATUS_MAP[$stripeStatus] ?? null;
+        if ($newStatus && $tenant->status !== $newStatus) {
+            $update['status'] = $newStatus;
+        }
+
+        $tenant->update($update);
 
         return response()->json(['data' => 'ok']);
     }
@@ -176,23 +288,15 @@ class StripeBillingWebhookController extends Controller
         $tenant = $this->resolveTenant($stripeSub);
 
         if (! $tenant) {
+            Log::warning('StripeBillingWebhook: tenant not found', [
+                'event_type'      => 'customer.subscription.deleted',
+                'stripe_sub_id'   => $stripeSub->id ?? null,
+                'metadata_tenant' => $stripeSub->metadata->tenant_id ?? null,
+            ]);
             return response()->json(['data' => 'ok']);
         }
 
-        $tenant->update([
-            'status'                    => 'free_tier',
-            'plan'                      => 'free',
-            'platform_stripe_sub_id'    => null,
-            'plan_current_period_end'   => null,
-            'plan_cancel_at_period_end' => false,
-            'plan_past_due_since'       => null,
-        ]);
-
-        PlatformSubscriptionEvent::create([
-            'tenant_id'  => $tenant->id,
-            'event_type' => 'downgraded',
-            'payload'    => ['reason' => 'subscription_deleted'],
-        ]);
+        $this->downgradeTenantToFree($tenant);
 
         return response()->json(['data' => 'ok']);
     }

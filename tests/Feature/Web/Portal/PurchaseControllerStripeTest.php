@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Laravel\Pennant\Feature;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -26,6 +27,12 @@ class PurchaseControllerStripeTest extends TestCase
     private Customer $customer;
 
     private Dog $dog;
+
+    protected function tearDown(): void
+    {
+        Feature::flushCache();
+        parent::tearDown();
+    }
 
     protected function setUp(): void
     {
@@ -250,6 +257,248 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['dog_ids']);
+    }
+
+    public function test_store_calculates_tax_and_adds_to_payment_intent_when_flag_active_and_tenant_has_address(): void
+    {
+        $this->tenant->update([
+            'tax_collection_enabled' => true,
+            'billing_address'        => ['postal_code' => '10001', 'country' => 'US'],
+        ]);
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '50.00',
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) use ($package) {
+            $mock->shouldReceive('createCustomer')
+                ->andReturn((object) ['id' => 'cus_tax']);
+
+            $mock->shouldReceive('calculateTax')
+                ->once()
+                ->with(5000, 'usd', 'acct_purchase123', ['postal_code' => '10001', 'country' => 'US'], $package->id)
+                ->andReturn((object) ['id' => 'taxcalc_123', 'tax_amount_exclusive' => 441]);
+
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->withArgs(function (int $amountCents): bool {
+                    return $amountCents === 5441; // 5000 + 441 tax
+                })
+                ->andReturn((object) ['id' => 'pi_tax', 'client_secret' => 'secret_tax']);
+        });
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id],
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['tax_amount_cents' => 441]);
+
+        $order = Order::where('customer_id', $this->customer->id)->latest()->first();
+        $this->assertSame(441, $order->tax_amount_cents);
+        $this->assertSame('taxcalc_123', $order->stripe_tax_calc_id);
+    }
+
+    public function test_store_skips_tax_when_flag_inactive(): void
+    {
+        Feature::define('tax_daycare_orders', fn () => false);
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '50.00',
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')
+                ->andReturn((object) ['id' => 'cus_notax']);
+
+            $mock->shouldNotReceive('calculateTax');
+
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->withArgs(function (int $amountCents): bool {
+                    return $amountCents === 5000;
+                })
+                ->andReturn((object) ['id' => 'pi_notax', 'client_secret' => 'secret_notax']);
+        });
+
+        $this->actingAs($this->user);
+
+        $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id],
+        ])->assertStatus(200)->assertJsonFragment(['tax_amount_cents' => 0]);
+    }
+
+    public function test_store_skips_tax_when_tenant_has_no_billing_address(): void
+    {
+        Feature::define('tax_daycare_orders', fn () => true);
+        // tenant has no billing_address set (default from setUp)
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '50.00',
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')
+                ->andReturn((object) ['id' => 'cus_noaddr']);
+
+            $mock->shouldNotReceive('calculateTax');
+
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->withArgs(function (int $amountCents): bool {
+                    return $amountCents === 5000;
+                })
+                ->andReturn((object) ['id' => 'pi_noaddr', 'client_secret' => 'secret_noaddr']);
+        });
+
+        $this->actingAs($this->user);
+
+        $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id],
+        ])->assertStatus(200)->assertJsonFragment(['tax_amount_cents' => 0]);
+    }
+
+    public function test_tax_preview_returns_amounts_when_flag_active_and_tenant_has_address(): void
+    {
+        $this->tenant->update([
+            'tax_collection_enabled' => true,
+            'billing_address'        => ['postal_code' => '90210', 'country' => 'US'],
+        ]);
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '45.00',
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) use ($package) {
+            $mock->shouldReceive('calculateTax')
+                ->once()
+                ->with(4500, 'usd', 'acct_purchase123', ['postal_code' => '90210', 'country' => 'US'], $package->id)
+                ->andReturn((object) ['id' => 'txc_preview', 'tax_amount_exclusive' => 396]);
+        });
+
+        $this->actingAs($this->user);
+
+        $response = $this->getJson('/my/purchase/tax-preview?package_id=' . $package->id);
+
+        $response->assertStatus(200)->assertJson([
+            'tax_enabled'    => true,
+            'subtotal_cents' => 4500,
+            'tax_cents'      => 396,
+            'total_cents'    => 4896,
+        ]);
+    }
+
+    public function test_tax_preview_returns_tax_disabled_when_flag_inactive(): void
+    {
+        Feature::define('tax_daycare_orders', fn () => false);
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '45.00',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->user);
+
+        $response = $this->getJson('/my/purchase/tax-preview?package_id=' . $package->id);
+
+        $response->assertStatus(200)->assertJson(['tax_enabled' => false]);
+    }
+
+    public function test_tax_preview_returns_tax_disabled_when_tenant_has_no_billing_address(): void
+    {
+        Feature::define('tax_daycare_orders', fn () => true);
+        // tenant has no billing_address
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '45.00',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->user);
+
+        $response = $this->getJson('/my/purchase/tax-preview?package_id=' . $package->id);
+
+        $response->assertStatus(200)->assertJson(['tax_enabled' => false]);
+    }
+
+    public function test_store_sets_subtotal_cents_on_order(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '75.00',
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')->andReturn((object) ['id' => 'cus_sub']);
+            $mock->shouldReceive('createPaymentIntent')->andReturn((object) ['id' => 'pi_sub', 'client_secret' => 'secret_sub']);
+        });
+
+        $this->actingAs($this->user);
+
+        $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id],
+        ])->assertStatus(200);
+
+        $order = Order::where('package_id', $package->id)->latest()->first();
+        $this->assertNotNull($order);
+        $this->assertSame(7500, $order->subtotal_cents);
+    }
+
+    public function test_store_payment_intent_restricts_to_card_and_bank_payment_methods(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+            'price'     => '50.00',
+            'is_active' => true,
+        ]);
+
+        $capturedTypes = null;
+
+        $this->mock(StripeService::class, function (MockInterface $mock) use (&$capturedTypes) {
+            $mock->shouldReceive('createCustomer')->andReturn((object) ['id' => 'cus_pm']);
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->andReturnUsing(function () use (&$capturedTypes) {
+                    $args = func_get_args();
+                    // paymentMethodTypes is the 10th argument (index 9, named param)
+                    $capturedTypes = $args[9] ?? null;
+                    return (object) ['id' => 'pi_pm', 'client_secret' => 'secret_pm'];
+                });
+        });
+
+        $this->actingAs($this->user);
+
+        $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids'    => [$this->dog->id],
+        ])->assertStatus(200);
+
+        $this->assertEquals(['card', 'us_bank_account'], $capturedTypes);
     }
 
     public function test_confirm_issues_unlimited_credits_for_unlimited_package(): void

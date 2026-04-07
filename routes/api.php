@@ -16,6 +16,7 @@ use App\Http\Controllers\Platform\V1\PlatformFeatureController;
 use App\Http\Controllers\Platform\V1\ReportController as PlatformReportController;
 use App\Http\Controllers\Platform\V1\PlatformPlanController;
 use App\Http\Controllers\Platform\V1\TenantFeatureOverrideController;
+use App\Http\Controllers\Public\V1\DaycareDirectoryController;
 use App\Http\Controllers\Public\V1\PlansController;
 use App\Http\Controllers\Public\V1\TenantRegistrationController as PublicTenantRegistrationController;
 use App\Http\Controllers\Admin\V1\CreditController;
@@ -55,6 +56,7 @@ Route::prefix('public/v1')
     ->group(function () {
         Route::get('plans', [PlansController::class, 'index']);
         Route::post('tenants/register', [PublicTenantRegistrationController::class, 'store'])->middleware('throttle:5,1');
+        Route::get('daycares', [DaycareDirectoryController::class, 'index']);
     });
 
 /*
@@ -71,6 +73,7 @@ Route::prefix('portal/v1')
         Route::post('auth/verify-email', [VerifyEmailController::class, 'verify']);
         Route::post('auth/forgot-password', [ForgotPasswordController::class, 'send']);
         Route::post('auth/reset-password', [ResetPasswordController::class, 'reset']);
+        Route::get('kennel-units/check-availability', [PortalKennelUnitController::class, 'checkAvailability']);
 
         // Authenticated routes
         Route::middleware(['auth.jwt', 'bindings'])->group(function () {
@@ -86,6 +89,7 @@ Route::prefix('portal/v1')
 
             Route::middleware(['idempotency', 'stripe.onboarded'])->post('orders', [OrderController::class, 'store']);
             Route::get('orders', [OrderController::class, 'index']);
+            Route::get('orders/tax-preview', [OrderController::class, 'taxPreview']);
 
             Route::post('subscriptions', [SubscriptionController::class, 'store']);
             Route::get('subscriptions', [SubscriptionController::class, 'index']);

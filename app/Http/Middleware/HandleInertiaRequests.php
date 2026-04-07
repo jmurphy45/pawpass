@@ -48,6 +48,7 @@ class HandleInertiaRequests extends Middleware
                 ];
             },
             'tenantPlan'     => fn () => $getTenant()?->plan,
+            'tenantStatus'   => fn () => $getTenant()?->status,
             'tenantFeatures' => fn () => ($plan = $getTenant()?->plan)
                 ? app(PlanFeatureCache::class)->featuresForPlan($plan)
                 : [],

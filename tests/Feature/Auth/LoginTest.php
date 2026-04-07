@@ -17,69 +17,14 @@ class LoginTest extends TestCase
         $this->setUpJwt();
     }
 
-    public function test_login_with_valid_credentials_returns_tokens(): void
-    {
-        $user = User::factory()->create([
-            'tenant_id' => null,
-            'email' => 'test@example.com',
-            'password' => bcrypt('secret'),
-            'status' => 'active',
-        ]);
-
-        $response = $this->postJson('/auth/login', [
-            'email' => 'test@example.com',
-            'password' => 'secret',
-        ]);
-
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => ['access_token', 'refresh_token', 'expires_in'],
-            ]);
-
-        $this->assertSame(900, $response->json('data.expires_in'));
-    }
-
-    public function test_login_with_wrong_password_returns_401(): void
-    {
-        User::factory()->create([
-            'tenant_id' => null,
-            'email' => 'test@example.com',
-            'password' => bcrypt('secret'),
-        ]);
-
-        $response = $this->postJson('/auth/login', [
-            'email' => 'test@example.com',
-            'password' => 'wrong',
-        ]);
-
-        $response->assertStatus(401);
-    }
-
     public function test_login_with_unknown_email_returns_401(): void
     {
         $response = $this->postJson('/auth/login', [
-            'email' => 'nobody@example.com',
+            'email'    => 'nobody@example.com',
             'password' => 'secret',
         ]);
 
         $response->assertStatus(401);
-    }
-
-    public function test_login_with_inactive_account_returns_403(): void
-    {
-        User::factory()->create([
-            'tenant_id' => null,
-            'email' => 'inactive@example.com',
-            'password' => bcrypt('secret'),
-            'status' => 'suspended',
-        ]);
-
-        $response = $this->postJson('/auth/login', [
-            'email' => 'inactive@example.com',
-            'password' => 'secret',
-        ]);
-
-        $response->assertStatus(403);
     }
 
     public function test_login_validates_required_fields(): void

@@ -109,11 +109,13 @@ class TenantFoundersFeeTest extends TestCase
         ]);
 
         // Large orders from last month — should not count toward this month's cap
+        // Use startOfMonth()->subDay()->startOfMonth() to avoid subMonth() overflow on dates like March 29
+        // (subMonth() on March 29 overflows to March 1 since Feb has no 29th day in non-leap years)
         Order::factory()->create([
             'tenant_id'    => $tenant->id,
             'status'       => 'paid',
             'total_amount' => '20000.00',
-            'created_at'   => now()->subMonth()->startOfMonth()->addDays(5),
+            'created_at'   => now()->startOfMonth()->subDay()->startOfMonth()->addDays(5),
         ]);
 
         // Small order this month

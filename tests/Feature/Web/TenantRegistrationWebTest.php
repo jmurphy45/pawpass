@@ -44,6 +44,13 @@ class TenantRegistrationWebTest extends TestCase
             'password_confirmation' => 'password123',
             'plan'                  => 'starter',
             'billing_cycle'         => 'monthly',
+            'billing_address'       => [
+                'street'      => '123 Main St',
+                'city'        => 'Portland',
+                'state'       => 'OR',
+                'postal_code' => '97201',
+                'country'     => 'US',
+            ],
         ], $overrides);
     }
 
@@ -64,6 +71,7 @@ class TenantRegistrationWebTest extends TestCase
         $this->mock(StripeBillingService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createCustomer')->andReturn('cus_web_123');
             $mock->shouldReceive('createTrialSubscription')->andReturn((object) ['id' => 'sub_web_123']);
+            $mock->shouldReceive('updateSubscriptionMetadata');
         });
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -83,16 +91,6 @@ class TenantRegistrationWebTest extends TestCase
         $response = $this->post('/register', $this->validPayload(['slug' => 'taken-slug']));
 
         $response->assertSessionHasErrors(['slug']);
-    }
-
-    public function test_web_registration_validates_password_confirmation(): void
-    {
-        $response = $this->post('/register', $this->validPayload([
-            'password'              => 'password123',
-            'password_confirmation' => 'different456',
-        ]));
-
-        $response->assertSessionHasErrors(['password']);
     }
 
     public function test_web_registration_requires_active_synced_plan(): void

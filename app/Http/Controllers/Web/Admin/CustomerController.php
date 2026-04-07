@@ -3,20 +3,26 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\CustomerWelcomeMail;
 use App\Models\Customer;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\MagicLinkService;
 use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CustomerController extends Controller
 {
-    public function __construct(private readonly StripeService $stripe) {}
+    public function __construct(
+        private readonly StripeService $stripe,
+        private readonly MagicLinkService $magicLink,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -95,7 +101,7 @@ class CustomerController extends Controller
         if ($tenant->stripe_account_id) {
             try {
                 $stripeCustomer = $this->stripe->createCustomer(
-                    $customer->email ?? '',
+                    $customer->email,
                     $customer->name,
                     $tenant->stripe_account_id,
                 );
@@ -105,6 +111,22 @@ class CustomerController extends Controller
                     'customer_id' => $customer->id,
                     'error'       => $e->getMessage(),
                 ]);
+            }
+        }
+
+        // Send welcome email with portal access link if the customer has a user account
+        if (! empty($validated['email']) && $customer->user_id) {
+            $user = User::allTenants()->find($customer->user_id);
+            if ($user) {
+                try {
+                    $rawToken = $this->magicLink->generateToken($user, [], $request->ip(), expiryMinutes: 72 * 60);
+                    Mail::to($user->email)->send(new CustomerWelcomeMail($user, $tenant, $rawToken));
+                } catch (\Throwable $e) {
+                    Log::warning('Customer welcome email failed', [
+                        'customer_id' => $customer->id,
+                        'error'       => $e->getMessage(),
+                    ]);
+                }
             }
         }
 

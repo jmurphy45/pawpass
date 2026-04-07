@@ -11,7 +11,6 @@ use App\Models\PlatformSubscriptionEvent;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -41,43 +40,27 @@ class TenantRegistrationService
             ? $plan->stripe_annual_price_id
             : $plan->stripe_monthly_price_id;
 
-        // 1: Generate the tenant ID upfront so Stripe metadata has the real ID before any DB writes
-        $tenantId = (string) Str::ulid();
-
-        $tempTenant = new Tenant(['name' => $validated['business_name'], 'slug' => $validated['slug']]);
-        $tempTenant->id = $tenantId;
-
-        // 2: Call Stripe before writing any DB records — if this throws, nothing is persisted
-        Log::info('registration.stripe_start', ['slug' => $validated['slug'], 'plan' => $validated['plan'], 'price_id' => $priceId]);
-        $customerId = $this->billing->createCustomer($tempTenant);
-        Log::info('registration.stripe_customer_created', ['customer_id' => $customerId]);
-        $tempTenant->platform_stripe_customer_id = $customerId;
-        $stripeSub  = $this->billing->createTrialSubscription($tempTenant, $priceId, $validated['billing_cycle'], $trialDays);
-        Log::info('registration.stripe_subscription_created', ['sub_id' => $stripeSub->id]);
-
-        // 3: All Stripe calls succeeded — now persist everything in one transaction
         $token = Str::random(64);
 
-        [$tenant, $user] = DB::transaction(function () use ($validated, $customerId, $stripeSub, $trialDays, $tenantId, $token, $plan) {
+        Log::info('registration.stripe_start', ['slug' => $validated['slug'], 'plan' => $validated['plan'], 'price_id' => $priceId]);
+
+        [$tenant, $user, $stripeSub] = DB::transaction(function () use ($validated, $priceId, $trialDays, $token, $plan) {
             $tenant = Tenant::create([
-                'id'                            => $tenantId,
-                'name'                          => $validated['business_name'],
-                'slug'                          => $validated['slug'],
-                'status'                        => 'trialing',
-                'plan'                          => $validated['plan'],
-                'plan_billing_cycle'            => $validated['billing_cycle'],
-                'trial_started_at'              => now(),
-                'trial_ends_at'                 => now()->addDays($trialDays),
-                'platform_stripe_customer_id'   => $customerId,
-                'platform_stripe_sub_id'        => $stripeSub->id,
-                'platform_fee_pct'              => $plan->default_platform_fee_pct ?? 5.0,
+                'name'               => $validated['business_name'],
+                'slug'               => $validated['slug'],
+                'status'             => 'trialing',
+                'plan'               => $validated['plan'],
+                'plan_billing_cycle' => $validated['billing_cycle'],
+                'trial_started_at'   => now(),
+                'trial_ends_at'      => now()->addDays($trialDays),
+                'platform_fee_pct'   => $plan->default_platform_fee_pct ?? 5.0,
+                'billing_address'    => $validated['billing_address'] ?? null,
             ]);
 
             $user = User::create([
                 'tenant_id'               => $tenant->id,
                 'name'                    => $validated['owner_name'],
                 'email'                   => $validated['email'],
-                'password'                => Hash::make($validated['password']),
                 'role'                    => 'business_owner',
                 'status'                  => 'active',
                 'email_verify_token'      => $token,
@@ -96,8 +79,29 @@ class TenantRegistrationService
                 ],
             ]);
 
-            return [$tenant, $user];
+            // Stripe calls — if either throws, transaction rolls back all DB writes above
+            $customerId = $this->billing->createCustomer($tenant);
+            Log::info('registration.stripe_customer_created', ['customer_id' => $customerId]);
+            $tenant->platform_stripe_customer_id = $customerId;
+            $stripeSub = $this->billing->createTrialSubscription($tenant, $priceId, $validated['billing_cycle'], $trialDays);
+            Log::info('registration.stripe_subscription_created', ['sub_id' => $stripeSub->id]);
+
+            $tenant->update([
+                'platform_stripe_customer_id' => $customerId,
+                'platform_stripe_sub_id'      => $stripeSub->id,
+            ]);
+
+            Log::info('registration.tenant_persisted', ['tenant_id' => $tenant->id, 'stripe_sub_id' => $stripeSub->id]);
+
+            return [$tenant, $user, $stripeSub];
         });
+
+        // Confirm metadata now that tenant is guaranteed in DB (repairs any pre-commit drift)
+        $this->billing->updateSubscriptionMetadata($stripeSub->id, [
+            'tenant_id' => $tenant->id,
+            'slug'      => $tenant->slug,
+        ]);
+        Log::info('registration.stripe_metadata_confirmed', ['tenant_id' => $tenant->id, 'stripe_sub_id' => $stripeSub->id]);
 
         ProvisionStripeConnectAccountJob::dispatch($tenant);
 

@@ -163,6 +163,35 @@ class OrderReceiptControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
+    public function test_receipt_includes_subtotal_and_tax_when_order_has_tax(): void
+    {
+        $order = Order::factory()->create([
+            'tenant_id'       => $this->tenant->id,
+            'customer_id'     => $this->customer->id,
+            'package_id'      => $this->package->id,
+            'status'          => 'paid',
+            'total_amount'    => '53.41',
+            'subtotal_cents'  => 5000,
+            'tax_amount_cents' => 341,
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_tax_receipt',
+            'status'       => 'paid',
+            'paid_at'      => now(),
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('retrieveChargeDetails')->once()->andReturn($this->chargeDetails());
+        });
+
+        $response = $this->actingAs($this->user)
+            ->get(route('portal.orders.receipt', $order));
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/pdf');
+    }
+
     public function test_returns_404_if_order_has_no_stripe_pi_id(): void
     {
         $order = Order::factory()->create([

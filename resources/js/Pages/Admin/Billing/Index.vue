@@ -22,7 +22,8 @@
             'bg-green-100 text-green-700': billing.status === 'active',
             'bg-amber-100 text-amber-700': billing.status === 'trialing',
             'bg-red-100 text-red-700': billing.status === 'past_due',
-          }">{{ billing.status }}</span>
+            'bg-gray-100 text-gray-600': billing.status === 'free_tier',
+          }">{{ billing.status === 'free_tier' ? 'Free' : billing.status }}</span>
         </div>
         <div v-if="billing.trial_ends_at" class="text-sm text-gray-600">
           Trial ends: {{ billing.trial_ends_at }}

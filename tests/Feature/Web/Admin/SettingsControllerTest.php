@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
+use Laravel\Pennant\Feature;
 use Tests\TestCase;
 
 class SettingsControllerTest extends TestCase
@@ -138,5 +141,181 @@ class SettingsControllerTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('success');
         $this->assertDatabaseHas('users', ['id' => $staff->id, 'status' => 'suspended']);
+    }
+
+    public function test_owner_can_update_billing_address(): void
+    {
+        $this->actingAs($this->owner);
+
+        $response = $this->patch('/admin/settings/billing-address', [
+            'street'      => '123 Main St',
+            'city'        => 'Springfield',
+            'state'       => 'IL',
+            'postal_code' => '62701',
+            'country'     => 'US',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $address = $this->tenant->fresh()->billing_address;
+        $this->assertSame('123 Main St', $address['street']);
+        $this->assertSame('Springfield', $address['city']);
+        $this->assertSame('IL', $address['state']);
+        $this->assertSame('62701', $address['postal_code']);
+        $this->assertSame('US', $address['country']);
+    }
+
+    public function test_billing_address_requires_street_city_postal_code_country(): void
+    {
+        $this->actingAs($this->owner);
+
+        $response = $this->patch('/admin/settings/billing-address', []);
+
+        $response->assertSessionHasErrors(['street', 'city', 'postal_code', 'country']);
+    }
+
+    public function test_billing_address_rejects_invalid_country_code(): void
+    {
+        $this->actingAs($this->owner);
+
+        $response = $this->patch('/admin/settings/billing-address', [
+            'street'      => '123 Main St',
+            'city'        => 'Springfield',
+            'postal_code' => '62701',
+            'country'     => 'USA',
+        ]);
+
+        $response->assertSessionHasErrors(['country']);
+    }
+
+    public function test_billing_address_is_forbidden_for_staff(): void
+    {
+        $staff = User::factory()->staff()->create([
+            'tenant_id' => $this->tenant->id,
+            'status'    => 'active',
+        ]);
+
+        $this->actingAs($staff);
+
+        $response = $this->patch('/admin/settings/billing-address', [
+            'street'      => '123 Main St',
+            'city'        => 'Springfield',
+            'postal_code' => '62701',
+            'country'     => 'US',
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_settings_index_includes_billing_address(): void
+    {
+        $this->tenant->update(['billing_address' => ['street' => '456 Oak Ave', 'city' => 'Chicago', 'state' => 'IL', 'postal_code' => '60601', 'country' => 'US']]);
+
+        $this->actingAs($this->owner);
+
+        $response = $this->get('/admin/settings');
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Settings/Index')
+            ->where('billing_address.postal_code', '60601')
+        );
+    }
+
+    public function test_settings_index_includes_packages_and_auto_charge_fields(): void
+    {
+        Queue::fake();
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+        ]);
+
+        $this->actingAs($this->owner);
+
+        $response = $this->get('/admin/settings');
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Settings/Index')
+            ->has('packages')
+            ->has('can_auto_replenish')
+            ->where('business.auto_charge_at_zero_package_id', null)
+        );
+    }
+
+    public function test_can_auto_replenish_is_true_when_feature_active_for_tenant(): void
+    {
+        Feature::for($this->tenant)->activate('auto_replenish');
+        $this->actingAs($this->owner);
+
+        $response = $this->get('/admin/settings');
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('can_auto_replenish', true)
+        );
+    }
+
+    public function test_can_auto_replenish_is_false_when_feature_inactive_for_tenant(): void
+    {
+        Feature::for($this->tenant)->deactivate('auto_replenish');
+        $this->actingAs($this->owner);
+
+        $response = $this->get('/admin/settings');
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('can_auto_replenish', false)
+        );
+    }
+
+    public function test_update_business_saves_auto_charge_package_id(): void
+    {
+        Queue::fake();
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+        ]);
+
+        $this->actingAs($this->owner);
+
+        $response = $this->patch('/admin/settings/business', [
+            'auto_charge_at_zero_package_id' => $package->id,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertSame($package->id, $this->tenant->fresh()->auto_charge_at_zero_package_id);
+    }
+
+    public function test_update_business_clears_auto_charge_package_id_when_null(): void
+    {
+        Queue::fake();
+
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type'      => 'one_time',
+        ]);
+
+        $this->tenant->update(['auto_charge_at_zero_package_id' => $package->id]);
+
+        $this->actingAs($this->owner);
+
+        $response = $this->patch('/admin/settings/business', [
+            'auto_charge_at_zero_package_id' => null,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertNull($this->tenant->fresh()->auto_charge_at_zero_package_id);
+    }
+
+    public function test_update_business_rejects_invalid_package_id(): void
+    {
+        $this->actingAs($this->owner);
+
+        $response = $this->patch('/admin/settings/business', [
+            'auto_charge_at_zero_package_id' => 'nonexistent_pkg_id',
+        ]);
+
+        $response->assertSessionHasErrors(['auto_charge_at_zero_package_id']);
     }
 }

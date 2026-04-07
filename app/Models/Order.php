@@ -22,6 +22,9 @@ class Order extends Model
         'type',
         'status',
         'total_amount',
+        'subtotal_cents',
+        'tax_amount_cents',
+        'stripe_tax_calc_id',
         'platform_fee_pct',
         'idempotency_key',
     ];
@@ -31,6 +34,8 @@ class Order extends Model
         return [
             'total_amount'     => 'decimal:2',
             'platform_fee_pct' => 'decimal:2',
+            'subtotal_cents'   => 'integer',
+            'tax_amount_cents' => 'integer',
             'created_at'       => 'immutable_datetime',
             'updated_at'       => 'immutable_datetime',
         ];

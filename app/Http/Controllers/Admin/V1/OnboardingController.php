@@ -23,7 +23,13 @@ class OnboardingController extends Controller
             ], 409);
         }
 
-        $account = $this->stripe->createConnectAccount(auth()->user()->email, $tenant->name);
+        $account = $this->stripe->createConnectAccount(
+            auth()->user()->email,
+            $tenant->name,
+            $tenant->billing_address,
+            "https://{$tenant->slug}.pawpass.com",
+            auth()->user()->name,
+        );
         $tenant->update(['stripe_account_id' => $account->id]);
 
         return response()->json(['data' => ['stripe_account_id' => $account->id]], 201);
