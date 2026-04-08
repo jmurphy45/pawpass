@@ -87,8 +87,9 @@ class KennelUnitControllerTest extends TestCase
     public function test_owner_can_create_unit(): void
     {
         $response = $this->withHeaders($this->ownerHeaders())->postJson('/api/admin/v1/kennel-units', [
-            'name' => 'Suite 1',
-            'type' => 'suite',
+            'name'               => 'Suite 1',
+            'type'               => 'suite',
+            'nightly_rate_cents' => 5000,
         ]);
 
         $response->assertStatus(201);

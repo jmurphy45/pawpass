@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\V1\StoreOrderRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
-use App\Models\OrderLineItem;
-use App\Models\OrderPayment;
 use App\Models\Package;
+use App\Services\PromotionService;
 use App\Services\StripeService;
+use App\Services\TenantEventService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -18,7 +18,11 @@ use Laravel\Pennant\Feature;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly StripeService $stripe) {}
+    public function __construct(
+        private readonly StripeService $stripe,
+        private readonly TenantEventService $events,
+        private readonly PromotionService $promotions,
+    ) {}
 
     public function store(StoreOrderRequest $request): JsonResponse
     {
@@ -60,22 +64,38 @@ class OrderController extends Controller
         if ($customer->stripe_customer_id) {
             $stripeCustomerId = $customer->stripe_customer_id;
         } else {
-            $stripeCustomer   = $this->stripe->createCustomer($customer->email, $customer->name, $tenant->stripe_account_id);
+            $stripeCustomer = $this->stripe->createCustomer($customer->email, $customer->name, $tenant->stripe_account_id);
             $stripeCustomerId = $stripeCustomer->id;
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }
 
         $subtotalCents = (int) round($package->price * 100);
-        $effectiveFeePct = $tenant->effectivePlatformFeePct($subtotalCents);
+
+        // Validate promo code before any Stripe calls
+        $promoResult = null;
+        $promoDiscountCents = 0;
+        if ($request->promo_code) {
+            $promoResult = $this->promotions->validate($request->promo_code, $customer, $package, $subtotalCents);
+            if (! $promoResult->valid) {
+                return response()->json([
+                    'message'    => $promoResult->message ?: 'Invalid promo code.',
+                    'error_code' => 'INVALID_PROMO_CODE',
+                ], 422);
+            }
+            $promoDiscountCents = $promoResult->discountCents;
+        }
+
+        $discountedSubtotal = $subtotalCents - $promoDiscountCents;
+        $effectiveFeePct = $tenant->effectivePlatformFeePct($discountedSubtotal);
         // Platform fee is on subtotal only — tax is a pass-through for the daycare
-        $applicationFeeCents = (int) round($subtotalCents * $effectiveFeePct / 100);
+        $applicationFeeCents = (int) round($discountedSubtotal * $effectiveFeePct / 100);
 
         $taxAmountCents = 0;
         $taxCalcId = null;
 
         if (Feature::active('tax_daycare_orders') && $request->postal_code && $tenant->stripe_account_id) {
             $calculation = $this->stripe->calculateTax(
-                $subtotalCents,
+                $discountedSubtotal,
                 'usd',
                 $tenant->stripe_account_id,
                 ['postal_code' => $request->postal_code, 'country' => $request->country ?? 'US'],
@@ -85,20 +105,21 @@ class OrderController extends Controller
             $taxCalcId = $calculation->id;
         }
 
-        $totalCents = $subtotalCents + $taxAmountCents;
+        $totalCents = $discountedSubtotal + $taxAmountCents;
 
-        $order = DB::transaction(function () use ($request, $package, $tenantId, $customer, $idempotencyKey, $effectiveFeePct, $subtotalCents, $taxAmountCents, $taxCalcId, $totalCents) {
+        $order = DB::transaction(function () use ($request, $package, $tenantId, $customer, $idempotencyKey, $effectiveFeePct, $discountedSubtotal, $taxAmountCents, $taxCalcId, $totalCents, $promoResult) {
             $order = Order::create([
                 'tenant_id'          => $tenantId,
                 'customer_id'        => $customer->id,
                 'package_id'         => $package->id,
                 'status'             => 'pending',
                 'total_amount'       => $totalCents / 100,
-                'subtotal_cents'     => $subtotalCents,
+                'subtotal_cents'     => $discountedSubtotal,
                 'tax_amount_cents'   => $taxAmountCents,
                 'stripe_tax_calc_id' => $taxCalcId,
                 'platform_fee_pct'   => $effectiveFeePct,
                 'idempotency_key'    => $idempotencyKey,
+                'promotion_id'       => $promoResult?->promotion?->id,
             ]);
 
             foreach ($request->dog_ids as $dogId) {
@@ -114,11 +135,11 @@ class OrderController extends Controller
         $dogNames = $order->orderDogs()->with('dog')->get()->pluck('dog.name')->implode(', ');
 
         $metadata = [
-            'order_id'     => $order->id,
-            'tenant_id'    => $tenantId,
+            'order_id' => $order->id,
+            'tenant_id' => $tenantId,
             'package_name' => $package->name,
             'customer_name' => $customer->name,
-            'dog_names'    => $dogNames,
+            'dog_names' => $dogNames,
         ];
 
         if ($taxCalcId) {
@@ -139,17 +160,23 @@ class OrderController extends Controller
             'tenant_id'        => $tenantId,
             'description'      => $package->name,
             'quantity'         => 1,
-            'unit_price_cents' => $subtotalCents,
+            'unit_price_cents' => $discountedSubtotal,
             'sort_order'       => 0,
         ]);
 
         $order->payments()->create([
-            'tenant_id'   => $tenantId,
+            'tenant_id'    => $tenantId,
             'stripe_pi_id' => $pi->id,
             'amount_cents' => $totalCents,
             'type'         => 'full',
             'status'       => 'pending',
         ]);
+
+        if ($promoResult?->valid && $promoResult->promotion) {
+            $this->promotions->apply($promoResult->promotion, $order, $promoResult->discountCents, $subtotalCents);
+        }
+
+        $this->events->recordOnce($tenantId, 'first_purchase');
 
         return response()->json([
             'data' => [
@@ -162,9 +189,9 @@ class OrderController extends Controller
     public function taxPreview(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'package_id'  => ['required', 'string'],
+            'package_id' => ['required', 'string'],
             'postal_code' => ['required', 'string', 'max:20'],
-            'country'     => ['nullable', 'string', 'size:2'],
+            'country' => ['nullable', 'string', 'size:2'],
         ]);
 
         if (! Feature::active('tax_daycare_orders')) {
@@ -195,10 +222,10 @@ class OrderController extends Controller
         );
 
         return response()->json(['data' => [
-            'tax_enabled'    => true,
+            'tax_enabled' => true,
             'subtotal_amount' => number_format($subtotalCents / 100, 2),
-            'tax_amount'     => number_format($calculation->tax_amount_exclusive / 100, 2),
-            'total_amount'   => number_format($calculation->amount_total / 100, 2),
+            'tax_amount' => number_format($calculation->tax_amount_exclusive / 100, 2),
+            'total_amount' => number_format($calculation->amount_total / 100, 2),
         ]]);
     }
 

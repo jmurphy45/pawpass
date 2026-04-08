@@ -27,6 +27,7 @@ class Order extends Model
         'stripe_tax_calc_id',
         'platform_fee_pct',
         'idempotency_key',
+        'promotion_id',
     ];
 
     protected function casts(): array
@@ -79,5 +80,10 @@ class Order extends Model
     public function attendance(): BelongsTo
     {
         return $this->belongsTo(Attendance::class);
+    }
+
+    public function promotion(): BelongsTo
+    {
+        return $this->belongsTo(Promotion::class);
     }
 }

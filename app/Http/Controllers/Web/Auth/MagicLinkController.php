@@ -8,6 +8,7 @@ use App\Mail\MagicLinkMail;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\MagicLinkService;
+use App\Services\TenantEventService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,7 +19,10 @@ use Illuminate\Support\Facades\RateLimiter;
 
 class MagicLinkController extends Controller
 {
-    public function __construct(private MagicLinkService $magicLink) {}
+    public function __construct(
+        private MagicLinkService $magicLink,
+        private TenantEventService $events,
+    ) {}
 
     /**
      * Handle a magic-link request.
@@ -41,6 +45,7 @@ class MagicLinkController extends Controller
 
         if (RateLimiter::tooManyAttempts($emailKey, 5) || RateLimiter::tooManyAttempts($ipKey, 10)) {
             Log::info('MagicLink rate limited', ['email_hash' => sha1($email), 'ip' => $ip]);
+
             // Still return 200 to avoid leaking info; the link just won't arrive
             return response()->noContent();
         }
@@ -69,7 +74,7 @@ class MagicLinkController extends Controller
         } catch (\Throwable $e) {
             Log::error('MagicLink mail failed', [
                 'user_id' => $user->id,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
         }
 
@@ -156,6 +161,10 @@ class MagicLinkController extends Controller
     {
         Auth::login($user);
         $request->session()->regenerate();
+
+        if ($user->role === 'customer' && $user->tenant_id) {
+            $this->events->recordOnce($user->tenant_id, 'first_portal_customer_login');
+        }
 
         $redirect = match ($user->role) {
             'staff', 'business_owner' => route('admin.dashboard'),

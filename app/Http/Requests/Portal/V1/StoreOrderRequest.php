@@ -32,6 +32,7 @@ class StoreOrderRequest extends FormRequest
             ],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'country'     => ['nullable', 'string', 'size:2'],
+            'promo_code'  => ['nullable', 'string', 'max:50'],
         ];
     }
 }

@@ -10,13 +10,17 @@ use App\Models\Dog;
 use App\Models\Package;
 use App\Models\Subscription;
 use App\Services\StripeService;
+use App\Services\TenantEventService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class SubscriptionController extends Controller
 {
-    public function __construct(private readonly StripeService $stripe) {}
+    public function __construct(
+        private readonly StripeService $stripe,
+        private readonly TenantEventService $events,
+    ) {}
 
     public function store(StoreSubscriptionRequest $request): JsonResponse
     {
@@ -78,6 +82,8 @@ class SubscriptionController extends Controller
             ['local_subscription_id' => $subscription->id],
             $tenant->stripe_account_id,
         );
+
+        $this->events->recordOnce($tenant->id, 'first_subscription_sold');
 
         return response()->json([
             'data' => [

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AddonType;
 use App\Models\Tenant;
 use App\Services\PlanFeatureCache;
+use App\Services\TenantEventService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,7 +14,10 @@ use Inertia\Response;
 
 class ServicesController extends Controller
 {
-    public function __construct(private PlanFeatureCache $planFeatureCache) {}
+    public function __construct(
+        private PlanFeatureCache $planFeatureCache,
+        private TenantEventService $events,
+    ) {}
 
     public function index(): Response
     {
@@ -34,21 +38,25 @@ class ServicesController extends Controller
         }
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'price_cents' => ['required', 'integer', 'min:0'],
-            'is_active'   => ['sometimes', 'boolean'],
-            'sort_order'  => ['sometimes', 'integer', 'min:0'],
-            'context'     => ['sometimes', 'string', 'in:boarding,daycare,both'],
+            'is_active' => ['sometimes', 'boolean'],
+            'sort_order' => ['sometimes', 'integer', 'min:0'],
+            'context' => ['sometimes', 'string', 'in:boarding,daycare,both'],
         ]);
 
+        $tenantId = app('current.tenant.id');
+
         AddonType::create([
-            'tenant_id'   => app('current.tenant.id'),
-            'name'        => $validated['name'],
+            'tenant_id' => $tenantId,
+            'name' => $validated['name'],
             'price_cents' => $validated['price_cents'],
-            'is_active'   => $request->boolean('is_active', true),
-            'sort_order'  => $validated['sort_order'] ?? 0,
-            'context'     => $validated['context'] ?? 'both',
+            'is_active' => $request->boolean('is_active', true),
+            'sort_order' => $validated['sort_order'] ?? 0,
+            'context' => $validated['context'] ?? 'both',
         ]);
+
+        $this->events->recordOnce($tenantId, 'first_addon_service');
 
         return redirect()->route('admin.services.index')->with('success', 'Service created.');
     }
@@ -60,11 +68,11 @@ class ServicesController extends Controller
         }
 
         $validated = $request->validate([
-            'name'        => ['sometimes', 'string', 'max:255'],
+            'name' => ['sometimes', 'string', 'max:255'],
             'price_cents' => ['sometimes', 'integer', 'min:0'],
-            'is_active'   => ['sometimes', 'boolean'],
-            'sort_order'  => ['sometimes', 'integer', 'min:0'],
-            'context'     => ['sometimes', 'string', 'in:boarding,daycare,both'],
+            'is_active' => ['sometimes', 'boolean'],
+            'sort_order' => ['sometimes', 'integer', 'min:0'],
+            'context' => ['sometimes', 'string', 'in:boarding,daycare,both'],
         ]);
 
         $addonType->update($validated);

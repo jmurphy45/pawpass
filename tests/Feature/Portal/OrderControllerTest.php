@@ -274,7 +274,7 @@ class OrderControllerTest extends TestCase
         $this->withHeaders($this->authHeaders('idem-inactive'))
             ->postJson('/api/portal/v1/orders', [
                 'package_id' => $this->package->id,
-                'dog_ids'    => [$this->dog->id],
+                'dog_ids' => [$this->dog->id],
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('dog_ids.0');
@@ -287,10 +287,28 @@ class OrderControllerTest extends TestCase
         $this->withHeaders($this->authHeaders('idem-suspended'))
             ->postJson('/api/portal/v1/orders', [
                 'package_id' => $this->package->id,
-                'dog_ids'    => [$this->dog->id],
+                'dog_ids' => [$this->dog->id],
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('dog_ids.0');
+    }
+
+    public function test_successful_order_records_first_purchase_event(): void
+    {
+        $this->mockStripe('pi_fp1');
+
+        $this->withHeaders($this->authHeaders('idem-fp-1'))
+            ->postJson('/api/portal/v1/orders', [
+                'package_id' => $this->package->id,
+                'dog_ids' => [$this->dog->id],
+            ])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('tenant_events', [
+            'tenant_id' => $this->tenant->id,
+            'event_type' => 'first_purchase',
+        ]);
+        $this->assertDatabaseCount('tenant_events', 1);
     }
 
     public function test_payment_intent_restricts_to_card_and_bank_payment_methods(): void
@@ -304,6 +322,7 @@ class OrderControllerTest extends TestCase
                 ->andReturnUsing(function () use (&$capturedTypes) {
                     // paymentMethodTypes is the 10th positional argument (index 9)
                     $capturedTypes = func_get_arg(9);
+
                     return (object) ['id' => 'pi_pm2', 'client_secret' => 'secret_pm2'];
                 });
         });
@@ -311,7 +330,7 @@ class OrderControllerTest extends TestCase
         $this->withHeaders($this->authHeaders('idem-pm-types'))
             ->postJson('/api/portal/v1/orders', [
                 'package_id' => $this->package->id,
-                'dog_ids'    => [$this->dog->id],
+                'dog_ids' => [$this->dog->id],
             ])
             ->assertStatus(201);
 

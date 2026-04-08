@@ -25,6 +25,7 @@ use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController
 use App\Http\Controllers\Web\Admin\VaccinationRequirementController as AdminVaccinationRequirementController;
 use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
 use App\Http\Controllers\Web\Admin\HelpController as AdminHelpController;
+use App\Http\Controllers\Web\Admin\PromotionController as AdminPromotionController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
 use App\Http\Controllers\Web\Portal\Auth\RegisterController;
@@ -166,6 +167,12 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::post('/services', [AdminServicesController::class, 'store'])->name('admin.services.store');
         Route::patch('/services/{addonType}', [AdminServicesController::class, 'update'])->name('admin.services.update');
         Route::delete('/services/{addonType}', [AdminServicesController::class, 'destroy'])->name('admin.services.destroy');
+
+        // Promotions
+        Route::get('/promotions', [AdminPromotionController::class, 'index'])->name('admin.promotions.index');
+        Route::post('/promotions', [AdminPromotionController::class, 'store'])->name('admin.promotions.store');
+        Route::patch('/promotions/{promotion}', [AdminPromotionController::class, 'update'])->name('admin.promotions.update');
+        Route::delete('/promotions/{promotion}', [AdminPromotionController::class, 'destroy'])->name('admin.promotions.destroy');
 
         // Notifications / Broadcast
         Route::get('/notifications/broadcast', [AdminBroadcastController::class, 'index'])->name('admin.notifications.broadcast');

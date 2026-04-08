@@ -19,6 +19,7 @@ class TenantRegistrationService
     public function __construct(
         private readonly StripeBillingService $billing,
         private readonly NotificationService $notifications,
+        private readonly TenantEventService $events,
     ) {}
 
     public function register(array $validated): array
@@ -46,36 +47,36 @@ class TenantRegistrationService
 
         [$tenant, $user, $stripeSub] = DB::transaction(function () use ($validated, $priceId, $trialDays, $token, $plan) {
             $tenant = Tenant::create([
-                'name'               => $validated['business_name'],
-                'slug'               => $validated['slug'],
-                'status'             => 'trialing',
-                'plan'               => $validated['plan'],
+                'name' => $validated['business_name'],
+                'slug' => $validated['slug'],
+                'status' => 'trialing',
+                'plan' => $validated['plan'],
                 'plan_billing_cycle' => $validated['billing_cycle'],
-                'trial_started_at'   => now(),
-                'trial_ends_at'      => now()->addDays($trialDays),
-                'platform_fee_pct'   => $plan->default_platform_fee_pct ?? 5.0,
-                'billing_address'    => $validated['billing_address'] ?? null,
+                'trial_started_at' => now(),
+                'trial_ends_at' => now()->addDays($trialDays),
+                'platform_fee_pct' => $plan->default_platform_fee_pct ?? 5.0,
+                'billing_address' => $validated['billing_address'] ?? null,
             ]);
 
             $user = User::create([
-                'tenant_id'               => $tenant->id,
-                'name'                    => $validated['owner_name'],
-                'email'                   => $validated['email'],
-                'role'                    => 'business_owner',
-                'status'                  => 'active',
-                'email_verify_token'      => $token,
+                'tenant_id' => $tenant->id,
+                'name' => $validated['owner_name'],
+                'email' => $validated['email'],
+                'role' => 'business_owner',
+                'status' => 'active',
+                'email_verify_token' => $token,
                 'email_verify_expires_at' => now()->addHours(24),
             ]);
 
             $tenant->update(['owner_user_id' => $user->id]);
 
             PlatformSubscriptionEvent::create([
-                'tenant_id'  => $tenant->id,
+                'tenant_id' => $tenant->id,
                 'event_type' => 'trial_started',
-                'payload'    => [
-                    'plan'          => $validated['plan'],
+                'payload' => [
+                    'plan' => $validated['plan'],
                     'billing_cycle' => $validated['billing_cycle'],
-                    'trial_days'    => $trialDays,
+                    'trial_days' => $trialDays,
                 ],
             ]);
 
@@ -88,7 +89,7 @@ class TenantRegistrationService
 
             $tenant->update([
                 'platform_stripe_customer_id' => $customerId,
-                'platform_stripe_sub_id'      => $stripeSub->id,
+                'platform_stripe_sub_id' => $stripeSub->id,
             ]);
 
             Log::info('registration.tenant_persisted', ['tenant_id' => $tenant->id, 'stripe_sub_id' => $stripeSub->id]);
@@ -99,24 +100,29 @@ class TenantRegistrationService
         // Confirm metadata now that tenant is guaranteed in DB (repairs any pre-commit drift)
         $this->billing->updateSubscriptionMetadata($stripeSub->id, [
             'tenant_id' => $tenant->id,
-            'slug'      => $tenant->slug,
+            'slug' => $tenant->slug,
         ]);
         Log::info('registration.stripe_metadata_confirmed', ['tenant_id' => $tenant->id, 'stripe_sub_id' => $stripeSub->id]);
 
         ProvisionStripeConnectAccountJob::dispatch($tenant);
 
+        $this->events->recordOnce($tenant->id, 'onboarded', [
+            'plan' => $tenant->plan,
+            'billing_cycle' => $tenant->plan_billing_cycle,
+        ]);
+
         $verifyUrl = 'https://'.$tenant->slug.'.'.config('app.domain').'/admin/verify-email?token='.$token;
 
         $this->notifications->dispatch('auth.verify_email', $tenant->id, $user->id, [
-            'name'       => $user->name,
+            'name' => $user->name,
             'verify_url' => $verifyUrl,
         ]);
 
         $accessToken = app(JwtService::class)->issue($user);
 
         return [
-            'tenant'       => $tenant->fresh(),
-            'user'         => $user,
+            'tenant' => $tenant->fresh(),
+            'user' => $user,
             'access_token' => $accessToken,
         ];
     }

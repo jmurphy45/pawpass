@@ -9,12 +9,11 @@ use App\Models\Attendance;
 use App\Models\AttendanceAddon;
 use App\Models\Dog;
 use App\Models\Order;
-use App\Models\OrderLineItem;
-use App\Models\OrderPayment;
 use App\Models\Tenant;
 use App\Services\AutoReplenishService;
 use App\Services\DogCreditService;
 use App\Services\StripeService;
+use App\Services\TenantEventService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -26,6 +25,7 @@ class RosterController extends Controller
         private DogCreditService $credits,
         private StripeService $stripe,
         private AutoReplenishService $autoReplenish,
+        private TenantEventService $events,
     ) {}
 
     public function index(): Response
@@ -36,8 +36,8 @@ class RosterController extends Controller
 
         $dogs = Dog::with(['attendances' => function ($q) {
             $q->whereDate('checked_in_at', today())
-              ->orderByDesc('checked_in_at')
-              ->with('addons.addonType');
+                ->orderByDesc('checked_in_at')
+                ->with('addons.addonType');
         }, 'customer'])->get();
 
         $roster = $dogs->map(function (Dog $dog) use ($threshold) {
@@ -57,22 +57,22 @@ class RosterController extends Controller
 
             $attendanceAddons = $todayAttendance
                 ? $todayAttendance->addons->map(fn ($a) => [
-                    'id'               => $a->id,
-                    'name'             => $a->addonType?->name ?? 'Add-on',
-                    'quantity'         => $a->quantity,
+                    'id' => $a->id,
+                    'name' => $a->addonType?->name ?? 'Add-on',
+                    'quantity' => $a->quantity,
                     'unit_price_cents' => $a->unit_price_cents,
                 ])->values()
                 : collect();
 
             return [
-                'id'                 => $dog->id,
-                'name'               => $dog->name,
-                'customer_name'      => $dog->customer?->name,
-                'credit_balance'     => $dog->credit_balance,
-                'credit_status'      => $creditStatus,
-                'attendance_state'   => $attendanceState,
-                'attendance_id'      => $todayAttendance?->id,
-                'attendance_addons'  => $attendanceAddons,
+                'id' => $dog->id,
+                'name' => $dog->name,
+                'customer_name' => $dog->customer?->name,
+                'credit_balance' => $dog->credit_balance,
+                'credit_status' => $creditStatus,
+                'attendance_state' => $attendanceState,
+                'attendance_id' => $todayAttendance?->id,
+                'attendance_addons' => $attendanceAddons,
             ];
         });
 
@@ -83,7 +83,7 @@ class RosterController extends Controller
             ->get(['id', 'name', 'price_cents', 'context']);
 
         return Inertia::render('Admin/Roster/Index', [
-            'roster'     => $roster,
+            'roster' => $roster,
             'addonTypes' => $addonTypes,
         ]);
     }
@@ -91,9 +91,9 @@ class RosterController extends Controller
     public function checkin(Request $request): RedirectResponse
     {
         $request->validate([
-            'dog_id'               => ['required', 'string'],
+            'dog_id' => ['required', 'string'],
             'zero_credit_override' => ['boolean'],
-            'override_note'        => ['nullable', 'string'],
+            'override_note' => ['nullable', 'string'],
         ]);
 
         $tenantId = app('current.tenant.id');
@@ -136,12 +136,12 @@ class RosterController extends Controller
         }
 
         $attendance = Attendance::create([
-            'tenant_id'            => $tenantId,
-            'dog_id'               => $dog->id,
-            'checked_in_by'        => $staffUser->id,
-            'checked_in_at'        => now(),
+            'tenant_id' => $tenantId,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $staffUser->id,
+            'checked_in_at' => now(),
             'zero_credit_override' => $override,
-            'override_note'        => $request->override_note,
+            'override_note' => $request->override_note,
         ]);
 
         try {
@@ -151,6 +151,8 @@ class RosterController extends Controller
 
             return back()->with('error', 'Cannot check in dog with zero credits.');
         }
+
+        $this->events->recordOnce($tenantId, 'first_checkin');
 
         return back()->with('success', "{$dog->name} checked in.");
     }
@@ -201,8 +203,8 @@ class RosterController extends Controller
         }
 
         $attendance->addons()->create([
-            'addon_type_id'    => $addonType->id,
-            'quantity'         => 1,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
             'unit_price_cents' => $addonType->price_cents,
         ]);
 
@@ -248,33 +250,33 @@ class RosterController extends Controller
             return 0;
         }
 
-        $dog      = Dog::find($attendance->dog_id);
+        $dog = Dog::find($attendance->dog_id);
         $customer = $dog?->customer;
-        $tenant   = Tenant::find($attendance->tenant_id);
+        $tenant = Tenant::find($attendance->tenant_id);
 
         $order = Order::create([
-            'tenant_id'    => $attendance->tenant_id,
-            'customer_id'  => $customer?->id,
+            'tenant_id' => $attendance->tenant_id,
+            'customer_id' => $customer?->id,
             'attendance_id' => $attendance->id,
-            'type'         => 'daycare',
-            'status'       => 'pending',
+            'type' => 'daycare',
+            'status' => 'pending',
             'total_amount' => $totalCents / 100,
         ]);
 
         foreach ($attendance->addons as $i => $addon) {
             $order->lineItems()->create([
-                'tenant_id'        => $attendance->tenant_id,
-                'description'      => $addon->addonType?->name ?? 'Add-on',
-                'quantity'         => $addon->quantity,
+                'tenant_id' => $attendance->tenant_id,
+                'description' => $addon->addonType?->name ?? 'Add-on',
+                'quantity' => $addon->quantity,
                 'unit_price_cents' => $addon->unit_price_cents,
-                'sort_order'       => $i,
+                'sort_order' => $i,
             ]);
         }
 
         $stripeAccountId = $tenant?->stripe_account_id;
 
         if ($customer?->stripe_payment_method_id && $stripeAccountId) {
-            $feePct   = $tenant->effectivePlatformFeePct($totalCents);
+            $feePct = $tenant->effectivePlatformFeePct($totalCents);
             $feeCents = (int) round($totalCents * $feePct / 100);
 
             $pi = $this->stripe->createPaymentIntent(
@@ -284,9 +286,9 @@ class RosterController extends Controller
                 $feeCents,
                 [
                     'attendance_id' => $attendance->id,
-                    'tenant_id'     => $attendance->tenant_id,
-                    'dog_name'      => $dog?->name,
-                    'type'          => 'daycare_addons',
+                    'tenant_id' => $attendance->tenant_id,
+                    'dog_name' => $dog?->name,
+                    'type' => 'daycare_addons',
                 ],
                 $customer->stripe_customer_id,
                 true,
@@ -297,12 +299,12 @@ class RosterController extends Controller
             );
 
             $order->payments()->create([
-                'tenant_id'    => $attendance->tenant_id,
+                'tenant_id' => $attendance->tenant_id,
                 'stripe_pi_id' => $pi->id,
                 'amount_cents' => $totalCents,
-                'type'         => 'charge',
-                'status'       => 'paid',
-                'paid_at'      => now(),
+                'type' => 'charge',
+                'status' => 'paid',
+                'paid_at' => now(),
             ]);
 
             $order->update(['status' => 'paid']);

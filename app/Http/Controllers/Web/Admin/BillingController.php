@@ -8,6 +8,7 @@ use App\Models\PlatformSubscriptionEvent;
 use App\Models\Tenant;
 use App\Services\StripeBillingService;
 use App\Services\StripeService;
+use App\Services\TenantEventService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -19,10 +20,10 @@ use Inertia\Response;
 
 class BillingController extends Controller
 {
-
     public function __construct(
         private readonly StripeBillingService $billing,
         private readonly StripeService $stripe,
+        private readonly TenantEventService $events,
     ) {}
 
     public function index(): Response
@@ -36,17 +37,17 @@ class BillingController extends Controller
             ->orderBy('sort_order')
             ->get()
             ->map(fn ($p) => [
-                'slug'                 => $p->slug,
-                'name'                 => $p->name,
-                'description'          => $p->description,
-                'monthly_price_cents'  => $p->monthly_price_cents,
-                'annual_price_cents'   => $p->annual_price_cents,
-                'features'             => $p->getRelation('features')->isNotEmpty()
+                'slug' => $p->slug,
+                'name' => $p->name,
+                'description' => $p->description,
+                'monthly_price_cents' => $p->monthly_price_cents,
+                'annual_price_cents' => $p->annual_price_cents,
+                'features' => $p->getRelation('features')->isNotEmpty()
                     ? $p->getRelation('features')->sortBy('sort_order')->pluck('name')->values()->all()
                     : collect($p->features ?? [])->map(fn ($s) => ucwords(str_replace('_', ' ', $s)))->all(),
-                'staff_limit'          => $p->staff_limit,
-                'platform_fee_pct'     => (float) $p->platform_fee_pct,
-                'sort_order'           => $p->sort_order,
+                'staff_limit' => $p->staff_limit,
+                'platform_fee_pct' => (float) $p->platform_fee_pct,
+                'sort_order' => $p->sort_order,
             ])
             ->values()
             ->all();
@@ -57,36 +58,36 @@ class BillingController extends Controller
                 $pm = $this->billing->getDefaultPaymentMethod($tenant->platform_stripe_customer_id);
                 if ($pm) {
                     $paymentMethod = [
-                        'brand'     => $pm->card->brand,
-                        'last4'     => $pm->card->last4,
+                        'brand' => $pm->card->brand,
+                        'last4' => $pm->card->last4,
                         'exp_month' => $pm->card->exp_month,
-                        'exp_year'  => $pm->card->exp_year,
+                        'exp_year' => $pm->card->exp_year,
                     ];
                 }
             } catch (\Throwable $e) {
                 Log::warning('BillingController: failed to fetch default payment method', [
                     'tenant_id' => $tenant->id,
-                    'error'     => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
 
         return Inertia::render('Admin/Billing/Index', [
             'billing' => [
-                'plan'                      => $tenant->plan,
-                'status'                    => $tenant->status,
-                'trial_ends_at'             => $tenant->trial_ends_at?->toIso8601String(),
-                'plan_current_period_end'   => $tenant->plan_current_period_end?->toIso8601String(),
-                'plan_past_due_since'       => $tenant->plan_past_due_since?->toIso8601String(),
+                'plan' => $tenant->plan,
+                'status' => $tenant->status,
+                'trial_ends_at' => $tenant->trial_ends_at?->toIso8601String(),
+                'plan_current_period_end' => $tenant->plan_current_period_end?->toIso8601String(),
+                'plan_past_due_since' => $tenant->plan_past_due_since?->toIso8601String(),
                 'plan_cancel_at_period_end' => $tenant->plan_cancel_at_period_end,
-                'plan_billing_cycle'        => $tenant->plan_billing_cycle,
-                'platform_stripe_sub_id'    => $tenant->platform_stripe_sub_id,
+                'plan_billing_cycle' => $tenant->plan_billing_cycle,
+                'platform_stripe_sub_id' => $tenant->platform_stripe_sub_id,
             ],
-            'plans'             => $plans,
-            'stripe_key'        => config('services.stripe.key'),
+            'plans' => $plans,
+            'stripe_key' => config('services.stripe.key'),
             'stripe_account_id' => $tenant->stripe_account_id,
-            'stripe_onboarded'  => $tenant->stripe_onboarded_at !== null,
-            'payment_method'    => $paymentMethod,
+            'stripe_onboarded' => $tenant->stripe_onboarded_at !== null,
+            'payment_method' => $paymentMethod,
         ]);
     }
 
@@ -112,13 +113,13 @@ class BillingController extends Controller
         $this->requireOwner();
 
         $validated = $request->validate([
-            'plan'               => ['required', 'string', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
-            'cycle'              => ['required', 'string', 'in:monthly,annual'],
-            'payment_method_id'  => ['nullable', 'string'],
+            'plan' => ['required', 'string', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
+            'cycle' => ['required', 'string', 'in:monthly,annual'],
+            'payment_method_id' => ['nullable', 'string'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
-        $plan   = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
+        $plan = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
 
         if (! $tenant->platform_stripe_customer_id) {
             $customerId = $this->billing->createCustomer($tenant);
@@ -141,17 +142,17 @@ class BillingController extends Controller
         $stripeSub = $this->billing->createSubscription($tenant, $priceId, $validated['cycle'], $paymentMethodId);
 
         $tenant->update([
-            'plan'                   => $validated['plan'],
-            'plan_billing_cycle'     => $validated['cycle'],
+            'plan' => $validated['plan'],
+            'plan_billing_cycle' => $validated['cycle'],
             'platform_stripe_sub_id' => $stripeSub->id,
-            'status'                 => 'active',
+            'status' => 'active',
             'plan_current_period_end' => $stripeSub->current_period_end ? Carbon::createFromTimestamp($stripeSub->current_period_end) : null,
         ]);
 
         PlatformSubscriptionEvent::create([
-            'tenant_id'  => $tenant->id,
+            'tenant_id' => $tenant->id,
             'event_type' => 'subscribed',
-            'payload'    => ['plan' => $validated['plan'], 'cycle' => $validated['cycle']],
+            'payload' => ['plan' => $validated['plan'], 'cycle' => $validated['cycle']],
         ]);
 
         return back()->with('success', 'Subscription activated.');
@@ -162,26 +163,35 @@ class BillingController extends Controller
         $this->requireOwner();
 
         $validated = $request->validate([
-            'plan'  => ['required', 'string', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
+            'plan' => ['required', 'string', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
             'cycle' => ['required', 'string', 'in:monthly,annual'],
         ]);
 
-        $tenant  = Tenant::find(app('current.tenant.id'));
-        $plan    = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
+        $tenant = Tenant::find(app('current.tenant.id'));
+        $plan = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
         $priceId = $validated['cycle'] === 'annual' ? $plan->stripe_annual_price_id : $plan->stripe_monthly_price_id;
+
+        $fromPlan = $tenant->plan;
 
         $this->billing->changePlan($tenant, $priceId);
 
         $tenant->update([
-            'plan'               => $validated['plan'],
+            'plan' => $validated['plan'],
             'plan_billing_cycle' => $validated['cycle'],
         ]);
 
         PlatformSubscriptionEvent::create([
-            'tenant_id'  => $tenant->id,
+            'tenant_id' => $tenant->id,
             'event_type' => 'plan_changed',
-            'payload'    => ['plan' => $validated['plan'], 'cycle' => $validated['cycle']],
+            'payload' => ['plan' => $validated['plan'], 'cycle' => $validated['cycle']],
         ]);
+
+        $planOrder = ['free' => 0, 'starter' => 1, 'pro' => 2, 'founders' => 3];
+        $direction = ($planOrder[$validated['plan']] ?? 0) >= ($planOrder[$fromPlan] ?? 0)
+            ? 'plan_upgraded'
+            : 'plan_downgraded';
+
+        $this->events->record($tenant->id, $direction, ['from' => $fromPlan, 'to' => $validated['plan']]);
 
         return back()->with('success', 'Plan upgraded.');
     }
@@ -197,9 +207,9 @@ class BillingController extends Controller
         $tenant->update(['plan_cancel_at_period_end' => true]);
 
         PlatformSubscriptionEvent::create([
-            'tenant_id'  => $tenant->id,
+            'tenant_id' => $tenant->id,
             'event_type' => 'cancellation_scheduled',
-            'payload'    => [],
+            'payload' => [],
         ]);
 
         return back()->with('success', 'Subscription cancellation scheduled.');

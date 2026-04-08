@@ -8,16 +8,15 @@ use App\Models\AttendanceAddon;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
-use App\Models\OrderPayment;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AutoReplenishService;
 use App\Services\DogCreditService;
 use App\Services\StripeService;
-use Mockery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Mockery;
 use Tests\TestCase;
 
 class RosterControllerTest extends TestCase
@@ -33,16 +32,16 @@ class RosterControllerTest extends TestCase
         parent::setUp();
 
         $this->tenant = Tenant::factory()->create([
-            'slug'               => 'testco',
-            'status'             => 'active',
-            'plan'               => 'starter',
+            'slug' => 'testco',
+            'status' => 'active',
+            'plan' => 'starter',
             'checkin_block_at_zero' => false,
         ]);
         URL::forceRootUrl('http://testco.pawpass.com');
 
         $this->staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         $this->mock(DogCreditService::class)->shouldIgnoreMissing();
@@ -84,8 +83,8 @@ class RosterControllerTest extends TestCase
         $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 5]);
 
         $attendance = Attendance::factory()->create([
-            'tenant_id'    => $this->tenant->id,
-            'dog_id'       => $dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
             'checked_in_by' => $this->staff->id,
             'checked_in_at' => now(),
             'checked_out_at' => null,
@@ -105,10 +104,10 @@ class RosterControllerTest extends TestCase
         $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 5]);
 
         Attendance::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_by'  => $this->staff->id,
-            'checked_in_at'  => now()->subDay(),
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now()->subDay(),
             'checked_out_at' => null,
         ]);
 
@@ -127,18 +126,18 @@ class RosterControllerTest extends TestCase
         $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 5]);
 
         $oldAttendance = Attendance::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_by'  => $this->staff->id,
-            'checked_in_at'  => now()->subDay(),
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now()->subDay(),
             'checked_out_at' => null,
         ]);
 
         $todayAttendance = Attendance::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_by'  => $this->staff->id,
-            'checked_in_at'  => now(),
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
             'checked_out_at' => null,
         ]);
 
@@ -171,18 +170,18 @@ class RosterControllerTest extends TestCase
     {
         // tenant already has checkin_block_at_zero = false (setUp)
         $package = Package::factory()->autoReplenish()->create([
-            'tenant_id'    => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'credit_count' => 5,
         ]);
 
         $customer = Customer::factory()->create([
-            'tenant_id'                => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'stripe_payment_method_id' => 'pm_test_123',
         ]);
 
         $dog = Dog::factory()->forCustomer($customer)->create([
-            'credit_balance'            => 0,
-            'auto_replenish_enabled'    => true,
+            'credit_balance' => 0,
+            'auto_replenish_enabled' => true,
             'auto_replenish_package_id' => $package->id,
         ]);
 
@@ -204,18 +203,18 @@ class RosterControllerTest extends TestCase
     {
         // tenant already has checkin_block_at_zero = false (setUp)
         $package = Package::factory()->autoReplenish()->create([
-            'tenant_id'    => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'credit_count' => 5,
         ]);
 
         $customer = Customer::factory()->create([
-            'tenant_id'                => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'stripe_payment_method_id' => 'pm_test_123',
         ]);
 
         $dog = Dog::factory()->forCustomer($customer)->create([
-            'credit_balance'            => 0,
-            'auto_replenish_enabled'    => true,
+            'credit_balance' => 0,
+            'auto_replenish_enabled' => true,
             'auto_replenish_package_id' => $package->id,
         ]);
 
@@ -239,18 +238,18 @@ class RosterControllerTest extends TestCase
 
     public function test_store_attendance_addon_saves_addon_when_checked_in(): void
     {
-        $customer   = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
-        $dog        = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
         $attendance = Attendance::factory()->create([
-            'tenant_id'     => $this->tenant->id,
-            'dog_id'        => $dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
             'checked_in_by' => $this->staff->id,
             'checked_in_at' => now(),
             'checked_out_at' => null,
         ]);
         $addonType = AddonType::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'context'     => 'daycare',
+            'tenant_id' => $this->tenant->id,
+            'context' => 'daycare',
             'price_cents' => 1500,
         ]);
 
@@ -262,8 +261,8 @@ class RosterControllerTest extends TestCase
 
         $response->assertRedirect();
         $this->assertDatabaseHas('attendance_addons', [
-            'attendance_id'    => $attendance->id,
-            'addon_type_id'    => $addonType->id,
+            'attendance_id' => $attendance->id,
+            'addon_type_id' => $addonType->id,
             'unit_price_cents' => 1500,
         ]);
         // No order yet — dog is still checked in
@@ -272,18 +271,18 @@ class RosterControllerTest extends TestCase
 
     public function test_store_attendance_addon_rejects_boarding_only_addon(): void
     {
-        $customer   = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
-        $dog        = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
         $attendance = Attendance::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_by'  => $this->staff->id,
-            'checked_in_at'  => now(),
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
             'checked_out_at' => null,
         ]);
         $boardingOnly = AddonType::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'context'   => 'boarding',
+            'context' => 'boarding',
         ]);
 
         $this->actingAs($this->staff);
@@ -298,25 +297,25 @@ class RosterControllerTest extends TestCase
     public function test_store_attendance_addon_charges_immediately_when_already_checked_out(): void
     {
         $customer = Customer::factory()->create([
-            'tenant_id'                => $this->tenant->id,
-            'stripe_customer_id'       => 'cus_test',
+            'tenant_id' => $this->tenant->id,
+            'stripe_customer_id' => 'cus_test',
             'stripe_payment_method_id' => 'pm_test',
-            'stripe_pm_last4'          => '4242',
-            'stripe_pm_brand'          => 'visa',
+            'stripe_pm_last4' => '4242',
+            'stripe_pm_brand' => 'visa',
         ]);
         $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
         $this->tenant->update(['stripe_account_id' => 'acct_test', 'platform_fee_pct' => 5.0]);
 
         $attendance = Attendance::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_by'  => $this->staff->id,
-            'checked_in_at'  => now()->subHours(3),
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now()->subHours(3),
             'checked_out_at' => now()->subHour(),
         ]);
         $addonType = AddonType::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'context'     => 'both',
+            'tenant_id' => $this->tenant->id,
+            'context' => 'both',
             'price_cents' => 2000,
         ]);
 
@@ -335,43 +334,43 @@ class RosterControllerTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('orders', [
             'attendance_id' => $attendance->id,
-            'type'          => 'daycare',
+            'type' => 'daycare',
         ]);
         $this->assertDatabaseHas('order_payments', [
             'stripe_pi_id' => 'pi_addon',
             'amount_cents' => 2000,
-            'status'       => 'paid',
+            'status' => 'paid',
         ]);
     }
 
     public function test_checkout_charges_addons_on_dog_checkout(): void
     {
         $customer = Customer::factory()->create([
-            'tenant_id'                => $this->tenant->id,
-            'stripe_customer_id'       => 'cus_checkout',
+            'tenant_id' => $this->tenant->id,
+            'stripe_customer_id' => 'cus_checkout',
             'stripe_payment_method_id' => 'pm_checkout',
-            'stripe_pm_last4'          => '4242',
-            'stripe_pm_brand'          => 'visa',
+            'stripe_pm_last4' => '4242',
+            'stripe_pm_brand' => 'visa',
         ]);
         $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
         $this->tenant->update(['stripe_account_id' => 'acct_test', 'platform_fee_pct' => 5.0]);
 
         $attendance = Attendance::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_by'  => $this->staff->id,
-            'checked_in_at'  => now(),
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
             'checked_out_at' => null,
         ]);
         $addonType = AddonType::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'context'     => 'daycare',
+            'tenant_id' => $this->tenant->id,
+            'context' => 'daycare',
             'price_cents' => 1500,
         ]);
         AttendanceAddon::create([
-            'attendance_id'    => $attendance->id,
-            'addon_type_id'    => $addonType->id,
-            'quantity'         => 1,
+            'attendance_id' => $attendance->id,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
             'unit_price_cents' => 1500,
         ]);
 
@@ -389,40 +388,40 @@ class RosterControllerTest extends TestCase
         $this->assertNotNull($attendance->fresh()->checked_out_at);
         $this->assertDatabaseHas('orders', [
             'attendance_id' => $attendance->id,
-            'type'          => 'daycare',
+            'type' => 'daycare',
         ]);
         $this->assertDatabaseHas('order_payments', [
             'stripe_pi_id' => 'pi_checkout',
             'amount_cents' => 1500,
-            'status'       => 'paid',
+            'status' => 'paid',
         ]);
     }
 
     public function test_checkout_creates_pending_order_when_no_card(): void
     {
         $customer = Customer::factory()->create([
-            'tenant_id'                => $this->tenant->id,
-            'stripe_customer_id'       => null,
+            'tenant_id' => $this->tenant->id,
+            'stripe_customer_id' => null,
             'stripe_payment_method_id' => null,
         ]);
         $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
 
         $attendance = Attendance::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_by'  => $this->staff->id,
-            'checked_in_at'  => now(),
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
             'checked_out_at' => null,
         ]);
         $addonType = AddonType::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'context'     => 'daycare',
+            'tenant_id' => $this->tenant->id,
+            'context' => 'daycare',
             'price_cents' => 1500,
         ]);
         AttendanceAddon::create([
-            'attendance_id'    => $attendance->id,
-            'addon_type_id'    => $addonType->id,
-            'quantity'         => 1,
+            'attendance_id' => $attendance->id,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
             'unit_price_cents' => 1500,
         ]);
 
@@ -436,27 +435,27 @@ class RosterControllerTest extends TestCase
 
         $this->assertDatabaseHas('orders', [
             'attendance_id' => $attendance->id,
-            'status'        => 'pending',
+            'status' => 'pending',
         ]);
         $this->assertDatabaseMissing('order_payments', ['stripe_pi_id' => 'pi_checkout']);
     }
 
     public function test_destroy_attendance_addon_removes_when_not_billed(): void
     {
-        $customer   = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
-        $dog        = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
         $attendance = Attendance::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_by'  => $this->staff->id,
-            'checked_in_at'  => now(),
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
             'checked_out_at' => null,
         ]);
         $addonType = AddonType::factory()->create(['tenant_id' => $this->tenant->id, 'context' => 'daycare']);
-        $addon     = AttendanceAddon::create([
-            'attendance_id'    => $attendance->id,
-            'addon_type_id'    => $addonType->id,
-            'quantity'         => 1,
+        $addon = AttendanceAddon::create([
+            'attendance_id' => $attendance->id,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
             'unit_price_cents' => $addonType->price_cents,
         ]);
 
@@ -470,30 +469,30 @@ class RosterControllerTest extends TestCase
 
     public function test_destroy_attendance_addon_409_when_already_billed(): void
     {
-        $customer   = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
-        $dog        = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
         $attendance = Attendance::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_by'  => $this->staff->id,
-            'checked_in_at'  => now()->subHours(4),
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now()->subHours(4),
             'checked_out_at' => now()->subHour(),
         ]);
         $addonType = AddonType::factory()->create(['tenant_id' => $this->tenant->id, 'context' => 'daycare']);
-        $addon     = AttendanceAddon::create([
-            'attendance_id'    => $attendance->id,
-            'addon_type_id'    => $addonType->id,
-            'quantity'         => 1,
+        $addon = AttendanceAddon::create([
+            'attendance_id' => $attendance->id,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
             'unit_price_cents' => $addonType->price_cents,
         ]);
 
         // Simulate a billing order already created for this attendance
         Order::create([
-            'tenant_id'    => $this->tenant->id,
-            'customer_id'  => $customer->id,
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $customer->id,
             'attendance_id' => $attendance->id,
-            'type'         => 'daycare',
-            'status'       => 'paid',
+            'type' => 'daycare',
+            'status' => 'paid',
             'total_amount' => $addonType->price_cents / 100,
         ]);
 
@@ -510,7 +509,7 @@ class RosterControllerTest extends TestCase
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $dog = Dog::factory()->forCustomer($customer)->create([
             'credit_balance' => 5,
-            'status'         => 'inactive',
+            'status' => 'inactive',
         ]);
 
         $this->actingAs($this->staff);
@@ -527,7 +526,7 @@ class RosterControllerTest extends TestCase
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $dog = Dog::factory()->forCustomer($customer)->create([
             'credit_balance' => 5,
-            'status'         => 'suspended',
+            'status' => 'suspended',
         ]);
 
         $this->actingAs($this->staff);
@@ -537,5 +536,23 @@ class RosterControllerTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHasErrors('dog_id');
         $this->assertDatabaseMissing('attendances', ['dog_id' => $dog->id]);
+    }
+
+    public function test_checkin_records_first_checkin_event_once(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dogA = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 5]);
+        $dogB = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 5]);
+
+        $this->actingAs($this->staff);
+
+        $this->post('/admin/roster/checkin', ['dog_id' => $dogA->id]);
+        $this->post('/admin/roster/checkin', ['dog_id' => $dogB->id]);
+
+        $this->assertDatabaseHas('tenant_events', [
+            'tenant_id' => $this->tenant->id,
+            'event_type' => 'first_checkin',
+        ]);
+        $this->assertDatabaseCount('tenant_events', 1);
     }
 }

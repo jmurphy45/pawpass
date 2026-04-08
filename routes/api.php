@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\V1\RosterController;
 use App\Http\Controllers\Admin\V1\SettingsController;
 use App\Http\Controllers\Platform\V1\AuditLogController;
 use App\Http\Controllers\Platform\V1\NotificationController as PlatformNotificationController;
+use App\Http\Controllers\Platform\V1\TenantEventController;
 use App\Http\Controllers\Platform\V1\TenantController as PlatformTenantController;
 use App\Http\Controllers\Portal\V1\AccountController;
 use App\Http\Controllers\Portal\V1\AttendanceController;
@@ -40,6 +41,7 @@ use App\Http\Controllers\Portal\V1\DogController as PortalDogController;
 use App\Http\Controllers\Portal\V1\NotificationController;
 use App\Http\Controllers\Portal\V1\OrderController;
 use App\Http\Controllers\Portal\V1\PackageController;
+use App\Http\Controllers\Portal\V1\PromotionController as PortalPromotionController;
 use App\Http\Controllers\Portal\V1\KennelUnitController as PortalKennelUnitController;
 use App\Http\Controllers\Portal\V1\ReservationController as PortalReservationController;
 use App\Http\Controllers\Portal\V1\SubscriptionController;
@@ -90,6 +92,8 @@ Route::prefix('portal/v1')
             Route::middleware(['idempotency', 'stripe.onboarded'])->post('orders', [OrderController::class, 'store']);
             Route::get('orders', [OrderController::class, 'index']);
             Route::get('orders/tax-preview', [OrderController::class, 'taxPreview']);
+
+            Route::post('promotions/check', [PortalPromotionController::class, 'check']);
 
             Route::post('subscriptions', [SubscriptionController::class, 'store']);
             Route::get('subscriptions', [SubscriptionController::class, 'index']);
@@ -285,6 +289,7 @@ Route::prefix('platform/v1')
         Route::post('notifications/failures/{log_id}/retry', [PlatformNotificationController::class, 'retry']);
 
         Route::get('audit-log', [AuditLogController::class, 'index']);
+        Route::get('tenant-events', [TenantEventController::class, 'index']);
 
         Route::get('plans', [PlatformPlanController::class, 'index']);
         Route::post('plans', [PlatformPlanController::class, 'store']);

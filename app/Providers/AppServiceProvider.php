@@ -11,13 +11,15 @@ use App\Notifications\Channels\SmsChannel;
 use App\Observers\PackageObserver;
 use App\Observers\PlatformPlanObserver;
 use App\Services\KennelAvailabilityService;
-use App\Services\VaccinationComplianceService;
 use App\Services\NotificationService;
 use App\Services\PlanFeatureCache;
+use App\Services\PromotionService;
 use App\Services\SmsUsageService;
 use App\Services\StripeBillingService;
 use App\Services\StripeService;
+use App\Services\TenantEventService;
 use App\Services\TwilioService;
+use App\Services\VaccinationComplianceService;
 use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
@@ -65,6 +67,8 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(PlanFeatureCache::class);
         $this->app->singleton(SmsUsageService::class);
+        $this->app->singleton(TenantEventService::class);
+        $this->app->singleton(PromotionService::class);
         $this->app->bind(KennelAvailabilityService::class);
         $this->app->bind(VaccinationComplianceService::class);
     }
@@ -82,8 +86,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(NotificationSent::class, [LogNotificationSent::class, 'handleSent']);
         Event::listen(NotificationFailed::class, [LogNotificationSent::class, 'handleFailed']);
 
-        Feature::resolveScopeUsing(fn ($driver) =>
-            ($id = app('current.tenant.id')) ? Tenant::find($id) : null
+        Feature::resolveScopeUsing(fn ($driver) => ($id = app('current.tenant.id')) ? Tenant::find($id) : null
         );
     }
 }
