@@ -340,7 +340,7 @@ class BoardingController extends Controller
             'description'        => ['nullable', 'string', 'max:2000'],
             'is_active'          => ['nullable', 'boolean'],
             'sort_order'         => ['nullable', 'integer', 'min:0'],
-            'nightly_rate_cents' => ['nullable', 'integer', 'min:0'],
+            'nightly_rate_cents' => ['required', 'integer', 'min:0'],
         ]);
 
         KennelUnit::create([
@@ -351,7 +351,7 @@ class BoardingController extends Controller
             'description'        => $validated['description'] ?? null,
             'is_active'          => $validated['is_active'] ?? true,
             'sort_order'         => $validated['sort_order'] ?? 0,
-            'nightly_rate_cents' => $validated['nightly_rate_cents'] ?? null,
+            'nightly_rate_cents' => $validated['nightly_rate_cents'],
         ]);
 
         return redirect()->route('admin.boarding.units')->with('success', 'Kennel unit created.');
@@ -368,7 +368,7 @@ class BoardingController extends Controller
             'description'        => ['nullable', 'string', 'max:2000'],
             'is_active'          => ['sometimes', 'boolean'],
             'sort_order'         => ['sometimes', 'integer', 'min:0'],
-            'nightly_rate_cents' => ['nullable', 'integer', 'min:0'],
+            'nightly_rate_cents' => ['sometimes', 'required', 'integer', 'min:0'],
         ]);
 
         $kennelUnit->update($validated);

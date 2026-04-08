@@ -21,7 +21,7 @@ class StoreKennelUnitRequest extends FormRequest
             'description'        => ['nullable', 'string', 'max:2000'],
             'is_active'          => ['nullable', 'boolean'],
             'sort_order'         => ['nullable', 'integer', 'min:0'],
-            'nightly_rate_cents' => ['nullable', 'integer', 'min:0'],
+            'nightly_rate_cents' => ['required', 'integer', 'min:0'],
         ];
     }
 }

@@ -33,7 +33,7 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Nightly Rate ($)</label>
-              <input v-model="nightlyRateDollars" type="number" min="0" step="0.01" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" placeholder="0.00" />
+              <input v-model="nightlyRateDollars" type="number" min="0" step="0.01" required class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" placeholder="0.00" />
               <p v-if="form.errors.nightly_rate_cents" class="mt-1 text-sm text-red-600">{{ form.errors.nightly_rate_cents }}</p>
             </div>
             <div>
@@ -73,9 +73,7 @@
               </div>
               <p class="text-xs text-gray-500 mt-0.5">
                 Capacity: {{ unit.capacity }} {{ unit.capacity === 1 ? 'dog' : 'dogs' }}
-                <template v-if="unit.nightly_rate_cents != null">
-                  &nbsp;·&nbsp; ${{ (unit.nightly_rate_cents / 100).toFixed(2) }}/night
-                </template>
+                &nbsp;·&nbsp; ${{ (unit.nightly_rate_cents / 100).toFixed(2) }}/night
                 <template v-if="unit.description">
                   &nbsp;·&nbsp; {{ unit.description }}
                 </template>
@@ -107,7 +105,7 @@ interface KennelUnit {
   description: string | null;
   is_active: boolean;
   sort_order: number;
-  nightly_rate_cents: number | null;
+  nightly_rate_cents: number;
 }
 
 const props = defineProps<{ units: KennelUnit[] }>();
@@ -125,21 +123,21 @@ const form = useForm({
   description: '',
   is_active: true,
   sort_order: 0,
-  nightly_rate_cents: null as number | null,
+  nightly_rate_cents: 0,
 });
 
 const nightlyRateDollars = computed({
-  get: () => form.nightly_rate_cents != null ? (form.nightly_rate_cents / 100).toFixed(2) : '',
+  get: () => (form.nightly_rate_cents / 100).toFixed(2),
   set: (val: string) => {
     const parsed = parseFloat(val);
-    form.nightly_rate_cents = isNaN(parsed) || val === '' ? null : Math.round(parsed * 100);
+    form.nightly_rate_cents = isNaN(parsed) || val === '' ? 0 : Math.round(parsed * 100);
   },
 });
 
 function openCreate() {
   editingId.value = null;
   form.reset();
-  form.defaults({ name: '', type: 'standard', capacity: 1, description: '', is_active: true, sort_order: 0, nightly_rate_cents: null });
+  form.defaults({ name: '', type: 'standard', capacity: 1, description: '', is_active: true, sort_order: 0, nightly_rate_cents: 0 });
   showForm.value = true;
 }
 
