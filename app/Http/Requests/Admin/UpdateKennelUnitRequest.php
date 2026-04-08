@@ -21,7 +21,7 @@ class UpdateKennelUnitRequest extends FormRequest
             'description'        => ['sometimes', 'nullable', 'string', 'max:2000'],
             'is_active'          => ['sometimes', 'boolean'],
             'sort_order'         => ['sometimes', 'integer', 'min:0'],
-            'nightly_rate_cents' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'nightly_rate_cents' => ['sometimes', 'required', 'integer', 'min:0'],
         ];
     }
 }

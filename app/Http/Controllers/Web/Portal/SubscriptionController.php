@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Portal;
 
+use App\Enums\SubscriptionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
 use App\Services\StripeService;
@@ -16,9 +17,9 @@ class SubscriptionController extends Controller
 
         abort_unless($subscription->customer_id === $customerId, 403);
 
-        if ($subscription->status !== 'active') {
+        if (! $subscription->canTransitionTo(SubscriptionStatus::Cancelled)) {
             return redirect()->route('portal.dogs.show', $dogId)
-                ->with('error', 'Only active subscriptions can be cancelled.');
+                ->with('error', 'This subscription cannot be cancelled.');
         }
 
         if ($subscription->stripe_sub_id && $subscription->tenant?->stripe_account_id) {
@@ -28,7 +29,8 @@ class SubscriptionController extends Controller
             );
         }
 
-        $subscription->update(['cancelled_at' => now(), 'status' => 'cancelled']);
+        $subscription->update(['cancelled_at' => now()]);
+        $subscription->transitionTo(SubscriptionStatus::Cancelled);
 
         $subscription->dog?->update(['auto_replenish_enabled' => false]);
 

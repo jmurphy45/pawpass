@@ -295,4 +295,81 @@ class BillingControllerTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['plan']);
     }
+
+    public function test_subscribe_returns_502_on_stripe_error(): void
+    {
+        $this->tenant->update(['platform_stripe_customer_id' => null]);
+
+        $this->mock(StripeBillingService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')
+                ->andThrow(new \Stripe\Exception\ApiConnectionException('Stripe down'));
+        });
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson('/api/admin/v1/billing/subscribe', [
+                'plan'  => 'starter',
+                'cycle' => 'monthly',
+            ]);
+
+        $response->assertStatus(502)->assertJsonPath('message', 'Stripe down');
+    }
+
+    public function test_upgrade_returns_502_on_stripe_error(): void
+    {
+        $this->tenant->update(['platform_stripe_sub_id' => 'sub_existing']);
+
+        $this->mock(StripeBillingService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('changePlan')
+                ->andThrow(new \Stripe\Exception\ApiConnectionException('Stripe down'));
+        });
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson('/api/admin/v1/billing/upgrade', [
+                'plan'  => 'pro',
+                'cycle' => 'monthly',
+            ]);
+
+        $response->assertStatus(502)->assertJsonPath('message', 'Stripe down');
+    }
+
+    public function test_cancel_returns_502_on_stripe_error(): void
+    {
+        $this->tenant->update(['platform_stripe_sub_id' => 'sub_to_cancel']);
+
+        $this->mock(StripeBillingService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('cancelSubscription')
+                ->andThrow(new \Stripe\Exception\ApiConnectionException('Stripe down'));
+        });
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson('/api/admin/v1/billing/cancel');
+
+        $response->assertStatus(502)->assertJsonPath('message', 'Stripe down');
+    }
+
+    public function test_invoices_returns_502_on_stripe_error(): void
+    {
+        $this->mock(StripeBillingService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('listInvoices')
+                ->andThrow(new \Stripe\Exception\ApiConnectionException('Stripe down'));
+        });
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->getJson('/api/admin/v1/billing/invoices');
+
+        $response->assertStatus(502)->assertJsonPath('message', 'Stripe down');
+    }
+
+    public function test_portal_url_returns_502_on_stripe_error(): void
+    {
+        $this->mock(StripeBillingService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createPortalSession')
+                ->andThrow(new \Stripe\Exception\ApiConnectionException('Stripe down'));
+        });
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->getJson('/api/admin/v1/billing/portal-url');
+
+        $response->assertStatus(502)->assertJsonPath('message', 'Stripe down');
+    }
 }

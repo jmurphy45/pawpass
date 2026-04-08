@@ -52,23 +52,27 @@ class BillingController extends Controller
             $tenant->refresh();
         }
 
-        if (! $tenant->platform_stripe_customer_id) {
-            $customerId = $this->billing->createCustomer($tenant);
-            $tenant->update(['platform_stripe_customer_id' => $customerId]);
-            $tenant->refresh();
-        } elseif (! empty($validated['billing_address'])) {
-            $this->billing->updateCustomerAddress(
-                $tenant->platform_stripe_customer_id,
-                $validated['billing_address'],
-            );
+        try {
+            if (! $tenant->platform_stripe_customer_id) {
+                $customerId = $this->billing->createCustomer($tenant);
+                $tenant->update(['platform_stripe_customer_id' => $customerId]);
+                $tenant->refresh();
+            } elseif (! empty($validated['billing_address'])) {
+                $this->billing->updateCustomerAddress(
+                    $tenant->platform_stripe_customer_id,
+                    $validated['billing_address'],
+                );
+            }
+
+            $plan    = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
+            $priceId = $validated['cycle'] === 'annual'
+                ? $plan->stripe_annual_price_id
+                : $plan->stripe_monthly_price_id;
+
+            $stripeSub = $this->billing->createSubscription($tenant, $priceId, $validated['cycle']);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
         }
-
-        $plan    = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
-        $priceId = $validated['cycle'] === 'annual'
-            ? $plan->stripe_annual_price_id
-            : $plan->stripe_monthly_price_id;
-
-        $stripeSub = $this->billing->createSubscription($tenant, $priceId, $validated['cycle']);
 
         $tenant->update([
             'plan'                    => $validated['plan'],
@@ -101,7 +105,11 @@ class BillingController extends Controller
             ? $plan->stripe_annual_price_id
             : $plan->stripe_monthly_price_id;
 
-        $stripeSub = $this->billing->changePlan($tenant, $priceId);
+        try {
+            $stripeSub = $this->billing->changePlan($tenant, $priceId);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
 
         $tenant->update([
             'plan'               => $validated['plan'],
@@ -121,7 +129,11 @@ class BillingController extends Controller
     {
         $tenant = Tenant::find(app('current.tenant.id'));
 
-        $this->billing->cancelSubscription($tenant);
+        try {
+            $this->billing->cancelSubscription($tenant);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
 
         $tenant->update(['plan_cancel_at_period_end' => true]);
 
@@ -138,7 +150,11 @@ class BillingController extends Controller
     {
         $tenant = Tenant::find(app('current.tenant.id'));
 
-        $invoices = $this->billing->listInvoices($tenant);
+        try {
+            $invoices = $this->billing->listInvoices($tenant);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
 
         return response()->json(['data' => $invoices]);
     }
@@ -149,7 +165,11 @@ class BillingController extends Controller
 
         $returnUrl = $request->query('return_url', config('app.url'));
 
-        $url = $this->billing->createPortalSession($tenant, $returnUrl);
+        try {
+            $url = $this->billing->createPortalSession($tenant, $returnUrl);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
 
         return response()->json(['data' => ['url' => $url]]);
     }

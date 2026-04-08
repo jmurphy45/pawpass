@@ -332,7 +332,7 @@ watch(selectedPackageId, async (pkgId) => {
 });
 
 async function callConfirmEndpoint(paymentIntentId: string) {
-  await fetch(route('portal.purchase.confirm'), {
+  const resp = await fetch(route('portal.purchase.confirm'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
     body: JSON.stringify({
@@ -341,6 +341,13 @@ async function callConfirmEndpoint(paymentIntentId: string) {
       auto_replenish: autoReplenish.value,
     }),
   });
+
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}));
+    cardError.value = (body as { message?: string }).message ?? 'Payment confirmed but we could not credit your account. Please contact support.';
+    return;
+  }
+
   success.value = true;
   showPaymentForm.value = false;
   paymentElement?.destroy();
