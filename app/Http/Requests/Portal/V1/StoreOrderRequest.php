@@ -27,7 +27,8 @@ class StoreOrderRequest extends FormRequest
                 'required',
                 Rule::exists('dogs', 'id')
                     ->where('customer_id', $customerId)
-                    ->where('tenant_id', $tenantId),
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', 'active'),
             ],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'country'     => ['nullable', 'string', 'size:2'],

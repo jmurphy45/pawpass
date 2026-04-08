@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Dog;
+use App\Models\DogVaccination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -153,6 +154,33 @@ class DogController extends Controller
         $dog->update($validated);
 
         return redirect()->route('portal.dogs.show', $dog->id)->with('success', 'Dog updated.');
+    }
+
+    public function storeVaccination(Request $request, Dog $dog): RedirectResponse
+    {
+        $this->authorizeCustomerDog($dog);
+
+        $validated = $request->validate([
+            'vaccine_name'    => ['required', 'string', 'max:255'],
+            'administered_at' => ['required', 'date_format:Y-m-d'],
+            'expires_at'      => ['nullable', 'date_format:Y-m-d', 'after:administered_at'],
+            'administered_by' => ['nullable', 'string', 'max:255'],
+            'notes'           => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $dog->vaccinations()->create($validated);
+
+        return back()->with('success', 'Vaccination record added.');
+    }
+
+    public function destroyVaccination(Dog $dog, DogVaccination $vaccination): RedirectResponse
+    {
+        $this->authorizeCustomerDog($dog);
+        abort_if($vaccination->dog_id !== $dog->id, 403);
+
+        $vaccination->delete();
+
+        return back()->with('success', 'Vaccination record removed.');
     }
 
     private function authorizeCustomerDog(Dog $dog): void

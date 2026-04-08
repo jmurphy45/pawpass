@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Enums\DogStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Dog;
@@ -9,6 +10,7 @@ use App\Models\DogVaccination;
 use App\Models\Package;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -119,6 +121,7 @@ class DogController extends Controller
                 'vet_phone'      => $dog->vet_phone,
                 'customer_id'    => $dog->customer_id,
                 'customer_name'  => $dog->customer?->name,
+                'status'         => $dog->status->value,
             ],
             'ledger'       => $ledger,
             'attendance'   => $attendance,
@@ -132,6 +135,12 @@ class DogController extends Controller
             ->where('is_active', true)
             ->get(['id', 'name', 'price', 'credit_count']);
 
+        $statusOptions = array_map(fn (DogStatus $s) => [
+            'value'   => $s->value,
+            'label'   => $s->label(),
+            'tooltip' => $s->tooltip(),
+        ], DogStatus::cases());
+
         return Inertia::render('Admin/Dogs/Edit', [
             'dog' => [
                 'id'                        => $dog->id,
@@ -143,8 +152,10 @@ class DogController extends Controller
                 'vet_phone'                 => $dog->vet_phone,
                 'auto_replenish_enabled'    => (bool) $dog->auto_replenish_enabled,
                 'auto_replenish_package_id' => $dog->auto_replenish_package_id,
+                'status'                    => $dog->status->value,
             ],
             'eligiblePackages' => $eligiblePackages,
+            'statusOptions'    => $statusOptions,
         ]);
     }
 
@@ -159,6 +170,7 @@ class DogController extends Controller
             'vet_phone'                 => ['nullable', 'string', 'max:50'],
             'auto_replenish_enabled'    => ['boolean'],
             'auto_replenish_package_id' => ['nullable', 'string', 'exists:packages,id'],
+            'status'                    => ['required', Rule::enum(DogStatus::class)],
         ]);
 
         if (! ($validated['auto_replenish_enabled'] ?? false)) {

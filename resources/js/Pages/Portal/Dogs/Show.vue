@@ -70,7 +70,7 @@
       </AppCard>
 
       <!-- Vaccinations -->
-      <div v-if="vaccinations.length > 0 || true">
+      <div>
         <h2 class="text-base font-semibold text-text-body mb-3">Vaccinations</h2>
         <AppCard class="divide-y divide-border-warm">
           <div v-if="vaccinations.length === 0" class="px-4 py-4 text-sm text-text-muted text-center">
@@ -99,13 +99,87 @@
                 </p>
               </div>
             </div>
-            <span
-              class="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full"
-              :class="v.is_valid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-            >{{ v.is_valid ? 'Valid' : 'Expired' }}</span>
+            <div class="flex items-center gap-3 shrink-0">
+              <span
+                class="text-xs font-medium px-2 py-0.5 rounded-full"
+                :class="v.is_valid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+              >{{ v.is_valid ? 'Valid' : 'Expired' }}</span>
+              <button
+                type="button"
+                class="text-xs text-red-500 hover:text-red-700"
+                @click="deleteVaccination(v.id)"
+              >Remove</button>
+            </div>
           </div>
         </AppCard>
-        <p class="text-xs text-text-muted mt-2">To update vaccination records, contact us directly.</p>
+
+        <!-- Add vaccination form -->
+        <form
+          class="mt-3 rounded-xl overflow-hidden"
+          style="border: 1px solid #e5e0d8; background: #faf9f6;"
+          @submit.prevent="submitVaccination"
+        >
+          <div class="px-4 py-3" style="border-bottom: 1px solid #e5e0d8;">
+            <p class="text-sm font-semibold text-text-body">Add Vaccination Record</p>
+          </div>
+          <div class="px-4 py-3 space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-text-muted mb-1">Vaccine name <span class="text-red-500">*</span></label>
+                <input
+                  v-model="vaccForm.vaccine_name"
+                  type="text"
+                  placeholder="e.g. Rabies"
+                  class="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  style="border-color: #d9d4cc; background: white; color: #1a1612;"
+                />
+                <p v-if="vaccErrors.vaccine_name" class="mt-1 text-xs text-red-600">{{ vaccErrors.vaccine_name }}</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-text-muted mb-1">Date administered <span class="text-red-500">*</span></label>
+                <input
+                  v-model="vaccForm.administered_at"
+                  type="date"
+                  class="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  style="border-color: #d9d4cc; background: white; color: #1a1612;"
+                />
+                <p v-if="vaccErrors.administered_at" class="mt-1 text-xs text-red-600">{{ vaccErrors.administered_at }}</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-text-muted mb-1">Expiry date</label>
+                <input
+                  v-model="vaccForm.expires_at"
+                  type="date"
+                  class="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  style="border-color: #d9d4cc; background: white; color: #1a1612;"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-text-muted mb-1">Administered by</label>
+                <input
+                  v-model="vaccForm.administered_by"
+                  type="text"
+                  placeholder="Vet name or clinic"
+                  class="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  style="border-color: #d9d4cc; background: white; color: #1a1612;"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-text-muted mb-1">Notes</label>
+              <input
+                v-model="vaccForm.notes"
+                type="text"
+                placeholder="Optional notes"
+                class="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                style="border-color: #d9d4cc; background: white; color: #1a1612;"
+              />
+            </div>
+            <AppButton type="submit" variant="primary" size="sm" :disabled="vaccSubmitting">
+              {{ vaccSubmitting ? 'Saving…' : 'Add Record' }}
+            </AppButton>
+          </div>
+        </form>
       </div>
 
       <!-- Auto-Replenish -->
@@ -256,6 +330,34 @@ const props = defineProps<{
 
 const cancelling = ref<string | null>(null);
 const cancellingReplenish = ref(false);
+
+const vaccForm = ref({ vaccine_name: '', administered_at: '', expires_at: '', administered_by: '', notes: '' });
+const vaccSubmitting = ref(false);
+const vaccErrors = ref<Record<string, string>>({});
+
+function submitVaccination() {
+  vaccSubmitting.value = true;
+  vaccErrors.value = {};
+  router.post(
+    route('portal.dogs.vaccinations.store', { dog: props.dog.id }),
+    { ...vaccForm.value },
+    {
+      onSuccess: () => {
+        vaccForm.value = { vaccine_name: '', administered_at: '', expires_at: '', administered_by: '', notes: '' };
+      },
+      onError: (e) => { vaccErrors.value = e; },
+      onFinish: () => { vaccSubmitting.value = false; },
+    },
+  );
+}
+
+function deleteVaccination(vaccinationId: string) {
+  askConfirm(
+    'Remove Vaccination',
+    'This vaccination record will be permanently removed.',
+    () => router.delete(route('portal.dogs.vaccinations.destroy', { dog: props.dog.id, vaccination: vaccinationId })),
+  );
+}
 
 const confirmModal = ref<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>
   ({ open: false, title: '', message: '', onConfirm: null });

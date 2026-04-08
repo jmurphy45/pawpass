@@ -2,7 +2,17 @@
   <AdminLayout>
     <div class="space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-900">{{ dog.name }}</h1>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-bold text-gray-900">{{ dog.name }}</h1>
+          <span
+            class="text-xs font-semibold px-2 py-0.5 rounded-full"
+            :class="{
+              'bg-green-100 text-green-700': dog.status === 'active',
+              'bg-amber-100 text-amber-700': dog.status === 'suspended',
+              'bg-gray-100 text-gray-500':   dog.status === 'inactive',
+            }"
+          >{{ dog.status.charAt(0).toUpperCase() + dog.status.slice(1) }}</span>
+        </div>
         <Link :href="route('admin.dogs.edit', { dog: dog.id })" class="text-sm text-indigo-600 hover:underline">Edit</Link>
       </div>
       <AppCard :padded="true" class="space-y-2">
@@ -127,7 +137,7 @@ interface Vaccination {
 }
 
 const props = defineProps<{
-  dog: { id: string; name: string; breed: string | null; dob: string | null; sex: string | null; credit_balance: number; vet_name: string | null; vet_phone: string | null; customer_id: string; customer_name: string | null };
+  dog: { id: string; name: string; breed: string | null; dob: string | null; sex: string | null; credit_balance: number; vet_name: string | null; vet_phone: string | null; customer_id: string; customer_name: string | null; status: 'active' | 'inactive' | 'suspended' };
   ledger: Array<{ id: string; type: string; amount: number; balance_after: number; note: string | null; created_at: string }>;
   attendance: Array<{ id: string; checked_in_at: string; checked_out_at: string | null }>;
   vaccinations: Vaccination[];

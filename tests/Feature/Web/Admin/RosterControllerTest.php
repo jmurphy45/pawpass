@@ -504,4 +504,38 @@ class RosterControllerTest extends TestCase
         $response->assertStatus(409);
         $this->assertDatabaseHas('attendance_addons', ['id' => $addon->id]);
     }
+
+    public function test_inactive_dog_cannot_be_checked_in(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create([
+            'credit_balance' => 5,
+            'status'         => 'inactive',
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post('/admin/roster/checkin', ['dog_id' => $dog->id]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('dog_id');
+        $this->assertDatabaseMissing('attendances', ['dog_id' => $dog->id]);
+    }
+
+    public function test_suspended_dog_cannot_be_checked_in(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create([
+            'credit_balance' => 5,
+            'status'         => 'suspended',
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post('/admin/roster/checkin', ['dog_id' => $dog->id]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('dog_id');
+        $this->assertDatabaseMissing('attendances', ['dog_id' => $dog->id]);
+    }
 }

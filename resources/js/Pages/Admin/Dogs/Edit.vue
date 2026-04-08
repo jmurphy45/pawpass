@@ -13,6 +13,32 @@
         </div>
 
         <div class="border-t border-gray-200 pt-4">
+          <h2 class="text-sm font-semibold text-gray-900 mb-3">Status</h2>
+          <div class="space-y-2">
+            <label
+              v-for="opt in statusOptions"
+              :key="opt.value"
+              class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
+              :class="form.status === opt.value
+                ? 'border-indigo-500 bg-indigo-50'
+                : 'border-gray-200 hover:border-gray-300'"
+              :title="opt.tooltip"
+            >
+              <input
+                v-model="form.status"
+                type="radio"
+                :value="opt.value"
+                class="mt-0.5 shrink-0 accent-indigo-600"
+              />
+              <div class="min-w-0">
+                <span class="block text-sm font-medium text-gray-900">{{ opt.label }}</span>
+                <span class="block text-xs text-gray-500 mt-0.5">{{ opt.tooltip }}</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 pt-4">
           <h2 class="text-sm font-semibold text-gray-900 mb-3">Auto-Replenish</h2>
           <label class="flex items-center gap-3 cursor-pointer">
             <input v-model="form.auto_replenish_enabled" type="checkbox" class="rounded border-gray-300 text-indigo-600" />
@@ -52,6 +78,12 @@ interface EligiblePackage {
   credit_count: number;
 }
 
+interface StatusOption {
+  value: string;
+  label: string;
+  tooltip: string;
+}
+
 const props = defineProps<{
   dog: {
     id: string;
@@ -63,8 +95,10 @@ const props = defineProps<{
     vet_phone: string | null;
     auto_replenish_enabled: boolean;
     auto_replenish_package_id: string | null;
+    status: string;
   };
   eligiblePackages: EligiblePackage[];
+  statusOptions: StatusOption[];
 }>();
 
 const form = useForm({
@@ -76,6 +110,7 @@ const form = useForm({
   vet_phone: props.dog.vet_phone ?? '',
   auto_replenish_enabled: props.dog.auto_replenish_enabled,
   auto_replenish_package_id: props.dog.auto_replenish_package_id ?? '',
+  status: props.dog.status,
 });
 
 function submit() {

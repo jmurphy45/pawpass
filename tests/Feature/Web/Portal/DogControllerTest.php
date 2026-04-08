@@ -64,4 +64,81 @@ class DogControllerTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_customer_can_add_vaccination_to_own_dog(): void
+    {
+        $dog = Dog::factory()->forCustomer($this->customer)->create();
+
+        $this->actingAs($this->user);
+
+        $response = $this->post("/my/dogs/{$dog->id}/vaccinations", [
+            'vaccine_name'    => 'Rabies',
+            'administered_at' => '2025-01-15',
+            'expires_at'      => '2026-01-15',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('dog_vaccinations', [
+            'dog_id'       => $dog->id,
+            'vaccine_name' => 'Rabies',
+        ]);
+    }
+
+    public function test_customer_cannot_add_vaccination_to_another_customers_dog(): void
+    {
+        $otherCustomer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $otherDog = Dog::factory()->forCustomer($otherCustomer)->create();
+
+        $this->actingAs($this->user);
+
+        $response = $this->post("/my/dogs/{$otherDog->id}/vaccinations", [
+            'vaccine_name'    => 'Rabies',
+            'administered_at' => '2025-01-15',
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_customer_can_delete_own_dogs_vaccination(): void
+    {
+        $dog = Dog::factory()->forCustomer($this->customer)->create();
+        $vaccination = DogVaccination::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id'    => $dog->id,
+        ]);
+
+        $this->actingAs($this->user);
+
+        $response = $this->delete("/my/dogs/{$dog->id}/vaccinations/{$vaccination->id}");
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('dog_vaccinations', ['id' => $vaccination->id]);
+    }
+
+    public function test_customer_cannot_delete_another_customers_dogs_vaccination(): void
+    {
+        $otherCustomer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $otherDog = Dog::factory()->forCustomer($otherCustomer)->create();
+        $vaccination = DogVaccination::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id'    => $otherDog->id,
+        ]);
+
+        $this->actingAs($this->user);
+
+        $response = $this->delete("/my/dogs/{$otherDog->id}/vaccinations/{$vaccination->id}");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_vaccination_store_validates_required_fields(): void
+    {
+        $dog = Dog::factory()->forCustomer($this->customer)->create();
+
+        $this->actingAs($this->user);
+
+        $response = $this->post("/my/dogs/{$dog->id}/vaccinations", []);
+
+        $response->assertSessionHasErrors(['vaccine_name', 'administered_at']);
+    }
 }

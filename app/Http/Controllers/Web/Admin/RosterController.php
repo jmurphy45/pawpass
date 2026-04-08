@@ -106,6 +106,10 @@ class RosterController extends Controller
             return back()->with('error', 'Dog not found.');
         }
 
+        if (! $dog->status->isEligible()) {
+            return back()->withErrors(['dog_id' => "{$dog->name} is {$dog->status->label()} and cannot be checked in."]);
+        }
+
         $openAttendance = Attendance::where('dog_id', $dog->id)
             ->whereDate('checked_in_at', today())
             ->whereNull('checked_out_at')

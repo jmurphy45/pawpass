@@ -220,6 +220,8 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::get('/dogs/{dog}', [DogController::class, 'show'])->name('portal.dogs.show');
         Route::get('/dogs/{dog}/edit', [DogController::class, 'edit'])->name('portal.dogs.edit');
         Route::patch('/dogs/{dog}', [DogController::class, 'update'])->name('portal.dogs.update');
+        Route::post('/dogs/{dog}/vaccinations', [DogController::class, 'storeVaccination'])->name('portal.dogs.vaccinations.store');
+        Route::delete('/dogs/{dog}/vaccinations/{vaccination}', [DogController::class, 'destroyVaccination'])->name('portal.dogs.vaccinations.destroy');
         Route::post('/dogs/{dog}/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('portal.subscriptions.cancel');
         Route::post('/dogs/{dog}/auto-replenish/cancel', [AutoReplenishController::class, 'cancel'])->name('portal.auto-replenish.cancel');
 

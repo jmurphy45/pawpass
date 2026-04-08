@@ -102,8 +102,9 @@ class DogControllerTest extends TestCase
         $this->actingAs($this->staff);
 
         $response = $this->patch("/admin/dogs/{$dog->id}", [
-            'name'  => 'New Name',
-            'breed' => 'Poodle',
+            'name'   => 'New Name',
+            'breed'  => 'Poodle',
+            'status' => 'active',
         ]);
 
         $response->assertRedirect(route('admin.dogs.show', $dog));
@@ -122,6 +123,7 @@ class DogControllerTest extends TestCase
             'name'                      => $dog->name,
             'auto_replenish_enabled'    => true,
             'auto_replenish_package_id' => $package->id,
+            'status'                    => 'active',
         ]);
 
         $response->assertRedirect(route('admin.dogs.show', $dog));
@@ -146,6 +148,7 @@ class DogControllerTest extends TestCase
         $this->patch("/admin/dogs/{$dog->id}", [
             'name'                   => $dog->name,
             'auto_replenish_enabled' => false,
+            'status'                 => 'active',
         ]);
 
         $this->assertDatabaseHas('dogs', [
@@ -263,5 +266,36 @@ class DogControllerTest extends TestCase
         $response = $this->delete("/admin/dogs/{$dog->id}/vaccinations/{$vaccination->id}");
 
         $response->assertStatus(404);
+    }
+
+    public function test_update_saves_status(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['status' => 'active']);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->patch("/admin/dogs/{$dog->id}", [
+            'name'   => $dog->name,
+            'status' => 'suspended',
+        ]);
+
+        $response->assertRedirect(route('admin.dogs.show', $dog));
+        $this->assertDatabaseHas('dogs', ['id' => $dog->id, 'status' => 'suspended']);
+    }
+
+    public function test_show_includes_status(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['status' => 'inactive']);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->get("/admin/dogs/{$dog->id}");
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Dogs/Show')
+            ->where('dog.status', 'inactive')
+        );
     }
 }

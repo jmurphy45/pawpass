@@ -108,10 +108,14 @@ class StripeService
         );
     }
 
-    public function createRefund(string $paymentIntentId, ?string $stripeAccountId = null): object
+    public function createRefund(string $paymentIntentId, ?string $stripeAccountId = null, ?int $amountCents = null): object
     {
+        $params = ['payment_intent' => $paymentIntentId];
+        if ($amountCents !== null) {
+            $params['amount'] = $amountCents;
+        }
         $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
-        return $this->client->refunds->create(['payment_intent' => $paymentIntentId], $opts);
+        return $this->client->refunds->create($params, $opts);
     }
 
     public function createCustomer(?string $email, string $name, ?string $stripeAccountId = null): object

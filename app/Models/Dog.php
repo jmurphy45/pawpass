@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DogStatus;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasUlid;
 use App\Models\Package;
@@ -31,6 +32,7 @@ class Dog extends Model
         'credits_alert_sent_at',
         'auto_replenish_enabled',
         'auto_replenish_package_id',
+        'status',
     ];
 
     protected function casts(): array
@@ -42,6 +44,7 @@ class Dog extends Model
             'unlimited_pass_expires_at' => 'immutable_datetime',
             'credits_alert_sent_at' => 'immutable_datetime',
             'auto_replenish_enabled' => 'boolean',
+            'status' => DogStatus::class,
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',

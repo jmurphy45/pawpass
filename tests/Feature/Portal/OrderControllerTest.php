@@ -267,6 +267,32 @@ class OrderControllerTest extends TestCase
             ->assertStatus(201);
     }
 
+    public function test_inactive_dog_is_rejected_in_order(): void
+    {
+        $this->dog->update(['status' => 'inactive']);
+
+        $this->withHeaders($this->authHeaders('idem-inactive'))
+            ->postJson('/api/portal/v1/orders', [
+                'package_id' => $this->package->id,
+                'dog_ids'    => [$this->dog->id],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('dog_ids.0');
+    }
+
+    public function test_suspended_dog_is_rejected_in_order(): void
+    {
+        $this->dog->update(['status' => 'suspended']);
+
+        $this->withHeaders($this->authHeaders('idem-suspended'))
+            ->postJson('/api/portal/v1/orders', [
+                'package_id' => $this->package->id,
+                'dog_ids'    => [$this->dog->id],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('dog_ids.0');
+    }
+
     public function test_payment_intent_restricts_to_card_and_bank_payment_methods(): void
     {
         $capturedTypes = null;

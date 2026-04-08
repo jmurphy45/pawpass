@@ -63,7 +63,7 @@ class PaymentControllerTest extends TestCase
         $this->mock(StripeService::class)
             ->shouldReceive('createRefund')
             ->once()
-            ->with('pi_test123', null)
+            ->with('pi_test123', null, null)
             ->andReturn((object) ['id' => 're_test']);
 
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
@@ -82,7 +82,7 @@ class PaymentControllerTest extends TestCase
 
         $this->actingAs($this->staff);
 
-        $response = $this->post("/admin/payments/{$order->id}/refund");
+        $response = $this->post("/admin/payments/{$order->id}/refund", ['refund_type' => 'full']);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
@@ -102,7 +102,7 @@ class PaymentControllerTest extends TestCase
 
         $this->actingAs($this->staff);
 
-        $response = $this->post("/admin/payments/{$order->id}/refund");
+        $response = $this->post("/admin/payments/{$order->id}/refund", ['refund_type' => 'full']);
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
@@ -130,12 +130,12 @@ class PaymentControllerTest extends TestCase
         $this->mock(StripeService::class)
             ->shouldReceive('createRefund')
             ->once()
-            ->with('pi_acct_test', 'acct_webpay123')
+            ->with('pi_acct_test', 'acct_webpay123', null)
             ->andReturn((object) ['id' => 're_acct']);
 
         $this->actingAs($this->staff);
 
-        $response = $this->post("/admin/payments/{$order->id}/refund");
+        $response = $this->post("/admin/payments/{$order->id}/refund", ['refund_type' => 'full']);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
