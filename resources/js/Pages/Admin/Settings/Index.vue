@@ -32,6 +32,12 @@
             <label for="checkin_block" class="text-sm font-medium text-gray-700">Block check-in when credits reach zero</label>
           </div>
 
+          <div class="flex items-center gap-3">
+            <input id="auto_checkout_stale" v-model="businessForm.auto_checkout_stale" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+            <label for="auto_checkout_stale" class="text-sm font-medium text-gray-700">Automatically check out dogs left over from previous days</label>
+          </div>
+          <p class="text-xs text-gray-500 -mt-2">When enabled, the system will auto-checkout any dogs still checked in at the end of the day. When disabled, staff and owners receive a daily email with a one-click checkout link.</p>
+
           <!-- Auto-charge package: shown when zero-credit check-ins are allowed -->
           <div v-if="!businessForm.checkin_block_at_zero" class="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
             <div>
@@ -348,7 +354,7 @@ const props = defineProps<{
     business_type: string; auto_charge_at_zero_package_id: string | null;
     business_address: string | null; business_city: string | null; business_state: string | null;
     business_zip: string | null; business_phone: string | null; business_description: string | null;
-    is_publicly_listed: boolean;
+    is_publicly_listed: boolean; auto_checkout_stale: boolean;
   };
   billing_address: { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
   notificationSettings: Array<{ type: string; is_enabled: boolean }>;
@@ -368,6 +374,7 @@ const businessForm = useForm({
   payout_schedule:                props.business.payout_schedule,
   business_type:                  props.business.business_type,
   auto_charge_at_zero_package_id: props.business.auto_charge_at_zero_package_id ?? '',
+  auto_checkout_stale: props.business.auto_checkout_stale,
 });
 
 function submitBusiness() {
@@ -446,7 +453,7 @@ function submitBillingAddress() {
 
 // ── Notification settings ─────────────────────────────────────────────────────
 
-const TOGGLEABLE_TYPES = ['credits.low', 'subscription.renewed', 'staff.invite'];
+const TOGGLEABLE_TYPES = ['credits.low', 'subscription.renewed', 'staff.invite', 'attendance.stale_checkins'];
 const CRITICAL_TYPES   = [
   'payment.confirmed', 'payment.refunded', 'subscription.payment_failed',
   'subscription.cancelled', 'credits.empty', 'auth.verify_email', 'auth.password_reset',
@@ -463,6 +470,7 @@ const NOTIF_DESCRIPTIONS: Record<string, string> = {
   'credits.empty':                 'Sent to a customer when their dog\'s credit balance reaches zero.',
   'auth.verify_email':             'Sent to a new user with a link to verify their email address.',
   'auth.password_reset':           'Sent when a user requests a password reset link.',
+  'attendance.stale_checkins':     'Daily digest sent to owner and staff when dogs have not been checked out from a previous day. Includes a one-click checkout link.',
 };
 
 function buildNotifToggles(): Record<string, boolean> {

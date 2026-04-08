@@ -64,6 +64,10 @@ class PawPassNotification extends Notification implements ShouldQueue
             $message->action('Log In', $this->data['login_url']);
         }
 
+        if ($this->type === 'attendance.stale_checkins' && isset($this->data['checkout_url'])) {
+            $message->action('Check Out All', $this->data['checkout_url']);
+        }
+
         if ($notifiable && $notifiable->tenant_id) {
             $tenant = Tenant::find($notifiable->tenant_id);
             if ($tenant && app(PlanFeatureCache::class)->hasFeature($tenant->plan, 'white_label')) {
@@ -106,6 +110,17 @@ class PawPassNotification extends Notification implements ShouldQueue
         ];
     }
 
+    private function buildStaleCheckinsMessage(): array
+    {
+        $count = $this->data['dog_count'] ?? 0;
+        $names = implode(', ', $this->data['dog_names'] ?? []);
+
+        return [
+            'Action Required: Dogs Still Checked In',
+            "{$count} dog(s) were not checked out from yesterday: {$names}. Please check them out as soon as possible.",
+        ];
+    }
+
     private function buildMessage(): array
     {
         return match ($this->type) {
@@ -125,6 +140,7 @@ class PawPassNotification extends Notification implements ShouldQueue
             'announcement' => [$this->data['subject'] ?? 'Announcement', $this->data['body'] ?? ''],
             'vaccinations.expiring_soon' => $this->buildVaccinationSoonMessage(),
             'vaccinations.expiring_urgent' => $this->buildVaccinationUrgentMessage(),
+            'attendance.stale_checkins' => $this->buildStaleCheckinsMessage(),
             default => [$this->type, $this->type],
         };
     }

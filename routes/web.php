@@ -66,6 +66,10 @@ Route::get('/register/success', [TenantRegistrationController::class, 'success']
 // Admin staff portal — all routes require tenant middleware
 Route::middleware(['tenant'])->prefix('admin')->group(function () {
 
+    // Signed one-click stale checkout (no auth required — signed URL is the authentication)
+    Route::get('/attendance/checkout-stale', [AdminRosterController::class, 'checkoutStale'])
+        ->name('admin.attendance.checkout-stale');
+
     // Guest-only auth routes
     Route::middleware(['guest'])->group(function () {
         Route::get('/login', [AdminLoginController::class, 'show'])->name('admin.login');

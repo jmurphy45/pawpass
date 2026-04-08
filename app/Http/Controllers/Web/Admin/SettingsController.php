@@ -52,6 +52,7 @@ class SettingsController extends Controller
                 'business_phone'                 => $tenant->business_phone,
                 'business_description'           => $tenant->business_description,
                 'is_publicly_listed'             => (bool) $tenant->is_publicly_listed,
+                'auto_checkout_stale'            => (bool) $tenant->auto_checkout_stale,
             ],
             'billing_address'      => $tenant->billing_address ?? [],
             'notificationSettings' => $notificationSettings,
@@ -81,6 +82,7 @@ class SettingsController extends Controller
             'business_phone'                 => ['sometimes', 'nullable', 'string', 'max:30'],
             'business_description'           => ['sometimes', 'nullable', 'string', 'max:280'],
             'is_publicly_listed'             => ['sometimes', 'boolean'],
+            'auto_checkout_stale'            => ['sometimes', 'boolean'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));

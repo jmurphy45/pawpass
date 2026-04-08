@@ -50,6 +50,7 @@ class Tenant extends Model
         'business_phone',
         'business_description',
         'is_publicly_listed',
+        'auto_checkout_stale',
     ];
 
     protected $hidden = [
@@ -71,6 +72,7 @@ class Tenant extends Model
             'billing_address' => 'array',
             'tax_collection_enabled' => 'boolean',
             'is_publicly_listed' => 'boolean',
+            'auto_checkout_stale' => 'boolean',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',

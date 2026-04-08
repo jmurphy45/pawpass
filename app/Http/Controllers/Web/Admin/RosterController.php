@@ -10,12 +10,14 @@ use App\Models\AttendanceAddon;
 use App\Models\Dog;
 use App\Models\Order;
 use App\Models\Tenant;
+use App\Services\AttendancePaymentService;
 use App\Services\AutoReplenishService;
 use App\Services\DogCreditService;
 use App\Services\StripeService;
 use App\Services\TenantEventService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -234,6 +236,51 @@ class RosterController extends Controller
         $addon->delete();
 
         return back()->with('success', 'Add-on removed.');
+    }
+
+    public function checkoutStale(Request $request, AttendancePaymentService $payments): Response
+    {
+        if (! $request->hasValidSignature()) {
+            abort(403, 'Invalid or expired link.');
+        }
+
+        $tenantId = app('current.tenant.id');
+        $tenant   = Tenant::find($tenantId);
+
+        $stale = Attendance::whereNull('checked_out_at')
+            ->whereDate('checked_in_at', '<', today())
+            ->with('dog')
+            ->get();
+
+        $staffId = auth()->id();
+
+        foreach ($stale as $attendance) {
+            $endOfDay = $attendance->checked_in_at
+                ->setTimezone($tenant->timezone ?? 'UTC')
+                ->endOfDay()
+                ->setTimezone('UTC');
+
+            $attendance->update([
+                'checked_out_at' => $endOfDay,
+                'checked_out_by' => $staffId,
+                'edited_at'      => now(),
+                'edited_by'      => $staffId,
+                'edit_note'      => 'Checked out via stale check-in email link',
+            ]);
+
+            try {
+                $payments->captureAuthorized($attendance);
+            } catch (\Throwable $e) {
+                Log::warning('checkoutStale: capture skipped', [
+                    'attendance_id' => $attendance->id,
+                    'error'         => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return Inertia::render('Admin/Roster/StaleCheckoutConfirmation', [
+            'checked_out_count' => $stale->count(),
+        ]);
     }
 
     private function chargeAttendanceAddons(Attendance $attendance): int
