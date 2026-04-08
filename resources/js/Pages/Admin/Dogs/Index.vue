@@ -4,7 +4,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold text-text-body">Dogs</h1>
-          <p class="text-sm text-text-muted mt-0.5">{{ dogs.meta.total }} total</p>
+          <p class="text-sm text-text-muted mt-0.5">{{ dogs.total }} total</p>
         </div>
         <Link :href="route('admin.dogs.create')"><AppButton variant="primary">Add Dog</AppButton></Link>
       </div>
@@ -80,22 +80,22 @@
         </ul>
 
         <!-- Pagination -->
-        <div v-if="dogs.meta.last_page > 1" class="flex items-center justify-between px-5 py-3 border-t border-border-warm">
+        <div v-if="dogs.last_page > 1" class="flex items-center justify-between px-5 py-3 border-t border-border-warm">
           <p class="text-xs text-text-muted">
-            Page {{ dogs.meta.current_page }} of {{ dogs.meta.last_page }}
+            Page {{ dogs.current_page }} of {{ dogs.last_page }}
           </p>
           <div class="flex gap-2">
             <AppButton
               variant="secondary"
               size="sm"
-              :disabled="!dogs.links.prev"
-              @click="goToPage(dogs.meta.current_page - 1)"
+              :disabled="!dogs.prev_page_url"
+              @click="goToPage(dogs.current_page - 1)"
             >Previous</AppButton>
             <AppButton
               variant="secondary"
               size="sm"
-              :disabled="!dogs.links.next"
-              @click="goToPage(dogs.meta.current_page + 1)"
+              :disabled="!dogs.next_page_url"
+              @click="goToPage(dogs.current_page + 1)"
             >Next</AppButton>
           </div>
         </div>
@@ -124,8 +124,12 @@ interface Dog {
 const props = defineProps<{
   dogs: {
     data: Dog[];
-    meta: { current_page: number; last_page: number; total: number; per_page: number };
-    links: { prev: string | null; next: string | null };
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
   };
   filters: { search: string; status: string };
 }>();

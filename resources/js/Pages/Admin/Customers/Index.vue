@@ -4,7 +4,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold text-text-body">Customers</h1>
-          <p class="text-sm text-text-muted mt-0.5">{{ customers.meta.total }} total</p>
+          <p class="text-sm text-text-muted mt-0.5">{{ customers.total }} total</p>
         </div>
         <Link :href="route('admin.customers.create')"><AppButton variant="primary">Add Customer</AppButton></Link>
       </div>
@@ -56,22 +56,22 @@
         </ul>
 
         <!-- Pagination -->
-        <div v-if="customers.meta.last_page > 1" class="flex items-center justify-between px-5 py-3 border-t border-border-warm">
+        <div v-if="customers.last_page > 1" class="flex items-center justify-between px-5 py-3 border-t border-border-warm">
           <p class="text-xs text-text-muted">
-            Page {{ customers.meta.current_page }} of {{ customers.meta.last_page }}
+            Page {{ customers.current_page }} of {{ customers.last_page }}
           </p>
           <div class="flex gap-2">
             <AppButton
               variant="secondary"
               size="sm"
-              :disabled="!customers.links.prev"
-              @click="goToPage(customers.meta.current_page - 1)"
+              :disabled="!customers.prev_page_url"
+              @click="goToPage(customers.current_page - 1)"
             >Previous</AppButton>
             <AppButton
               variant="secondary"
               size="sm"
-              :disabled="!customers.links.next"
-              @click="goToPage(customers.meta.current_page + 1)"
+              :disabled="!customers.next_page_url"
+              @click="goToPage(customers.current_page + 1)"
             >Next</AppButton>
           </div>
         </div>
@@ -100,8 +100,12 @@ interface Customer {
 const props = defineProps<{
   customers: {
     data: Customer[];
-    meta: { current_page: number; last_page: number; total: number; per_page: number };
-    links: { prev: string | null; next: string | null };
+    total: number;
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
   };
   filters: { search: string };
 }>();
