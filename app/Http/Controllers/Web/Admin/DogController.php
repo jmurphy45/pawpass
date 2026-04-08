@@ -20,8 +20,15 @@ class DogController extends Controller
     {
         $query = Dog::with('customer')->latest();
 
-        if ($search = $request->query('search')) {
+        $search = $request->query('search');
+        $status = $request->query('status');
+
+        if ($search) {
             $query->where('name', 'like', "%{$search}%");
+        }
+
+        if ($status && in_array($status, array_column(DogStatus::cases(), 'value'))) {
+            $query->where('status', $status);
         }
 
         $dogs = $query->paginate(20)->through(fn ($dog) => [
@@ -31,11 +38,15 @@ class DogController extends Controller
             'credit_balance' => $dog->credit_balance,
             'customer_name'  => $dog->customer?->name,
             'customer_id'    => $dog->customer_id,
+            'status'         => $dog->status->value,
         ]);
 
         return Inertia::render('Admin/Dogs/Index', [
             'dogs'    => $dogs,
-            'filters' => ['search' => $request->query('search', '')],
+            'filters' => [
+                'search' => $request->query('search', ''),
+                'status' => $request->query('status', ''),
+            ],
         ]);
     }
 

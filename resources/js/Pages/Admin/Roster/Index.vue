@@ -10,13 +10,33 @@
         <AppBadge color="gray" class="self-start sm:self-auto">{{ todayLabel }}</AppBadge>
       </div>
 
+      <!-- Search + Tab Filters -->
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="flex-1">
+          <AppInput v-model="searchQuery" placeholder="Search by dog or customer name…" />
+        </div>
+        <div class="flex gap-1 flex-wrap">
+          <button
+            v-for="tab in tabs"
+            :key="tab.value"
+            @click="activeTab = tab.value"
+            :class="[
+              'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+              activeTab === tab.value
+                ? 'bg-indigo-600 text-white'
+                : 'bg-surface-subtle text-text-muted hover:text-text-body',
+            ]"
+          >{{ tab.label }}</button>
+        </div>
+      </div>
+
       <!-- Roster list -->
       <AppCard class="overflow-hidden">
-        <div v-if="roster.length === 0" class="px-5 py-8 text-center text-sm text-text-muted">
-          No dogs on the roster today.
+        <div v-if="filteredRoster.length === 0" class="px-5 py-8 text-center text-sm text-text-muted">
+          {{ roster.length === 0 ? 'No dogs on the roster today.' : 'No dogs match your search.' }}
         </div>
         <ul v-else>
-          <template v-for="dog in roster" :key="dog.id">
+          <template v-for="dog in filteredRoster" :key="dog.id">
             <!-- Main row -->
             <li class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-3">
               <!-- Avatar with status dot -->
@@ -127,6 +147,7 @@
 import { computed, reactive, ref } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import AppInput from '@/Components/AppInput.vue';
 
 interface AddonEntry {
   id: number;
@@ -159,6 +180,33 @@ const props = defineProps<{
 
 const expandedDogId = ref<string | null>(null);
 const addonSelections = reactive<Record<string, string>>({});
+const searchQuery = ref('');
+const activeTab = ref<'all' | 'checked_in' | 'not_in' | 'done'>('all');
+
+const tabs = [
+  { value: 'all', label: 'All' },
+  { value: 'checked_in', label: 'In' },
+  { value: 'not_in', label: 'Out' },
+  { value: 'done', label: 'Done' },
+] as const;
+
+const stateOrder: Record<string, number> = { checked_in: 0, not_in: 1, done: 2 };
+
+const filteredRoster = computed(() => {
+  const q = searchQuery.value.toLowerCase();
+
+  return [...props.roster]
+    .filter(dog => {
+      if (activeTab.value !== 'all' && dog.attendance_state !== activeTab.value) return false;
+      if (q) {
+        const name = dog.name.toLowerCase();
+        const customer = (dog.customer_name ?? '').toLowerCase();
+        if (!name.includes(q) && !customer.includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (stateOrder[a.attendance_state] ?? 1) - (stateOrder[b.attendance_state] ?? 1));
+});
 
 const checkedInCount = computed(() => props.roster.filter(d => d.attendance_state === 'checked_in').length);
 

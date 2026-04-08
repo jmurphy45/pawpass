@@ -4,14 +4,21 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold text-text-body">Customers</h1>
-          <p class="text-sm text-text-muted mt-0.5">{{ customers.data.length }} total</p>
+          <p class="text-sm text-text-muted mt-0.5">{{ customers.meta.total }} total</p>
         </div>
         <Link :href="route('admin.customers.create')"><AppButton variant="primary">Add Customer</AppButton></Link>
       </div>
 
+      <!-- Search -->
+      <AppInput
+        v-model="searchQuery"
+        placeholder="Search by name or email…"
+        @input="onSearchInput"
+      />
+
       <AppCard class="overflow-hidden">
         <div v-if="customers.data.length === 0" class="px-5 py-8 text-center text-sm text-text-muted">
-          No customers yet.
+          No customers found.
         </div>
         <ul v-else>
           <li v-for="customer in customers.data" :key="customer.id" class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-3">
@@ -22,8 +29,17 @@
 
             <!-- Customer info -->
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-text-body truncate">{{ customer.name }}</p>
-              <p class="text-xs text-text-muted truncate">{{ customer.email ?? 'No email' }} · {{ customer.dogs_count }} dog(s)</p>
+              <div class="flex items-center gap-1.5 min-w-0">
+                <p class="text-sm font-medium text-text-body truncate">{{ customer.name }}</p>
+                <span
+                  v-if="customer.has_portal"
+                  class="shrink-0 inline-flex items-center rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 ring-1 ring-inset ring-indigo-500/20"
+                  title="Has portal access"
+                >Portal</span>
+              </div>
+              <p class="text-xs text-text-muted truncate">
+                {{ customer.email ?? 'No email' }} · {{ customer.dogs_count }} dog{{ customer.dogs_count !== 1 ? 's' : '' }}
+              </p>
             </div>
 
             <!-- View link with chevron -->
@@ -38,17 +54,74 @@
             </Link>
           </li>
         </ul>
+
+        <!-- Pagination -->
+        <div v-if="customers.meta.last_page > 1" class="flex items-center justify-between px-5 py-3 border-t border-border-warm">
+          <p class="text-xs text-text-muted">
+            Page {{ customers.meta.current_page }} of {{ customers.meta.last_page }}
+          </p>
+          <div class="flex gap-2">
+            <AppButton
+              variant="secondary"
+              size="sm"
+              :disabled="!customers.links.prev"
+              @click="goToPage(customers.meta.current_page - 1)"
+            >Previous</AppButton>
+            <AppButton
+              variant="secondary"
+              size="sm"
+              :disabled="!customers.links.next"
+              @click="goToPage(customers.meta.current_page + 1)"
+            >Next</AppButton>
+          </div>
+        </div>
       </AppCard>
     </div>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { ref } from 'vue';
+import { router } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
+import AdminLayout from '@/Layouts/AdminLayout.vue';
+import AppInput from '@/Components/AppInput.vue';
 
-defineProps<{
-  customers: { data: Array<{ id: string; name: string; email: string | null; dogs_count: number }> };
+interface Customer {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  dogs_count: number;
+  has_portal: boolean;
+  created_at: string;
+}
+
+const props = defineProps<{
+  customers: {
+    data: Customer[];
+    meta: { current_page: number; last_page: number; total: number; per_page: number };
+    links: { prev: string | null; next: string | null };
+  };
   filters: { search: string };
 }>();
+
+const searchQuery = ref(props.filters.search);
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function navigate(page?: number) {
+  const params: Record<string, string | number> = {};
+  if (searchQuery.value) params.search = searchQuery.value;
+  if (page && page > 1) params.page = page;
+  router.get(route('admin.customers.index'), params, { preserveState: true, replace: true });
+}
+
+function onSearchInput() {
+  if (searchTimeout) clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => navigate(), 350);
+}
+
+function goToPage(page: number) {
+  navigate(page);
+}
 </script>

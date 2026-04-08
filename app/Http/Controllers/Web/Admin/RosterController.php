@@ -40,7 +40,7 @@ class RosterController extends Controller
             $q->whereDate('checked_in_at', today())
                 ->orderByDesc('checked_in_at')
                 ->with('addons.addonType');
-        }, 'customer'])->get();
+        }, 'customer'])->where('status', 'active')->get();
 
         $roster = $dogs->map(function (Dog $dog) use ($threshold) {
             $todayAttendance = $dog->attendances->first();

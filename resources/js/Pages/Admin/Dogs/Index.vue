@@ -4,14 +4,38 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold text-text-body">Dogs</h1>
-          <p class="text-sm text-text-muted mt-0.5">{{ dogs.data.length }} total</p>
+          <p class="text-sm text-text-muted mt-0.5">{{ dogs.meta.total }} total</p>
         </div>
         <Link :href="route('admin.dogs.create')"><AppButton variant="primary">Add Dog</AppButton></Link>
       </div>
 
+      <!-- Filters -->
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="flex-1">
+          <AppInput
+            v-model="searchQuery"
+            placeholder="Search by name…"
+            @input="onSearchInput"
+          />
+        </div>
+        <div class="flex gap-1 flex-wrap">
+          <button
+            v-for="tab in statusTabs"
+            :key="tab.value"
+            @click="setStatus(tab.value)"
+            :class="[
+              'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+              currentStatus === tab.value
+                ? 'bg-indigo-600 text-white'
+                : 'bg-surface-subtle text-text-muted hover:text-text-body',
+            ]"
+          >{{ tab.label }}</button>
+        </div>
+      </div>
+
       <AppCard class="overflow-hidden">
         <div v-if="dogs.data.length === 0" class="px-5 py-8 text-center text-sm text-text-muted">
-          No dogs yet.
+          No dogs found.
         </div>
         <ul v-else>
           <li v-for="dog in dogs.data" :key="dog.id" class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-3">
@@ -23,8 +47,18 @@
             <!-- Dog info -->
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-text-body truncate">{{ dog.name }}</p>
-              <p class="text-xs text-text-muted truncate">{{ dog.customer_name }}</p>
+              <p class="text-xs text-text-muted truncate">
+                {{ dog.customer_name }}
+                <span v-if="dog.breed"> · {{ dog.breed }}</span>
+              </p>
             </div>
+
+            <!-- Status badge (only shown for non-active) -->
+            <AppBadge
+              v-if="dog.status !== 'active'"
+              :color="dog.status === 'suspended' ? 'yellow' : 'gray'"
+              class="hidden sm:inline-flex"
+            >{{ dog.status }}</AppBadge>
 
             <!-- Credit badge -->
             <AppBadge
@@ -44,17 +78,88 @@
             </Link>
           </li>
         </ul>
+
+        <!-- Pagination -->
+        <div v-if="dogs.meta.last_page > 1" class="flex items-center justify-between px-5 py-3 border-t border-border-warm">
+          <p class="text-xs text-text-muted">
+            Page {{ dogs.meta.current_page }} of {{ dogs.meta.last_page }}
+          </p>
+          <div class="flex gap-2">
+            <AppButton
+              variant="secondary"
+              size="sm"
+              :disabled="!dogs.links.prev"
+              @click="goToPage(dogs.meta.current_page - 1)"
+            >Previous</AppButton>
+            <AppButton
+              variant="secondary"
+              size="sm"
+              :disabled="!dogs.links.next"
+              @click="goToPage(dogs.meta.current_page + 1)"
+            >Next</AppButton>
+          </div>
+        </div>
       </AppCard>
     </div>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { ref } from 'vue';
+import { router } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
+import AdminLayout from '@/Layouts/AdminLayout.vue';
+import AppInput from '@/Components/AppInput.vue';
 
-defineProps<{
-  dogs: { data: Array<{ id: string; name: string; breed: string | null; credit_balance: number; customer_name: string | null; customer_id: string }> };
-  filters: { search: string };
+interface Dog {
+  id: string;
+  name: string;
+  breed: string | null;
+  credit_balance: number;
+  customer_name: string | null;
+  customer_id: string;
+  status: string;
+}
+
+const props = defineProps<{
+  dogs: {
+    data: Dog[];
+    meta: { current_page: number; last_page: number; total: number; per_page: number };
+    links: { prev: string | null; next: string | null };
+  };
+  filters: { search: string; status: string };
 }>();
+
+const statusTabs = [
+  { value: '', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'suspended', label: 'Suspended' },
+  { value: 'inactive', label: 'Inactive' },
+];
+
+const searchQuery = ref(props.filters.search);
+const currentStatus = ref(props.filters.status);
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function navigate(page?: number) {
+  const params: Record<string, string | number> = {};
+  if (searchQuery.value) params.search = searchQuery.value;
+  if (currentStatus.value) params.status = currentStatus.value;
+  if (page && page > 1) params.page = page;
+  router.get(route('admin.dogs.index'), params, { preserveState: true, replace: true });
+}
+
+function onSearchInput() {
+  if (searchTimeout) clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => navigate(), 350);
+}
+
+function setStatus(status: string) {
+  currentStatus.value = status;
+  navigate();
+}
+
+function goToPage(page: number) {
+  navigate(page);
+}
 </script>

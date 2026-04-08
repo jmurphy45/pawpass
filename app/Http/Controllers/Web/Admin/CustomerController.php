@@ -38,11 +38,12 @@ class CustomerController extends Controller
         }
 
         $customers = $query->paginate(20)->through(fn ($c) => [
-            'id'        => $c->id,
-            'name'      => $c->name,
-            'email'     => $c->email,
-            'phone'     => $c->phone,
+            'id'         => $c->id,
+            'name'       => $c->name,
+            'email'      => $c->email,
+            'phone'      => $c->phone,
             'dogs_count' => $c->dogs_count,
+            'has_portal' => $c->user_id !== null,
             'created_at' => $c->created_at->toIso8601String(),
         ]);
 
