@@ -132,6 +132,50 @@
               </label>
             </div>
 
+            <!-- Promo code -->
+            <div>
+              <label class="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Promo Code</label>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  v-model="promoCode"
+                  :disabled="promoApplied"
+                  placeholder="Enter code"
+                  class="flex-1 rounded-lg border px-3 py-2 text-sm bg-white text-text-body outline-none focus:ring-2 transition uppercase"
+                  :class="promoApplied
+                    ? 'border-green-400 focus:ring-green-200 focus:border-green-400'
+                    : 'border-border-warm focus:ring-indigo-500/20 focus:border-indigo-500'"
+                  @keydown.enter.prevent="applyPromoCode"
+                />
+                <button
+                  v-if="!promoApplied"
+                  type="button"
+                  @click="applyPromoCode"
+                  :disabled="!promoCode || !selectedPackageId || promoChecking"
+                  class="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-text-body disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <svg v-if="promoChecking" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  <template v-else>Apply</template>
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  @click="clearPromo"
+                  class="px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-text-body transition"
+                >Remove</button>
+              </div>
+              <p v-if="promoApplied" class="mt-1 text-xs text-green-600 flex items-center gap-1">
+                <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />
+                </svg>
+                Promo applied — saving ${{ (promoDiscountCents / 100).toFixed(2) }}
+              </p>
+              <p v-else-if="promoError" class="mt-1 text-xs text-red-600">{{ promoError }}</p>
+            </div>
+
             <!-- Auto-replenish toggle -->
             <div v-if="autoReplenishEnabled && selectedPackage?.is_auto_replenish_eligible && activeDogIds.length === 1">
               <label class="flex items-start gap-3 cursor-pointer">
@@ -155,16 +199,23 @@
                 <span class="text-text-muted">{{ selectedPackage.name }}</span>
                 <span class="font-semibold text-text-body">${{ (selectedPackage.price_cents / 100).toFixed(2) }}</span>
               </div>
+              <div v-if="promoApplied" class="flex items-center justify-between text-green-600 mt-1">
+                <span>Promo ({{ promoCode }})</span>
+                <span>-${{ (promoDiscountCents / 100).toFixed(2) }}</span>
+              </div>
               <template v-if="tax_enabled && taxCents > 0">
                 <div class="flex items-center justify-between text-text-muted mt-1">
                   <span>Est. tax</span>
                   <span>${{ (taxCents / 100).toFixed(2) }}</span>
                 </div>
-                <div class="flex items-center justify-between font-semibold border-t border-gray-200 pt-2 mt-2">
-                  <span>Total</span>
-                  <span>${{ ((selectedPackage.price_cents + taxCents) / 100).toFixed(2) }}</span>
-                </div>
               </template>
+              <div
+                v-if="promoApplied || (tax_enabled && taxCents > 0)"
+                class="flex items-center justify-between font-semibold border-t border-gray-200 pt-2 mt-2"
+              >
+                <span>Total</span>
+                <span>${{ (displayTotal / 100).toFixed(2) }}</span>
+              </div>
               <p v-if="autoReplenish" class="text-xs text-text-muted mt-1">Re-purchased automatically when credits reach zero · cancel anytime</p>
             </div>
 
@@ -257,6 +308,11 @@ const paying = ref(false);
 const saveCard = ref(false);
 const useNewCard = ref(false);
 const autoReplenish = ref(false);
+const promoCode = ref('');
+const promoApplied = ref(false);
+const promoDiscountCents = ref(0);
+const promoError = ref('');
+const promoChecking = ref(false);
 
 function capitalize(str: string): string {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
@@ -290,9 +346,8 @@ const taxLoading = ref(false);
 
 const displayTotal = computed(() => {
   if (!selectedPackage.value) return 0;
-  return props.tax_enabled && taxCents.value > 0
-    ? selectedPackage.value.price_cents + taxCents.value
-    : selectedPackage.value.price_cents;
+  const base = selectedPackage.value.price_cents - promoDiscountCents.value;
+  return props.tax_enabled && taxCents.value > 0 ? base + taxCents.value : base;
 });
 
 function getCsrfToken(): string {
@@ -320,6 +375,39 @@ async function mountPaymentElement(clientSecret: string) {
   paymentElement.mount('#card-element');
 }
 
+function clearPromo() {
+  promoCode.value = '';
+  promoApplied.value = false;
+  promoDiscountCents.value = 0;
+  promoError.value = '';
+}
+
+async function applyPromoCode() {
+  if (!promoCode.value || !selectedPackageId.value) return;
+  promoChecking.value = true;
+  promoApplied.value = false;
+  promoDiscountCents.value = 0;
+  promoError.value = '';
+  try {
+    const resp = await fetch(route('portal.purchase.promo-check'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+      body: JSON.stringify({ code: promoCode.value, package_id: selectedPackageId.value }),
+    });
+    const data = await resp.json();
+    if (data.valid) {
+      promoApplied.value = true;
+      promoDiscountCents.value = data.discount_cents;
+    } else {
+      promoError.value = data.message || 'Invalid promo code.';
+    }
+  } catch {
+    promoError.value = 'Could not validate promo code.';
+  } finally {
+    promoChecking.value = false;
+  }
+}
+
 watch([selectedPackageId, activeDogIds], () => {
   if (showPaymentForm.value) {
     showPaymentForm.value = false;
@@ -331,6 +419,7 @@ watch([selectedPackageId, activeDogIds], () => {
 
 watch(selectedPackageId, async (pkgId) => {
   taxCents.value = 0;
+  clearPromo();
   if (!pkgId || !props.tax_enabled) return;
   taxLoading.value = true;
   try {
@@ -388,6 +477,7 @@ async function purchase() {
         package_id: selectedPackageId.value,
         dog_ids: activeDogIds.value,
         save_card: saveCard.value,
+        ...(promoApplied.value ? { promo_code: promoCode.value } : {}),
       }),
     });
 

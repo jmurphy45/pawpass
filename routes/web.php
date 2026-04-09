@@ -241,6 +241,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::get('/purchase/tax-preview', [PurchaseController::class, 'taxPreview'])->name('portal.purchase.tax-preview');
         Route::post('/purchase', [PurchaseController::class, 'store'])->name('portal.purchase.store');
         Route::post('/purchase/confirm', [PurchaseController::class, 'confirm'])->name('portal.purchase.confirm');
+        Route::post('/purchase/promo-check', [PurchaseController::class, 'checkPromo'])->name('portal.purchase.promo-check');
 
         // History / Orders
         Route::get('/history', [HistoryController::class, 'index'])->name('portal.history');

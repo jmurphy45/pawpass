@@ -10,6 +10,7 @@ use App\Models\Package;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
 use App\Services\NotificationService;
+use App\Services\PromotionService;
 use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class PurchaseController extends Controller
     public function __construct(
         private readonly DogCreditService $creditService,
         private readonly NotificationService $notificationService,
+        private readonly PromotionService $promotionService,
     ) {}
 
     public function index(): Response
@@ -221,6 +223,26 @@ class PurchaseController extends Controller
             'client_secret'     => $intent->client_secret,
             'payment_method_id' => $savedPmId,
             'tax_amount_cents'  => $taxAmountCents,
+        ]);
+    }
+
+    public function checkPromo(Request $request): JsonResponse
+    {
+        $request->validate([
+            'code'       => ['required', 'string'],
+            'package_id' => ['required', 'string'],
+        ]);
+
+        $customer = Auth::user()->customer;
+        $package  = Package::findOrFail($request->package_id);
+        $subtotalCents = (int) round((float) $package->price * 100);
+
+        $result = $this->promotionService->validate($request->code, $customer, $package, $subtotalCents);
+
+        return response()->json([
+            'valid'         => $result->valid,
+            'discount_cents' => $result->discountCents,
+            'message'       => $result->message,
         ]);
     }
 
