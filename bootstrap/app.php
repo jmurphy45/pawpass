@@ -78,6 +78,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->job(new \App\Jobs\SendVaccinationExpiringSoonWarnings)->dailyAt('13:00');
         $schedule->job(new \App\Jobs\SendVaccinationExpiringUrgentWarnings)->dailyAt('13:00');
         $schedule->job(new \App\Jobs\AlertStaleCheckins)->dailyAt('06:00');
+        $schedule->job(new \App\Jobs\CancelStalePendingOrders)->hourly();
         $schedule->command('auth:cleanup-magic-links')->everyTenMinutes();
         $schedule->command('sitemap:generate')->dailyAt('03:30');
     })

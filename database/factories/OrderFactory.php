@@ -43,6 +43,11 @@ class OrderFactory extends Factory
         return $this->state(['status' => 'authorized']);
     }
 
+    public function canceled(): static
+    {
+        return $this->state(['status' => 'canceled']);
+    }
+
     public function withAttendance(Attendance $attendance): static
     {
         return $this->state(['attendance_id' => $attendance->id]);

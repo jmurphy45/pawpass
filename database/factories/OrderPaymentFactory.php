@@ -67,4 +67,9 @@ class OrderPaymentFactory extends Factory
             'stripe_pi_id' => 'pi_'.Str::random(24),
         ]);
     }
+
+    public function canceled(): static
+    {
+        return $this->state(['status' => 'canceled', 'paid_at' => null]);
+    }
 }

@@ -53,6 +53,7 @@ class StripeWebhookController extends Controller
             'charge.dispute.created'                 => $this->handleDisputeCreated($event->data->object),
             'charge.dispute.closed'                  => $this->handleDisputeClosed($event->data->object),
             'account.updated'                        => $this->handleAccountUpdated($event->data->object),
+            'payment_intent.canceled'                => $this->handlePaymentIntentCanceled($event->data->object),
             'setup_intent.succeeded'                 => $this->handleSetupIntentSucceeded($event->data->object),
             default                                  => response()->json(['data' => 'ok']),
         };
@@ -198,6 +199,21 @@ class StripeWebhookController extends Controller
         if ($tenant && ! $tenant->stripe_onboarded_at) {
             $tenant->update(['stripe_onboarded_at' => now()]);
         }
+
+        return response()->json(['data' => 'ok']);
+    }
+
+    private function handlePaymentIntentCanceled(object $pi): JsonResponse
+    {
+        $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
+        $order   = $payment?->order;
+
+        if (! $order || $order->status === 'canceled') {
+            return response()->json(['data' => 'ok']);
+        }
+
+        $payment->update(['status' => 'canceled']);
+        $order->update(['status' => 'canceled']);
 
         return response()->json(['data' => 'ok']);
     }

@@ -221,4 +221,64 @@ class StripeWebhookTest extends TestCase
 
         $response->assertStatus(200)->assertJsonPath('data', 'ok');
     }
+
+    public function test_payment_intent_canceled_marks_order_and_payment_canceled(): void
+    {
+        $tenant   = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
+
+        $order = Order::factory()->create([
+            'tenant_id'   => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id'  => $package->id,
+            'status'      => 'pending',
+        ]);
+
+        $payment = OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_canceled123',
+            'status'       => 'pending',
+            'paid_at'      => null,
+        ]);
+
+        $event = $this->makeEvent('payment_intent.canceled', ['id' => 'pi_canceled123']);
+        $this->mockStripeVerify($event);
+
+        $response = $this->postWebhook([], 'valid-sig');
+
+        $response->assertStatus(200)->assertJsonPath('data', 'ok');
+        $this->assertEquals('canceled', $order->fresh()->status);
+        $this->assertEquals('canceled', $payment->fresh()->status);
+    }
+
+    public function test_payment_intent_canceled_is_idempotent(): void
+    {
+        $tenant   = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
+
+        $order = Order::factory()->canceled()->create([
+            'tenant_id'   => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id'  => $package->id,
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->canceled()->create([
+            'stripe_pi_id' => 'pi_already_canceled',
+        ]);
+
+        $event = $this->makeEvent('payment_intent.canceled', ['id' => 'pi_already_canceled']);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+        $this->assertEquals('canceled', $order->fresh()->status);
+    }
+
+    public function test_payment_intent_canceled_for_unknown_pi_returns_200(): void
+    {
+        $event = $this->makeEvent('payment_intent.canceled', ['id' => 'pi_unknown_xyz']);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200)->assertJsonPath('data', 'ok');
+    }
 }
