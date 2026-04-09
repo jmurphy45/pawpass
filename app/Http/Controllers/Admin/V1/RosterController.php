@@ -34,8 +34,10 @@ class RosterController extends Controller
         $tenant = Tenant::find($tenantId);
         $threshold = $tenant->low_credit_threshold;
 
-        $dogs = Dog::with(['attendances' => function ($q) {
-            $q->whereDate('checked_in_at', today())->orderByDesc('checked_in_at');
+        $startOfToday = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
+
+        $dogs = Dog::with(['attendances' => function ($q) use ($startOfToday) {
+            $q->where('checked_in_at', '>=', $startOfToday)->orderByDesc('checked_in_at');
         }])->get();
 
         $data = $dogs->map(function (Dog $dog) use ($threshold) {
@@ -85,8 +87,10 @@ class RosterController extends Controller
                 continue;
             }
 
+            $startOfToday = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
+
             $openAttendance = Attendance::where('dog_id', $dog->id)
-                ->whereDate('checked_in_at', today())
+                ->where('checked_in_at', '>=', $startOfToday)
                 ->whereNull('checked_out_at')
                 ->exists();
 
@@ -152,8 +156,12 @@ class RosterController extends Controller
 
     public function checkout(CheckoutRequest $request): JsonResponse
     {
+        $tenantId = app('current.tenant.id');
+        $tenant = Tenant::find($tenantId);
+        $startOfToday = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
+
         $attendance = Attendance::where('dog_id', $request->dog_id)
-            ->whereDate('checked_in_at', today())
+            ->where('checked_in_at', '>=', $startOfToday)
             ->whereNull('checked_out_at')
             ->latest('checked_in_at')
             ->first();

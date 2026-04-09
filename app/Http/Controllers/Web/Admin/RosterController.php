@@ -36,8 +36,10 @@ class RosterController extends Controller
         $tenant = Tenant::find($tenantId);
         $threshold = $tenant?->low_credit_threshold ?? 2;
 
-        $dogs = Dog::with(['attendances' => function ($q) {
-            $q->whereDate('checked_in_at', today())
+        $startOfToday = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
+
+        $dogs = Dog::with(['attendances' => function ($q) use ($startOfToday) {
+            $q->where('checked_in_at', '>=', $startOfToday)
                 ->orderByDesc('checked_in_at')
                 ->with('addons.addonType');
         }, 'customer'])->where('status', 'active')->get();
@@ -112,8 +114,10 @@ class RosterController extends Controller
             return back()->withErrors(['dog_id' => "{$dog->name} is {$dog->status->label()} and cannot be checked in."]);
         }
 
+        $startOfToday = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
+
         $openAttendance = Attendance::where('dog_id', $dog->id)
-            ->whereDate('checked_in_at', today())
+            ->where('checked_in_at', '>=', $startOfToday)
             ->whereNull('checked_out_at')
             ->exists();
 
@@ -165,8 +169,12 @@ class RosterController extends Controller
             'dog_id' => ['required', 'string'],
         ]);
 
+        $tenantId = app('current.tenant.id');
+        $tenant = Tenant::find($tenantId);
+        $startOfToday = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
+
         $attendance = Attendance::where('dog_id', $request->dog_id)
-            ->whereDate('checked_in_at', today())
+            ->where('checked_in_at', '>=', $startOfToday)
             ->whereNull('checked_out_at')
             ->latest('checked_in_at')
             ->first();
@@ -247,8 +255,10 @@ class RosterController extends Controller
         $tenantId = app('current.tenant.id');
         $tenant   = Tenant::find($tenantId);
 
+        $startOfTodayUtc = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
+
         $stale = Attendance::whereNull('checked_out_at')
-            ->whereDate('checked_in_at', '<', today())
+            ->where('checked_in_at', '<', $startOfTodayUtc)
             ->with('dog')
             ->get();
 
