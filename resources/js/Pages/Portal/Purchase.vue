@@ -169,9 +169,26 @@
             </div>
 
             <AppButton
+              v-if="!showPaymentForm"
               variant="primary"
               @click="purchase"
               :disabled="!selectedPackageId || activeDogIds.length === 0 || paying"
+              class="w-full justify-center py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
+              :style="{ backgroundColor: accentColor }"
+            >
+              <svg v-if="paying" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              <template v-if="paying">Processing…</template>
+              <template v-else-if="selectedPackage">Pay ${{ (displayTotal / 100).toFixed(2) }}</template>
+              <template v-else>Pay Now</template>
+            </AppButton>
+            <AppButton
+              v-if="showPaymentForm"
+              variant="primary"
+              @click="confirmNewCard"
+              :disabled="paying"
               class="w-full justify-center py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
               :style="{ backgroundColor: accentColor }"
             >
@@ -229,7 +246,7 @@ const props = defineProps<{
 }>();
 
 const page = usePage<PageProps>();
-const accentColor = computed(() => page.props.tenant?.primary_color ?? '#4f46e5');
+const accentColor = computed(() => page.props.tenant?.primary_color || '#4f46e5');
 const autoReplenishEnabled = computed(() => props.auto_replenish_enabled);
 const savedCard = computed(() => props.saved_card);
 
