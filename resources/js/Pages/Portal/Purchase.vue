@@ -124,7 +124,7 @@
                 <span>{{ capitalize(savedCard.brand) }} ····{{ savedCard.last4 }}</span>
                 <button type="button" @click="useNewCard = true" class="ml-auto text-xs text-indigo-600 hover:underline">Change</button>
               </div>
-              <div v-else id="card-element" class="w-full rounded-lg border border-border-warm px-3 py-3 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition" />
+              <div v-show="showPaymentForm" id="card-element" class="w-full rounded-lg border border-border-warm px-3 py-3 bg-white transition" />
               <p v-if="cardError" class="mt-1.5 text-xs text-red-600">{{ cardError }}</p>
               <label class="mt-2 flex items-center gap-2 text-sm text-text-muted cursor-pointer">
                 <input type="checkbox" v-model="saveCard" class="h-4 w-4 rounded border-gray-300" />
