@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AttendancePaymentService;
 use App\Services\NotificationService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -113,6 +114,41 @@ class AlertStaleCheckinsTest extends TestCase
             $expectedEndOfDay->toDateTimeString(),
             $attendance->checked_out_at->toDateTimeString(),
         );
+    }
+
+    public function test_late_night_checkin_crossing_utc_midnight_is_caught(): void
+    {
+        // Freeze time to 9 AM UTC. A dog checked in at 11 PM CST (UTC-6) yesterday
+        // has checked_in_at = 5 AM UTC today. The UTC-date comparison sees "today"
+        // and misses it; the per-tenant timezone-aware comparison sees "yesterday CST"
+        // and correctly flags it as stale.
+        $this->travelTo(now()->startOfDay()->addHours(9));
+
+        ['tenant' => $tenant, 'dog' => $dog] = $this->makeTenantWithOwnerAndDog([
+            'auto_checkout_stale' => true,
+            'timezone'            => 'America/Chicago', // UTC-6
+        ]);
+
+        // Yesterday 11 PM CST = today 5 AM UTC (UTC date = today → old query misses it)
+        $checkedInAt = Carbon::yesterday('America/Chicago')
+            ->setHour(23)->setMinute(0)->setSecond(0)
+            ->utc();
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id'      => $tenant->id,
+            'dog_id'         => $dog->id,
+            'checked_in_at'  => $checkedInAt,
+            'checked_out_at' => null,
+        ]);
+
+        $this->mockPayments()->shouldReceive('captureAuthorized')->once();
+
+        (new AlertStaleCheckins)->handle(
+            app(NotificationService::class),
+            app(AttendancePaymentService::class),
+        );
+
+        $this->assertNotNull($attendance->fresh()->checked_out_at);
     }
 
     public function test_auto_checkout_ignores_todays_open_checkins(): void

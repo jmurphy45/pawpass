@@ -18,33 +18,31 @@ class AlertStaleCheckins implements ShouldQueue
 
     public function handle(NotificationService $notificationService, AttendancePaymentService $attendancePayments): void
     {
-        $stale = Attendance::allTenants()
-            ->whereNull('checked_out_at')
-            ->whereDate('checked_in_at', '<', today())
-            ->with(['dog'])
-            ->get();
+        $tenants = Tenant::all();
 
-        if ($stale->isEmpty()) {
-            return;
-        }
-
-        $byTenant = $stale->groupBy('tenant_id');
-
-        foreach ($byTenant as $tenantId => $records) {
+        foreach ($tenants as $tenant) {
             try {
-                $tenant = Tenant::find($tenantId);
-                if (! $tenant) {
+                $startOfTodayUtc = now($tenant->timezone ?? 'UTC')->startOfDay()->utc();
+
+                $stale = Attendance::allTenants()
+                    ->where('tenant_id', $tenant->id)
+                    ->whereNull('checked_out_at')
+                    ->where('checked_in_at', '<', $startOfTodayUtc)
+                    ->with(['dog'])
+                    ->get();
+
+                if ($stale->isEmpty()) {
                     continue;
                 }
 
                 if ($tenant->auto_checkout_stale) {
-                    $this->autoCheckout($tenant, $records, $attendancePayments);
+                    $this->autoCheckout($tenant, $stale, $attendancePayments);
                 } else {
-                    $this->notifyStaff($tenant, $records, $notificationService);
+                    $this->notifyStaff($tenant, $stale, $notificationService);
                 }
             } catch (\Throwable $e) {
                 Log::error('AlertStaleCheckins failed for tenant', [
-                    'tenant_id' => $tenantId,
+                    'tenant_id' => $tenant->id,
                     'error'     => $e->getMessage(),
                 ]);
             }
