@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\Package;
+use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -149,6 +150,65 @@ class CancelStalePendingOrdersTest extends TestCase
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
         $this->assertEquals('paid', $paidOrder->fresh()->status);
+    }
+
+    public function test_cancels_order_locally_when_tenant_has_no_stripe_account(): void
+    {
+        $tenant   = Tenant::factory()->create(['stripe_account_id' => null]);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
+
+        $order = Order::factory()->create([
+            'tenant_id'   => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id'  => $package->id,
+            'status'      => 'pending',
+            'created_at'  => now()->subHours(2),
+        ]);
+
+        $payment = OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_no_account',
+            'status'       => 'pending',
+            'paid_at'      => null,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldNotReceive('cancelPaymentIntent');
+        });
+
+        (new CancelStalePendingOrders)->handle(app(StripeService::class));
+
+        $this->assertEquals('canceled', $order->fresh()->status);
+        $this->assertEquals('canceled', $payment->fresh()->status);
+    }
+
+    public function test_skips_orders_with_reservation_id(): void
+    {
+        $tenant   = Tenant::factory()->create(['stripe_account_id' => 'acct_test123']);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
+
+        $reservation = Reservation::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status'    => 'pending',
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'package_id'     => $package->id,
+            'reservation_id' => $reservation->id,
+            'status'         => 'pending',
+            'created_at'     => now()->subHours(2),
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldNotReceive('cancelPaymentIntent');
+        });
+
+        (new CancelStalePendingOrders)->handle(app(StripeService::class));
+
+        $this->assertEquals('pending', $order->fresh()->status);
     }
 
     public function test_processes_orders_across_all_tenants(): void

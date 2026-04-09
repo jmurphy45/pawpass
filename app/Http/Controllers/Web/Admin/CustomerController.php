@@ -27,7 +27,7 @@ class CustomerController extends Controller
     public function index(Request $request): Response
     {
         $query = Customer::withCount(['dogs', 'orders'])
-            ->withSum('orders', 'total_amount')
+            ->withSum(['orders as orders_sum_total_amount' => fn ($q) => $q->whereIn('status', ['paid', 'partially_refunded'])], 'total_amount')
             ->latest();
 
         $search = $request->validate(['search' => ['nullable', 'string', 'max:100']])['search'] ?? null;
@@ -141,7 +141,7 @@ class CustomerController extends Controller
 
     public function show(Customer $customer): Response
     {
-        $customer->loadCount('orders')->loadSum('orders', 'total_amount');
+        $customer->loadCount('orders')->loadSum(['orders as orders_sum_total_amount' => fn ($q) => $q->whereIn('status', ['paid', 'partially_refunded'])], 'total_amount');
         $customer->load(['dogs' => fn ($q) => $q->withTrashed(), 'orders.package']);
 
         $dogs = $customer->dogs->map(function ($dog) {

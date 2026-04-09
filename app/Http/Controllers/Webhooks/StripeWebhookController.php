@@ -144,6 +144,7 @@ class StripeWebhookController extends Controller
 
         if ($reservation && $reservation->status === 'pending') {
             $payment->update(['status' => 'authorized']);
+            $payment->order->update(['status' => 'authorized']);
             $reservation->update(['status' => 'confirmed']);
         }
 

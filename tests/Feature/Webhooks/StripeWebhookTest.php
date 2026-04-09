@@ -7,6 +7,7 @@ use App\Models\Dog;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\Package;
+use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -280,5 +281,37 @@ class StripeWebhookTest extends TestCase
         $this->mockStripeVerify($event);
 
         $this->postWebhook([], 'valid-sig')->assertStatus(200)->assertJsonPath('data', 'ok');
+    }
+
+    public function test_deposit_authorized_sets_order_and_payment_to_authorized(): void
+    {
+        $tenant   = Tenant::factory()->create();
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+
+        $reservation = Reservation::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status'    => 'pending',
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'reservation_id' => $reservation->id,
+            'status'         => 'pending',
+        ]);
+
+        $payment = OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_deposit123',
+            'status'       => 'pending',
+        ]);
+
+        $event = $this->makeEvent('payment_intent.amount_capturable_updated', ['id' => 'pi_deposit123']);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+
+        $this->assertEquals('authorized', $order->fresh()->status);
+        $this->assertEquals('authorized', $payment->fresh()->status);
+        $this->assertEquals('confirmed', $reservation->fresh()->status);
     }
 }
