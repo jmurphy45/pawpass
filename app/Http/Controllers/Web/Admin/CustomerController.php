@@ -26,7 +26,9 @@ class CustomerController extends Controller
 
     public function index(Request $request): Response
     {
-        $query = Customer::withCount('dogs')->latest();
+        $query = Customer::withCount(['dogs', 'orders'])
+            ->withSum('orders', 'total_amount')
+            ->latest();
 
         $search = $request->validate(['search' => ['nullable', 'string', 'max:100']])['search'] ?? null;
 
@@ -38,13 +40,15 @@ class CustomerController extends Controller
         }
 
         $customers = $query->paginate(20)->through(fn ($c) => [
-            'id'         => $c->id,
-            'name'       => $c->name,
-            'email'      => $c->email,
-            'phone'      => $c->phone,
-            'dogs_count' => $c->dogs_count,
-            'has_portal' => $c->user_id !== null,
-            'created_at' => $c->created_at->toIso8601String(),
+            'id'           => $c->id,
+            'name'         => $c->name,
+            'email'        => $c->email,
+            'phone'        => $c->phone,
+            'dogs_count'   => $c->dogs_count,
+            'orders_count' => $c->orders_count,
+            'total_spent'  => (float) ($c->orders_sum_total_amount ?? 0),
+            'has_portal'   => $c->user_id !== null,
+            'created_at'   => $c->created_at->toIso8601String(),
         ]);
 
         return Inertia::render('Admin/Customers/Index', [
@@ -137,31 +141,55 @@ class CustomerController extends Controller
 
     public function show(Customer $customer): Response
     {
-        $customer->load(['dogs', 'orders.package']);
+        $customer->loadCount('orders')->loadSum('orders', 'total_amount');
+        $customer->load(['dogs' => fn ($q) => $q->withTrashed(), 'orders.package']);
 
-        $dogs = $customer->dogs->map(fn ($dog) => [
-            'id'             => $dog->id,
-            'name'           => $dog->name,
-            'breed'          => $dog->breed,
-            'credit_balance' => $dog->credit_balance,
-            'deleted_at'     => $dog->deleted_at?->toIso8601String(),
-        ]);
+        $dogs = $customer->dogs->map(function ($dog) {
+            $lastAttendance = $dog->attendances()->latest('checked_in_at')->value('checked_in_at');
+
+            return [
+                'id'                        => $dog->id,
+                'name'                      => $dog->name,
+                'breed'                     => $dog->breed,
+                'sex'                       => $dog->sex,
+                'dob'                       => $dog->dob?->toDateString(),
+                'status'                    => $dog->status?->value ?? 'active',
+                'credit_balance'            => $dog->credit_balance,
+                'credits_expire_at'         => $dog->credits_expire_at?->toIso8601String(),
+                'unlimited_pass_expires_at' => $dog->unlimited_pass_expires_at?->toIso8601String(),
+                'vet_name'                  => $dog->vet_name,
+                'vet_phone'                 => $dog->vet_phone,
+                'last_attendance_at'        => $lastAttendance ? \Illuminate\Support\Carbon::parse($lastAttendance)->toIso8601String() : null,
+                'deleted_at'                => $dog->deleted_at?->toIso8601String(),
+            ];
+        });
 
         $orders = $customer->orders()->with('package')->latest()->paginate(10)->through(fn ($o) => [
             'id'           => $o->id,
             'package_name' => $o->package?->name,
-            'amount_cents' => $o->amount_cents,
+            'type'         => $o->type,
+            'total_amount' => (float) $o->total_amount,
             'status'       => $o->status,
             'created_at'   => $o->created_at->toIso8601String(),
         ]);
 
+        $totalCredits = $customer->dogs->sum('credit_balance');
+
         return Inertia::render('Admin/Customers/Show', [
             'customer' => [
-                'id'    => $customer->id,
-                'name'  => $customer->name,
-                'email' => $customer->email,
-                'phone' => $customer->phone,
-                'notes' => $customer->notes,
+                'id'                       => $customer->id,
+                'name'                     => $customer->name,
+                'email'                    => $customer->email,
+                'phone'                    => $customer->phone,
+                'notes'                    => $customer->notes,
+                'has_portal'               => $customer->user_id !== null,
+                'stripe_pm_last4'          => $customer->stripe_pm_last4,
+                'stripe_pm_brand'          => $customer->stripe_pm_brand,
+                'outstanding_balance_cents' => $customer->outstanding_balance_cents ?? 0,
+                'total_orders'             => $customer->orders_count,
+                'total_spent'              => (float) ($customer->orders_sum_total_amount ?? 0),
+                'total_credits'            => $totalCredits,
+                'created_at'               => $customer->created_at->toIso8601String(),
             ],
             'dogs'   => $dogs,
             'orders' => $orders,

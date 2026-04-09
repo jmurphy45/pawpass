@@ -38,7 +38,11 @@
                 >Portal</span>
               </div>
               <p class="text-xs text-text-muted truncate">
-                {{ customer.email ?? 'No email' }} · {{ customer.dogs_count }} dog{{ customer.dogs_count !== 1 ? 's' : '' }}
+                {{ customer.email ?? 'No email' }}
+                <template v-if="customer.phone"> · {{ customer.phone }}</template>
+                · {{ customer.dogs_count }} dog{{ customer.dogs_count !== 1 ? 's' : '' }}
+                · {{ customer.orders_count }} order{{ customer.orders_count !== 1 ? 's' : '' }}
+                <template v-if="customer.total_spent > 0"> · {{ formatMoney(customer.total_spent) }}</template>
               </p>
             </div>
 
@@ -86,6 +90,7 @@ import { router } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AppInput from '@/Components/AppInput.vue';
+import AppButton from '@/Components/AppButton.vue';
 
 interface Customer {
   id: string;
@@ -93,6 +98,8 @@ interface Customer {
   email: string | null;
   phone: string | null;
   dogs_count: number;
+  orders_count: number;
+  total_spent: number;
   has_portal: boolean;
   created_at: string;
 }
@@ -111,6 +118,10 @@ const props = defineProps<{
 }>();
 
 const searchQuery = ref(props.filters.search);
+
+function formatMoney(amount: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+}
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function navigate(page?: number) {
