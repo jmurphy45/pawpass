@@ -32,11 +32,11 @@ class CancelStalePendingOrdersTest extends TestCase
         $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
 
         $order = Order::factory()->create([
-            'tenant_id'   => $tenant->id,
-            'customer_id' => $customer->id,
-            'package_id'  => $package->id,
-            'status'      => 'pending',
-            'created_at'  => now()->subHours(2),
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'package_id'     => $package->id,
+            'status'         => 'pending',
+            'cancellable_at' => now()->subMinutes(30),
         ]);
 
         $payment = OrderPayment::factory()->forOrder($order)->create([
@@ -64,18 +64,18 @@ class CancelStalePendingOrdersTest extends TestCase
         $this->assertEquals('canceled', $payment->fresh()->status);
     }
 
-    public function test_skips_orders_created_within_one_hour(): void
+    public function test_skips_orders_with_future_cancellable_at(): void
     {
         $tenant   = Tenant::factory()->create(['stripe_account_id' => 'acct_test123']);
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
         $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
 
         $order = Order::factory()->create([
-            'tenant_id'   => $tenant->id,
-            'customer_id' => $customer->id,
-            'package_id'  => $package->id,
-            'status'      => 'pending',
-            'created_at'  => now()->subMinutes(30),
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'package_id'     => $package->id,
+            'status'         => 'pending',
+            'cancellable_at' => now()->addMinutes(30),
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -94,11 +94,11 @@ class CancelStalePendingOrdersTest extends TestCase
         $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
 
         $order = Order::factory()->create([
-            'tenant_id'   => $tenant->id,
-            'customer_id' => $customer->id,
-            'package_id'  => $package->id,
-            'status'      => 'pending',
-            'created_at'  => now()->subHours(2),
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'package_id'     => $package->id,
+            'status'         => 'pending',
+            'cancellable_at' => now()->subMinutes(30),
         ]);
 
         // pending() factory state sets stripe_pi_id to null
@@ -136,11 +136,11 @@ class CancelStalePendingOrdersTest extends TestCase
         $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
 
         $paidOrder = Order::factory()->create([
-            'tenant_id'   => $tenant->id,
-            'customer_id' => $customer->id,
-            'package_id'  => $package->id,
-            'status'      => 'paid',
-            'created_at'  => now()->subHours(2),
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'package_id'     => $package->id,
+            'status'         => 'paid',
+            'cancellable_at' => now()->subMinutes(30),
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -159,11 +159,11 @@ class CancelStalePendingOrdersTest extends TestCase
         $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
 
         $order = Order::factory()->create([
-            'tenant_id'   => $tenant->id,
-            'customer_id' => $customer->id,
-            'package_id'  => $package->id,
-            'status'      => 'pending',
-            'created_at'  => now()->subHours(2),
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'package_id'     => $package->id,
+            'status'         => 'pending',
+            'cancellable_at' => now()->subMinutes(30),
         ]);
 
         $payment = OrderPayment::factory()->forOrder($order)->create([
@@ -199,7 +199,30 @@ class CancelStalePendingOrdersTest extends TestCase
             'package_id'     => $package->id,
             'reservation_id' => $reservation->id,
             'status'         => 'pending',
-            'created_at'     => now()->subHours(2),
+            'cancellable_at' => now()->subMinutes(30),
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldNotReceive('cancelPaymentIntent');
+        });
+
+        (new CancelStalePendingOrders)->handle(app(StripeService::class));
+
+        $this->assertEquals('pending', $order->fresh()->status);
+    }
+
+    public function test_skips_orders_with_null_cancellable_at(): void
+    {
+        $tenant   = Tenant::factory()->create(['stripe_account_id' => 'acct_test123']);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
+
+        $order = Order::factory()->create([
+            'tenant_id'      => $tenant->id,
+            'customer_id'    => $customer->id,
+            'package_id'     => $package->id,
+            'status'         => 'pending',
+            'cancellable_at' => null,
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -222,18 +245,18 @@ class CancelStalePendingOrdersTest extends TestCase
         $packageB  = Package::factory()->create(['tenant_id' => $tenantB->id]);
 
         $orderA = Order::factory()->create([
-            'tenant_id'   => $tenantA->id,
-            'customer_id' => $customerA->id,
-            'package_id'  => $packageA->id,
-            'status'      => 'pending',
-            'created_at'  => now()->subHours(2),
+            'tenant_id'      => $tenantA->id,
+            'customer_id'    => $customerA->id,
+            'package_id'     => $packageA->id,
+            'status'         => 'pending',
+            'cancellable_at' => now()->subMinutes(30),
         ]);
         $orderB = Order::factory()->create([
-            'tenant_id'   => $tenantB->id,
-            'customer_id' => $customerB->id,
-            'package_id'  => $packageB->id,
-            'status'      => 'pending',
-            'created_at'  => now()->subHours(2),
+            'tenant_id'      => $tenantB->id,
+            'customer_id'    => $customerB->id,
+            'package_id'     => $packageB->id,
+            'status'         => 'pending',
+            'cancellable_at' => now()->subMinutes(30),
         ]);
 
         OrderPayment::factory()->forOrder($orderA)->create([

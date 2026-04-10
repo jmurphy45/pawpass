@@ -113,6 +113,7 @@ class OrderController extends Controller
                 'customer_id'        => $customer->id,
                 'package_id'         => $package->id,
                 'status'             => 'pending',
+                'cancellable_at'     => now()->addHour(),
                 'total_amount'       => $totalCents / 100,
                 'subtotal_cents'     => $discountedSubtotal,
                 'tax_amount_cents'   => $taxAmountCents,

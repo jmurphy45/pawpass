@@ -160,6 +160,13 @@ class RosterController extends Controller
 
         $this->events->recordOnce($tenantId, 'first_checkin');
 
+        if ($override) {
+            Order::whereHas('orderDogs', fn ($q) => $q->where('dog_id', $dog->id))
+                ->where('status', 'pending')
+                ->whereNotNull('cancellable_at')
+                ->update(['cancellable_at' => null]);
+        }
+
         return back()->with('success', "{$dog->name} checked in.");
     }
 
@@ -312,12 +319,13 @@ class RosterController extends Controller
         $tenant = Tenant::find($attendance->tenant_id);
 
         $order = Order::create([
-            'tenant_id' => $attendance->tenant_id,
-            'customer_id' => $customer?->id,
-            'attendance_id' => $attendance->id,
-            'type' => 'daycare',
-            'status' => 'pending',
-            'total_amount' => $totalCents / 100,
+            'tenant_id'      => $attendance->tenant_id,
+            'customer_id'    => $customer?->id,
+            'attendance_id'  => $attendance->id,
+            'type'           => 'daycare',
+            'status'         => 'pending',
+            'cancellable_at' => null,
+            'total_amount'   => $totalCents / 100,
         ]);
 
         foreach ($attendance->addons as $i => $addon) {

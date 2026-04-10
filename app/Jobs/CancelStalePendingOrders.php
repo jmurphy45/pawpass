@@ -18,7 +18,8 @@ class CancelStalePendingOrders implements ShouldQueue
             ->with(['payments', 'tenant'])
             ->where('status', 'pending')
             ->whereNull('reservation_id')
-            ->where('created_at', '<', now()->subHour())
+            ->whereNotNull('cancellable_at')
+            ->where('cancellable_at', '<=', now())
             ->chunkById(100, function ($orders) use ($stripe) {
                 foreach ($orders as $order) {
                     try {

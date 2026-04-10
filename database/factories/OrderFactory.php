@@ -33,6 +33,14 @@ class OrderFactory extends Factory
         ];
     }
 
+    public function pendingCancellable(): static
+    {
+        return $this->state([
+            'status'         => 'pending',
+            'cancellable_at' => now()->subMinutes(30),
+        ]);
+    }
+
     public function refunded(): static
     {
         return $this->state(['status' => 'refunded']);

@@ -144,6 +144,14 @@ class RosterController extends Controller
 
             try {
                 $this->credits->deductForAttendance($attendance);
+
+                if ($override) {
+                    Order::whereHas('orderDogs', fn ($q) => $q->where('dog_id', $dog->id))
+                        ->where('status', 'pending')
+                        ->whereNotNull('cancellable_at')
+                        ->update(['cancellable_at' => null]);
+                }
+
                 $results[] = ['dog_id' => $dog->id, 'status' => 'checked_in'];
             } catch (InsufficientCreditsException $e) {
                 $attendance->delete();

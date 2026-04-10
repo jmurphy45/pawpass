@@ -28,6 +28,7 @@ class Order extends Model
         'platform_fee_pct',
         'idempotency_key',
         'promotion_id',
+        'cancellable_at',
     ];
 
     protected function casts(): array
@@ -37,6 +38,7 @@ class Order extends Model
             'platform_fee_pct' => 'decimal:2',
             'subtotal_cents'   => 'integer',
             'tax_amount_cents' => 'integer',
+            'cancellable_at'   => 'immutable_datetime',
             'created_at'       => 'immutable_datetime',
             'updated_at'       => 'immutable_datetime',
         ];
