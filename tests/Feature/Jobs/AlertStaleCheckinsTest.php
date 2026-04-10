@@ -44,7 +44,7 @@ class AlertStaleCheckinsTest extends TestCase
         return Attendance::factory()->create([
             'tenant_id'      => $tenant->id,
             'dog_id'         => $dog->id,
-            'checked_in_at'  => now()->modify($checkedInAt)->startOfDay()->addHours(9),
+            'checked_in_at'  => now($tenant->timezone ?? 'UTC')->modify($checkedInAt)->startOfDay()->addHours(9)->utc(),
             'checked_out_at' => null,
         ]);
     }
