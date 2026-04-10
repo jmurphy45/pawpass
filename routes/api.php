@@ -138,6 +138,10 @@ Route::prefix('admin/v1')
         Route::post('customers', [CustomerController::class, 'store'])->middleware('plan:add_customers');
         Route::get('customers/{customer}', [CustomerController::class, 'show']);
         Route::patch('customers/{customer}', [CustomerController::class, 'update']);
+        Route::post('customers/{customer}/request-payment-update', [CustomerController::class, 'requestPaymentUpdate']);
+        Route::middleware('role:business_owner')->group(function () {
+            Route::post('customers/{customer}/charge-balance', [CustomerController::class, 'chargeBalance']);
+        });
 
         Route::get('dogs', [AdminDogController::class, 'index']);
         Route::post('dogs', [AdminDogController::class, 'store'])->middleware('plan:add_dogs');

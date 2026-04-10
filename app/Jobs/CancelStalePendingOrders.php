@@ -37,6 +37,11 @@ class CancelStalePendingOrders implements ShouldQueue
     {
         $payment = $order->payments->whereNotNull('stripe_pi_id')->first();
 
+        Log::debug('CancelStalePendingOrders: processing order', [
+            'order_id' => $order->id,
+            'payment_id' => $payment?->id,
+        ]);
+
         if ($payment) {
             $stripeAccountId = $order->tenant?->stripe_account_id;
 

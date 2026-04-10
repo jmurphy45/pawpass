@@ -164,7 +164,7 @@ class CustomerController extends Controller
             ];
         });
 
-        $orders = $customer->orders()->with('package')->latest()->paginate(10)->through(fn ($o) => [
+        $orders = $customer->orders()->with('package')->latest()->get()->map(fn ($o) => [
             'id'           => $o->id,
             'package_name' => $o->package?->name,
             'type'         => $o->type,
@@ -186,6 +186,8 @@ class CustomerController extends Controller
                 'stripe_pm_last4'          => $customer->stripe_pm_last4,
                 'stripe_pm_brand'          => $customer->stripe_pm_brand,
                 'outstanding_balance_cents' => $customer->outstanding_balance_cents ?? 0,
+                'has_stripe_customer'      => $customer->stripe_customer_id !== null,
+                'is_owner'                 => auth()->user()->role === 'business_owner',
                 'total_orders'             => $customer->orders_count,
                 'total_spent'              => (float) ($customer->orders_sum_total_amount ?? 0),
                 'total_credits'            => $totalCredits,

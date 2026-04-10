@@ -314,4 +314,88 @@ class StripeWebhookTest extends TestCase
         $this->assertEquals('authorized', $payment->fresh()->status);
         $this->assertEquals('confirmed', $reservation->fresh()->status);
     }
+
+    public function test_outstanding_balance_charge_succeeded_subtracts_from_balance(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create([
+            'tenant_id' => $tenant->id,
+            'outstanding_balance_cents' => 5000,
+        ]);
+
+        $event = $this->makeEvent('payment_intent.succeeded', [
+            'id'     => 'pi_balance_test',
+            'amount' => 5000,
+            'metadata' => (object) [
+                'charge_type' => 'outstanding_balance',
+                'customer_id' => $customer->id,
+            ],
+        ]);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+
+        $this->assertEquals(0, $customer->fresh()->outstanding_balance_cents);
+    }
+
+    public function test_outstanding_balance_charge_partial_subtracts_only_paid_amount(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create([
+            'tenant_id' => $tenant->id,
+            'outstanding_balance_cents' => 8000,
+        ]);
+
+        $event = $this->makeEvent('payment_intent.succeeded', [
+            'id'     => 'pi_balance_partial',
+            'amount' => 5000,
+            'metadata' => (object) [
+                'charge_type' => 'outstanding_balance',
+                'customer_id' => $customer->id,
+            ],
+        ]);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+
+        $this->assertEquals(3000, $customer->fresh()->outstanding_balance_cents);
+    }
+
+    public function test_outstanding_balance_charge_is_idempotent_when_balance_already_zero(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create([
+            'tenant_id' => $tenant->id,
+            'outstanding_balance_cents' => 0,
+        ]);
+
+        $event = $this->makeEvent('payment_intent.succeeded', [
+            'id'     => 'pi_balance_idempotent',
+            'amount' => 5000,
+            'metadata' => (object) [
+                'charge_type' => 'outstanding_balance',
+                'customer_id' => $customer->id,
+            ],
+        ]);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+
+        $this->assertEquals(0, $customer->fresh()->outstanding_balance_cents);
+    }
+
+    public function test_outstanding_balance_charge_with_unknown_customer_returns_ok(): void
+    {
+        $event = $this->makeEvent('payment_intent.succeeded', [
+            'id'     => 'pi_balance_unknown',
+            'amount' => 5000,
+            'metadata' => (object) [
+                'charge_type' => 'outstanding_balance',
+                'customer_id' => '01JNON_EXISTENT_CUSTOMER_ID',
+            ],
+        ]);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+    }
 }

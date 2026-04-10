@@ -9,7 +9,9 @@ use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\NotificationService;
 use App\Services\StripeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +20,10 @@ use Illuminate\Support\Str;
 
 class CustomerController extends Controller
 {
-    public function __construct(private readonly StripeService $stripe) {}
+    public function __construct(
+        private readonly StripeService $stripe,
+        private readonly NotificationService $notificationService,
+    ) {}
     public function index(Request $request): AnonymousResourceCollection
     {
         $query = Customer::query();
@@ -91,5 +96,63 @@ class CustomerController extends Controller
         $customer->update($request->only(['name', 'email', 'phone', 'notes']));
 
         return new CustomerResource($customer->fresh());
+    }
+
+    public function chargeBalance(Customer $customer): JsonResponse
+    {
+        if (auth()->user()->role !== 'business_owner') {
+            abort(403);
+        }
+
+        if ($customer->outstanding_balance_cents <= 0) {
+            return response()->json(['error' => 'NO_BALANCE_OWED'], 422);
+        }
+
+        if (! $customer->stripe_payment_method_id || ! $customer->stripe_customer_id) {
+            return response()->json(['error' => 'NO_PAYMENT_METHOD'], 422);
+        }
+
+        $tenant = Tenant::find(app('current.tenant.id'));
+
+        if (! $tenant->stripe_account_id) {
+            abort(422);
+        }
+
+        $amountCents = $customer->outstanding_balance_cents;
+        $feeCents    = (int) round($amountCents * (($tenant->platform_fee_pct ?? 5) / 100));
+
+        $pi = $this->stripe->createOutstandingBalancePaymentIntent(
+            amountCents:       $amountCents,
+            stripeAccountId:   $tenant->stripe_account_id,
+            applicationFeeCents: $feeCents,
+            stripeCustomerId:  $customer->stripe_customer_id,
+            paymentMethodId:   $customer->stripe_payment_method_id,
+            metadata: [
+                'customer_id' => $customer->id,
+                'tenant_id'   => $tenant->id,
+            ],
+        );
+
+        return response()->json(['data' => ['pi_id' => $pi->id, 'status' => $pi->status]], 202);
+    }
+
+    public function requestPaymentUpdate(Customer $customer): JsonResponse
+    {
+        if (! $customer->user_id) {
+            return response()->json(['error' => 'NO_PORTAL_ACCESS'], 422);
+        }
+
+        $user = User::allTenants()->find($customer->user_id);
+
+        if ($user) {
+            $this->notificationService->dispatch(
+                'payment.update_requested',
+                app('current.tenant.id'),
+                $user->id,
+                ['portal_url' => route('portal.account')],
+            );
+        }
+
+        return response()->json(['data' => ['message' => 'Notification sent']]);
     }
 }

@@ -60,6 +60,28 @@ class StripeService
         return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
     }
 
+    public function createOutstandingBalancePaymentIntent(
+        int $amountCents,
+        string $stripeAccountId,
+        int $applicationFeeCents,
+        string $stripeCustomerId,
+        string $paymentMethodId,
+        array $metadata = [],
+    ): object {
+        return $this->client->paymentIntents->create([
+            'amount'                   => $amountCents,
+            'currency'                 => 'usd',
+            'application_fee_amount'   => $applicationFeeCents,
+            'customer'                 => $stripeCustomerId,
+            'payment_method'           => $paymentMethodId,
+            'payment_method_types'     => ['card'],
+            'confirm'                  => true,
+            'off_session'              => true,
+            'error_on_requires_action' => true,
+            'metadata'                 => array_merge($metadata, ['charge_type' => 'outstanding_balance']),
+        ], ['stripe_account' => $stripeAccountId]);
+    }
+
     public function createHoldPaymentIntent(
         int $amountCents,
         string $currency,

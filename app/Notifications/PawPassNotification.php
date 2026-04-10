@@ -68,6 +68,10 @@ class PawPassNotification extends Notification implements ShouldQueue
             $message->action('Check Out All', $this->data['checkout_url']);
         }
 
+        if ($this->type === 'payment.update_requested' && isset($this->data['portal_url'])) {
+            $message->action('Update Payment Method', $this->data['portal_url']);
+        }
+
         if ($notifiable && $notifiable->tenant_id) {
             $tenant = Tenant::find($notifiable->tenant_id);
             if ($tenant && app(PlanFeatureCache::class)->hasFeature($tenant->plan, 'white_label')) {
@@ -141,6 +145,7 @@ class PawPassNotification extends Notification implements ShouldQueue
             'vaccinations.expiring_soon' => $this->buildVaccinationSoonMessage(),
             'vaccinations.expiring_urgent' => $this->buildVaccinationUrgentMessage(),
             'attendance.stale_checkins' => $this->buildStaleCheckinsMessage(),
+            'payment.update_requested' => ['Action Required: Update Your Payment Method', 'Your account has an outstanding balance. Please update your payment method in the portal to resolve it.'],
             default => [$this->type, $this->type],
         };
     }

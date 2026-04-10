@@ -58,10 +58,6 @@
               <span v-else>—</span>
             </p>
           </div>
-          <div v-if="customer.outstanding_balance_cents">
-            <p class="text-xs text-text-muted">Outstanding Balance</p>
-            <p class="text-sm font-medium text-red-600">{{ formatMoney(customer.outstanding_balance_cents / 100) }}</p>
-          </div>
           <div v-if="customer.notes" class="sm:col-span-2">
             <p class="text-xs text-text-muted">Notes</p>
             <p class="text-sm text-text-body whitespace-pre-line">{{ customer.notes }}</p>
@@ -121,49 +117,81 @@
         </div>
       </div>
 
-      <!-- Orders -->
+      <!-- Balance Ledger -->
       <div>
-        <h2 class="text-lg font-semibold text-text-body mb-3">Orders</h2>
-        <div v-if="orders.data.length === 0" class="bg-white rounded-xl border border-border-warm px-5 py-8 text-center text-sm text-text-muted">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold text-text-body">Balance Ledger</h2>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="customer.has_portal"
+              :disabled="notifyLoading || notifySent"
+              class="inline-flex items-center rounded-lg border border-border-warm bg-white px-3 py-1.5 text-xs font-medium text-text-body hover:bg-surface disabled:opacity-60 transition-colors"
+              @click="requestPaymentUpdate"
+            >
+              {{ notifySent ? 'Sent ✓' : notifyLoading ? 'Sending…' : 'Request Card Update' }}
+            </button>
+            <button
+              v-if="customer.is_owner && customer.outstanding_balance_cents > 0 && customer.has_stripe_customer && customer.stripe_pm_last4"
+              :disabled="chargeLoading"
+              class="inline-flex items-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
+              @click="chargeOutstandingBalance"
+            >
+              {{ chargeLoading ? 'Charging…' : `Charge Now · ${formatMoney(customer.outstanding_balance_cents / 100)}` }}
+            </button>
+          </div>
+        </div>
+        <p v-if="chargeError" class="mb-2 text-xs text-red-600">{{ chargeError }}</p>
+        <div v-if="orders.length === 0" class="bg-white rounded-xl border border-border-warm px-5 py-8 text-center text-sm text-text-muted">
           No orders yet.
         </div>
         <div v-else class="bg-white rounded-xl border border-border-warm overflow-hidden">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-border-warm">
-                <th class="text-left px-5 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Package</th>
-                <th class="text-left px-5 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Type</th>
-                <th class="text-left px-5 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Amount</th>
-                <th class="text-left px-5 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Status</th>
                 <th class="text-left px-5 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Date</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Description</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Type</th>
+                <th class="text-right px-5 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Amount</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Status</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border-warm">
-              <tr v-for="order in orders.data" :key="order.id" class="hover:bg-surface transition-colors">
+              <tr v-for="order in orders" :key="order.id" class="hover:bg-surface transition-colors">
+                <td class="px-5 py-3 text-text-muted whitespace-nowrap">{{ formatDate(order.created_at) }}</td>
                 <td class="px-5 py-3 text-text-body font-medium">{{ order.package_name ?? '—' }}</td>
                 <td class="px-5 py-3">
                   <span :class="typeBadge(order.type)" class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset">
                     {{ formatType(order.type) }}
                   </span>
                 </td>
-                <td class="px-5 py-3 text-text-body">{{ formatMoney(order.total_amount) }}</td>
+                <td class="px-5 py-3 text-right text-text-body">{{ formatMoney(order.total_amount) }}</td>
                 <td class="px-5 py-3">
                   <span :class="orderStatusBadge(order.status)" class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset">
                     {{ capitalize(order.status) }}
                   </span>
                 </td>
-                <td class="px-5 py-3 text-text-muted">{{ formatDate(order.created_at) }}</td>
               </tr>
             </tbody>
+            <tfoot class="border-t-2 border-border-warm bg-surface">
+              <tr>
+                <td colspan="3" class="px-5 py-3 text-xs text-text-muted"></td>
+                <td class="px-5 py-3 text-right">
+                  <p class="text-[10px] text-text-muted uppercase tracking-wide">Total Paid</p>
+                  <p class="text-sm font-semibold text-green-700">{{ formatMoney(totalPaid) }}</p>
+                </td>
+                <td class="px-5 py-3">
+                  <div v-if="totalFailed > 0">
+                    <p class="text-[10px] text-text-muted uppercase tracking-wide">Failed / Owed</p>
+                    <p class="text-sm font-semibold text-red-600">{{ formatMoney(totalFailed) }}</p>
+                  </div>
+                  <div v-if="customer.outstanding_balance_cents > 0" class="mt-1">
+                    <p class="text-[10px] text-text-muted uppercase tracking-wide">Outstanding</p>
+                    <p class="text-sm font-bold text-red-700">{{ formatMoney(customer.outstanding_balance_cents / 100) }}</p>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
           </table>
-          <!-- Pagination -->
-          <div v-if="orders.last_page > 1" class="flex items-center justify-between px-5 py-3 border-t border-border-warm">
-            <p class="text-xs text-text-muted">Page {{ orders.current_page }} of {{ orders.last_page }}</p>
-            <div class="flex gap-2">
-              <AppButton variant="secondary" size="sm" :disabled="!orders.prev_page_url" @click="goToOrderPage(orders.current_page - 1)">Previous</AppButton>
-              <AppButton variant="secondary" size="sm" :disabled="!orders.next_page_url" @click="goToOrderPage(orders.current_page + 1)">Next</AppButton>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -171,9 +199,10 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
+import axios from 'axios';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import AppButton from '@/Components/AppButton.vue';
 
 interface Dog {
   id: string;
@@ -200,14 +229,6 @@ interface Order {
   created_at: string;
 }
 
-interface OrderPage {
-  data: Order[];
-  current_page: number;
-  last_page: number;
-  prev_page_url: string | null;
-  next_page_url: string | null;
-}
-
 const props = defineProps<{
   customer: {
     id: string;
@@ -216,6 +237,8 @@ const props = defineProps<{
     phone: string | null;
     notes: string | null;
     has_portal: boolean;
+    has_stripe_customer: boolean;
+    is_owner: boolean;
     stripe_pm_last4: string | null;
     stripe_pm_brand: string | null;
     outstanding_balance_cents: number;
@@ -225,8 +248,44 @@ const props = defineProps<{
     created_at: string;
   };
   dogs: Dog[];
-  orders: OrderPage;
+  orders: Order[];
 }>();
+
+const chargeLoading = ref(false);
+const chargeError = ref<string | null>(null);
+const notifyLoading = ref(false);
+const notifySent = ref(false);
+
+const totalPaid = computed(() =>
+  props.orders.filter(o => ['paid', 'partially_refunded'].includes(o.status)).reduce((s, o) => s + o.total_amount, 0),
+);
+
+const totalFailed = computed(() =>
+  props.orders.filter(o => o.status === 'failed').reduce((s, o) => s + o.total_amount, 0),
+);
+
+async function chargeOutstandingBalance() {
+  chargeLoading.value = true;
+  chargeError.value = null;
+  try {
+    await axios.post(`/api/admin/v1/customers/${props.customer.id}/charge-balance`);
+    router.reload({ only: ['customer'] });
+  } catch (e: any) {
+    chargeError.value = e.response?.data?.message ?? e.response?.data?.error ?? 'Charge failed. Please try again.';
+  } finally {
+    chargeLoading.value = false;
+  }
+}
+
+async function requestPaymentUpdate() {
+  notifyLoading.value = true;
+  try {
+    await axios.post(`/api/admin/v1/customers/${props.customer.id}/request-payment-update`);
+    notifySent.value = true;
+  } finally {
+    notifyLoading.value = false;
+  }
+}
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -271,12 +330,8 @@ function typeBadge(type: string | null): string {
 
 function orderStatusBadge(status: string): string {
   if (status === 'paid' || status === 'completed') return 'bg-green-50 text-green-700 ring-green-600/20';
-  if (status === 'pending') return 'bg-yellow-50 text-yellow-700 ring-yellow-600/20';
-  if (status === 'refunded') return 'bg-red-50 text-red-700 ring-red-600/20';
+  if (status === 'pending' || status === 'authorized') return 'bg-yellow-50 text-yellow-700 ring-yellow-600/20';
+  if (status === 'refunded' || status === 'partially_refunded' || status === 'failed' || status === 'disputed') return 'bg-red-50 text-red-700 ring-red-600/20';
   return 'bg-gray-50 text-gray-600 ring-gray-500/20';
-}
-
-function goToOrderPage(page: number) {
-  router.get(route('admin.customers.show', { customer: props.customer.id }), { page }, { preserveState: true });
 }
 </script>

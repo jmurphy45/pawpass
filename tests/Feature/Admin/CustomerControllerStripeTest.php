@@ -6,8 +6,10 @@ use App\Models\Customer;
 use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Notifications\PawPassNotification;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -120,6 +122,115 @@ class CustomerControllerStripeTest extends TestCase
             ]);
 
         $response->assertStatus(201);
+    }
+
+    private function ownerHeaders(): array
+    {
+        $owner = User::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'role' => 'business_owner',
+        ]);
+
+        return ['Authorization' => 'Bearer '.$this->jwtFor($owner)];
+    }
+
+    public function test_owner_can_charge_outstanding_balance(): void
+    {
+        $customer = Customer::factory()
+            ->for($this->tenant)
+            ->withStripePaymentMethod()
+            ->withOutstandingBalance(5000)
+            ->create();
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createOutstandingBalancePaymentIntent')
+                ->once()
+                ->andReturn((object) ['id' => 'pi_test_123', 'status' => 'succeeded']);
+        });
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson("/api/admin/v1/customers/{$customer->id}/charge-balance");
+
+        $response->assertStatus(202);
+        $response->assertJsonPath('data.pi_id', 'pi_test_123');
+    }
+
+    public function test_charge_balance_requires_business_owner_role(): void
+    {
+        $customer = Customer::factory()
+            ->for($this->tenant)
+            ->withStripePaymentMethod()
+            ->withOutstandingBalance(5000)
+            ->create();
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson("/api/admin/v1/customers/{$customer->id}/charge-balance");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_charge_balance_returns_422_when_no_balance(): void
+    {
+        $customer = Customer::factory()
+            ->for($this->tenant)
+            ->withStripePaymentMethod()
+            ->create(['outstanding_balance_cents' => 0]);
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson("/api/admin/v1/customers/{$customer->id}/charge-balance");
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error', 'NO_BALANCE_OWED');
+    }
+
+    public function test_charge_balance_returns_422_when_no_payment_method(): void
+    {
+        $customer = Customer::factory()
+            ->for($this->tenant)
+            ->withOutstandingBalance(5000)
+            ->create(['stripe_payment_method_id' => null]);
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson("/api/admin/v1/customers/{$customer->id}/charge-balance");
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error', 'NO_PAYMENT_METHOD');
+    }
+
+    public function test_request_payment_update_dispatches_notification(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'role' => 'customer',
+        ]);
+
+        $customer = Customer::factory()
+            ->for($this->tenant)
+            ->create(['user_id' => $user->id]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson("/api/admin/v1/customers/{$customer->id}/request-payment-update");
+
+        $response->assertStatus(200);
+
+        Notification::assertSentTo($user, PawPassNotification::class, function ($n) {
+            return $n->type === 'payment.update_requested';
+        });
+    }
+
+    public function test_request_payment_update_returns_422_when_no_portal_access(): void
+    {
+        $customer = Customer::factory()
+            ->for($this->tenant)
+            ->create(['user_id' => null]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson("/api/admin/v1/customers/{$customer->id}/request-payment-update");
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error', 'NO_PORTAL_ACCESS');
     }
 
     public function test_store_creates_stripe_customer_without_email_when_no_email_provided(): void

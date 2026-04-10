@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Enums\SubscriptionStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\RawWebhook;
@@ -61,6 +62,10 @@ class StripeWebhookController extends Controller
 
     private function handlePaymentIntentSucceeded(object $pi): JsonResponse
     {
+        if (($pi->metadata->charge_type ?? null) === 'outstanding_balance') {
+            return $this->handleOutstandingBalanceCharged($pi);
+        }
+
         $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
         $order   = $payment?->order;
 
@@ -110,6 +115,29 @@ class StripeWebhookController extends Controller
                 $this->notificationService->dispatch('auto_replenish.succeeded', $order->tenant_id, $userId, ['order_id' => $order->id]);
             }
         }
+
+        return response()->json(['data' => 'ok']);
+    }
+
+    private function handleOutstandingBalanceCharged(object $pi): JsonResponse
+    {
+        $customerId = $pi->metadata->customer_id ?? null;
+
+        if (! $customerId) {
+            return response()->json(['data' => 'ok']);
+        }
+
+        $customer = Customer::allTenants()->find($customerId);
+
+        if (! $customer) {
+            return response()->json(['data' => 'ok']);
+        }
+
+        $amountCents = (int) $pi->amount;
+
+        DB::table('customers')
+            ->where('id', $customer->id)
+            ->update(['outstanding_balance_cents' => DB::raw("GREATEST(0, outstanding_balance_cents - {$amountCents})")]);
 
         return response()->json(['data' => 'ok']);
     }
