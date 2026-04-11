@@ -29,6 +29,25 @@
 
 ---
 
+---
+
+## Task: Domain-Driven Strategy Pattern for Order Cancellation
+
+- [x] Interface: `OrderCancellationStrategy` (supports + cancel)
+- [x] Unit tests for `BoardingCancellationStrategy` — 7 tests pass
+- [x] Implement `BoardingCancellationStrategy`
+- [x] Unit tests for `AttendanceAddonCancellationStrategy` — 5 tests pass
+- [x] Implement `AttendanceAddonCancellationStrategy`
+- [x] Unit tests for `DaycareCancellationStrategy` — 7 tests pass
+- [x] Implement `DaycareCancellationStrategy`
+- [x] Unit tests for `CancellationStrategyResolver` — 4 tests pass
+- [x] Implement `CancellationStrategyResolver`
+- [x] Update `CancelStalePendingOrders` job (query + signature)
+- [x] Add new feature tests for job — 13 tests pass (5 new)
+- [x] Full suite: 1213 passed, 3 pre-existing isolation failures (unrelated)
+
+---
+
 ## Review
 
 ### Summary of Changes

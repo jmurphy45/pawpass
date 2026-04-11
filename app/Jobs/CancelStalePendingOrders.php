@@ -3,9 +3,8 @@
 namespace App\Jobs;
 
 use App\Enums\OrderStatus;
-use App\Enums\PaymentStatus;
 use App\Models\Order;
-use App\Services\StripeService;
+use App\Services\Cancellation\CancellationStrategyResolver;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -14,18 +13,21 @@ class CancelStalePendingOrders implements ShouldQueue
 {
     use Queueable;
 
-    public function handle(StripeService $stripe): void
+    public function handle(CancellationStrategyResolver $resolver): void
     {
         Order::allTenants()
-            ->with(['payments', 'tenant'])
-            ->where('status', 'pending')
-            ->whereNull('reservation_id')
+            ->with(['payments', 'tenant', 'attendance', 'reservation'])
+            ->whereIn('status', [OrderStatus::Pending->value, OrderStatus::Authorized->value])
+            ->where(function ($q) {
+                $q->whereNull('reservation_id')
+                  ->orWhereHas('reservation', fn ($r) => $r->where('ends_at', '<=', now()));
+            })
             ->whereNotNull('cancellable_at')
             ->where('cancellable_at', '<=', now())
-            ->chunkById(100, function ($orders) use ($stripe) {
+            ->chunkById(100, function ($orders) use ($resolver) {
                 foreach ($orders as $order) {
                     try {
-                        $this->cancelOrder($order, $stripe);
+                        $resolver->resolve($order)->cancel($order);
                     } catch (\Throwable $e) {
                         Log::error('CancelStalePendingOrders: failed', [
                             'order_id' => $order->id,
@@ -34,40 +36,5 @@ class CancelStalePendingOrders implements ShouldQueue
                     }
                 }
             });
-    }
-
-    private function cancelOrder(Order $order, StripeService $stripe): void
-    {
-        $payment = $order->payments->whereNotNull('stripe_pi_id')->first();
-
-        Log::debug('CancelStalePendingOrders: processing order', [
-            'order_id' => $order->id,
-            'payment_id' => $payment?->id,
-        ]);
-
-        if ($payment) {
-            $stripeAccountId = $order->tenant?->stripe_account_id;
-
-            if ($stripeAccountId) {
-                try {
-                    $stripe->cancelPaymentIntent($payment->stripe_pi_id, $stripeAccountId);
-                } catch (\Throwable $e) {
-                    Log::info('CancelStalePendingOrders: Stripe cancel skipped', [
-                        'order_id' => $order->id,
-                        'pi_id'    => $payment->stripe_pi_id,
-                        'error'    => $e->getMessage(),
-                    ]);
-                }
-            } else {
-                Log::warning('CancelStalePendingOrders: no stripe_account_id', [
-                    'order_id'  => $order->id,
-                    'tenant_id' => $order->tenant_id,
-                ]);
-            }
-
-            $payment->transitionTo(PaymentStatus::Canceled);
-        }
-
-        $order->transitionTo(OrderStatus::Canceled);
     }
 }
