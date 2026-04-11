@@ -201,7 +201,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import axios from 'axios';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 interface Dog {
@@ -264,27 +263,22 @@ const totalFailed = computed(() =>
   props.orders.filter(o => o.status === 'failed').reduce((s, o) => s + o.total_amount, 0),
 );
 
-async function chargeOutstandingBalance() {
+function chargeOutstandingBalance() {
   chargeLoading.value = true;
   chargeError.value = null;
-  try {
-    await axios.post(`/api/admin/v1/customers/${props.customer.id}/charge-balance`);
-    router.reload({ only: ['customer'] });
-  } catch (e: any) {
-    chargeError.value = e.response?.data?.message ?? e.response?.data?.error ?? 'Charge failed. Please try again.';
-  } finally {
-    chargeLoading.value = false;
-  }
+  router.post(route('admin.customers.charge-balance', props.customer.id), {}, {
+    onSuccess: () => { router.reload({ only: ['customer'] }); },
+    onError:   (errors: Record<string, string>) => { chargeError.value = errors.message ?? 'Charge failed. Please try again.'; },
+    onFinish:  () => { chargeLoading.value = false; },
+  });
 }
 
-async function requestPaymentUpdate() {
+function requestPaymentUpdate() {
   notifyLoading.value = true;
-  try {
-    await axios.post(`/api/admin/v1/customers/${props.customer.id}/request-payment-update`);
-    notifySent.value = true;
-  } finally {
-    notifyLoading.value = false;
-  }
+  router.post(route('admin.customers.request-payment-update', props.customer.id), {}, {
+    onSuccess: () => { notifySent.value = true; },
+    onFinish:  () => { notifyLoading.value = false; },
+  });
 }
 
 function formatDate(iso: string | null): string {

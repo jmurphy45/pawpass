@@ -91,6 +91,8 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/customers/create', [AdminCustomerController::class, 'create'])->name('admin.customers.create');
         Route::post('/customers', [AdminCustomerController::class, 'store'])->name('admin.customers.store');
         Route::get('/customers/{customer}', [AdminCustomerController::class, 'show'])->name('admin.customers.show');
+        Route::post('/customers/{customer}/request-payment-update', [AdminCustomerController::class, 'requestPaymentUpdate'])->name('admin.customers.request-payment-update');
+        Route::post('/customers/{customer}/charge-balance', [AdminCustomerController::class, 'chargeBalance'])->name('admin.customers.charge-balance');
 
         // Dogs
         Route::get('/dogs', [AdminDogController::class, 'index'])->name('admin.dogs.index');

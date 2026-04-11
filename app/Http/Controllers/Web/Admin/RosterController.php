@@ -12,6 +12,7 @@ use App\Models\Attendance;
 use App\Models\AttendanceAddon;
 use App\Models\Dog;
 use App\Models\Order;
+use App\Models\Package;
 use App\Models\Tenant;
 use App\Services\AttendancePaymentService;
 use App\Services\AutoReplenishService;
@@ -128,17 +129,24 @@ class RosterController extends Controller
             return back()->with('error', 'Dog is already checked in today.');
         }
 
-        $override = $request->boolean('zero_credit_override');
+        // Implicit override when tenant policy permits zero-credit check-ins
+        $override = $request->boolean('zero_credit_override') || ! $tenant->checkin_block_at_zero;
         $hasUnlimitedPass = $dog->unlimited_pass_expires_at?->isFuture();
 
-        if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && $tenant->checkin_block_at_zero && ! $override) {
+        if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && $tenant->checkin_block_at_zero && ! $request->boolean('zero_credit_override')) {
             return back()->with('error', 'Cannot check in dog with zero credits.');
         }
 
-        if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && ! $tenant->checkin_block_at_zero && ! $override) {
+        if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && ! $tenant->checkin_block_at_zero) {
             if ($dog->auto_replenish_enabled && $dog->auto_replenish_package_id) {
                 if (! $this->autoReplenish->triggerSync($dog)) {
                     return back()->with('error', 'Auto-replenish charge failed. Check payment method.');
+                }
+                $dog = $dog->fresh();
+            } elseif ($tenant->auto_charge_at_zero_package_id) {
+                $package = Package::find($tenant->auto_charge_at_zero_package_id);
+                if ($package && ! $this->autoReplenish->triggerForPackage($dog, $package)) {
+                    return back()->with('error', 'Auto-charge failed. Check payment method.');
                 }
                 $dog = $dog->fresh();
             }

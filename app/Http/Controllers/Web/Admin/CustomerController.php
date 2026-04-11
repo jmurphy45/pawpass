@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\MagicLinkService;
+use App\Services\NotificationService;
 use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class CustomerController extends Controller
     public function __construct(
         private readonly StripeService $stripe,
         private readonly MagicLinkService $magicLink,
+        private readonly NotificationService $notificationService,
     ) {}
 
     public function index(Request $request): Response
@@ -196,6 +198,68 @@ class CustomerController extends Controller
             'dogs'   => $dogs,
             'orders' => $orders,
         ]);
+    }
+
+    public function requestPaymentUpdate(Customer $customer): RedirectResponse
+    {
+        if (! $customer->user_id) {
+            return back()->with('error', 'Customer has no portal access.');
+        }
+
+        $user = User::allTenants()->find($customer->user_id);
+
+        if ($user) {
+            $this->notificationService->dispatch(
+                'payment.update_requested',
+                app('current.tenant.id'),
+                $user->id,
+                ['portal_url' => route('portal.account')],
+            );
+        }
+
+        return back()->with('success', 'Payment update request sent.');
+    }
+
+    public function chargeBalance(Customer $customer): RedirectResponse
+    {
+        if (auth()->user()->role !== 'business_owner') {
+            abort(403);
+        }
+
+        if ($customer->outstanding_balance_cents <= 0) {
+            return back()->with('error', 'No outstanding balance.');
+        }
+
+        if (! $customer->stripe_payment_method_id || ! $customer->stripe_customer_id) {
+            return back()->with('error', 'No payment method on file.');
+        }
+
+        $tenant = Tenant::find(app('current.tenant.id'));
+
+        if (! $tenant->stripe_account_id) {
+            return back()->with('error', 'Stripe not connected.');
+        }
+
+        $amountCents = $customer->outstanding_balance_cents;
+        $feeCents    = (int) round($amountCents * (($tenant->platform_fee_pct ?? 5) / 100));
+
+        try {
+            $this->stripe->createOutstandingBalancePaymentIntent(
+                amountCents:         $amountCents,
+                stripeAccountId:     $tenant->stripe_account_id,
+                applicationFeeCents: $feeCents,
+                stripeCustomerId:    $customer->stripe_customer_id,
+                paymentMethodId:     $customer->stripe_payment_method_id,
+                metadata: [
+                    'customer_id' => $customer->id,
+                    'tenant_id'   => $tenant->id,
+                ],
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Charge failed: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Charge initiated successfully.');
     }
 
     private function authorizeOwnerOrStaff(): void
