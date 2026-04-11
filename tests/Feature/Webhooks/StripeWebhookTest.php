@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Webhooks;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
@@ -95,10 +97,10 @@ class StripeWebhookTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data', 'ok');
 
         $order->refresh();
-        $this->assertEquals('paid', $order->status);
+        $this->assertEquals(OrderStatus::Paid, $order->status);
 
         $payment->refresh();
-        $this->assertEquals('paid', $payment->status);
+        $this->assertEquals(PaymentStatus::Paid, $payment->status);
         $this->assertNotNull($payment->paid_at);
 
         $dog->refresh();
@@ -179,7 +181,7 @@ class StripeWebhookTest extends TestCase
 
         $response->assertStatus(200);
         $order->refresh();
-        $this->assertEquals('failed', $order->status);
+        $this->assertEquals(OrderStatus::Failed, $order->status);
     }
 
     public function test_dispute_created_sets_order_status_to_disputed(): void
@@ -210,7 +212,7 @@ class StripeWebhookTest extends TestCase
 
         $response->assertStatus(200);
         $order->refresh();
-        $this->assertEquals('disputed', $order->status);
+        $this->assertEquals(OrderStatus::Disputed, $order->status);
     }
 
     public function test_unknown_event_type_returns_200(): void
@@ -248,8 +250,8 @@ class StripeWebhookTest extends TestCase
         $response = $this->postWebhook([], 'valid-sig');
 
         $response->assertStatus(200)->assertJsonPath('data', 'ok');
-        $this->assertEquals('canceled', $order->fresh()->status);
-        $this->assertEquals('canceled', $payment->fresh()->status);
+        $this->assertEquals(OrderStatus::Canceled, $order->fresh()->status);
+        $this->assertEquals(PaymentStatus::Canceled, $payment->fresh()->status);
     }
 
     public function test_payment_intent_canceled_is_idempotent(): void
@@ -272,7 +274,7 @@ class StripeWebhookTest extends TestCase
         $this->mockStripeVerify($event);
 
         $this->postWebhook([], 'valid-sig')->assertStatus(200);
-        $this->assertEquals('canceled', $order->fresh()->status);
+        $this->assertEquals(OrderStatus::Canceled, $order->fresh()->status);
     }
 
     public function test_payment_intent_canceled_for_unknown_pi_returns_200(): void
@@ -310,8 +312,8 @@ class StripeWebhookTest extends TestCase
 
         $this->postWebhook([], 'valid-sig')->assertStatus(200);
 
-        $this->assertEquals('authorized', $order->fresh()->status);
-        $this->assertEquals('authorized', $payment->fresh()->status);
+        $this->assertEquals(OrderStatus::Authorized, $order->fresh()->status);
+        $this->assertEquals(PaymentStatus::Authorized, $payment->fresh()->status);
         $this->assertEquals('confirmed', $reservation->fresh()->status);
     }
 

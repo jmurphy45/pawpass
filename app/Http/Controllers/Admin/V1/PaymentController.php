@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin\V1;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
@@ -34,7 +36,7 @@ class PaymentController extends Controller
 
     public function refund(Request $request, Order $order): JsonResource|JsonResponse
     {
-        if (! in_array($order->status, ['paid', 'partially_refunded'])) {
+        if (! in_array($order->status, [OrderStatus::Paid, OrderStatus::PartiallyRefunded])) {
             return response()->json([
                 'message' => 'Only paid orders can be refunded.',
                 'error_code' => 'ORDER_NOT_REFUNDABLE',
@@ -55,8 +57,11 @@ class PaymentController extends Controller
                 $this->creditService->removeAllOnRefund($order, $orderDog->dog->fresh());
             }
 
-            $payment?->update(['status' => 'refunded', 'refunded_at' => now()]);
-            $order->update(['status' => 'refunded']);
+            if ($payment) {
+                $payment->transitionTo(PaymentStatus::Refunded);
+                $payment->update(['refunded_at' => now()]);
+            }
+            $order->transitionTo(OrderStatus::Refunded);
         });
 
         $order->load(['package', 'orderDogs.dog', 'customer']);

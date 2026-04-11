@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Admin\V1;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreReservationRequest;
 use App\Http\Requests\Admin\UpdateReservationRequest;
@@ -137,7 +140,7 @@ class ReservationController extends Controller
         }
 
         $depositPayment = $reservation->order?->payments()
-            ->where('type', 'deposit')
+            ->where('type', PaymentType::Deposit->value)
             ->whereIn('status', ['pending', 'authorized'])
             ->first();
 
@@ -146,13 +149,15 @@ class ReservationController extends Controller
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($stripeAccountId) {
-                if ($newStatus === 'checked_in' && $depositPayment->status !== 'paid') {
+                if ($newStatus === 'checked_in' && $depositPayment->status !== PaymentStatus::Paid) {
                     $this->stripe->capturePaymentIntent($depositPayment->stripe_pi_id, $stripeAccountId);
-                    $depositPayment->update(['status' => 'paid', 'paid_at' => now()]);
-                } elseif ($newStatus === 'cancelled' && $depositPayment->status === 'authorized') {
+                    $depositPayment->transitionTo(PaymentStatus::Paid);
+                    $depositPayment->update(['paid_at' => now()]);
+                } elseif ($newStatus === 'cancelled' && $depositPayment->status === PaymentStatus::Authorized) {
                     $this->stripe->cancelPaymentIntent($depositPayment->stripe_pi_id, $stripeAccountId);
-                    $depositPayment->update(['status' => 'refunded', 'refunded_at' => now()]);
-                    $reservation->order?->update(['status' => 'refunded']);
+                    $depositPayment->transitionTo(PaymentStatus::Refunded);
+                    $depositPayment->update(['refunded_at' => now()]);
+                    $reservation->order?->transitionTo(OrderStatus::Refunded);
                 }
             }
         }

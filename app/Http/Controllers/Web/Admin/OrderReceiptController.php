@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\PlanFeatureCache;
@@ -15,9 +17,9 @@ class OrderReceiptController extends Controller
     {
         $order->load(['tenant', 'package', 'orderDogs.dog', 'customer', 'payments']);
 
-        $payment = $order->payments->where('status', 'paid')->first();
+        $payment = $order->payments->where('status', PaymentStatus::Paid)->first();
 
-        abort_if($order->status !== 'paid' || ! $payment?->stripe_pi_id, 404);
+        abort_if($order->status !== OrderStatus::Paid || ! $payment?->stripe_pi_id, 404);
 
         $charge = app(StripeService::class)->retrieveChargeDetails(
             $payment->stripe_pi_id,
@@ -37,7 +39,7 @@ class OrderReceiptController extends Controller
             'stripePaymentIntentId'  => $payment->stripe_pi_id,
             'customerName'           => $order->customer?->name ?? 'Unknown',
             'date'                   => $payment->paid_at?->format('M j, Y') ?? $order->created_at->format('M j, Y'),
-            'status'                 => $order->status,
+            'status'                 => $order->status->value,
             'packageName'            => $order->package?->name ?? 'Unknown',
             'dogNames'               => $order->orderDogs->map(fn ($od) => $od->dog?->name)->filter()->join(', '),
             'subtotalAmount'         => number_format($subtotalCents / 100, 2),

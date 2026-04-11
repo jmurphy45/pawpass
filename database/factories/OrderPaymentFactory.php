@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\PaymentType;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -24,7 +25,7 @@ class OrderPaymentFactory extends Factory
             'stripe_pi_id'          => 'pi_'.Str::random(24),
             'stripe_payment_method' => null,
             'amount_cents'          => fake()->numberBetween(1000, 20000),
-            'type'                  => 'full',
+            'type'                  => PaymentType::Full,
             'status'                => 'paid',
             'paid_at'               => now(),
             'refunded_at'           => null,
@@ -41,12 +42,12 @@ class OrderPaymentFactory extends Factory
 
     public function deposit(): static
     {
-        return $this->state(['type' => 'deposit', 'status' => 'paid']);
+        return $this->state(['type' => PaymentType::Deposit, 'status' => 'paid']);
     }
 
     public function balance(): static
     {
-        return $this->state(['type' => 'balance', 'status' => 'paid']);
+        return $this->state(['type' => PaymentType::Balance, 'status' => 'paid']);
     }
 
     public function pending(): static

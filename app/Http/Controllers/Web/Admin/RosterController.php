@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Enums\OrderStatus;
+use App\Enums\OrderType;
+use App\Enums\PaymentType;
 use App\Exceptions\InsufficientCreditsException;
 use App\Http\Controllers\Controller;
 use App\Models\AddonType;
@@ -322,7 +325,7 @@ class RosterController extends Controller
             'tenant_id'      => $attendance->tenant_id,
             'customer_id'    => $customer?->id,
             'attendance_id'  => $attendance->id,
-            'type'           => 'daycare',
+            'type'           => OrderType::Daycare,
             'status'         => 'pending',
             'cancellable_at' => null,
             'total_amount'   => $totalCents / 100,
@@ -367,12 +370,12 @@ class RosterController extends Controller
                 'tenant_id' => $attendance->tenant_id,
                 'stripe_pi_id' => $pi->id,
                 'amount_cents' => $totalCents,
-                'type' => 'charge',
+                'type' => PaymentType::Charge,
                 'status' => 'paid',
                 'paid_at' => now(),
             ]);
 
-            $order->update(['status' => 'paid']);
+            $order->transitionTo(OrderStatus::Paid);
 
             return $totalCents;
         }

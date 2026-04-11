@@ -169,7 +169,7 @@ class CustomerController extends Controller
             'package_name' => $o->package?->name,
             'type'         => $o->type,
             'total_amount' => (float) $o->total_amount,
-            'status'       => $o->status,
+            'status'       => $o->status->value,
             'created_at'   => $o->created_at->toIso8601String(),
         ]);
 

@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Services\StripeService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -63,9 +65,9 @@ class CancelStalePendingOrders implements ShouldQueue
                 ]);
             }
 
-            $payment->update(['status' => 'canceled']);
+            $payment->transitionTo(PaymentStatus::Canceled);
         }
 
-        $order->update(['status' => 'canceled']);
+        $order->transitionTo(OrderStatus::Canceled);
     }
 }

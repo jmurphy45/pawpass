@@ -498,7 +498,7 @@ class ReservationControllerTest extends TestCase
             'package_id'     => null,
             'reservation_id' => $reservation->id,
             'type'           => 'boarding',
-            'status'         => 'pending',
+            'status'         => 'authorized',
         ]);
 
         $payment = OrderPayment::factory()->forOrder($order)->deposit()->create([

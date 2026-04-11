@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Web\Portal;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Support\Facades\Auth;
@@ -26,9 +28,9 @@ class HistoryController extends Controller
                     'package_name' => $o->package?->name ?? 'Unknown',
                     'dog_names'    => $o->orderDogs->map(fn ($od) => $od->dog?->name)->filter()->values(),
                     'amount_cents' => (int) round((float) $o->total_amount * 100),
-                    'status'       => $o->status,
+                    'status'       => $o->status->value,
                     'created_at'   => $o->created_at->toIso8601String(),
-                    'has_receipt'  => $o->status === 'paid' && $o->payments->contains(fn ($p) => $p->status === 'paid' && $p->stripe_pi_id),
+                    'has_receipt'  => $o->status === OrderStatus::Paid && $o->payments->contains(fn ($p) => $p->status === PaymentStatus::Paid && $p->stripe_pi_id),
                 ]),
                 'meta' => [
                     'total'        => $orders->total(),

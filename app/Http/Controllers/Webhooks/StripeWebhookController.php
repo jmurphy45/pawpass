@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Webhooks;
 
+use App\Enums\OrderStatus;
+use App\Enums\OrderType;
+use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
@@ -73,15 +76,16 @@ class StripeWebhookController extends Controller
             return response()->json(['data' => 'ok']);
         }
 
-        if ($order->status === 'paid') {
+        if ($order->status === OrderStatus::Paid) {
             return response()->json(['data' => 'ok']);
         }
 
         DB::transaction(function () use ($order, $payment) {
-            $payment->update(['status' => 'paid', 'paid_at' => now()]);
-            $order->update(['status' => 'paid']);
+            $payment->transitionTo(PaymentStatus::Paid);
+            $payment->update(['paid_at' => now()]);
+            $order->transitionTo(OrderStatus::Paid);
 
-            if ($order->type !== 'daycare') {
+            if ($order->type !== OrderType::Daycare) {
                 return;
             }
 
@@ -149,8 +153,8 @@ class StripeWebhookController extends Controller
 
         if ($order) {
             Log::warning('payment_intent.failed', ['order_id' => $order->id, 'pi_id' => $pi->id]);
-            $payment->update(['status' => 'failed']);
-            $order->update(['status' => 'failed']);
+            $payment->transitionTo(PaymentStatus::Failed);
+            $order->transitionTo(OrderStatus::Failed);
 
             $isAutoReplenish = ($pi->metadata->auto_replenish ?? null) === 'true';
             if ($isAutoReplenish) {
@@ -171,8 +175,8 @@ class StripeWebhookController extends Controller
         $reservation = $payment?->order?->reservation;
 
         if ($reservation && $reservation->status === 'pending') {
-            $payment->update(['status' => 'authorized']);
-            $payment->order->update(['status' => 'authorized']);
+            $payment->transitionTo(PaymentStatus::Authorized);
+            $payment->order->transitionTo(OrderStatus::Authorized);
             $reservation->update(['status' => 'confirmed']);
         }
 
@@ -186,8 +190,8 @@ class StripeWebhookController extends Controller
         if ($piId) {
             $payment = OrderPayment::where('stripe_pi_id', $piId)->with('order')->first();
             if ($payment) {
-                $payment->update(['status' => 'disputed']);
-                $payment->order?->update(['status' => 'disputed']);
+                $payment->transitionTo(PaymentStatus::Disputed);
+                $payment->order?->transitionTo(OrderStatus::Disputed);
             }
         }
 
@@ -237,12 +241,12 @@ class StripeWebhookController extends Controller
         $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
         $order   = $payment?->order;
 
-        if (! $order || $order->status === 'canceled') {
+        if (! $order || $order->status === OrderStatus::Canceled) {
             return response()->json(['data' => 'ok']);
         }
 
-        $payment->update(['status' => 'canceled']);
-        $order->update(['status' => 'canceled']);
+        $payment->transitionTo(PaymentStatus::Canceled);
+        $order->transitionTo(OrderStatus::Canceled);
 
         return response()->json(['data' => 'ok']);
     }

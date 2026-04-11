@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Enums\OrderStatus;
+use App\Enums\OrderType;
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderLineItem;
@@ -39,7 +43,7 @@ class PaymentController extends Controller
         $payments = $query->paginate(20)->through(function ($payment) {
             $order = $payment->order;
 
-            if ($order->type === 'boarding') {
+            if ($order->type === OrderType::Boarding) {
                 $dog  = $order->reservation?->dog;
                 $desc = 'Boarding' . ($dog ? ': '.$dog->name : '');
             } else {
@@ -50,8 +54,8 @@ class PaymentController extends Controller
                 'id'             => $payment->id,
                 'order_id'       => $order->id,
                 'short_ref'      => '#'.strtoupper(substr($order->id, -6)),
-                'type'           => $order->type,
-                'payment_type'   => $payment->type,
+                'type'           => $order->type->value,
+                'payment_type'   => $payment->type->value,
                 'stripe_pi_id'   => $payment->stripe_pi_id,
                 'customer_name'  => $order->customer?->name,
                 'customer_email' => $order->customer?->email,
@@ -59,7 +63,7 @@ class PaymentController extends Controller
                 'amount_cents'   => $payment->amount_cents,
                 'subtotal_cents' => $order->subtotal_cents,
                 'tax_cents'      => $order->tax_amount_cents,
-                'status'         => $payment->status,
+                'status'         => $payment->status->value,
                 'paid_at'        => $payment->paid_at?->toIso8601String(),
                 'created_at'     => $payment->created_at->toIso8601String(),
                 'refunded_at'    => $payment->refunded_at?->toIso8601String(),
@@ -97,7 +101,7 @@ class PaymentController extends Controller
             'line_item_ids.*' => 'string',
         ]);
 
-        if (! in_array($order->status, ['paid', 'partially_refunded'])) {
+        if (! in_array($order->status, [OrderStatus::Paid, OrderStatus::PartiallyRefunded])) {
             return back()->with('error', 'Only paid orders can be refunded.');
         }
 
@@ -133,15 +137,21 @@ class PaymentController extends Controller
 
             DB::transaction(function () use ($order, $payment, $isPartial, $refundCents) {
                 if ($isPartial) {
-                    $payment?->update(['status' => 'partially_refunded', 'refunded_at' => now()]);
-                    $order->update(['status' => 'partially_refunded']);
+                    if ($payment) {
+                        $payment->transitionTo(PaymentStatus::PartiallyRefunded);
+                        $payment->update(['refunded_at' => now()]);
+                    }
+                    $order->transitionTo(OrderStatus::PartiallyRefunded);
                 } else {
                     $order->load(['orderDogs.dog', 'package']);
                     foreach ($order->orderDogs as $orderDog) {
                         $this->creditService->removeAllOnRefund($order, $orderDog->dog->fresh());
                     }
-                    $payment?->update(['status' => 'refunded', 'refunded_at' => now()]);
-                    $order->update(['status' => 'refunded']);
+                    if ($payment) {
+                        $payment->transitionTo(PaymentStatus::Refunded);
+                        $payment->update(['refunded_at' => now()]);
+                    }
+                    $order->transitionTo(OrderStatus::Refunded);
                 }
             });
 

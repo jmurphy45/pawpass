@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentType;
 use App\Models\Attendance;
 use App\Models\Dog;
 use App\Models\Order;
@@ -196,7 +198,7 @@ class AutoReplenishService
                 'tenant_id'    => $tenant->id,
                 'stripe_pi_id' => $intent->id,
                 'amount_cents' => $totalCents,
-                'type'         => 'full',
+                'type'         => PaymentType::Full,
                 'status'       => 'pending',
             ]);
         } catch (\Throwable $e) {
@@ -206,7 +208,7 @@ class AutoReplenishService
                 'error'   => $e->getMessage(),
             ]);
 
-            $order->update(['status' => 'failed']);
+            $order->transitionTo(OrderStatus::Failed);
 
             $userId = $customer->user_id;
             if ($userId) {
@@ -304,7 +306,7 @@ class AutoReplenishService
             );
 
             if (! in_array($intent->status, ['requires_capture', 'succeeded'])) {
-                $order->update(['status' => 'failed']);
+                $order->transitionTo(OrderStatus::Failed);
 
                 return false;
             }
@@ -322,11 +324,11 @@ class AutoReplenishService
                     'tenant_id'    => $tenant->id,
                     'stripe_pi_id' => $intent->id,
                     'amount_cents' => $totalCents,
-                    'type'         => 'full',
+                    'type'         => PaymentType::Full,
                     'status'       => 'authorized',
                 ]);
 
-                $order->update(['status' => 'authorized']);
+                $order->transitionTo(OrderStatus::Authorized);
 
                 $this->credits->issueFromOrder($order, $dog);
             });
@@ -339,7 +341,7 @@ class AutoReplenishService
                 'error'    => $e->getMessage(),
             ]);
 
-            $order->update(['status' => 'failed']);
+            $order->transitionTo(OrderStatus::Failed);
 
             if ($customer = $dog->customer) {
                 $customer->increment('outstanding_balance_cents', $totalCents);

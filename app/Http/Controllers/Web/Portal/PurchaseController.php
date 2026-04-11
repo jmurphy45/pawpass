@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Web\Portal;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderLineItem;
@@ -215,7 +218,7 @@ class PurchaseController extends Controller
             'order_id'    => $order->id,
             'stripe_pi_id' => $intent->id,
             'amount_cents' => $totalCents,
-            'type'         => 'full',
+            'type'         => PaymentType::Full,
             'status'       => 'pending',
         ]);
 
@@ -306,7 +309,7 @@ class PurchaseController extends Controller
 
         $order = $payment->order;
 
-        if ($order->status === 'paid') {
+        if ($order->status === OrderStatus::Paid) {
             return response()->json(['status' => 'paid']);
         }
 
@@ -318,8 +321,9 @@ class PurchaseController extends Controller
         }
 
         DB::transaction(function () use ($order, $payment, $validated, $request) {
-            $order->update(['status' => 'paid']);
-            $payment->update(['status' => 'paid', 'paid_at' => now()]);
+            $order->transitionTo(OrderStatus::Paid);
+            $payment->transitionTo(PaymentStatus::Paid);
+            $payment->update(['paid_at' => now()]);
             $order->load(['orderDogs.dog', 'package']);
             foreach ($order->orderDogs as $orderDog) {
                 if ($order->package->type === 'unlimited') {

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Attendance;
 use App\Models\Dog;
 use App\Models\Order;
@@ -65,8 +67,9 @@ class AttendancePaymentService
                 $authorizedPayment->stripe_pi_id,
                 $tenant->stripe_account_id,
             );
-            $authorizedPayment->update(['status' => 'paid', 'paid_at' => now()]);
-            $authorizedOrder->update(['status' => 'paid']);
+            $authorizedPayment->transitionTo(PaymentStatus::Paid);
+            $authorizedPayment->update(['paid_at' => now()]);
+            $authorizedOrder->transitionTo(OrderStatus::Paid);
         } catch (\Throwable $e) {
             Log::error('AttendancePaymentService: capture failed', [
                 'attendance_id' => $attendance->id,
@@ -79,7 +82,7 @@ class AttendancePaymentService
                 $customer->increment('outstanding_balance_cents', $newTotalCents);
             }
 
-            $authorizedOrder->update(['status' => 'failed']);
+            $authorizedOrder->transitionTo(OrderStatus::Failed);
         }
     }
 }

@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\DogVaccination;
 use App\Models\KennelUnit;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Models\Reservation;
@@ -227,7 +228,7 @@ class BoardingControllerTest extends TestCase
             'package_id'     => null,
             'reservation_id' => $reservation->id,
             'type'           => 'boarding',
-            'status'         => 'pending',
+            'status'         => 'authorized',
         ]);
 
         $payment = OrderPayment::factory()->forOrder($order)->create([
@@ -246,7 +247,7 @@ class BoardingControllerTest extends TestCase
         $this->actingAs($this->staff);
         $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'checked_in']);
 
-        $this->assertEquals('paid', $payment->fresh()->status);
+        $this->assertEquals(PaymentStatus::Paid, $payment->fresh()->status);
     }
 
     public function test_cancel_releases_stripe_hold(): void
@@ -266,7 +267,7 @@ class BoardingControllerTest extends TestCase
             'package_id'     => null,
             'reservation_id' => $reservation->id,
             'type'           => 'boarding',
-            'status'         => 'pending',
+            'status'         => 'authorized',
         ]);
 
         $payment = OrderPayment::factory()->forOrder($order)->create([
@@ -285,7 +286,7 @@ class BoardingControllerTest extends TestCase
         $this->actingAs($this->staff);
         $this->patch("/admin/boarding/reservations/{$reservation->id}", ['status' => 'cancelled']);
 
-        $this->assertEquals('refunded', $payment->fresh()->status);
+        $this->assertEquals(PaymentStatus::Refunded, $payment->fresh()->status);
     }
 
     public function test_invalid_transition_returns_redirect_with_error(): void

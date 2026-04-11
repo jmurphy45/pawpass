@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\OrderType;
 use App\Models\Attendance;
 use App\Models\Customer;
 use App\Models\Order;
@@ -25,7 +26,7 @@ class OrderFactory extends Factory
             'tenant_id'        => $tenant,
             'customer_id'      => Customer::factory()->state(['tenant_id' => $tenant]),
             'package_id'       => Package::factory()->state(['tenant_id' => $tenant]),
-            'type'             => 'daycare',
+            'type'             => OrderType::Daycare,
             'status'           => 'paid',
             'total_amount'     => fake()->randomElement(['49.00', '89.00', '149.00']),
             'platform_fee_pct' => '5.00',

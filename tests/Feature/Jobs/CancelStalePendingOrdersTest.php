@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Jobs\CancelStalePendingOrders;
 use App\Models\Customer;
 use App\Models\Order;
@@ -60,8 +62,8 @@ class CancelStalePendingOrdersTest extends TestCase
 
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
-        $this->assertEquals('canceled', $order->fresh()->status);
-        $this->assertEquals('canceled', $payment->fresh()->status);
+        $this->assertEquals(OrderStatus::Canceled, $order->fresh()->status);
+        $this->assertEquals(PaymentStatus::Canceled, $payment->fresh()->status);
     }
 
     public function test_skips_orders_with_future_cancellable_at(): void
@@ -84,7 +86,7 @@ class CancelStalePendingOrdersTest extends TestCase
 
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
-        $this->assertEquals('pending', $order->fresh()->status);
+        $this->assertEquals(OrderStatus::Pending, $order->fresh()->status);
     }
 
     public function test_marks_canceled_when_no_stripe_pi_id_without_calling_stripe(): void
@@ -110,7 +112,7 @@ class CancelStalePendingOrdersTest extends TestCase
 
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
-        $this->assertEquals('canceled', $order->fresh()->status);
+        $this->assertEquals(OrderStatus::Canceled, $order->fresh()->status);
     }
 
     public function test_handles_stripe_api_error_gracefully_and_still_marks_canceled(): void
@@ -125,8 +127,8 @@ class CancelStalePendingOrdersTest extends TestCase
 
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
-        $this->assertEquals('canceled', $order->fresh()->status);
-        $this->assertEquals('canceled', $payment->fresh()->status);
+        $this->assertEquals(OrderStatus::Canceled, $order->fresh()->status);
+        $this->assertEquals(PaymentStatus::Canceled, $payment->fresh()->status);
     }
 
     public function test_does_not_touch_non_pending_orders(): void
@@ -149,7 +151,7 @@ class CancelStalePendingOrdersTest extends TestCase
 
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
-        $this->assertEquals('paid', $paidOrder->fresh()->status);
+        $this->assertEquals(OrderStatus::Paid, $paidOrder->fresh()->status);
     }
 
     public function test_cancels_order_locally_when_tenant_has_no_stripe_account(): void
@@ -178,8 +180,8 @@ class CancelStalePendingOrdersTest extends TestCase
 
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
-        $this->assertEquals('canceled', $order->fresh()->status);
-        $this->assertEquals('canceled', $payment->fresh()->status);
+        $this->assertEquals(OrderStatus::Canceled, $order->fresh()->status);
+        $this->assertEquals(PaymentStatus::Canceled, $payment->fresh()->status);
     }
 
     public function test_skips_orders_with_reservation_id(): void
@@ -208,7 +210,7 @@ class CancelStalePendingOrdersTest extends TestCase
 
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
-        $this->assertEquals('pending', $order->fresh()->status);
+        $this->assertEquals(OrderStatus::Pending, $order->fresh()->status);
     }
 
     public function test_skips_orders_with_null_cancellable_at(): void
@@ -231,7 +233,7 @@ class CancelStalePendingOrdersTest extends TestCase
 
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
-        $this->assertEquals('pending', $order->fresh()->status);
+        $this->assertEquals(OrderStatus::Pending, $order->fresh()->status);
     }
 
     public function test_processes_orders_across_all_tenants(): void
@@ -279,7 +281,7 @@ class CancelStalePendingOrdersTest extends TestCase
 
         (new CancelStalePendingOrders)->handle(app(StripeService::class));
 
-        $this->assertEquals('canceled', $orderA->fresh()->status);
-        $this->assertEquals('canceled', $orderB->fresh()->status);
+        $this->assertEquals(OrderStatus::Canceled, $orderA->fresh()->status);
+        $this->assertEquals(OrderStatus::Canceled, $orderB->fresh()->status);
     }
 }

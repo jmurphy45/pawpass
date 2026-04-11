@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Portal\V1;
 
+use App\Enums\OrderStatus;
+use App\Enums\OrderType;
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\StoreReservationRequest;
 use App\Http\Resources\ReservationResource;
@@ -127,7 +131,7 @@ class ReservationController extends Controller
                     'customer_id'      => $reservation->customer_id,
                     'package_id'       => null,
                     'reservation_id'   => $reservation->id,
-                    'type'             => 'boarding',
+                    'type'             => OrderType::Boarding,
                     'status'           => 'pending',
                     'total_amount'     => number_format($depositCents / 100, 2, '.', ''),
                     'platform_fee_pct' => $tenant->effectivePlatformFeePct($depositCents),
@@ -137,7 +141,7 @@ class ReservationController extends Controller
                     'tenant_id'    => $tenantId,
                     'stripe_pi_id' => $pi->id,
                     'amount_cents' => $depositCents,
-                    'type'         => 'deposit',
+                    'type'         => PaymentType::Deposit,
                     'status'       => 'pending',
                 ]);
 
@@ -167,7 +171,7 @@ class ReservationController extends Controller
         ];
 
         $depositPayment = $reservation->order?->payments()
-            ->where('type', 'deposit')
+            ->where('type', PaymentType::Deposit->value)
             ->whereIn('status', ['pending', 'authorized'])
             ->first();
 
@@ -175,8 +179,15 @@ class ReservationController extends Controller
             $tenant = Tenant::find($reservation->tenant_id);
             if ($tenant?->stripe_account_id) {
                 $this->stripe->cancelPaymentIntent($depositPayment->stripe_pi_id, $tenant->stripe_account_id);
-                $depositPayment->update(['status' => 'refunded', 'refunded_at' => now()]);
-                $reservation->order?->update(['status' => 'refunded']);
+
+                if ($depositPayment->status === PaymentStatus::Authorized) {
+                    $depositPayment->transitionTo(PaymentStatus::Refunded);
+                    $depositPayment->update(['refunded_at' => now()]);
+                    $reservation->order?->transitionTo(OrderStatus::Refunded);
+                } else {
+                    $depositPayment->transitionTo(PaymentStatus::Canceled);
+                    $reservation->order?->transitionTo(OrderStatus::Canceled);
+                }
             }
         }
 

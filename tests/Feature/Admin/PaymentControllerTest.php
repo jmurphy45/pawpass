@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Enums\OrderStatus;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
@@ -133,7 +134,7 @@ class PaymentControllerTest extends TestCase
             ->assertJsonPath('data.status', 'refunded');
 
         $order->refresh();
-        $this->assertEquals('refunded', $order->status);
+        $this->assertEquals(OrderStatus::Refunded, $order->status);
         $this->assertDatabaseHas('order_payments', ['order_id' => $order->id, 'status' => 'refunded']);
 
         $dog->refresh();

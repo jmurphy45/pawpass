@@ -394,7 +394,7 @@ class ReservationControllerTest extends TestCase
             'id'     => $reservation->id,
             'status' => 'cancelled',
         ]);
-        $this->assertDatabaseHas('order_payments', ['id' => $payment->id, 'status' => 'refunded']);
+        $this->assertDatabaseHas('order_payments', ['id' => $payment->id, 'status' => 'canceled']);
     }
 
 }

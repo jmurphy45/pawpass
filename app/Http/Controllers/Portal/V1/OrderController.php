@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Portal\V1;
 
+use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\V1\StoreOrderRequest;
 use App\Http\Resources\OrderResource;
@@ -169,7 +170,7 @@ class OrderController extends Controller
             'tenant_id'    => $tenantId,
             'stripe_pi_id' => $pi->id,
             'amount_cents' => $totalCents,
-            'type'         => 'full',
+            'type'         => PaymentType::Full,
             'status'       => 'pending',
         ]);
 

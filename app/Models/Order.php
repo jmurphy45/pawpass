@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
+use App\Enums\OrderType;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,6 +36,8 @@ class Order extends Model
     protected function casts(): array
     {
         return [
+            'type'             => OrderType::class,
+            'status'           => OrderStatus::class,
             'total_amount'     => 'decimal:2',
             'platform_fee_pct' => 'decimal:2',
             'subtotal_cents'   => 'integer',
@@ -42,6 +46,38 @@ class Order extends Model
             'created_at'       => 'immutable_datetime',
             'updated_at'       => 'immutable_datetime',
         ];
+    }
+
+    private const TRANSITIONS = [
+        'pending'            => ['authorized', 'paid', 'failed', 'canceled'],
+        'authorized'         => ['paid', 'failed', 'canceled', 'refunded'],
+        'paid'               => ['partially_refunded', 'refunded', 'disputed'],
+        'partially_refunded' => ['refunded', 'disputed'],
+        'failed'             => ['canceled'],
+        'refunded'           => [],
+        'canceled'           => [],
+        'disputed'           => [],
+    ];
+
+    public function allowedTransitions(): array
+    {
+        return self::TRANSITIONS[$this->status->value] ?? [];
+    }
+
+    public function canTransitionTo(OrderStatus $status): bool
+    {
+        return in_array($status->value, $this->allowedTransitions(), true);
+    }
+
+    public function transitionTo(OrderStatus $status): void
+    {
+        if (! $this->canTransitionTo($status)) {
+            throw new \LogicException(
+                "Cannot transition order from [{$this->status->value}] to [{$status->value}]."
+            );
+        }
+
+        $this->update(['status' => $status]);
     }
 
     public function tenant(): BelongsTo

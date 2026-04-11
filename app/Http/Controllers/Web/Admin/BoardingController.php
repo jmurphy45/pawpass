@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Enums\OrderStatus;
+use App\Enums\OrderType;
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Models\AddonType;
 use App\Models\BoardingReportCard;
@@ -118,7 +122,7 @@ class BoardingController extends Controller
         $order = $reservation->order ?? $this->createBoardingOrder($reservation);
 
         // Deposit already paid (tracked in order_payments)
-        $depositPayment   = $order->payments()->whereIn('status', ['paid', 'authorized'])->where('type', 'deposit')->first();
+        $depositPayment   = $order->payments()->whereIn('status', ['paid', 'authorized'])->where('type', PaymentType::Deposit->value)->first();
         $depositPaidCents = $depositPayment?->amount_cents ?? 0;
 
         $balance = max(0, $nightsTotal + $addonsTotal - $depositPaidCents);
@@ -178,7 +182,7 @@ class BoardingController extends Controller
                     'tenant_id'             => $reservation->tenant_id,
                     'stripe_pi_id'          => $pi->id,
                     'amount_cents'          => $balance,
-                    'type'                  => 'balance',
+                    'type'                  => PaymentType::Balance,
                     'status'                => 'paid',
                     'paid_at'               => now(),
                 ]);
@@ -189,10 +193,8 @@ class BoardingController extends Controller
 
         // Update total amount and mark order paid
         $totalCents = $depositPaidCents + $chargedCents;
-        $order->update([
-            'total_amount' => number_format($totalCents / 100, 2, '.', ''),
-            'status'       => 'paid',
-        ]);
+        $order->update(['total_amount' => number_format($totalCents / 100, 2, '.', '')]);
+        $order->transitionTo(OrderStatus::Paid);
 
         $reservation->transitionTo('checked_out', auth()->id());
         $reservation->update(['actual_checkout_at' => $actualCheckout]);
@@ -211,7 +213,7 @@ class BoardingController extends Controller
             'customer_id'      => $reservation->customer_id,
             'package_id'       => null,
             'reservation_id'   => $reservation->id,
-            'type'             => 'boarding',
+            'type'             => OrderType::Boarding,
             'status'           => 'pending',
             'total_amount'     => '0.00',
             'platform_fee_pct' => Tenant::find($reservation->tenant_id)?->platform_fee_pct ?? 5.0,
@@ -307,13 +309,15 @@ class BoardingController extends Controller
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($stripeAccountId) {
-                if ($newStatus === 'checked_in' && $depositPayment->status !== 'paid') {
+                if ($newStatus === 'checked_in' && $depositPayment->status !== PaymentStatus::Paid) {
                     $this->stripe->capturePaymentIntent($depositPayment->stripe_pi_id, $stripeAccountId);
-                    $depositPayment->update(['status' => 'paid', 'paid_at' => now()]);
-                } elseif ($newStatus === 'cancelled' && $depositPayment->status === 'authorized') {
+                    $depositPayment->transitionTo(PaymentStatus::Paid);
+                    $depositPayment->update(['paid_at' => now()]);
+                } elseif ($newStatus === 'cancelled' && $depositPayment->status === PaymentStatus::Authorized) {
                     $this->stripe->cancelPaymentIntent($depositPayment->stripe_pi_id, $stripeAccountId);
-                    $depositPayment->update(['status' => 'refunded', 'refunded_at' => now()]);
-                    $reservation->order?->update(['status' => 'refunded']);
+                    $depositPayment->transitionTo(PaymentStatus::Refunded);
+                    $depositPayment->update(['refunded_at' => now()]);
+                    $reservation->order?->transitionTo(OrderStatus::Refunded);
                 }
             }
         }

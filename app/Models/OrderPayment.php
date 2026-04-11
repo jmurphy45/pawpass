@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,12 +29,46 @@ class OrderPayment extends Model
     protected function casts(): array
     {
         return [
+            'type'         => PaymentType::class,
+            'status'       => PaymentStatus::class,
             'amount_cents' => 'integer',
             'paid_at'      => 'immutable_datetime',
             'refunded_at'  => 'immutable_datetime',
             'created_at'   => 'immutable_datetime',
             'updated_at'   => 'immutable_datetime',
         ];
+    }
+
+    private const TRANSITIONS = [
+        'pending'            => ['authorized', 'paid', 'failed', 'canceled'],
+        'authorized'         => ['paid', 'refunded', 'canceled'],
+        'paid'               => ['partially_refunded', 'refunded', 'disputed'],
+        'partially_refunded' => ['refunded', 'disputed'],
+        'failed'             => ['canceled'],
+        'refunded'           => [],
+        'canceled'           => [],
+        'disputed'           => [],
+    ];
+
+    public function allowedTransitions(): array
+    {
+        return self::TRANSITIONS[$this->status->value] ?? [];
+    }
+
+    public function canTransitionTo(PaymentStatus $status): bool
+    {
+        return in_array($status->value, $this->allowedTransitions(), true);
+    }
+
+    public function transitionTo(PaymentStatus $status): void
+    {
+        if (! $this->canTransitionTo($status)) {
+            throw new \LogicException(
+                "Cannot transition payment from [{$this->status->value}] to [{$status->value}]."
+            );
+        }
+
+        $this->update(['status' => $status]);
     }
 
     public function order(): BelongsTo
