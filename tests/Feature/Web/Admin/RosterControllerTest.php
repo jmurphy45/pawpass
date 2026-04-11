@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\AttendancePaymentService;
 use App\Services\AutoReplenishService;
 use App\Services\DogCreditService;
 use App\Services\StripeService;
@@ -230,6 +231,64 @@ class RosterControllerTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('error');
         $this->assertDatabaseMissing('attendances', ['dog_id' => $dog->id]);
+    }
+
+    public function test_auto_replenish_checkin_passes_attendance_to_trigger_sync(): void
+    {
+        $package = Package::factory()->autoReplenish()->create([
+            'tenant_id' => $this->tenant->id,
+            'credit_count' => 5,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_payment_method_id' => 'pm_test_123',
+        ]);
+
+        $dog = Dog::factory()->forCustomer($customer)->create([
+            'credit_balance' => 0,
+            'auto_replenish_enabled' => true,
+            'auto_replenish_package_id' => $package->id,
+        ]);
+
+        $this->mock(AutoReplenishService::class)
+            ->shouldReceive('triggerSync')
+            ->once()
+            ->withArgs(function ($argDog, $argAttendance) use ($dog) {
+                return $argDog->id === $dog->id
+                    && $argAttendance instanceof Attendance
+                    && $argAttendance->dog_id === $dog->id;
+            })
+            ->andReturn(true);
+
+        $this->actingAs($this->staff);
+
+        $this->post('/admin/roster/checkin', ['dog_id' => $dog->id]);
+
+        $this->assertDatabaseHas('attendances', ['dog_id' => $dog->id]);
+    }
+
+    public function test_checkout_calls_capture_authorized_for_authorized_order(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 5]);
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
+            'checked_out_at' => null,
+        ]);
+
+        $this->mock(AttendancePaymentService::class)
+            ->shouldReceive('captureAuthorized')
+            ->once()
+            ->withArgs(fn ($a) => $a->id === $attendance->id);
+
+        $this->actingAs($this->staff);
+
+        $this->post('/admin/roster/checkout', ['dog_id' => $dog->id]);
     }
 
     // -------------------------------------------------------------------------

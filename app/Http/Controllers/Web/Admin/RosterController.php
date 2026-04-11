@@ -32,6 +32,7 @@ class RosterController extends Controller
         private StripeService $stripe,
         private AutoReplenishService $autoReplenish,
         private TenantEventService $events,
+        private AttendancePaymentService $attendancePayments,
     ) {}
 
     public function index(): Response
@@ -137,21 +138,6 @@ class RosterController extends Controller
             return back()->with('error', 'Cannot check in dog with zero credits.');
         }
 
-        if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && ! $tenant->checkin_block_at_zero) {
-            if ($dog->auto_replenish_enabled && $dog->auto_replenish_package_id) {
-                if (! $this->autoReplenish->triggerSync($dog)) {
-                    return back()->with('error', 'Auto-replenish charge failed. Check payment method.');
-                }
-                $dog = $dog->fresh();
-            } elseif ($tenant->auto_charge_at_zero_package_id) {
-                $package = Package::find($tenant->auto_charge_at_zero_package_id);
-                if ($package && ! $this->autoReplenish->triggerForPackage($dog, $package)) {
-                    return back()->with('error', 'Auto-charge failed. Check payment method.');
-                }
-                $dog = $dog->fresh();
-            }
-        }
-
         $attendance = Attendance::create([
             'tenant_id' => $tenantId,
             'dog_id' => $dog->id,
@@ -160,6 +146,25 @@ class RosterController extends Controller
             'zero_credit_override' => $override,
             'override_note' => $request->override_note,
         ]);
+
+        if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && ! $tenant->checkin_block_at_zero) {
+            if ($dog->auto_replenish_enabled && $dog->auto_replenish_package_id) {
+                if (! $this->autoReplenish->triggerSync($dog, $attendance)) {
+                    $attendance->delete();
+
+                    return back()->with('error', 'Auto-replenish charge failed. Check payment method.');
+                }
+                $dog = $dog->fresh();
+            } elseif ($tenant->auto_charge_at_zero_package_id) {
+                $package = Package::find($tenant->auto_charge_at_zero_package_id);
+                if ($package && ! $this->autoReplenish->triggerForPackage($dog, $package, $attendance)) {
+                    $attendance->delete();
+
+                    return back()->with('error', 'Auto-charge failed. Check payment method.');
+                }
+                $dog = $dog->fresh();
+            }
+        }
 
         try {
             $this->credits->deductForAttendance($attendance);
@@ -205,6 +210,8 @@ class RosterController extends Controller
             'checked_out_at' => now(),
             'checked_out_by' => auth()->id(),
         ]);
+
+        $this->attendancePayments->captureAuthorized($attendance);
 
         $dog = Dog::find($request->dog_id);
 
