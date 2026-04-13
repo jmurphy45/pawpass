@@ -390,6 +390,11 @@
             class="text-sm font-medium transition-colors duration-300"
             :class="navScrolled ? 'text-gray-600 hover:text-gray-900' : 'text-white/70 hover:text-white'"
           >Pricing</a>
+          <a
+            href="/find-a-daycare"
+            class="text-sm font-medium transition-colors duration-300"
+            :class="navScrolled ? 'text-gray-600 hover:text-gray-900' : 'text-white/70 hover:text-white'"
+          >Find a Daycare</a>
         </div>
 
         <!-- Right: login + CTA -->
