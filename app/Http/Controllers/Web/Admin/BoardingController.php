@@ -159,24 +159,29 @@ class BoardingController extends Controller
             if ($customer?->stripe_payment_method_id && $stripeAccountId) {
                 $feePct   = $tenant->effectivePlatformFeePct($balance);
                 $feeCents = (int) round($balance * $feePct / 100);
-                $pi = $this->stripe->createPaymentIntent(
-                    $balance,
-                    'usd',
-                    $stripeAccountId,
-                    $feeCents,
-                    [
-                        'reservation_id' => $reservation->id,
-                        'tenant_id'      => $reservation->tenant_id,
-                        'dog_name'       => $reservation->dog?->name,
-                        'type'           => 'boarding_checkout',
-                    ],
-                    $customer->stripe_customer_id,
-                    true,
-                    true,
-                    $customer->stripe_payment_method_id,
-                    [],
-                    null,
-                );
+
+                try {
+                    $pi = $this->stripe->createPaymentIntent(
+                        $balance,
+                        'usd',
+                        $stripeAccountId,
+                        $feeCents,
+                        [
+                            'reservation_id' => $reservation->id,
+                            'tenant_id'      => $reservation->tenant_id,
+                            'dog_name'       => $reservation->dog?->name,
+                            'type'           => 'boarding_checkout',
+                        ],
+                        $customer->stripe_customer_id,
+                        true,
+                        true,
+                        $customer->stripe_payment_method_id,
+                        [],
+                        null,
+                    );
+                } catch (\Stripe\Exception\ApiErrorException $e) {
+                    return back()->withErrors(['stripe' => 'Payment failed: '.$e->getMessage()]);
+                }
 
                 $order->payments()->create([
                     'tenant_id'             => $reservation->tenant_id,

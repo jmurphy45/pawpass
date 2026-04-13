@@ -43,12 +43,16 @@ class StripeWebhookController extends Controller
             return response()->json(['message' => 'Invalid signature'], 400);
         }
 
-        RawWebhook::create([
-            'provider' => 'stripe',
-            'event_id' => $event->id,
-            'payload' => $payload,
+        $inserted = DB::table('raw_webhooks')->insertOrIgnore([
+            'provider'    => 'stripe',
+            'event_id'    => $event->id,
+            'payload'     => $payload,
             'received_at' => now(),
         ]);
+
+        if ($inserted === 0) {
+            return response()->json(['data' => 'ok']);
+        }
 
         return match ($event->type) {
             'payment_intent.succeeded'               => $this->handlePaymentIntentSucceeded($event->data->object),

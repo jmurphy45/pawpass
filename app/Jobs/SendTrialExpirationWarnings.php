@@ -12,6 +12,10 @@ class SendTrialExpirationWarnings implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 3;
+
+    public array $backoff = [60, 300, 900];
+
     public function handle(NotificationService $notificationService): void
     {
         $warningDays = [7, 3, 1];

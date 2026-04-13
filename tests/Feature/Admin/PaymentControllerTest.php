@@ -179,4 +179,38 @@ class PaymentControllerTest extends TestCase
 
         $response->assertStatus(404);
     }
+
+    public function test_refund_returns_502_when_stripe_api_fails(): void
+    {
+        $dog = Dog::factory()->forCustomer($this->customer)->withCredits(5)->create();
+
+        $order = Order::factory()->create([
+            'tenant_id'  => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'package_id' => $this->package->id,
+            'status'     => 'paid',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_refund_fail',
+            'status'       => 'paid',
+        ]);
+
+        $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 5]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createRefund')
+                ->once()
+                ->andThrow(new \Stripe\Exception\ApiConnectionException('Stripe unreachable'));
+        });
+
+        $this->withHeaders($this->authHeaders())
+            ->postJson("/api/admin/v1/payments/{$order->id}/refund")
+            ->assertStatus(502)
+            ->assertJsonPath('message', 'Stripe unreachable');
+
+        // Order and credits must NOT have been modified
+        $this->assertEquals(OrderStatus::Paid, $order->fresh()->status);
+        $this->assertEquals(5, $dog->fresh()->credit_balance);
+    }
 }

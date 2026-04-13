@@ -12,7 +12,9 @@ class ProcessAutoReplenishJob implements ShouldQueue, ShouldBeUnique
 {
     use Queueable;
 
-    public int $tries = 1;
+    public int $tries = 3;
+
+    public array $backoff = [60, 300, 900];
 
     public function __construct(public readonly string $dogId)
     {

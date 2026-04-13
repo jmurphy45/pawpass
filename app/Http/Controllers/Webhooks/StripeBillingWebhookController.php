@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSubscriptionEvent;
-use App\Models\RawWebhook;
 use App\Models\Tenant;
 use App\Services\NotificationService;
 use App\Services\StripeBillingService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Stripe\Exception\SignatureVerificationException;
 
@@ -36,12 +36,16 @@ class StripeBillingWebhookController extends Controller
             return response()->json(['message' => 'Invalid signature'], 400);
         }
 
-        RawWebhook::create([
+        $inserted = DB::table('raw_webhooks')->insertOrIgnore([
             'provider'    => 'stripe_billing',
             'event_id'    => $event->id,
             'payload'     => $payload,
             'received_at' => now(),
         ]);
+
+        if ($inserted === 0) {
+            return response()->json(['data' => 'ok']);
+        }
 
         return match ($event->type) {
             'customer.subscription.created'  => $this->handleSubscriptionCreated($event->data->object),

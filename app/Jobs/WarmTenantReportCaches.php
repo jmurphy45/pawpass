@@ -12,6 +12,10 @@ class WarmTenantReportCaches implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 3;
+
+    public array $backoff = [60, 300, 900];
+
     public function handle(ReportService $reportService): void
     {
         $from = now()->subMonths(13)->startOfMonth()->toDateTimeString();

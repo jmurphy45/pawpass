@@ -47,7 +47,11 @@ class PaymentController extends Controller
         $payment = $order->payments()->whereIn('status', ['paid', 'authorized'])->latest()->first();
 
         if ($payment?->stripe_pi_id) {
-            $this->stripe->createRefund($payment->stripe_pi_id, $stripeAccountId);
+            try {
+                $this->stripe->createRefund($payment->stripe_pi_id, $stripeAccountId);
+            } catch (\Stripe\Exception\ApiErrorException $e) {
+                return response()->json(['message' => $e->getMessage()], 502);
+            }
         }
 
         DB::transaction(function () use ($order, $payment) {

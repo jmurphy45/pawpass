@@ -400,4 +400,51 @@ class StripeWebhookTest extends TestCase
 
         $this->postWebhook([], 'valid-sig')->assertStatus(200);
     }
+
+    public function test_replayed_event_id_returns_200_and_does_not_process_twice(): void
+    {
+        $tenant  = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package  = Package::factory()->create([
+            'tenant_id'    => $tenant->id,
+            'type'         => 'one_time',
+            'credit_count' => 5,
+        ]);
+        $dog = Dog::factory()->forCustomer($customer)->withCredits(0)->create();
+
+        $order = Order::factory()->create([
+            'tenant_id'   => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id'  => $package->id,
+            'status'      => 'pending',
+        ]);
+        $payment = OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_replay_test',
+            'status'       => 'pending',
+            'paid_at'      => null,
+        ]);
+        $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
+
+        // Pre-insert the event as already received (simulates a prior delivery)
+        \App\Models\RawWebhook::create([
+            'provider'    => 'stripe',
+            'event_id'    => 'evt_replay123',
+            'payload'     => '{}',
+            'received_at' => now(),
+        ]);
+
+        $event = $this->makeEvent('payment_intent.succeeded', ['id' => 'pi_replay_test'], 'evt_replay123');
+        $this->mockStripeVerify($event);
+
+        $response = $this->postWebhook([], 'valid-sig');
+
+        $response->assertStatus(200);
+
+        // Credits must NOT have been issued — dog still has 0 credits
+        $this->assertEquals(0, $dog->fresh()->credit_balance);
+        $this->assertDatabaseCount('credit_ledger', 0);
+
+        // Only one raw_webhook row for this event_id
+        $this->assertDatabaseCount('raw_webhooks', 1);
+    }
 }

@@ -3,12 +3,15 @@
 namespace Tests\Unit\Jobs;
 
 use App\Jobs\ExpireSubscriptionCredits;
+use App\Jobs\ProcessAutoReplenishJob;
 use App\Models\CreditLedger;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Tenant;
 use App\Services\NotificationService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class ExpireSubscriptionCreditsTest extends TestCase
@@ -92,6 +95,30 @@ class ExpireSubscriptionCreditsTest extends TestCase
 
         // credits_expire_at was never set, so it stays null
         $this->assertNull($dog->fresh()->credits_expire_at);
+    }
+
+    public function test_job_implements_should_be_unique_to_prevent_concurrent_double_runs(): void
+    {
+        $this->assertInstanceOf(ShouldBeUnique::class, new ExpireSubscriptionCredits);
+    }
+
+    public function test_running_twice_sequentially_dispatches_auto_replenish_only_once(): void
+    {
+        Queue::fake();
+
+        $dog = $this->makeDog(0);
+        $dog->update([
+            'unlimited_pass_expires_at' => now()->subMinute(),
+            'auto_replenish_enabled'    => true,
+        ]);
+
+        // First run: should dispatch ProcessAutoReplenishJob and clear the expiry date
+        (new ExpireSubscriptionCredits)->handle();
+        Queue::assertPushed(ProcessAutoReplenishJob::class, 1);
+
+        // Second run: expiry date cleared, dog not in query — no second dispatch
+        (new ExpireSubscriptionCredits)->handle();
+        Queue::assertPushed(ProcessAutoReplenishJob::class, 1);
     }
 
     public function test_future_unlimited_pass_is_not_expired(): void

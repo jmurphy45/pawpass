@@ -9,11 +9,14 @@ use App\Services\Cancellation\Strategies\AttendanceAddonCancellationStrategy;
 use App\Services\Cancellation\Strategies\BoardingCancellationStrategy;
 use App\Services\Cancellation\Strategies\DaycareCancellationStrategy;
 use App\Services\StripeService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CancellationStrategyResolverTest extends TestCase
 {
+    use RefreshDatabase;
+
     private CancellationStrategyResolver $resolver;
 
     protected function setUp(): void

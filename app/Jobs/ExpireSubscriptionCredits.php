@@ -5,13 +5,18 @@ namespace App\Jobs;
 use App\Models\Dog;
 use App\Services\DogCreditService;
 use App\Services\NotificationService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
-class ExpireSubscriptionCredits implements ShouldQueue
+class ExpireSubscriptionCredits implements ShouldQueue, ShouldBeUnique
 {
     use Queueable;
+
+    public int $tries = 3;
+
+    public array $backoff = [60, 300, 900];
 
     public function handle(): void
     {

@@ -520,4 +520,28 @@ class ReservationControllerTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseHas('order_payments', ['id' => $payment->id, 'status' => 'refunded']);
     }
+
+    public function test_store_returns_422_when_ends_at_equals_starts_at(): void
+    {
+        $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/reservations', [
+                'dog_id'    => $this->dog->id,
+                'starts_at' => '2026-06-10',
+                'ends_at'   => '2026-06-10',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('ends_at');
+    }
+
+    public function test_store_returns_422_when_ends_at_before_starts_at(): void
+    {
+        $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/reservations', [
+                'dog_id'    => $this->dog->id,
+                'starts_at' => '2026-06-10',
+                'ends_at'   => '2026-06-09',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('ends_at');
+    }
 }

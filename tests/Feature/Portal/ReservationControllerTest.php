@@ -397,4 +397,51 @@ class ReservationControllerTest extends TestCase
         $this->assertDatabaseHas('order_payments', ['id' => $payment->id, 'status' => 'canceled']);
     }
 
+    public function test_store_stripe_failure_leaves_no_orphaned_reservation(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_test', 'platform_fee_pct' => 5.0]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('createHoldPaymentIntent')
+            ->once()
+            ->andThrow(new \Stripe\Exception\ApiConnectionException('Stripe down'));
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->withHeaders($this->authHeaders())
+            ->postJson('/api/portal/v1/reservations', [
+                'dog_id'               => $this->dog->id,
+                'starts_at'            => '2026-07-01',
+                'ends_at'              => '2026-07-05',
+                'deposit_amount_cents' => 5000,
+            ])
+            ->assertStatus(500);
+
+        $this->assertDatabaseMissing('reservations', ['dog_id' => $this->dog->id]);
+        $this->assertDatabaseMissing('orders', ['customer_id' => $this->customer->id]);
+    }
+
+    public function test_store_returns_422_when_ends_at_equals_starts_at(): void
+    {
+        $this->withHeaders($this->authHeaders())
+            ->postJson('/api/portal/v1/reservations', [
+                'dog_id'    => $this->dog->id,
+                'starts_at' => '2026-06-10',
+                'ends_at'   => '2026-06-10',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('ends_at');
+    }
+
+    public function test_store_returns_422_when_ends_at_before_starts_at(): void
+    {
+        $this->withHeaders($this->authHeaders())
+            ->postJson('/api/portal/v1/reservations', [
+                'dog_id'    => $this->dog->id,
+                'starts_at' => '2026-06-10',
+                'ends_at'   => '2026-06-09',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('ends_at');
+    }
+
 }

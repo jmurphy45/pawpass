@@ -21,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\DB;
 
 class ReservationController extends Controller
 {
@@ -88,66 +89,72 @@ class ReservationController extends Controller
             ], 422);
         }
 
-        $reservation = Reservation::create([
-            'tenant_id'          => $tenantId,
-            'dog_id'             => $dog->id,
-            'customer_id'        => $customerId,
-            'kennel_unit_id'     => $request->kennel_unit_id,
-            'status'             => 'pending',
-            'starts_at'          => $startsAt,
-            'ends_at'            => $endsAt,
-            'nightly_rate_cents' => $unit?->nightly_rate_cents,
-            'notes'              => $request->notes,
-            'feeding_schedule'   => $request->feeding_schedule,
-            'medication_notes'   => $request->medication_notes,
-            'behavioral_notes'   => $request->behavioral_notes,
-            'emergency_contact'  => $request->emergency_contact,
-            'created_by'         => auth()->id(),
-        ]);
-
         $clientSecret = null;
 
-        if ($request->filled('deposit_amount_cents')) {
-            $tenant = Tenant::find($tenantId);
+        $reservation = DB::transaction(function () use (
+            $tenantId, $dog, $customerId, $request, $unit, $startsAt, $endsAt, &$clientSecret
+        ) {
+            $res = Reservation::create([
+                'tenant_id'          => $tenantId,
+                'dog_id'             => $dog->id,
+                'customer_id'        => $customerId,
+                'kennel_unit_id'     => $request->kennel_unit_id,
+                'status'             => 'pending',
+                'starts_at'          => $startsAt,
+                'ends_at'            => $endsAt,
+                'nightly_rate_cents' => $unit?->nightly_rate_cents,
+                'notes'              => $request->notes,
+                'feeding_schedule'   => $request->feeding_schedule,
+                'medication_notes'   => $request->medication_notes,
+                'behavioral_notes'   => $request->behavioral_notes,
+                'emergency_contact'  => $request->emergency_contact,
+                'created_by'         => auth()->id(),
+            ]);
 
-            if ($tenant?->stripe_account_id) {
-                $depositCents = (int) $request->deposit_amount_cents;
-                $feeCents     = (int) round($depositCents * $tenant->effectivePlatformFeePct($depositCents) / 100);
+            if ($request->filled('deposit_amount_cents')) {
+                $tenant = Tenant::find($tenantId);
 
-                $pi = $this->stripe->createHoldPaymentIntent(
-                    $depositCents,
-                    'usd',
-                    $tenant->stripe_account_id,
-                    $feeCents,
-                    [
-                        'reservation_id' => $reservation->id,
-                        'tenant_id'      => $tenantId,
-                        'dog_name'       => $dog->name,
-                    ]
-                );
+                if ($tenant?->stripe_account_id) {
+                    $depositCents = (int) $request->deposit_amount_cents;
+                    $feeCents     = (int) round($depositCents * $tenant->effectivePlatformFeePct($depositCents) / 100);
 
-                $order = Order::create([
-                    'tenant_id'        => $tenantId,
-                    'customer_id'      => $reservation->customer_id,
-                    'package_id'       => null,
-                    'reservation_id'   => $reservation->id,
-                    'type'             => OrderType::Boarding,
-                    'status'           => 'pending',
-                    'total_amount'     => number_format($depositCents / 100, 2, '.', ''),
-                    'platform_fee_pct' => $tenant->effectivePlatformFeePct($depositCents),
-                ]);
+                    $pi = $this->stripe->createHoldPaymentIntent(
+                        $depositCents,
+                        'usd',
+                        $tenant->stripe_account_id,
+                        $feeCents,
+                        [
+                            'reservation_id' => $res->id,
+                            'tenant_id'      => $tenantId,
+                            'dog_name'       => $dog->name,
+                        ]
+                    );
 
-                $order->payments()->create([
-                    'tenant_id'    => $tenantId,
-                    'stripe_pi_id' => $pi->id,
-                    'amount_cents' => $depositCents,
-                    'type'         => PaymentType::Deposit,
-                    'status'       => 'pending',
-                ]);
+                    $order = Order::create([
+                        'tenant_id'        => $tenantId,
+                        'customer_id'      => $res->customer_id,
+                        'package_id'       => null,
+                        'reservation_id'   => $res->id,
+                        'type'             => OrderType::Boarding,
+                        'status'           => 'pending',
+                        'total_amount'     => number_format($depositCents / 100, 2, '.', ''),
+                        'platform_fee_pct' => $tenant->effectivePlatformFeePct($depositCents),
+                    ]);
 
-                $clientSecret = $pi->client_secret;
+                    $order->payments()->create([
+                        'tenant_id'    => $tenantId,
+                        'stripe_pi_id' => $pi->id,
+                        'amount_cents' => $depositCents,
+                        'type'         => PaymentType::Deposit,
+                        'status'       => 'pending',
+                    ]);
+
+                    $clientSecret = $pi->client_secret;
+                }
             }
-        }
+
+            return $res;
+        });
 
         return response()->json(['data' => new ReservationResource($reservation->fresh()), 'client_secret' => $clientSecret], 201);
     }

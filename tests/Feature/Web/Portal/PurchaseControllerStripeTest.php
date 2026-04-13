@@ -9,6 +9,7 @@ use App\Models\OrderPayment;
 use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\DogCreditService;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
@@ -544,6 +545,57 @@ class PurchaseControllerStripeTest extends TestCase
         $this->assertSame(now()->daysInMonth, $fresh->credit_balance);
         $this->assertNull($fresh->credits_expire_at);
         $this->assertNotNull($fresh->unlimited_pass_expires_at);
+    }
+
+    public function test_confirm_returns_non_200_when_credit_service_fails(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id'  => $this->tenant->id,
+            'type'       => 'one_time',
+            'price'      => '50.00',
+            'credit_count' => 5,
+            'is_active'  => true,
+            'dog_limit'  => 1,
+        ]);
+
+        $this->dog->update(['credit_balance' => 0]);
+
+        $order = Order::factory()->create([
+            'tenant_id'   => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'package_id'  => $package->id,
+            'status'      => 'pending',
+        ]);
+        $order->orderDogs()->create(['dog_id' => $this->dog->id, 'credits_issued' => 0]);
+        OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_fail_confirm',
+            'status'       => 'pending',
+            'type'         => 'full',
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('retrievePaymentIntent')
+                ->once()
+                ->andReturn((object) ['status' => 'succeeded', 'payment_method' => null]);
+        });
+
+        $this->mock(DogCreditService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('issueFromOrder')
+                ->once()
+                ->andThrow(new \RuntimeException('Credit ledger write failed'));
+        });
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase/confirm', [
+            'payment_intent_id' => 'pi_fail_confirm',
+        ]);
+
+        // Must return non-200 so the Vue resp.ok guard triggers and shows an error to the user
+        $this->assertNotEquals(200, $response->status());
+
+        // Credits must NOT have been issued — dog still at 0
+        $this->assertEquals(0, $this->dog->fresh()->credit_balance);
     }
 
 }

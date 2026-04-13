@@ -393,4 +393,37 @@ class StripeBillingWebhookTest extends TestCase
 
         $this->assertDatabaseHas('raw_webhooks', ['provider' => 'stripe_billing', 'event_id' => 'evt_billing_test']);
     }
+
+    public function test_replayed_billing_event_returns_200_and_does_not_process_twice(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'status' => 'trialing',
+            'plan'   => 'starter',
+        ]);
+
+        // Pre-insert the event to simulate it having been received and processed already
+        \App\Models\RawWebhook::create([
+            'provider'    => 'stripe_billing',
+            'event_id'    => 'evt_dedup_billing_001',
+            'payload'     => '{}',
+            'received_at' => now(),
+        ]);
+
+        $event = $this->makeEvent('customer.subscription.created', [
+            'id'                   => 'sub_dedup_test',
+            'status'               => 'active',
+            'current_period_end'   => now()->addMonth()->timestamp,
+            'cancel_at_period_end' => false,
+            'metadata'             => (object) ['tenant_id' => $tenant->id],
+        ], 'evt_dedup_billing_001');
+
+        $this->mockBillingVerify($event);
+
+        // Replayed delivery — dedup must return 200 without processing
+        $this->postWebhook()->assertStatus(200);
+
+        // Tenant status must remain unchanged — subscription.created was not processed
+        $this->assertEquals('trialing', $tenant->fresh()->status);
+        $this->assertDatabaseCount('raw_webhooks', 1);
+    }
 }

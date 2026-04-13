@@ -11,6 +11,10 @@ class SendUpgradeNudges implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 3;
+
+    public array $backoff = [60, 300, 900];
+
     public function handle(NotificationService $notificationService): void
     {
         $nudgeDays = [7, 30];

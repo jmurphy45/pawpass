@@ -584,4 +584,42 @@ class BoardingControllerTest extends TestCase
         $response->assertStatus(409);
         $this->assertDatabaseHas('reservation_addons', ['id' => $addon->id]);
     }
+
+    public function test_checkout_stripe_failure_leaves_reservation_in_checked_in_state(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_stripe_fail', 'platform_fee_pct' => 5.0]);
+
+        $this->customer->update([
+            'stripe_customer_id'       => 'cus_fail',
+            'stripe_payment_method_id' => 'pm_fail_card',
+        ]);
+
+        $reservation = Reservation::factory()->checkedIn()->create([
+            'tenant_id'          => $this->tenant->id,
+            'dog_id'             => $this->dog->id,
+            'customer_id'        => $this->customer->id,
+            'created_by'         => $this->staff->id,
+            'starts_at'          => now()->subDays(2)->startOfDay(),
+            'ends_at'            => now()->startOfDay(),
+            'nightly_rate_cents' => 5000,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('createPaymentIntent')
+            ->once()
+            ->andThrow(new \Stripe\Exception\ApiConnectionException('Stripe unavailable'));
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+        $response = $this->post("/admin/boarding/reservations/{$reservation->id}/checkout", [
+            'actual_checkout_date' => now()->toDateString(),
+        ]);
+
+        // Must redirect back with an error, not succeed
+        $response->assertRedirect();
+        $response->assertSessionHasErrors();
+
+        // Reservation must still be checked_in — not checked_out
+        $this->assertEquals('checked_in', $reservation->fresh()->status);
+    }
 }
