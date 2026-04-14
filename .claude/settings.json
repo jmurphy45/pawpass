@@ -1,0 +1,25 @@
+{
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "./vendor/bin/sail php ./vendor/bin/pint --dirty"
+                    }
+                ]
+            }
+        ],
+        "Stop": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "./vendor/bin/sail artisan test --parallel && ./vendor/bin/sail npm run build"
+                    }
+                ]
+            }
+        ]
+    }
+}
