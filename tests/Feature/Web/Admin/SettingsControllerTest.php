@@ -29,8 +29,8 @@ class SettingsControllerTest extends TestCase
 
         $this->owner = User::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'role'      => 'business_owner',
-            'status'    => 'active',
+            'role' => 'business_owner',
+            'status' => 'active',
         ]);
     }
 
@@ -52,7 +52,7 @@ class SettingsControllerTest extends TestCase
     {
         $staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         $this->actingAs($staff);
@@ -82,15 +82,15 @@ class SettingsControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $response = $this->post('/admin/settings/staff/invite', [
-            'name'  => 'New Staff',
+            'name' => 'New Staff',
             'email' => 'newstaff@example.com',
         ]);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
         $this->assertDatabaseHas('users', [
-            'email'  => 'newstaff@example.com',
-            'role'   => 'staff',
+            'email' => 'newstaff@example.com',
+            'role' => 'staff',
             'status' => 'pending_invite',
         ]);
     }
@@ -109,8 +109,8 @@ class SettingsControllerTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('success');
         $this->assertDatabaseHas('tenant_notification_settings', [
-            'tenant_id'  => $this->tenant->id,
-            'type'       => 'credits.low',
+            'tenant_id' => $this->tenant->id,
+            'type' => 'credits.low',
             'is_enabled' => false,
         ]);
     }
@@ -131,7 +131,7 @@ class SettingsControllerTest extends TestCase
     {
         $staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         $this->actingAs($this->owner);
@@ -143,16 +143,98 @@ class SettingsControllerTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $staff->id, 'status' => 'suspended']);
     }
 
+    public function test_reinviting_a_suspended_staff_member_reuses_the_record(): void
+    {
+        $this->mock(NotificationService::class)->shouldIgnoreMissing();
+
+        $suspended = User::factory()->staff()->create([
+            'tenant_id' => $this->tenant->id,
+            'email' => 'reinstated@example.com',
+            'status' => 'suspended',
+            'invite_token' => 'old-token',
+        ]);
+
+        $userCountBefore = User::count();
+
+        $this->actingAs($this->owner);
+
+        $response = $this->post('/admin/settings/staff/invite', [
+            'name' => 'Reinstated Staff',
+            'email' => 'reinstated@example.com',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertSame($userCountBefore, User::count());
+        $this->assertDatabaseHas('users', [
+            'id' => $suspended->id,
+            'status' => 'pending_invite',
+            'name' => 'Reinstated Staff',
+        ]);
+        $this->assertDatabaseMissing('users', ['invite_token' => 'old-token']);
+    }
+
+    public function test_reinviting_a_pending_invite_staff_member_refreshes_the_token(): void
+    {
+        $this->mock(NotificationService::class)->shouldIgnoreMissing();
+
+        $pending = User::factory()->staff()->create([
+            'tenant_id' => $this->tenant->id,
+            'email' => 'pending@example.com',
+            'status' => 'pending_invite',
+            'invite_token' => 'stale-token',
+            'invite_expires_at' => now()->subDay(),
+        ]);
+
+        $userCountBefore = User::count();
+
+        $this->actingAs($this->owner);
+
+        $response = $this->post('/admin/settings/staff/invite', [
+            'name' => 'Pending Staff',
+            'email' => 'pending@example.com',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertSame($userCountBefore, User::count());
+        $this->assertDatabaseMissing('users', ['invite_token' => 'stale-token']);
+        $fresh = $pending->fresh();
+        $this->assertSame('pending_invite', $fresh->status);
+        $this->assertTrue($fresh->invite_expires_at->isFuture());
+    }
+
+    public function test_inviting_an_already_active_user_returns_validation_error(): void
+    {
+        $active = User::factory()->staff()->create([
+            'tenant_id' => $this->tenant->id,
+            'email' => 'active@example.com',
+            'status' => 'active',
+        ]);
+
+        $userCountBefore = User::count();
+
+        $this->actingAs($this->owner);
+
+        $response = $this->post('/admin/settings/staff/invite', [
+            'name' => 'Active Staff',
+            'email' => 'active@example.com',
+        ]);
+
+        $response->assertSessionHasErrors(['email']);
+        $this->assertSame($userCountBefore, User::count());
+    }
+
     public function test_owner_can_update_billing_address(): void
     {
         $this->actingAs($this->owner);
 
         $response = $this->patch('/admin/settings/billing-address', [
-            'street'      => '123 Main St',
-            'city'        => 'Springfield',
-            'state'       => 'IL',
+            'street' => '123 Main St',
+            'city' => 'Springfield',
+            'state' => 'IL',
             'postal_code' => '62701',
-            'country'     => 'US',
+            'country' => 'US',
         ]);
 
         $response->assertRedirect();
@@ -180,10 +262,10 @@ class SettingsControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $response = $this->patch('/admin/settings/billing-address', [
-            'street'      => '123 Main St',
-            'city'        => 'Springfield',
+            'street' => '123 Main St',
+            'city' => 'Springfield',
             'postal_code' => '62701',
-            'country'     => 'USA',
+            'country' => 'USA',
         ]);
 
         $response->assertSessionHasErrors(['country']);
@@ -193,16 +275,16 @@ class SettingsControllerTest extends TestCase
     {
         $staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         $this->actingAs($staff);
 
         $response = $this->patch('/admin/settings/billing-address', [
-            'street'      => '123 Main St',
-            'city'        => 'Springfield',
+            'street' => '123 Main St',
+            'city' => 'Springfield',
             'postal_code' => '62701',
-            'country'     => 'US',
+            'country' => 'US',
         ]);
 
         $response->assertStatus(403);
@@ -228,7 +310,7 @@ class SettingsControllerTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
+            'type' => 'one_time',
         ]);
 
         $this->actingAs($this->owner);
@@ -273,7 +355,7 @@ class SettingsControllerTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
+            'type' => 'one_time',
         ]);
 
         $this->actingAs($this->owner);
@@ -293,7 +375,7 @@ class SettingsControllerTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
+            'type' => 'one_time',
         ]);
 
         $this->tenant->update(['auto_charge_at_zero_package_id' => $package->id]);

@@ -36,29 +36,29 @@ class SettingsController extends Controller
 
         return Inertia::render('Admin/Settings/Index', [
             'business' => [
-                'name'                           => $tenant->name,
-                'timezone'                       => $tenant->timezone,
-                'primary_color'                  => $tenant->primary_color,
-                'logo_url'                       => $tenant->logo_url,
-                'low_credit_threshold'           => $tenant->low_credit_threshold,
-                'checkin_block_at_zero'          => $tenant->checkin_block_at_zero,
-                'payout_schedule'                => $tenant->payout_schedule,
-                'business_type'                  => $tenant->business_type ?? 'daycare',
+                'name' => $tenant->name,
+                'timezone' => $tenant->timezone,
+                'primary_color' => $tenant->primary_color,
+                'logo_url' => $tenant->logo_url,
+                'low_credit_threshold' => $tenant->low_credit_threshold,
+                'checkin_block_at_zero' => $tenant->checkin_block_at_zero,
+                'payout_schedule' => $tenant->payout_schedule,
+                'business_type' => $tenant->business_type ?? 'daycare',
                 'auto_charge_at_zero_package_id' => $tenant->auto_charge_at_zero_package_id,
-                'business_address'               => $tenant->business_address,
-                'business_city'                  => $tenant->business_city,
-                'business_state'                 => $tenant->business_state,
-                'business_zip'                   => $tenant->business_zip,
-                'business_phone'                 => $tenant->business_phone,
-                'business_description'           => $tenant->business_description,
-                'is_publicly_listed'             => (bool) $tenant->is_publicly_listed,
-                'auto_checkout_stale'            => (bool) $tenant->auto_checkout_stale,
+                'business_address' => $tenant->business_address,
+                'business_city' => $tenant->business_city,
+                'business_state' => $tenant->business_state,
+                'business_zip' => $tenant->business_zip,
+                'business_phone' => $tenant->business_phone,
+                'business_description' => $tenant->business_description,
+                'is_publicly_listed' => (bool) $tenant->is_publicly_listed,
+                'auto_checkout_stale' => (bool) $tenant->auto_checkout_stale,
             ],
-            'billing_address'      => $tenant->billing_address ?? [],
+            'billing_address' => $tenant->billing_address ?? [],
             'notificationSettings' => $notificationSettings,
-            'staff'                => $staffList,
-            'packages'             => $packages,
-            'can_auto_replenish'   => Feature::for($tenant)->active('auto_replenish'),
+            'staff' => $staffList,
+            'packages' => $packages,
+            'can_auto_replenish' => Feature::for($tenant)->active('auto_replenish'),
         ]);
     }
 
@@ -67,22 +67,22 @@ class SettingsController extends Controller
         $this->requireOwner();
 
         $validated = $request->validate([
-            'name'                           => ['sometimes', 'string', 'max:255'],
-            'timezone'                       => ['sometimes', 'string', 'timezone'],
-            'primary_color'                  => ['sometimes', 'string', 'max:20'],
-            'low_credit_threshold'           => ['sometimes', 'integer', 'min:0'],
-            'checkin_block_at_zero'          => ['sometimes', 'boolean'],
-            'payout_schedule'                => ['sometimes', 'string'],
-            'business_type'                  => ['sometimes', 'string', 'in:daycare,kennel,hybrid'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'timezone' => ['sometimes', 'string', 'timezone'],
+            'primary_color' => ['sometimes', 'string', 'max:20'],
+            'low_credit_threshold' => ['sometimes', 'integer', 'min:0'],
+            'checkin_block_at_zero' => ['sometimes', 'boolean'],
+            'payout_schedule' => ['sometimes', 'string'],
+            'business_type' => ['sometimes', 'string', 'in:daycare,kennel,hybrid'],
             'auto_charge_at_zero_package_id' => ['sometimes', 'nullable', 'string', 'exists:packages,id'],
-            'business_address'               => ['sometimes', 'nullable', 'string', 'max:255'],
-            'business_city'                  => ['sometimes', 'nullable', 'string', 'max:100'],
-            'business_state'                 => ['sometimes', 'nullable', 'string', 'size:2'],
-            'business_zip'                   => ['sometimes', 'nullable', 'string', 'max:10'],
-            'business_phone'                 => ['sometimes', 'nullable', 'string', 'max:30'],
-            'business_description'           => ['sometimes', 'nullable', 'string', 'max:280'],
-            'is_publicly_listed'             => ['sometimes', 'boolean'],
-            'auto_checkout_stale'            => ['sometimes', 'boolean'],
+            'business_address' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'business_city' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'business_state' => ['sometimes', 'nullable', 'string', 'size:2'],
+            'business_zip' => ['sometimes', 'nullable', 'string', 'max:10'],
+            'business_phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'business_description' => ['sometimes', 'nullable', 'string', 'max:280'],
+            'is_publicly_listed' => ['sometimes', 'boolean'],
+            'auto_checkout_stale' => ['sometimes', 'boolean'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
@@ -96,11 +96,11 @@ class SettingsController extends Controller
         $this->requireOwner();
 
         $validated = $request->validate([
-            'street'      => ['required', 'string', 'max:255'],
-            'city'        => ['required', 'string', 'max:100'],
-            'state'       => ['sometimes', 'nullable', 'string', 'max:100'],
+            'street' => ['required', 'string', 'max:255'],
+            'city' => ['required', 'string', 'max:100'],
+            'state' => ['sometimes', 'nullable', 'string', 'max:100'],
             'postal_code' => ['required', 'string', 'max:20'],
-            'country'     => ['required', 'string', 'size:2'],
+            'country' => ['required', 'string', 'size:2'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
@@ -114,8 +114,8 @@ class SettingsController extends Controller
         $this->requireOwner();
 
         $request->validate([
-            'settings'             => ['required', 'array'],
-            'settings.*.type'      => ['required', 'string'],
+            'settings' => ['required', 'array'],
+            'settings.*.type' => ['required', 'string'],
             'settings.*.is_enabled' => ['required', 'boolean'],
         ]);
 
@@ -123,8 +123,8 @@ class SettingsController extends Controller
         $now = now();
 
         $rows = array_map(fn ($setting) => [
-            'tenant_id'  => $tenantId,
-            'type'       => $setting['type'],
+            'tenant_id' => $tenantId,
+            'type' => $setting['type'],
             'is_enabled' => $setting['is_enabled'],
             'created_at' => $now,
             'updated_at' => $now,
@@ -144,22 +144,40 @@ class SettingsController extends Controller
         $this->requireOwner();
 
         $request->validate([
-            'name'  => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
         ]);
 
         $tenantId = app('current.tenant.id');
 
-        $user = User::create([
-            'tenant_id'        => $tenantId,
-            'name'             => $request->name,
-            'email'            => $request->email,
-            'password'         => bcrypt(Str::random(32)),
-            'role'             => 'staff',
-            'status'           => 'pending_invite',
-            'invite_token'     => Str::random(64),
-            'invite_expires_at' => now()->addHours(48),
-        ]);
+        $existing = User::where('tenant_id', $tenantId)
+            ->where('email', $request->email)
+            ->first();
+
+        if ($existing) {
+            if ($existing->status === 'active') {
+                return back()->withErrors(['email' => 'A user with this email is already active on this account.']);
+            }
+
+            $existing->update([
+                'name' => $request->name,
+                'status' => 'pending_invite',
+                'invite_token' => Str::random(64),
+                'invite_expires_at' => now()->addHours(48),
+            ]);
+            $user = $existing;
+        } else {
+            $user = User::create([
+                'tenant_id' => $tenantId,
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => bcrypt(Str::random(32)),
+                'role' => 'staff',
+                'status' => 'pending_invite',
+                'invite_token' => Str::random(64),
+                'invite_expires_at' => now()->addHours(48),
+            ]);
+        }
 
         $notifications->dispatch(
             'staff.invite',
@@ -167,7 +185,7 @@ class SettingsController extends Controller
             $user->id,
             [
                 'invite_token' => $user->invite_token,
-                'invite_url'   => route('admin.invite.show', ['token' => $user->invite_token]),
+                'invite_url' => route('admin.invite.show', ['token' => $user->invite_token]),
             ]
         );
 
