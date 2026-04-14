@@ -36,11 +36,11 @@ class CustomerWelcomeMail extends Mailable
             view: 'emails.customer-welcome',
             text: 'emails.customer-welcome-text',
             with: [
-                'loginUrl'     => route('magic-link.verify', ['token' => $this->rawToken]),
-                'userName'     => $this->user->name,
-                'tenantName'   => $this->tenant->name,
-                'logoUrl'      => $hasWhiteLabel ? $this->tenant->logo_url : null,
-                'primaryColor' => $hasWhiteLabel ? ($this->tenant->primary_color ?? '#4f46e5') : '#4f46e5',
+                'loginUrl' => route('magic-link.verify', ['token' => $this->rawToken]),
+                'userName' => $this->user->name,
+                'tenantName' => $this->tenant->name,
+                'logoUrl' => $hasWhiteLabel ? $this->tenant->logo_url : null,
+                'primaryColor' => $hasWhiteLabel ? ($this->tenant->primary_color ?? config('pawpass.brand_color')) : config('pawpass.brand_color'),
             ],
         );
     }

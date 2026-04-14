@@ -16,8 +16,8 @@ class PawPassNotificationWhiteLabelTest extends TestCase
     public function test_tomail_includes_branding_when_tenant_has_white_label_feature(): void
     {
         $tenant = Tenant::factory()->create([
-            'plan'          => 'business',
-            'logo_url'      => 'https://example.com/logo.png',
+            'plan' => 'business',
+            'logo_url' => 'https://example.com/logo.png',
             'primary_color' => '#ff0000',
         ]);
 
@@ -38,11 +38,11 @@ class PawPassNotificationWhiteLabelTest extends TestCase
         $this->assertEquals('#ff0000', $mailMessage->viewData['primaryColor']);
     }
 
-    public function test_tomail_excludes_branding_when_tenant_lacks_white_label_feature(): void
+    public function test_tomail_uses_brand_defaults_when_tenant_lacks_white_label_feature(): void
     {
         $tenant = Tenant::factory()->create([
-            'plan'          => 'starter',
-            'logo_url'      => 'https://example.com/logo.png',
+            'plan' => 'starter',
+            'logo_url' => 'https://example.com/logo.png',
             'primary_color' => '#ff0000',
         ]);
 
@@ -57,15 +57,17 @@ class PawPassNotificationWhiteLabelTest extends TestCase
         $notification = new PawPassNotification('payment.confirmed', $tenant->id);
         $mailMessage = $notification->toMail($user);
 
-        $this->assertArrayNotHasKey('logoUrl', $mailMessage->viewData);
-        $this->assertArrayNotHasKey('primaryColor', $mailMessage->viewData);
+        // Logo is suppressed without white-label
+        $this->assertNull($mailMessage->viewData['logoUrl']);
+        // Brand default color is always injected for consistent button styling
+        $this->assertEquals(config('pawpass.brand_color'), $mailMessage->viewData['primaryColor']);
     }
 
     public function test_tomail_does_not_error_when_notifiable_has_no_tenant(): void
     {
         $user = User::factory()->create([
             'tenant_id' => null,
-            'role'      => 'platform_admin',
+            'role' => 'platform_admin',
         ]);
 
         $notification = new PawPassNotification('announcement', 'some-tenant-id', ['subject' => 'Hi', 'body' => 'Test']);

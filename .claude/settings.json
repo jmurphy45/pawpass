@@ -6,7 +6,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "./vendor/bin/sail php ./vendor/bin/pint --dirty"
+                        "command": "./vendor/bin/sail pint --dirty"
                     }
                 ]
             }
@@ -16,7 +16,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "./vendor/bin/sail artisan test --parallel && ./vendor/bin/sail npm run build"
+                        "command": "./vendor/bin/sail artisan test && ./vendor/bin/sail npm run build"
                     }
                 ]
             }

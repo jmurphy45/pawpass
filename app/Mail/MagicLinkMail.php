@@ -37,11 +37,11 @@ class MagicLinkMail extends Mailable
             view: 'emails.magic-link',
             text: 'emails.magic-link-text',
             with: [
-                'loginUrl'     => route('magic-link.verify', ['token' => $this->rawToken]),
-                'expiresIn'    => 15,
-                'userName'     => $this->user->name,
-                'logoUrl'      => $hasWhiteLabel ? $this->tenant->logo_url : null,
-                'primaryColor' => $hasWhiteLabel ? ($this->tenant->primary_color ?? '#4f46e5') : '#4f46e5',
+                'loginUrl' => route('magic-link.verify', ['token' => $this->rawToken]),
+                'expiresIn' => 15,
+                'userName' => $this->user->name,
+                'logoUrl' => $hasWhiteLabel ? $this->tenant->logo_url : null,
+                'primaryColor' => $hasWhiteLabel ? ($this->tenant->primary_color ?? config('pawpass.brand_color')) : config('pawpass.brand_color'),
             ],
         );
     }

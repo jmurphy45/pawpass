@@ -74,10 +74,11 @@ class PawPassNotification extends Notification implements ShouldQueue
 
         if ($notifiable && $notifiable->tenant_id) {
             $tenant = Tenant::find($notifiable->tenant_id);
-            if ($tenant && app(PlanFeatureCache::class)->hasFeature($tenant->plan, 'white_label')) {
+            if ($tenant) {
+                $hasWhiteLabel = app(PlanFeatureCache::class)->hasFeature($tenant->plan, 'white_label');
                 $message->viewData = array_merge($message->viewData, [
-                    'logoUrl'      => $tenant->logo_url,
-                    'primaryColor' => $tenant->primary_color ?? '#4f46e5',
+                    'logoUrl' => $hasWhiteLabel ? $tenant->logo_url : null,
+                    'primaryColor' => $hasWhiteLabel ? ($tenant->primary_color ?? config('pawpass.brand_color')) : config('pawpass.brand_color'),
                 ]);
             }
         }
@@ -95,7 +96,7 @@ class PawPassNotification extends Notification implements ShouldQueue
     private function buildVaccinationSoonMessage(): array
     {
         $count = $this->data['vaccination_count'] ?? 0;
-        $dogs  = $this->data['dog_count'] ?? 0;
+        $dogs = $this->data['dog_count'] ?? 0;
 
         return [
             'Vaccinations Expiring Soon',
@@ -106,7 +107,7 @@ class PawPassNotification extends Notification implements ShouldQueue
     private function buildVaccinationUrgentMessage(): array
     {
         $count = $this->data['vaccination_count'] ?? 0;
-        $dogs  = $this->data['dog_count'] ?? 0;
+        $dogs = $this->data['dog_count'] ?? 0;
 
         return [
             'Urgent: Vaccinations Expiring Soon',
