@@ -26,7 +26,7 @@ class CustomerControllerTest extends TestCase
         $this->setUpJwt();
 
         PlatformPlan::factory()->create([
-            'slug'     => 'starter',
+            'slug' => 'starter',
             'features' => ['add_customers', 'add_dogs', 'customer_portal', 'email_notifications', 'basic_reporting'],
         ]);
 
@@ -109,6 +109,23 @@ class CustomerControllerTest extends TestCase
 
         $this->assertDatabaseHas('customers', ['email' => 'customer@example.com']);
         $this->assertDatabaseHas('users', ['email' => 'customer@example.com', 'role' => 'customer']);
+    }
+
+    public function test_duplicate_email_returns_validation_error(): void
+    {
+        Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'email' => 'taken@example.com',
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/admin/v1/customers', [
+                'name' => 'Another Customer',
+                'email' => 'taken@example.com',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
     }
 
     public function test_staff_can_view_customer_with_dogs(): void

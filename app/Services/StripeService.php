@@ -57,6 +57,7 @@ class StripeService
         if ($captureMethod) {
             $payload['capture_method'] = $captureMethod;
         }
+
         return $this->client->paymentIntents->create($payload, ['stripe_account' => $stripeAccountId]);
     }
 
@@ -69,16 +70,16 @@ class StripeService
         array $metadata = [],
     ): object {
         return $this->client->paymentIntents->create([
-            'amount'                   => $amountCents,
-            'currency'                 => 'usd',
-            'application_fee_amount'   => $applicationFeeCents,
-            'customer'                 => $stripeCustomerId,
-            'payment_method'           => $paymentMethodId,
-            'payment_method_types'     => ['card'],
-            'confirm'                  => true,
-            'off_session'              => true,
+            'amount' => $amountCents,
+            'currency' => 'usd',
+            'application_fee_amount' => $applicationFeeCents,
+            'customer' => $stripeCustomerId,
+            'payment_method' => $paymentMethodId,
+            'payment_method_types' => ['card'],
+            'confirm' => true,
+            'off_session' => true,
             'error_on_requires_action' => true,
-            'metadata'                 => array_merge($metadata, ['charge_type' => 'outstanding_balance']),
+            'metadata' => array_merge($metadata, ['charge_type' => 'outstanding_balance']),
         ], ['stripe_account' => $stripeAccountId]);
     }
 
@@ -90,11 +91,11 @@ class StripeService
         array $metadata = [],
     ): object {
         return $this->client->paymentIntents->create([
-            'amount'                 => $amountCents,
-            'currency'               => $currency,
+            'amount' => $amountCents,
+            'currency' => $currency,
             'application_fee_amount' => $applicationFeeCents,
-            'capture_method'         => 'manual',
-            'metadata'               => $metadata,
+            'capture_method' => 'manual',
+            'metadata' => $metadata,
         ], ['stripe_account' => $stripeAccountId]);
     }
 
@@ -108,6 +109,7 @@ class StripeService
         if ($applicationFeeCents !== null) {
             $params['application_fee_amount'] = $applicationFeeCents;
         }
+
         return $this->client->paymentIntents->update($piId, $params, ['stripe_account' => $stripeAccountId]);
     }
 
@@ -137,6 +139,7 @@ class StripeService
             $params['amount'] = $amountCents;
         }
         $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
+
         return $this->client->refunds->create($params, $opts);
     }
 
@@ -149,6 +152,7 @@ class StripeService
         if ($stripeAccountId) {
             return $this->client->customers->create($params, ['stripe_account' => $stripeAccountId]);
         }
+
         return $this->client->customers->create($params);
     }
 
@@ -158,6 +162,7 @@ class StripeService
         if ($stripeAccountId) {
             return $this->client->setupIntents->create($payload, ['stripe_account' => $stripeAccountId]);
         }
+
         return $this->client->setupIntents->create($payload);
     }
 
@@ -188,6 +193,7 @@ class StripeService
     public function retrievePaymentIntent(string $id, ?string $stripeAccountId = null): object
     {
         $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
+
         return $this->client->paymentIntents->retrieve($id, [], $opts);
     }
 
@@ -200,29 +206,31 @@ class StripeService
         );
 
         $charge = $pi->latest_charge ?? null;
-        if (!$charge) {
+        if (! $charge) {
             return null;
         }
 
         $card = $charge->payment_method_details?->card ?? null;
 
         return [
-            'charge_id'      => $charge->id,
+            'charge_id' => $charge->id,
             'receipt_number' => $charge->receipt_number ?? null,
-            'card_brand'     => $card?->brand ?? null,
-            'card_last4'     => $card?->last4 ?? null,
+            'card_brand' => $card?->brand ?? null,
+            'card_last4' => $card?->last4 ?? null,
         ];
     }
 
     public function retrievePaymentMethod(string $pmId, ?string $stripeAccountId = null): object
     {
         $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
+
         return $this->client->paymentMethods->retrieve($pmId, [], $opts);
     }
 
     public function retrieveSetupIntent(string $setupIntentId, ?string $stripeAccountId = null): object
     {
         $opts = $stripeAccountId ? ['stripe_account' => $stripeAccountId] : [];
+
         return $this->client->setupIntents->retrieve($setupIntentId, [], $opts);
     }
 
@@ -231,6 +239,7 @@ class StripeService
         if ($stripeAccountId) {
             return $this->client->products->create(['name' => $name], ['stripe_account' => $stripeAccountId]);
         }
+
         return $this->client->products->create(['name' => $name]);
     }
 
@@ -250,7 +259,7 @@ class StripeService
 
         if ($recurringInterval !== null) {
             $payload['recurring'] = [
-                'interval'       => $recurringInterval,
+                'interval' => $recurringInterval,
                 'interval_count' => $intervalCount,
             ];
         }
@@ -258,6 +267,7 @@ class StripeService
         if ($stripeAccountId) {
             return $this->client->prices->create($payload, ['stripe_account' => $stripeAccountId]);
         }
+
         return $this->client->prices->create($payload);
     }
 
@@ -266,6 +276,7 @@ class StripeService
         if ($stripeAccountId) {
             return $this->client->prices->update($priceId, ['active' => false], ['stripe_account' => $stripeAccountId]);
         }
+
         return $this->client->prices->update($priceId, ['active' => false]);
     }
 
@@ -274,6 +285,7 @@ class StripeService
         if ($stripeAccountId) {
             return $this->client->products->update($productId, ['active' => false], ['stripe_account' => $stripeAccountId]);
         }
+
         return $this->client->products->update($productId, ['active' => false]);
     }
 
@@ -295,11 +307,11 @@ class StripeService
         $company = ['name' => $businessName];
         if ($billingAddress) {
             $company['address'] = [
-                'line1'       => $billingAddress['street'] ?? null,
-                'city'        => $billingAddress['city'] ?? null,
-                'state'       => $billingAddress['state'] ?? null,
+                'line1' => $billingAddress['street'] ?? null,
+                'city' => $billingAddress['city'] ?? null,
+                'state' => $billingAddress['state'] ?? null,
                 'postal_code' => $billingAddress['postal_code'] ?? null,
-                'country'     => $billingAddress['country'] ?? 'US',
+                'country' => $billingAddress['country'] ?? 'US',
             ];
         }
 
@@ -308,23 +320,15 @@ class StripeService
             $businessProfile['url'] = $businessUrl;
         }
 
-        $individual = ['email' => $email];
-        if ($ownerName) {
-            $parts = explode(' ', trim($ownerName), 2);
-            $individual['first_name'] = $parts[0];
-            $individual['last_name']  = $parts[1] ?? '';
-        }
-
         return $this->client->accounts->create([
-            'type'          => 'express',
-            'email'         => $email,
+            'type' => 'express',
+            'email' => $email,
             'business_type' => 'company',
-            'company'       => $company,
-            'individual'    => $individual,
+            'company' => $company,
             'business_profile' => $businessProfile,
-            'capabilities'  => [
-                'card_payments'                => ['requested' => true],
-                'transfers'                    => ['requested' => true],
+            'capabilities' => [
+                'card_payments' => ['requested' => true],
+                'transfers' => ['requested' => true],
                 'us_bank_account_ach_payments' => ['requested' => true],
             ],
         ]);
@@ -356,13 +360,13 @@ class StripeService
         string $reference = 'order',
     ): object {
         return $this->client->tax->calculations->create([
-            'currency'         => $currency,
-            'line_items'       => [[
-                'amount'    => $subtotalCents,
+            'currency' => $currency,
+            'line_items' => [[
+                'amount' => $subtotalCents,
                 'reference' => $reference,
             ]],
             'customer_details' => [
-                'address'        => $customerAddress,
+                'address' => $customerAddress,
                 'address_source' => 'billing',
             ],
         ], ['stripe_account' => $stripeAccountId]);
@@ -375,7 +379,7 @@ class StripeService
     ): object {
         return $this->client->tax->transactions->createFromCalculation([
             'calculation' => $taxCalculationId,
-            'reference'   => $reference,
+            'reference' => $reference,
         ], ['stripe_account' => $stripeAccountId]);
     }
 

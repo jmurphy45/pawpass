@@ -7,16 +7,20 @@ use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\RegionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Pennant\Feature;
 
 class SettingsController extends Controller
 {
+    public function __construct(private RegionService $regionService) {}
+
     public function index(): Response
     {
         $this->requireOwner();
@@ -59,6 +63,8 @@ class SettingsController extends Controller
             'staff' => $staffList,
             'packages' => $packages,
             'can_auto_replenish' => Feature::for($tenant)->active('auto_replenish'),
+            'us_states' => $this->regionService->usStates(),
+            'ca_provinces' => $this->regionService->forCountry('CA'),
         ]);
     }
 
@@ -77,7 +83,7 @@ class SettingsController extends Controller
             'auto_charge_at_zero_package_id' => ['sometimes', 'nullable', 'string', 'exists:packages,id'],
             'business_address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'business_city' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'business_state' => ['sometimes', 'nullable', 'string', 'size:2'],
+            'business_state' => ['sometimes', 'nullable', 'string', Rule::in(array_column($this->regionService->usStates(), 'value'))],
             'business_zip' => ['sometimes', 'nullable', 'string', 'max:10'],
             'business_phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'business_description' => ['sometimes', 'nullable', 'string', 'max:280'],
@@ -98,7 +104,12 @@ class SettingsController extends Controller
         $validated = $request->validate([
             'street' => ['required', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:100'],
-            'state' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'state' => array_filter([
+                'sometimes', 'nullable', 'string', 'max:100',
+                in_array($request->input('country'), ['US', 'CA'])
+                    ? Rule::in(array_column($this->regionService->forCountry($request->input('country')), 'value'))
+                    : null,
+            ]),
             'postal_code' => ['required', 'string', 'max:20'],
             'country' => ['required', 'string', 'size:2'],
         ]);

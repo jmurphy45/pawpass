@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -42,20 +43,20 @@ class CustomerController extends Controller
         }
 
         $customers = $query->paginate(20)->through(fn ($c) => [
-            'id'           => $c->id,
-            'name'         => $c->name,
-            'email'        => $c->email,
-            'phone'        => $c->phone,
-            'dogs_count'   => $c->dogs_count,
+            'id' => $c->id,
+            'name' => $c->name,
+            'email' => $c->email,
+            'phone' => $c->phone,
+            'dogs_count' => $c->dogs_count,
             'orders_count' => $c->orders_count,
-            'total_spent'  => (float) ($c->orders_sum_total_amount ?? 0),
-            'has_portal'   => $c->user_id !== null,
-            'created_at'   => $c->created_at->toIso8601String(),
+            'total_spent' => (float) ($c->orders_sum_total_amount ?? 0),
+            'has_portal' => $c->user_id !== null,
+            'created_at' => $c->created_at->toIso8601String(),
         ]);
 
         return Inertia::render('Admin/Customers/Index', [
             'customers' => $customers,
-            'filters'   => ['search' => $request->query('search', '')],
+            'filters' => ['search' => $request->query('search', '')],
         ]);
     }
 
@@ -68,33 +69,40 @@ class CustomerController extends Controller
     {
         $this->authorizeOwnerOrStaff();
 
+        $tenantId = app('current.tenant.id');
+
         $validated = $request->validate([
-            'name'  => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                Rule::unique('customers', 'email')
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at'),
+            ],
             'phone' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string'],
         ]);
 
-        $tenantId = app('current.tenant.id');
-
         $customer = DB::transaction(function () use ($validated, $tenantId) {
             $customer = Customer::create([
                 'tenant_id' => $tenantId,
-                'name'      => $validated['name'],
-                'email'     => $validated['email'] ?? null,
-                'phone'     => $validated['phone'] ?? null,
-                'notes'     => $validated['notes'] ?? null,
+                'name' => $validated['name'],
+                'email' => $validated['email'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+                'notes' => $validated['notes'] ?? null,
             ]);
 
             if (! empty($validated['email'])) {
                 $user = User::create([
-                    'tenant_id'   => $tenantId,
+                    'tenant_id' => $tenantId,
                     'customer_id' => $customer->id,
-                    'name'        => $validated['name'],
-                    'email'       => $validated['email'],
-                    'password'    => bcrypt(str()->random(24)),
-                    'role'        => 'customer',
-                    'status'      => 'active',
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'password' => bcrypt(str()->random(24)),
+                    'role' => 'customer',
+                    'status' => 'active',
                     'email_verified_at' => now(),
                 ]);
 
@@ -116,7 +124,7 @@ class CustomerController extends Controller
             } catch (\Throwable $e) {
                 Log::warning('Web admin customer Stripe sync failed', [
                     'customer_id' => $customer->id,
-                    'error'       => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -131,7 +139,7 @@ class CustomerController extends Controller
                 } catch (\Throwable $e) {
                     Log::warning('Customer welcome email failed', [
                         'customer_id' => $customer->id,
-                        'error'       => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -150,52 +158,52 @@ class CustomerController extends Controller
             $lastAttendance = $dog->attendances()->latest('checked_in_at')->value('checked_in_at');
 
             return [
-                'id'                        => $dog->id,
-                'name'                      => $dog->name,
-                'breed'                     => $dog->breed,
-                'sex'                       => $dog->sex,
-                'dob'                       => $dog->dob?->toDateString(),
-                'status'                    => $dog->status?->value ?? 'active',
-                'credit_balance'            => $dog->credit_balance,
-                'credits_expire_at'         => $dog->credits_expire_at?->toIso8601String(),
+                'id' => $dog->id,
+                'name' => $dog->name,
+                'breed' => $dog->breed,
+                'sex' => $dog->sex,
+                'dob' => $dog->dob?->toDateString(),
+                'status' => $dog->status?->value ?? 'active',
+                'credit_balance' => $dog->credit_balance,
+                'credits_expire_at' => $dog->credits_expire_at?->toIso8601String(),
                 'unlimited_pass_expires_at' => $dog->unlimited_pass_expires_at?->toIso8601String(),
-                'vet_name'                  => $dog->vet_name,
-                'vet_phone'                 => $dog->vet_phone,
-                'last_attendance_at'        => $lastAttendance ? \Illuminate\Support\Carbon::parse($lastAttendance)->toIso8601String() : null,
-                'deleted_at'                => $dog->deleted_at?->toIso8601String(),
+                'vet_name' => $dog->vet_name,
+                'vet_phone' => $dog->vet_phone,
+                'last_attendance_at' => $lastAttendance ? \Illuminate\Support\Carbon::parse($lastAttendance)->toIso8601String() : null,
+                'deleted_at' => $dog->deleted_at?->toIso8601String(),
             ];
         });
 
         $orders = $customer->orders()->with('package')->latest()->get()->map(fn ($o) => [
-            'id'           => $o->id,
+            'id' => $o->id,
             'package_name' => $o->package?->name,
-            'type'         => $o->type,
+            'type' => $o->type,
             'total_amount' => (float) $o->total_amount,
-            'status'       => $o->status->value,
-            'created_at'   => $o->created_at->toIso8601String(),
+            'status' => $o->status->value,
+            'created_at' => $o->created_at->toIso8601String(),
         ]);
 
         $totalCredits = $customer->dogs->sum('credit_balance');
 
         return Inertia::render('Admin/Customers/Show', [
             'customer' => [
-                'id'                       => $customer->id,
-                'name'                     => $customer->name,
-                'email'                    => $customer->email,
-                'phone'                    => $customer->phone,
-                'notes'                    => $customer->notes,
-                'has_portal'               => $customer->user_id !== null,
-                'stripe_pm_last4'          => $customer->stripe_pm_last4,
-                'stripe_pm_brand'          => $customer->stripe_pm_brand,
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'notes' => $customer->notes,
+                'has_portal' => $customer->user_id !== null,
+                'stripe_pm_last4' => $customer->stripe_pm_last4,
+                'stripe_pm_brand' => $customer->stripe_pm_brand,
                 'outstanding_balance_cents' => $customer->outstanding_balance_cents ?? 0,
-                'has_stripe_customer'      => $customer->stripe_customer_id !== null,
-                'is_owner'                 => auth()->user()->role === 'business_owner',
-                'total_orders'             => $customer->orders_count,
-                'total_spent'              => (float) ($customer->orders_sum_total_amount ?? 0),
-                'total_credits'            => $totalCredits,
-                'created_at'               => $customer->created_at->toIso8601String(),
+                'has_stripe_customer' => $customer->stripe_customer_id !== null,
+                'is_owner' => auth()->user()->role === 'business_owner',
+                'total_orders' => $customer->orders_count,
+                'total_spent' => (float) ($customer->orders_sum_total_amount ?? 0),
+                'total_credits' => $totalCredits,
+                'created_at' => $customer->created_at->toIso8601String(),
             ],
-            'dogs'   => $dogs,
+            'dogs' => $dogs,
             'orders' => $orders,
         ]);
     }
@@ -241,22 +249,22 @@ class CustomerController extends Controller
         }
 
         $amountCents = $customer->outstanding_balance_cents;
-        $feeCents    = (int) round($amountCents * (($tenant->platform_fee_pct ?? 5) / 100));
+        $feeCents = (int) round($amountCents * (($tenant->platform_fee_pct ?? 5) / 100));
 
         try {
             $this->stripe->createOutstandingBalancePaymentIntent(
-                amountCents:         $amountCents,
-                stripeAccountId:     $tenant->stripe_account_id,
+                amountCents: $amountCents,
+                stripeAccountId: $tenant->stripe_account_id,
                 applicationFeeCents: $feeCents,
-                stripeCustomerId:    $customer->stripe_customer_id,
-                paymentMethodId:     $customer->stripe_payment_method_id,
+                stripeCustomerId: $customer->stripe_customer_id,
+                paymentMethodId: $customer->stripe_payment_method_id,
                 metadata: [
                     'customer_id' => $customer->id,
-                    'tenant_id'   => $tenant->id,
+                    'tenant_id' => $tenant->id,
                 ],
             );
         } catch (\Throwable $e) {
-            return back()->with('error', 'Charge failed: ' . $e->getMessage());
+            return back()->with('error', 'Charge failed: '.$e->getMessage());
         }
 
         return back()->with('success', 'Charge initiated successfully.');

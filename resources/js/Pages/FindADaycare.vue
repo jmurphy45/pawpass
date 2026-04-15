@@ -85,12 +85,11 @@
                 placeholder="City (e.g. Austin)"
                 class="find-input flex-1"
               />
-              <input
+              <AppSelect
                 v-model="form.state"
-                type="text"
+                :options="us_states"
                 placeholder="State"
-                maxlength="2"
-                class="find-input w-24 uppercase"
+                class="w-24"
               />
             </div>
 
@@ -290,6 +289,7 @@ const props = defineProps<{
   results: DaycareResult[];
   search: { city: string; state: string; zip: string; date_from: string; date_to: string };
   searched: boolean;
+  us_states: { value: string; label: string }[];
 }>();
 
 const searchMode = ref(props.search.zip ? 'zip' : 'city');

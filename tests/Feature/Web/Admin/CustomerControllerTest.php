@@ -28,7 +28,7 @@ class CustomerControllerTest extends TestCase
 
         $this->staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
     }
 
@@ -81,7 +81,7 @@ class CustomerControllerTest extends TestCase
         $this->actingAs($this->staff);
 
         $response = $this->post('/admin/customers', [
-            'name'  => 'Jane Doe',
+            'name' => 'Jane Doe',
             'email' => 'jane@example.com',
             'phone' => '555-1234',
         ]);
@@ -128,12 +128,12 @@ class CustomerControllerTest extends TestCase
         $this->actingAs($this->staff);
 
         $this->post('/admin/customers', [
-            'name'  => 'Jane Stripe',
+            'name' => 'Jane Stripe',
             'email' => 'jane@example.com',
         ]);
 
         $this->assertDatabaseHas('customers', [
-            'name'               => 'Jane Stripe',
+            'name' => 'Jane Stripe',
             'stripe_customer_id' => 'cus_stripe_new',
         ]);
     }
@@ -150,14 +150,32 @@ class CustomerControllerTest extends TestCase
         $this->assertDatabaseHas('customers', ['name' => 'No Stripe Customer']);
     }
 
+    public function test_store_rejects_duplicate_email_with_validation_error(): void
+    {
+        Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'email' => 'taken@example.com',
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post('/admin/customers', [
+            'name' => 'Another Customer',
+            'email' => 'taken@example.com',
+        ]);
+
+        $response->assertSessionHasErrors(['email']);
+        $this->assertDatabaseCount('customers', 1);
+    }
+
     public function test_customer_role_cannot_access_customers_index(): void
     {
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $customerUser = User::factory()->create([
-            'tenant_id'   => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'customer_id' => $customer->id,
-            'role'        => 'customer',
-            'status'      => 'active',
+            'role' => 'customer',
+            'status' => 'active',
         ]);
 
         $this->actingAs($customerUser);

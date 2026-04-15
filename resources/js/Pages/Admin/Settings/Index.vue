@@ -152,8 +152,8 @@
               <input v-model="directoryForm.business_city" type="text" placeholder="Austin" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">State (2-letter)</label>
-              <input v-model="directoryForm.business_state" type="text" placeholder="TX" maxlength="2" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm uppercase" />
+              <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <AppSelect v-model="directoryForm.business_state" :options="us_states" placeholder="Select state" :error="directoryForm.errors.business_state" />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
@@ -193,8 +193,17 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">State / Province</label>
-              <input v-model="billingAddressForm.state" type="text" placeholder="IL" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
-              <p v-if="billingAddressForm.errors.state" class="mt-1 text-sm text-red-600">{{ billingAddressForm.errors.state }}</p>
+              <AppSelect
+                v-if="billingStateOptions.length > 0"
+                v-model="billingAddressForm.state"
+                :options="billingStateOptions"
+                placeholder="Select state/province"
+                :error="billingAddressForm.errors.state"
+              />
+              <div v-else>
+                <input v-model="billingAddressForm.state" type="text" placeholder="State / Province" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+                <p v-if="billingAddressForm.errors.state" class="mt-1 text-sm text-red-600">{{ billingAddressForm.errors.state }}</p>
+              </div>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
@@ -343,9 +352,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm } from '@inertiajs/vue3';
+
+type StateOption = { value: string; label: string };
 
 const props = defineProps<{
   business: {
@@ -361,6 +372,8 @@ const props = defineProps<{
   staff: Array<{ id: string; name: string; email: string; role: string; status: string }>;
   packages: Array<{ id: string; name: string; price: string }>;
   can_auto_replenish: boolean;
+  us_states: StateOption[];
+  ca_provinces: StateOption[];
 }>();
 
 // ── Business form ─────────────────────────────────────────────────────────────
@@ -445,6 +458,16 @@ const billingAddressForm = useForm({
   state:       props.billing_address.state ?? '',
   postal_code: props.billing_address.postal_code ?? '',
   country:     props.billing_address.country ?? 'US',
+});
+
+const billingStateOptions = computed<StateOption[]>(() => {
+  if (billingAddressForm.country === 'US') return props.us_states;
+  if (billingAddressForm.country === 'CA') return props.ca_provinces;
+  return [];
+});
+
+watch(() => billingAddressForm.country, () => {
+  billingAddressForm.state = '';
 });
 
 function submitBillingAddress() {
