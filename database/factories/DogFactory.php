@@ -19,12 +19,6 @@ class DogFactory extends Factory
         'Sadie', 'Bella', 'Daisy', 'Lucy', 'Molly', 'Maggie', 'Luna', 'Lola',
     ];
 
-    private static array $breeds = [
-        'Labrador Retriever', 'Golden Retriever', 'German Shepherd', 'Bulldog',
-        'Poodle', 'Beagle', 'Rottweiler', 'Yorkshire Terrier', 'Dachshund',
-        'Boxer', 'Shih Tzu', 'Siberian Husky', 'Australian Shepherd',
-    ];
-
     public function definition(): array
     {
         $customer = Customer::factory();
@@ -33,7 +27,7 @@ class DogFactory extends Factory
             'tenant_id' => Tenant::factory(),
             'customer_id' => $customer,
             'name' => fake()->randomElement(self::$dogNames),
-            'breed' => fake()->optional()->randomElement(self::$breeds),
+            'breed_id' => null,
             'dob' => fake()->boolean(70) ? fake()->dateTimeBetween('-15 years', '-6 months')->format('Y-m-d') : null,
             'sex' => fake()->optional()->randomElement(['male', 'female', 'unknown']),
             'photo_url' => null,

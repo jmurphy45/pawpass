@@ -18,7 +18,7 @@ class DogController extends Controller
     public function index(): AnonymousResourceCollection
     {
         return DogResource::collection(
-            Dog::with('customer')->cursorPaginate(20)
+            Dog::with(['customer', 'breed'])->cursorPaginate(20)
         );
     }
 
@@ -34,7 +34,7 @@ class DogController extends Controller
             'tenant_id' => app('current.tenant.id'),
             'customer_id' => $customer->id,
             'name' => $request->name,
-            'breed' => $request->breed,
+            'breed_id' => $request->breed_id,
             'dob' => $request->dob,
             'sex' => $request->sex,
             'vet_name' => $request->vet_name,
@@ -42,7 +42,7 @@ class DogController extends Controller
             'credit_balance' => 0,
         ]);
 
-        return new DogResource($dog);
+        return new DogResource($dog->load('breed'));
     }
 
     public function show(Dog $dog): JsonResponse
@@ -59,9 +59,9 @@ class DogController extends Controller
 
     public function update(UpdateDogRequest $request, Dog $dog): DogResource
     {
-        $dog->update($request->only(['name', 'breed', 'dob', 'sex', 'vet_name', 'vet_phone']));
+        $dog->update($request->only(['name', 'breed_id', 'dob', 'sex', 'vet_name', 'vet_phone']));
 
-        return new DogResource($dog->fresh());
+        return new DogResource($dog->fresh()->load('breed'));
     }
 
     public function destroy(Dog $dog): JsonResponse

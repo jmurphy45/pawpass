@@ -1,50 +1,52 @@
 <?php
 
-use App\Http\Controllers\Admin\V1\BillingController;
 use App\Http\Controllers\Admin\V1\AddonTypeController;
-use App\Http\Controllers\Admin\V1\BoardingReportCardController;
-use App\Http\Controllers\Admin\V1\DogVaccinationController;
-use App\Http\Controllers\Admin\V1\KennelUnitController;
-use App\Http\Controllers\Admin\V1\OccupancyController;
 use App\Http\Controllers\Admin\V1\AttendanceAddonController;
-use App\Http\Controllers\Admin\V1\ReservationAddonController;
-use App\Http\Controllers\Admin\V1\ReservationController;
-use App\Http\Controllers\Admin\V1\VaccinationRequirementController;
+use App\Http\Controllers\Admin\V1\BillingController;
+use App\Http\Controllers\Admin\V1\BoardingReportCardController;
+use App\Http\Controllers\Admin\V1\BreedController as AdminBreedController;
 use App\Http\Controllers\Admin\V1\BroadcastNotificationController;
-use App\Http\Controllers\Admin\V1\ReportController as AdminReportController;
-use App\Http\Controllers\Platform\V1\PlatformFeatureController;
-use App\Http\Controllers\Platform\V1\ReportController as PlatformReportController;
-use App\Http\Controllers\Platform\V1\PlatformPlanController;
-use App\Http\Controllers\Platform\V1\TenantFeatureOverrideController;
-use App\Http\Controllers\Public\V1\DaycareDirectoryController;
-use App\Http\Controllers\Public\V1\PlansController;
-use App\Http\Controllers\Public\V1\TenantRegistrationController as PublicTenantRegistrationController;
 use App\Http\Controllers\Admin\V1\CreditController;
 use App\Http\Controllers\Admin\V1\CustomerController;
 use App\Http\Controllers\Admin\V1\DogController as AdminDogController;
+use App\Http\Controllers\Admin\V1\DogVaccinationController;
+use App\Http\Controllers\Admin\V1\KennelUnitController;
+use App\Http\Controllers\Admin\V1\OccupancyController;
 use App\Http\Controllers\Admin\V1\OnboardingController;
 use App\Http\Controllers\Admin\V1\PackageController as AdminPackageController;
 use App\Http\Controllers\Admin\V1\PaymentController;
+use App\Http\Controllers\Admin\V1\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\V1\ReservationAddonController;
+use App\Http\Controllers\Admin\V1\ReservationController;
 use App\Http\Controllers\Admin\V1\RosterController;
 use App\Http\Controllers\Admin\V1\SettingsController;
+use App\Http\Controllers\Admin\V1\VaccinationRequirementController;
 use App\Http\Controllers\Platform\V1\AuditLogController;
 use App\Http\Controllers\Platform\V1\NotificationController as PlatformNotificationController;
-use App\Http\Controllers\Platform\V1\TenantEventController;
+use App\Http\Controllers\Platform\V1\PlatformFeatureController;
+use App\Http\Controllers\Platform\V1\PlatformPlanController;
+use App\Http\Controllers\Platform\V1\ReportController as PlatformReportController;
 use App\Http\Controllers\Platform\V1\TenantController as PlatformTenantController;
+use App\Http\Controllers\Platform\V1\TenantEventController;
+use App\Http\Controllers\Platform\V1\TenantFeatureOverrideController;
 use App\Http\Controllers\Portal\V1\AccountController;
 use App\Http\Controllers\Portal\V1\AttendanceController;
 use App\Http\Controllers\Portal\V1\Auth\ForgotPasswordController;
 use App\Http\Controllers\Portal\V1\Auth\RegisterController;
 use App\Http\Controllers\Portal\V1\Auth\ResetPasswordController;
 use App\Http\Controllers\Portal\V1\Auth\VerifyEmailController;
+use App\Http\Controllers\Portal\V1\BreedController as PortalBreedController;
 use App\Http\Controllers\Portal\V1\DogController as PortalDogController;
+use App\Http\Controllers\Portal\V1\KennelUnitController as PortalKennelUnitController;
 use App\Http\Controllers\Portal\V1\NotificationController;
 use App\Http\Controllers\Portal\V1\OrderController;
 use App\Http\Controllers\Portal\V1\PackageController;
 use App\Http\Controllers\Portal\V1\PromotionController as PortalPromotionController;
-use App\Http\Controllers\Portal\V1\KennelUnitController as PortalKennelUnitController;
 use App\Http\Controllers\Portal\V1\ReservationController as PortalReservationController;
 use App\Http\Controllers\Portal\V1\SubscriptionController;
+use App\Http\Controllers\Public\V1\DaycareDirectoryController;
+use App\Http\Controllers\Public\V1\PlansController;
+use App\Http\Controllers\Public\V1\TenantRegistrationController as PublicTenantRegistrationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -80,6 +82,8 @@ Route::prefix('portal/v1')
         // Authenticated routes
         Route::middleware(['auth.jwt', 'bindings'])->group(function () {
             Route::get('ping', fn () => response()->json(['data' => 'pong']));
+
+            Route::get('breeds', [PortalBreedController::class, 'index']);
 
             Route::get('packages', [PackageController::class, 'index']);
 
@@ -133,6 +137,8 @@ Route::prefix('admin/v1')
     ->name('admin.v1.')
     ->group(function () {
         Route::get('ping', fn () => response()->json(['data' => 'pong']));
+
+        Route::get('breeds', [AdminBreedController::class, 'index']);
 
         Route::get('customers', [CustomerController::class, 'index']);
         Route::post('customers', [CustomerController::class, 'store'])->middleware('plan:add_customers');

@@ -20,7 +20,7 @@ class DogController extends Controller
             abort(404, 'Customer not found.');
         }
 
-        return DogResource::collection($customer->dogs()->get());
+        return DogResource::collection($customer->dogs()->with('breed')->get());
     }
 
     public function store(StoreDogRequest $request): DogResource
@@ -35,7 +35,7 @@ class DogController extends Controller
             'tenant_id' => app('current.tenant.id'),
             'customer_id' => $customer->id,
             'name' => $request->name,
-            'breed' => $request->breed,
+            'breed_id' => $request->breed_id,
             'dob' => $request->dob,
             'sex' => $request->sex,
             'vet_name' => $request->vet_name,
@@ -43,7 +43,7 @@ class DogController extends Controller
             'credit_balance' => 0,
         ]);
 
-        return new DogResource($dog);
+        return new DogResource($dog->load('breed'));
     }
 
     public function show(Dog $dog): DogResource
@@ -65,9 +65,9 @@ class DogController extends Controller
             abort(403);
         }
 
-        $dog->update($request->only(['name', 'breed', 'dob', 'sex', 'vet_name', 'vet_phone']));
+        $dog->update($request->only(['name', 'breed_id', 'dob', 'sex', 'vet_name', 'vet_phone']));
 
-        return new DogResource($dog->fresh());
+        return new DogResource($dog->fresh()->load('breed'));
     }
 
     public function credits(Dog $dog): AnonymousResourceCollection

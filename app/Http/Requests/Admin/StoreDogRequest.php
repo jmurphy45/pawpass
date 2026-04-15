@@ -16,7 +16,7 @@ class StoreDogRequest extends FormRequest
         return [
             'customer_id' => ['required', 'string'],
             'name' => ['required', 'string', 'max:255'],
-            'breed' => ['nullable', 'string', 'max:255'],
+            'breed_id' => ['nullable', 'integer', 'exists:breeds,id'],
             'dob' => ['nullable', 'date'],
             'sex' => ['nullable', 'in:male,female,unknown'],
             'vet_name' => ['nullable', 'string', 'max:255'],

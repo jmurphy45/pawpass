@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\DogStatus;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasUlid;
-use App\Models\Package;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,7 +19,7 @@ class Dog extends Model
         'tenant_id',
         'customer_id',
         'name',
-        'breed',
+        'breed_id',
         'dob',
         'sex',
         'photo_url',
@@ -59,6 +58,11 @@ class Dog extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function breed(): BelongsTo
+    {
+        return $this->belongsTo(Breed::class);
     }
 
     public function autoReplenishPackage(): BelongsTo
