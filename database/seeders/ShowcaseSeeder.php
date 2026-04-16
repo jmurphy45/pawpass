@@ -15,7 +15,6 @@ use App\Models\User;
 use App\Services\StripeService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -82,14 +81,16 @@ class ShowcaseSeeder extends Seeder
     private function stripeCustomer(string $acctId, string $email, string $name): string
     {
         if (! $this->hasRealStripe) {
-            return 'cus_showcase_' . Str::slug($name, '_');
+            return 'cus_showcase_'.Str::slug($name, '_');
         }
         try {
             $cus = $this->stripe->createCustomer($email, $name, $acctId);
+
             return $cus->id;
         } catch (\Exception $e) {
             $this->command->warn("    Stripe customer creation failed ({$name}): {$e->getMessage()}");
-            return 'cus_showcase_' . Str::slug($name, '_');
+
+            return 'cus_showcase_'.Str::slug($name, '_');
         }
     }
 
@@ -100,14 +101,16 @@ class ShowcaseSeeder extends Seeder
     private function stripePaymentMethod(string $acctId, string $token, string $label): string
     {
         if (! $this->hasRealStripe) {
-            return 'pm_showcase_' . $label;
+            return 'pm_showcase_'.$label;
         }
         try {
             $pm = $this->stripe->createPaymentMethodFromToken($token, $acctId);
+
             return $pm->id;
         } catch (\Exception $e) {
             $this->command->warn("    PM creation failed ({$label}): {$e->getMessage()}");
-            return 'pm_showcase_' . $label;
+
+            return 'pm_showcase_'.$label;
         }
     }
 
@@ -140,7 +143,7 @@ class ShowcaseSeeder extends Seeder
         bool $refund = false
     ): array {
         if (! $this->hasRealStripe || str_starts_with($cusId, 'cus_showcase_')) {
-            return ['pi_id' => $fakeId, 'refund_id' => $refund ? 're_showcase_' . Str::random(8) : null];
+            return ['pi_id' => $fakeId, 'refund_id' => $refund ? 're_showcase_'.Str::random(8) : null];
         }
         try {
             $applicationFee = (int) round($amountCents * 0.05);
@@ -160,9 +163,11 @@ class ShowcaseSeeder extends Seeder
                 $r = $this->stripe->createRefund($pi->id, $acctId);
                 $refundId = $r->id;
             }
+
             return ['pi_id' => $pi->id, 'refund_id' => $refundId];
         } catch (\Exception $e) {
             $this->command->warn("    PaymentIntent failed: {$e->getMessage()}");
+
             return ['pi_id' => $fakeId, 'refund_id' => $refund ? 're_showcase_err' : null];
         }
     }
@@ -181,9 +186,11 @@ class ShowcaseSeeder extends Seeder
         }
         try {
             $sub = $this->stripe->createSubscription($cusId, $priceId, $pmId, $acctId, 5.0, $metadata);
+
             return $sub->id;
         } catch (\Exception $e) {
             $this->command->warn("    Subscription creation failed: {$e->getMessage()}");
+
             return $fakeSubId;
         }
     }
@@ -202,10 +209,12 @@ class ShowcaseSeeder extends Seeder
         }
         try {
             $product = $this->stripe->createProduct($name, $acctId);
-            $price   = $this->stripe->createPrice($product->id, $amountCents, 'usd', $interval, $acctId);
+            $price = $this->stripe->createPrice($product->id, $amountCents, 'usd', $interval, $acctId);
+
             return [$product->id, $price->id];
         } catch (\Exception $e) {
             $this->command->warn("    Stripe product/price failed ({$name}): {$e->getMessage()}");
+
             return [$fakeProductId, $fakePriceId];
         }
     }
@@ -215,10 +224,10 @@ class ShowcaseSeeder extends Seeder
     private function makeUser(array $attrs): User
     {
         return User::create(array_merge([
-            'id'                => (string) Str::ulid(),
+            'id' => (string) Str::ulid(),
             'email_verified_at' => now(),
-            'status'            => 'active',
-            'customer_id'       => null,
+            'status' => 'active',
+            'customer_id' => null,
         ], $attrs));
     }
 
@@ -232,18 +241,18 @@ class ShowcaseSeeder extends Seeder
     ): array {
         $user = $this->makeUser([
             'tenant_id' => $tid,
-            'name'      => $name,
-            'email'     => $email,
-            'role'      => 'customer',
+            'name' => $name,
+            'email' => $email,
+            'role' => 'customer',
         ]);
 
         $customer = Customer::create([
-            'id'                => (string) Str::ulid(),
-            'tenant_id'         => $tid,
-            'user_id'           => $user->id,
-            'name'              => $name,
-            'email'             => $email,
-            'phone'             => $phone,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'user_id' => $user->id,
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
             'stripe_customer_id' => $stripeCusId,
         ]);
 
@@ -263,13 +272,13 @@ class ShowcaseSeeder extends Seeder
         array $extra = []
     ): Dog {
         return Dog::create(array_merge([
-            'id'             => (string) Str::ulid(),
-            'tenant_id'      => $tid,
-            'customer_id'    => $customerId,
-            'name'           => $name,
-            'breed'          => $breed,
-            'dob'            => $dob,
-            'sex'            => $sex,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $customerId,
+            'name' => $name,
+            'breed_id' => Breed::where('name', $breed)->value('id'),
+            'dob' => $dob,
+            'sex' => $sex,
             'credit_balance' => $creditBalance,
         ], $extra));
     }
@@ -285,27 +294,27 @@ class ShowcaseSeeder extends Seeder
         mixed $refundedAt = null
     ): Order {
         $order = Order::create([
-            'id'               => (string) Str::ulid(),
-            'tenant_id'        => $tid,
-            'customer_id'      => $customerId,
-            'package_id'       => $packageId,
-            'status'           => $status,
-            'total_amount'     => $amount,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $customerId,
+            'package_id' => $packageId,
+            'status' => $status,
+            'total_amount' => $amount,
             'platform_fee_pct' => '5.00',
-            'idempotency_key'  => (string) Str::uuid(),
+            'idempotency_key' => (string) Str::uuid(),
         ]);
 
         OrderPayment::create([
-            'id'                    => (string) Str::ulid(),
-            'tenant_id'             => $tid,
-            'order_id'              => $order->id,
-            'stripe_pi_id'          => $piId,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'order_id' => $order->id,
+            'stripe_pi_id' => $piId,
             'stripe_payment_method' => null,
-            'amount_cents'          => (int) (floatval($amount) * 100),
-            'type'                  => 'charge',
-            'status'                => $status,
-            'paid_at'               => $paidAt,
-            'refunded_at'           => $refundedAt,
+            'amount_cents' => (int) (floatval($amount) * 100),
+            'type' => 'charge',
+            'status' => $status,
+            'paid_at' => $paidAt,
+            'refunded_at' => $refundedAt,
         ]);
 
         return $order;
@@ -320,18 +329,18 @@ class ShowcaseSeeder extends Seeder
         array $extra = []
     ): CreditLedger {
         return CreditLedger::create(array_merge([
-            'tenant_id'        => $tid,
-            'dog_id'           => $dogId,
-            'type'             => $type,
-            'delta'            => $delta,
-            'balance_after'    => $balanceAfter,
-            'expires_at'       => null,
-            'order_id'         => null,
-            'attendance_id'    => null,
-            'subscription_id'  => null,
+            'tenant_id' => $tid,
+            'dog_id' => $dogId,
+            'type' => $type,
+            'delta' => $delta,
+            'balance_after' => $balanceAfter,
+            'expires_at' => null,
+            'order_id' => null,
+            'attendance_id' => null,
+            'subscription_id' => null,
             'parent_ledger_id' => null,
-            'created_by'       => null,
-            'note'             => null,
+            'created_by' => null,
+            'note' => null,
         ], $extra));
     }
 
@@ -346,20 +355,20 @@ class ShowcaseSeeder extends Seeder
         ?string $checkedOutBy = null
     ): Attendance {
         return Attendance::create([
-            'id'                   => (string) Str::ulid(),
-            'tenant_id'            => $tid,
-            'dog_id'               => $dogId,
-            'checked_in_by'        => $checkedInBy,
-            'checked_out_by'       => $checkedOutAt !== null ? ($checkedOutBy ?? $checkedInBy) : null,
-            'checked_in_at'        => $checkedInAt,
-            'checked_out_at'       => $checkedOutAt,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'dog_id' => $dogId,
+            'checked_in_by' => $checkedInBy,
+            'checked_out_by' => $checkedOutAt !== null ? ($checkedOutBy ?? $checkedInBy) : null,
+            'checked_in_at' => $checkedInAt,
+            'checked_out_at' => $checkedOutAt,
             'zero_credit_override' => $zeroOverride,
-            'override_note'        => $overrideNote,
-            'edited_by'            => null,
-            'edited_at'            => null,
-            'edit_note'            => null,
-            'original_in'          => null,
-            'original_out'         => null,
+            'override_note' => $overrideNote,
+            'edited_by' => null,
+            'edited_at' => null,
+            'edit_note' => null,
+            'original_in' => null,
+            'original_out' => null,
         ]);
     }
 
@@ -375,15 +384,15 @@ class ShowcaseSeeder extends Seeder
     ): void {
         $ts = $createdAt ?? now();
         \Illuminate\Support\Facades\DB::table('notifications')->insert([
-            'id'              => (string) Str::uuid(),
-            'type'            => 'App\Notifications\PawPassNotification',
+            'id' => (string) Str::uuid(),
+            'type' => 'App\Notifications\PawPassNotification',
             'notifiable_type' => 'App\Models\User',
-            'notifiable_id'   => $userId,
-            'data'            => json_encode(array_merge(['event' => $event, 'title' => $title, 'body' => $body], $extra)),
-            'tenant_id'       => $tenantId,
-            'read_at'         => $readAt,
-            'created_at'      => $ts,
-            'updated_at'      => $ts,
+            'notifiable_id' => $userId,
+            'data' => json_encode(array_merge(['event' => $event, 'title' => $title, 'body' => $body], $extra)),
+            'tenant_id' => $tenantId,
+            'read_at' => $readAt,
+            'created_at' => $ts,
+            'updated_at' => $ts,
         ]);
     }
 
@@ -395,24 +404,24 @@ class ShowcaseSeeder extends Seeder
 
         // ── Tenant ────────────────────────────────────────────────────────────
         $tenant = Tenant::create([
-            'id'                          => $tid,
-            'name'                        => 'Paw Showcase Daycare',
-            'slug'                        => 'paw-showcase',
-            'owner_user_id'               => null,
-            'status'                      => 'active',
-            'stripe_account_id'           => null,
-            'stripe_onboarded_at'         => null,
-            'platform_fee_pct'            => '5.00',
-            'payout_schedule'             => 'daily',
-            'low_credit_threshold'        => 2,
-            'checkin_block_at_zero'       => true,
-            'timezone'                    => 'America/New_York',
-            'primary_color'               => '#16a34a',
-            'plan'                        => 'pro',
-            'plan_billing_cycle'          => 'monthly',
-            'plan_current_period_end'     => now()->addDays(14),
+            'id' => $tid,
+            'name' => 'Paw Showcase Daycare',
+            'slug' => 'paw-showcase',
+            'owner_user_id' => null,
+            'status' => 'active',
+            'stripe_account_id' => null,
+            'stripe_onboarded_at' => null,
+            'platform_fee_pct' => '5.00',
+            'payout_schedule' => 'daily',
+            'low_credit_threshold' => 2,
+            'checkin_block_at_zero' => true,
+            'timezone' => 'America/New_York',
+            'primary_color' => '#16a34a',
+            'plan' => 'pro',
+            'plan_billing_cycle' => 'monthly',
+            'plan_current_period_end' => now()->addDays(14),
             'platform_stripe_customer_id' => 'cus_showcase_platform',
-            'platform_stripe_sub_id'      => 'sub_showcase_platform',
+            'platform_stripe_sub_id' => 'sub_showcase_platform',
         ]);
 
         // Stripe Connect account
@@ -431,111 +440,111 @@ class ShowcaseSeeder extends Seeder
         }
 
         $this->stripeIds['connect_account'] = $stripeAcct;
-        $this->command->info("  [+] Tenant:  Paw Showcase Daycare  (slug: paw-showcase)");
+        $this->command->info('  [+] Tenant:  Paw Showcase Daycare  (slug: paw-showcase)');
         $this->command->info("      Stripe Connect: {$stripeAcct}");
 
         // ── Staff ─────────────────────────────────────────────────────────────
         $owner = $this->makeUser([
             'tenant_id' => $tid,
-            'name'      => 'Jordan Ellis',
-            'email'     => 'owner@paw-showcase.test',
-            'role'      => 'business_owner',
+            'name' => 'Jordan Ellis',
+            'email' => 'owner@paw-showcase.test',
+            'role' => 'business_owner',
         ]);
         $tenant->update(['owner_user_id' => $owner->id]);
 
         $staff1 = $this->makeUser([
             'tenant_id' => $tid,
-            'name'      => 'Morgan Hayes',
-            'email'     => 'morgan@paw-showcase.test',
-            'role'      => 'staff',
+            'name' => 'Morgan Hayes',
+            'email' => 'morgan@paw-showcase.test',
+            'role' => 'staff',
         ]);
 
         $staff2 = $this->makeUser([
             'tenant_id' => $tid,
-            'name'      => 'Riley Park',
-            'email'     => 'riley@paw-showcase.test',
-            'role'      => 'staff',
+            'name' => 'Riley Park',
+            'email' => 'riley@paw-showcase.test',
+            'role' => 'staff',
         ]);
 
         // ── Packages ──────────────────────────────────────────────────────────
-        [$prod5, $price5]     = $this->stripeProductAndPrice($stripeAcct, 'Starter 5-Day Pack',    5500,   null,    'prod_showcase_5day',  'price_showcase_5day');
-        [$prod10, $price10]   = $this->stripeProductAndPrice($stripeAcct, 'Popular 10-Day Pack',   9900,   null,    'prod_showcase_10day', 'price_showcase_10day');
-        [$prodUnlim, $priceUnlim] = $this->stripeProductAndPrice($stripeAcct, 'Unlimited Month Pass', 19500, null,  'prod_showcase_unlim', 'price_showcase_unlim');
-        [$prodSub, $priceSub] = $this->stripeProductAndPrice($stripeAcct, 'Monthly Subscription',  14500,  'month', 'prod_showcase_sub',   'price_showcase_sub');
+        [$prod5, $price5] = $this->stripeProductAndPrice($stripeAcct, 'Starter 5-Day Pack', 5500, null, 'prod_showcase_5day', 'price_showcase_5day');
+        [$prod10, $price10] = $this->stripeProductAndPrice($stripeAcct, 'Popular 10-Day Pack', 9900, null, 'prod_showcase_10day', 'price_showcase_10day');
+        [$prodUnlim, $priceUnlim] = $this->stripeProductAndPrice($stripeAcct, 'Unlimited Month Pass', 19500, null, 'prod_showcase_unlim', 'price_showcase_unlim');
+        [$prodSub, $priceSub] = $this->stripeProductAndPrice($stripeAcct, 'Monthly Subscription', 14500, 'month', 'prod_showcase_sub', 'price_showcase_sub');
 
         $pack5 = Package::create([
-            'id'               => (string) Str::ulid(),
-            'tenant_id'        => $tid,
-            'name'             => 'Starter 5-Day Pack',
-            'description'      => 'Perfect for occasional visits.',
-            'type'             => 'one_time',
-            'price'            => '55.00',
-            'credit_count'     => 5,
-            'dog_limit'        => 1,
-            'duration_days'    => null,
-            'is_active'        => true,
-            'is_featured'      => false,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'name' => 'Starter 5-Day Pack',
+            'description' => 'Perfect for occasional visits.',
+            'type' => 'one_time',
+            'price' => '55.00',
+            'credit_count' => 5,
+            'dog_limit' => 1,
+            'duration_days' => null,
+            'is_active' => true,
+            'is_featured' => false,
             'stripe_product_id' => $prod5,
-            'stripe_price_id'  => $price5,
+            'stripe_price_id' => $price5,
         ]);
         $pack10 = Package::create([
-            'id'               => (string) Str::ulid(),
-            'tenant_id'        => $tid,
-            'name'             => 'Popular 10-Day Pack',
-            'description'      => 'Best value for regular visitors.',
-            'type'             => 'one_time',
-            'price'            => '99.00',
-            'credit_count'     => 10,
-            'dog_limit'        => 1,
-            'duration_days'    => null,
-            'is_active'        => true,
-            'is_featured'      => true,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'name' => 'Popular 10-Day Pack',
+            'description' => 'Best value for regular visitors.',
+            'type' => 'one_time',
+            'price' => '99.00',
+            'credit_count' => 10,
+            'dog_limit' => 1,
+            'duration_days' => null,
+            'is_active' => true,
+            'is_featured' => true,
             'stripe_product_id' => $prod10,
-            'stripe_price_id'  => $price10,
+            'stripe_price_id' => $price10,
         ]);
         $packUnlim = Package::create([
-            'id'               => (string) Str::ulid(),
-            'tenant_id'        => $tid,
-            'name'             => 'Unlimited Month Pass',
-            'description'      => 'Unlimited daycare days for 30 days.',
-            'type'             => 'unlimited',
-            'price'            => '195.00',
-            'credit_count'     => 30,
-            'dog_limit'        => 1,
-            'duration_days'    => 30,
-            'is_active'        => true,
-            'is_featured'      => false,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'name' => 'Unlimited Month Pass',
+            'description' => 'Unlimited daycare days for 30 days.',
+            'type' => 'unlimited',
+            'price' => '195.00',
+            'credit_count' => 30,
+            'dog_limit' => 1,
+            'duration_days' => 30,
+            'is_active' => true,
+            'is_featured' => false,
             'stripe_product_id' => $prodUnlim,
-            'stripe_price_id'  => $priceUnlim,
+            'stripe_price_id' => $priceUnlim,
         ]);
         $packSub = Package::create([
-            'id'               => (string) Str::ulid(),
-            'tenant_id'        => $tid,
-            'name'             => 'Monthly Subscription',
-            'description'      => '30 credits per month, auto-renewing.',
-            'type'             => 'subscription',
-            'price'            => '145.00',
-            'credit_count'     => 30,
-            'dog_limit'        => 1,
-            'duration_days'    => null,
-            'is_active'        => true,
-            'is_featured'      => false,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'name' => 'Monthly Subscription',
+            'description' => '30 credits per month, auto-renewing.',
+            'type' => 'subscription',
+            'price' => '145.00',
+            'credit_count' => 30,
+            'dog_limit' => 1,
+            'duration_days' => null,
+            'is_active' => true,
+            'is_featured' => false,
             'stripe_product_id' => $prodSub,
-            'stripe_price_id'  => $priceSub,
+            'stripe_price_id' => $priceSub,
         ]);
 
         $this->stripeIds['packages'] = [
-            '5-Day Pack'          => ['product' => $prod5,      'price' => $price5],
-            '10-Day Pack'         => ['product' => $prod10,     'price' => $price10],
-            'Unlimited Month Pass'=> ['product' => $prodUnlim,  'price' => $priceUnlim],
-            'Monthly Subscription'=> ['product' => $prodSub,    'price' => $priceSub],
+            '5-Day Pack' => ['product' => $prod5,      'price' => $price5],
+            '10-Day Pack' => ['product' => $prod10,     'price' => $price10],
+            'Unlimited Month Pass' => ['product' => $prodUnlim,  'price' => $priceUnlim],
+            'Monthly Subscription' => ['product' => $prodSub,    'price' => $priceSub],
         ];
 
         $this->command->info("  [+] Packages: 5-Day ($price5) | 10-Day ($price10) | Unlimited ($priceUnlim) | Sub ($priceSub)");
 
         // ── Customer 1: Sarah Chen — Visa ─────────────────────────────────────
         $sarahCusId = $this->stripeCustomer($stripeAcct, 'sarah@paw-showcase.test', 'Sarah Chen');
-        $sarahPmId  = $this->stripePaymentMethod($stripeAcct, 'tok_visa', 'visa_sarah');
+        $sarahPmId = $this->stripePaymentMethod($stripeAcct, 'tok_visa', 'visa_sarah');
         $this->attachPm($sarahPmId, $sarahCusId, $stripeAcct);
 
         [$sarahUser, $sarah] = $this->makeCustomerUser(
@@ -557,7 +566,7 @@ class ShowcaseSeeder extends Seeder
             $this->makeLedger($tid, $biscuit->id, 'deduction', -1, $bal, ['attendance_id' => $att->id, 'created_at' => now()->subDays($dAgo)]);
         }
         $this->makeLedger($tid, $biscuit->id, 'goodwill', 2, 9, [
-            'note'       => 'Compensation for a scheduling mix-up last week',
+            'note' => 'Compensation for a scheduling mix-up last week',
             'created_by' => $owner->id,
             'created_at' => now()->subDays(8),
         ]);
@@ -572,13 +581,13 @@ class ShowcaseSeeder extends Seeder
         $orderCookie->update(['status' => 'refunded']);
         $orderCookie->payments()->update(['status' => 'refunded', 'refunded_at' => now()->subDays(12)]);
         $this->makeLedger($tid, $cookie->id, 'refund', -5, 0, [
-            'order_id'         => $orderCookie->id,
+            'order_id' => $orderCookie->id,
             'parent_ledger_id' => $lCookiePurchase->id,
-            'created_at'       => now()->subDays(12),
+            'created_at' => now()->subDays(12),
         ]);
 
         $this->stripeIds['orders']['biscuit_10day'] = $piA['pi_id'];
-        $this->stripeIds['orders']['cookie_5day']   = $piB['pi_id'];
+        $this->stripeIds['orders']['cookie_5day'] = $piB['pi_id'];
 
         // Notifications
         $this->seedNotification($sarahUser->id, $tid, 'payment.confirmed', 'Payment Confirmed',
@@ -586,14 +595,14 @@ class ShowcaseSeeder extends Seeder
         $this->seedNotification($sarahUser->id, $tid, 'payment.confirmed', 'Payment Confirmed',
             'Your payment of $55.00 for Starter 5-Day Pack was confirmed.', [], now()->subDays(13), now()->subDays(15));
         $this->seedNotification($sarahUser->id, $tid, 'payment.refunded', 'Refund Processed',
-            "Your refund of \$55.00 for Starter 5-Day Pack has been processed.", [], null, now()->subDays(12));
+            'Your refund of $55.00 for Starter 5-Day Pack has been processed.', [], null, now()->subDays(12));
 
-        $this->command->info("  [+]   Dog: Biscuit (Labrador) — 9 credits  [purchase, deduction ×3, goodwill]");
-        $this->command->info("  [+]   Dog: Cookie (Beagle)    — 0 credits  [purchase, refund]");
+        $this->command->info('  [+]   Dog: Biscuit (Labrador) — 9 credits  [purchase, deduction ×3, goodwill]');
+        $this->command->info('  [+]   Dog: Cookie (Beagle)    — 0 credits  [purchase, refund]');
 
         // ── Customer 2: Marcus Webb — Mastercard ──────────────────────────────
         $marcusCusId = $this->stripeCustomer($stripeAcct, 'marcus@paw-showcase.test', 'Marcus Webb');
-        $marcusPmId  = $this->stripePaymentMethod($stripeAcct, 'tok_mastercard', 'mc_marcus');
+        $marcusPmId = $this->stripePaymentMethod($stripeAcct, 'tok_mastercard', 'mc_marcus');
         $this->attachPm($marcusPmId, $marcusCusId, $stripeAcct);
 
         [$marcusUser, $marcus] = $this->makeCustomerUser(
@@ -608,27 +617,27 @@ class ShowcaseSeeder extends Seeder
 
         // Cancelled subscription last month (demonstrates cancelled state)
         $subAtlasPrev = Subscription::create([
-            'id'                   => (string) Str::ulid(),
-            'tenant_id'            => $tid,
-            'customer_id'          => $marcus->id,
-            'package_id'           => $packSub->id,
-            'dog_id'               => $atlas->id,
-            'status'               => 'cancelled',
-            'stripe_sub_id'        => 'sub_showcase_atlas_prev',
-            'stripe_customer_id'   => $marcusCusId,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $marcus->id,
+            'package_id' => $packSub->id,
+            'dog_id' => $atlas->id,
+            'status' => 'cancelled',
+            'stripe_sub_id' => 'sub_showcase_atlas_prev',
+            'stripe_customer_id' => $marcusCusId,
             'current_period_start' => now()->subDays(60),
-            'current_period_end'   => now()->subDays(30),
-            'cancelled_at'         => now()->subDays(30),
+            'current_period_end' => now()->subDays(30),
+            'cancelled_at' => now()->subDays(30),
         ]);
         $this->makeLedger($tid, $atlas->id, 'subscription', 30, 30, [
             'subscription_id' => $subAtlasPrev->id,
-            'expires_at'      => now()->subDays(30),
-            'created_at'      => now()->subDays(60),
+            'expires_at' => now()->subDays(30),
+            'created_at' => now()->subDays(60),
         ]);
         // All 30 credits consumed during previous subscription period
         for ($i = 1; $i <= 30; $i++) {
-            $dAgo    = 60 - $i + 1;
-            $staffU  = $i % 2 === 0 ? $staff2 : $staff1;
+            $dAgo = 60 - $i + 1;
+            $staffU = $i % 2 === 0 ? $staff2 : $staff1;
             $attPrev = $this->makeAttendance($tid, $atlas->id, $staffU->id, now()->subDays($dAgo)->setHour(8), now()->subDays($dAgo)->setHour(17), false, null, $staffU->id);
             $this->makeLedger($tid, $atlas->id, 'deduction', -1, 30 - $i, ['attendance_id' => $attPrev->id, 'created_at' => now()->subDays($dAgo)]);
         }
@@ -636,25 +645,25 @@ class ShowcaseSeeder extends Seeder
         // Active subscription this month
         $subAtlasId = $this->stripeSubscription($stripeAcct, $marcusCusId, $priceSub, $marcusPmId, 'sub_showcase_atlas_active', ['dog' => 'Atlas']);
         $subAtlas = Subscription::create([
-            'id'                   => (string) Str::ulid(),
-            'tenant_id'            => $tid,
-            'customer_id'          => $marcus->id,
-            'package_id'           => $packSub->id,
-            'dog_id'               => $atlas->id,
-            'status'               => 'active',
-            'stripe_sub_id'        => $subAtlasId,
-            'stripe_customer_id'   => $marcusCusId,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $marcus->id,
+            'package_id' => $packSub->id,
+            'dog_id' => $atlas->id,
+            'status' => 'active',
+            'stripe_sub_id' => $subAtlasId,
+            'stripe_customer_id' => $marcusCusId,
             'current_period_start' => now()->subDays(12),
-            'current_period_end'   => now()->addDays(18),
-            'cancelled_at'         => null,
+            'current_period_end' => now()->addDays(18),
+            'cancelled_at' => null,
         ]);
         $this->makeLedger($tid, $atlas->id, 'subscription', 30, 30, [
             'subscription_id' => $subAtlas->id,
-            'expires_at'      => now()->addDays(18),
-            'created_at'      => now()->subDays(12),
+            'expires_at' => now()->addDays(18),
+            'created_at' => now()->subDays(12),
         ]);
         for ($i = 1; $i <= 12; $i++) {
-            $dAgo   = 12 - $i + 1;
+            $dAgo = 12 - $i + 1;
             $staffU = $i % 2 === 0 ? $staff2 : $staff1;
             $attCur = $this->makeAttendance($tid, $atlas->id, $staffU->id, now()->subDays($dAgo)->setHour(8), now()->subDays($dAgo)->setHour(17), false, null, $staffU->id);
             $this->makeLedger($tid, $atlas->id, 'deduction', -1, 30 - $i, ['attendance_id' => $attCur->id, 'created_at' => now()->subDays($dAgo)]);
@@ -665,7 +674,7 @@ class ShowcaseSeeder extends Seeder
         $piC = $this->stripePaymentIntent($stripeAcct, 9900, $marcusCusId, $marcusPmId, 'pi_showcase_nova_10day', ['dog' => 'Nova', 'pack' => '10-Day']);
         $orderNova = $this->makeOrder($tid, $marcus->id, $pack10->id, '99.00', now()->subDays(50), $piC['pi_id']);
         $lNovaPurchase = $this->makeLedger($tid, $nova->id, 'purchase', 10, 10, [
-            'order_id'   => $orderNova->id,
+            'order_id' => $orderNova->id,
             'expires_at' => now()->subDays(20),
             'created_at' => now()->subDays(50),
         ]);
@@ -677,16 +686,16 @@ class ShowcaseSeeder extends Seeder
         }
         $this->makeLedger($tid, $nova->id, 'expiry_removal', -3, 0, [
             'parent_ledger_id' => $lNovaPurchase->id,
-            'created_at'       => now()->subDays(20),
+            'created_at' => now()->subDays(20),
         ]);
         $this->makeLedger($tid, $nova->id, 'correction_add', 3, 3, [
-            'note'       => 'Courtesy credits — expired pack was unused due to illness',
+            'note' => 'Courtesy credits — expired pack was unused due to illness',
             'created_by' => $owner->id,
             'created_at' => now()->subDays(18),
         ]);
 
         $this->stripeIds['subscriptions']['atlas_active'] = $subAtlasId;
-        $this->stripeIds['orders']['nova_10day']           = $piC['pi_id'];
+        $this->stripeIds['orders']['nova_10day'] = $piC['pi_id'];
 
         // Notifications
         $this->seedNotification($marcusUser->id, $tid, 'subscription.renewed', 'Subscription Renewed',
@@ -694,13 +703,13 @@ class ShowcaseSeeder extends Seeder
         $this->seedNotification($marcusUser->id, $tid, 'credits.low', 'Low Credits Alert',
             'Nova has only 3 credits remaining.', ['dog_name' => 'Nova'], null, now()->subDays(18));
 
-        $this->command->info("  [+]   Dog: Atlas (German Shepherd) — 18 credits  [subscription ×2, deduction ×42, cancelled sub]");
+        $this->command->info('  [+]   Dog: Atlas (German Shepherd) — 18 credits  [subscription ×2, deduction ×42, cancelled sub]');
         $this->command->info("      Sub ID (active): {$subAtlasId}");
-        $this->command->info("  [+]   Dog: Nova (Border Collie)    — 3 credits   [purchase, deduction ×7, expiry_removal, correction_add]");
+        $this->command->info('  [+]   Dog: Nova (Border Collie)    — 3 credits   [purchase, deduction ×7, expiry_removal, correction_add]');
 
         // ── Customer 3: Priya Nair — Amex ─────────────────────────────────────
         $priyaCusId = $this->stripeCustomer($stripeAcct, 'priya@paw-showcase.test', 'Priya Nair');
-        $priyaPmId  = $this->stripePaymentMethod($stripeAcct, 'tok_amex', 'amex_priya');
+        $priyaPmId = $this->stripePaymentMethod($stripeAcct, 'tok_amex', 'amex_priya');
         $this->attachPm($priyaPmId, $priyaCusId, $stripeAcct);
 
         [$priyaUser, $priya] = $this->makeCustomerUser(
@@ -717,7 +726,7 @@ class ShowcaseSeeder extends Seeder
         $piD = $this->stripePaymentIntent($stripeAcct, 19500, $priyaCusId, $priyaPmId, 'pi_showcase_mango_unlim', ['dog' => 'Mango', 'pack' => 'Unlimited']);
         $orderMango = $this->makeOrder($tid, $priya->id, $packUnlim->id, '195.00', now()->subDays(8), $piD['pi_id']);
         $this->makeLedger($tid, $mango->id, 'purchase', 30, 30, [
-            'order_id'   => $orderMango->id,
+            'order_id' => $orderMango->id,
             'expires_at' => now()->addDays(22),
             'created_at' => now()->subDays(8),
         ]);
@@ -740,27 +749,27 @@ class ShowcaseSeeder extends Seeder
         $orderSpice = $this->makeOrder($tid, $priya->id, $pack5->id, '55.00', now()->subDays(14), $piF['pi_id']);
         $this->makeLedger($tid, $spice->id, 'purchase', 5, 5, ['order_id' => $orderSpice->id, 'created_at' => now()->subDays(14)]);
         $this->makeLedger($tid, $spice->id, 'correction_remove', -1, 4, [
-            'note'       => 'Entry correction — one credit over-issued at registration',
+            'note' => 'Entry correction — one credit over-issued at registration',
             'created_by' => $owner->id,
             'created_at' => now()->subDays(13),
         ]);
 
         // Transfer: Chai → Spice
         $lTransferOut = $this->makeLedger($tid, $chai->id, 'transfer_out', -4, 6, [
-            'note'       => 'Transferred to Spice (same owner account)',
+            'note' => 'Transferred to Spice (same owner account)',
             'created_by' => $owner->id,
             'created_at' => now()->subDays(6),
         ]);
         $this->makeLedger($tid, $spice->id, 'transfer_in', 4, 8, [
-            'note'             => 'Transferred from Chai (same owner account)',
+            'note' => 'Transferred from Chai (same owner account)',
             'parent_ledger_id' => $lTransferOut->id,
-            'created_by'       => $owner->id,
-            'created_at'       => now()->subDays(6),
+            'created_by' => $owner->id,
+            'created_at' => now()->subDays(6),
         ]);
 
-        $this->stripeIds['orders']['mango_unlim']  = $piD['pi_id'];
-        $this->stripeIds['orders']['chai_10day']   = $piE['pi_id'];
-        $this->stripeIds['orders']['spice_5day']   = $piF['pi_id'];
+        $this->stripeIds['orders']['mango_unlim'] = $piD['pi_id'];
+        $this->stripeIds['orders']['chai_10day'] = $piE['pi_id'];
+        $this->stripeIds['orders']['spice_5day'] = $piF['pi_id'];
 
         // Notifications
         $this->seedNotification($priyaUser->id, $tid, 'payment.confirmed', 'Payment Confirmed',
@@ -770,18 +779,18 @@ class ShowcaseSeeder extends Seeder
         $this->seedNotification($priyaUser->id, $tid, 'payment.confirmed', 'Payment Confirmed',
             'Your payment of $55.00 for Starter 5-Day Pack was confirmed.', [], now()->subDays(12), now()->subDays(14));
 
-        $this->command->info("  [+]   Dog: Mango (Golden Retriever) — 30 credits  [unlimited pass, currently checked in]");
-        $this->command->info("  [+]   Dog: Chai  (Poodle)           — 6 credits   [purchase, transfer_out]");
-        $this->command->info("  [+]   Dog: Spice (Shih Tzu)         — 8 credits   [purchase, correction_remove, transfer_in]");
+        $this->command->info('  [+]   Dog: Mango (Golden Retriever) — 30 credits  [unlimited pass, currently checked in]');
+        $this->command->info('  [+]   Dog: Chai  (Poodle)           — 6 credits   [purchase, transfer_out]');
+        $this->command->info('  [+]   Dog: Spice (Shih Tzu)         — 8 credits   [purchase, correction_remove, transfer_in]');
 
         // ── Staff-only customer (no login) ────────────────────────────────────
         $staffOnly = Customer::create([
-            'id'        => (string) Str::ulid(),
+            'id' => (string) Str::ulid(),
             'tenant_id' => $tid,
-            'user_id'   => null,
-            'name'      => 'Lee Thompson',
-            'email'     => null,
-            'phone'     => '+18085551099',
+            'user_id' => null,
+            'name' => 'Lee Thompson',
+            'email' => null,
+            'phone' => '+18085551099',
         ]);
         $rex = $this->makeDog($tid, $staffOnly->id, 'Rex', 'Rottweiler', '2018-11-30', 'male', 4);
         $piG = $this->stripePaymentIntent($stripeAcct, 5500, 'cus_showcase_staff_only', 'pm_showcase_cash', 'pi_showcase_rex_5day', ['dog' => 'Rex', 'pack' => '5-Day']);
@@ -792,8 +801,8 @@ class ShowcaseSeeder extends Seeder
             $this->makeLedger($tid, $rex->id, 'deduction', -1, $bal, ['attendance_id' => $attRex->id, 'created_at' => now()->subDays($dAgo)]);
         }
 
-        $this->command->info("  [+] Customer: Lee Thompson (staff-only, no login)");
-        $this->command->info("  [+]   Dog: Rex (Rottweiler) — 4 credits");
+        $this->command->info('  [+] Customer: Lee Thompson (staff-only, no login)');
+        $this->command->info('  [+]   Dog: Rex (Rottweiler) — 4 credits');
         $this->command->newLine();
     }
 
@@ -830,7 +839,7 @@ class ShowcaseSeeder extends Seeder
         $this->command->info('╠══════════════════════════════════════════════════════════════════╣');
         $this->command->info('║  STRIPE IDs                                                      ║');
         $this->command->info('╠══════════════════════════════════════════════════════════════════╣');
-        $this->command->info("  Connect Account:  " . ($this->stripeIds['connect_account'] ?? 'n/a'));
+        $this->command->info('  Connect Account:  '.($this->stripeIds['connect_account'] ?? 'n/a'));
 
         $this->command->newLine();
         $this->command->info('  Customers:');

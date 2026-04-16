@@ -9,7 +9,10 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Breed</label>
-          <input v-model="form.breed" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+          <select v-model="form.breed_id" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm">
+            <option :value="null">— Select breed —</option>
+            <option v-for="b in breeds" :key="b.id" :value="b.id">{{ b.name }}</option>
+          </select>
         </div>
 
         <div class="border-t border-gray-200 pt-4">
@@ -88,7 +91,7 @@ const props = defineProps<{
   dog: {
     id: string;
     name: string;
-    breed: string | null;
+    breed_id: number | null;
     dob: string | null;
     sex: string | null;
     vet_name: string | null;
@@ -97,13 +100,14 @@ const props = defineProps<{
     auto_replenish_package_id: string | null;
     status: string;
   };
+  breeds: Array<{ id: number; name: string }>;
   eligiblePackages: EligiblePackage[];
   statusOptions: StatusOption[];
 }>();
 
 const form = useForm({
   name: props.dog.name,
-  breed: props.dog.breed ?? '',
+  breed_id: props.dog.breed_id ?? null,
   dob: props.dog.dob ?? '',
   sex: props.dog.sex ?? '',
   vet_name: props.dog.vet_name ?? '',

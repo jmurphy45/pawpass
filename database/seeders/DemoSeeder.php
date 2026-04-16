@@ -15,7 +15,6 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class DemoSeeder extends Seeder
@@ -65,7 +64,7 @@ class DemoSeeder extends Seeder
         bool $isFeatured = false
     ): Package {
         $stripePriceId = $fakePriceId;
-        $stripeProductId = 'prod_demo_' . Str::slug($name);
+        $stripeProductId = 'prod_demo_'.Str::slug($name);
 
         if ($this->hasRealStripeConnect && ! str_starts_with($stripeAccountId, 'acct_1Demo')) {
             try {
@@ -81,18 +80,18 @@ class DemoSeeder extends Seeder
         }
 
         return Package::create([
-            'id'               => (string) Str::ulid(),
-            'tenant_id'        => $tid,
-            'name'             => $name,
-            'description'      => $description,
-            'type'             => $type,
-            'price'            => $price,
-            'credit_count'     => $creditCount,
-            'dog_limit'        => $dogLimit,
-            'duration_days'    => $durationDays,
-            'is_active'        => true,
-            'is_featured'      => $isFeatured,
-            'stripe_price_id'  => $stripePriceId,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'name' => $name,
+            'description' => $description,
+            'type' => $type,
+            'price' => $price,
+            'credit_count' => $creditCount,
+            'dog_limit' => $dogLimit,
+            'duration_days' => $durationDays,
+            'is_active' => true,
+            'is_featured' => $isFeatured,
+            'stripe_price_id' => $stripePriceId,
             'stripe_product_id' => $stripeProductId,
         ]);
     }
@@ -101,24 +100,24 @@ class DemoSeeder extends Seeder
     private function makeCustomerUser(string $tid, string $name, string $email, ?string $phone = null): array
     {
         $user = User::create([
-            'id'                => (string) Str::ulid(),
-            'tenant_id'         => $tid,
-            'customer_id'       => null,
-            'name'              => $name,
-            'email'             => $email,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => null,
+            'name' => $name,
+            'email' => $email,
             'email_verified_at' => now(),
-            'role'              => 'customer',
-            'status'            => 'active',
+            'role' => 'customer',
+            'status' => 'active',
         ]);
 
         $customer = Customer::create([
-            'id'        => (string) Str::ulid(),
+            'id' => (string) Str::ulid(),
             'tenant_id' => $tid,
-            'user_id'   => $user->id,
-            'name'      => $name,
-            'email'     => $email,
-            'phone'     => $phone,
-            'notes'     => null,
+            'user_id' => $user->id,
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+            'notes' => null,
         ]);
 
         $user->update(['customer_id' => $customer->id]);
@@ -129,13 +128,13 @@ class DemoSeeder extends Seeder
     private function makeCustomerOnly(string $tid, string $name, ?string $email, ?string $phone = null): Customer
     {
         return Customer::create([
-            'id'        => (string) Str::ulid(),
+            'id' => (string) Str::ulid(),
             'tenant_id' => $tid,
-            'user_id'   => null,
-            'name'      => $name,
-            'email'     => $email,
-            'phone'     => $phone,
-            'notes'     => null,
+            'user_id' => null,
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+            'notes' => null,
         ]);
     }
 
@@ -149,17 +148,17 @@ class DemoSeeder extends Seeder
         int $creditBalance
     ): Dog {
         return Dog::create([
-            'id'                     => (string) Str::ulid(),
-            'tenant_id'              => $tid,
-            'customer_id'            => $customerId,
-            'name'                   => $name,
-            'breed'                  => $breed,
-            'dob'                    => $dob,
-            'sex'                    => $sex,
-            'photo_url'              => null,
-            'credit_balance'         => $creditBalance,
-            'credits_expire_at'      => null,
-            'credits_alert_sent_at'  => null,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $customerId,
+            'name' => $name,
+            'breed' => $breed,
+            'dob' => $dob,
+            'sex' => $sex,
+            'photo_url' => null,
+            'credit_balance' => $creditBalance,
+            'credits_expire_at' => null,
+            'credits_alert_sent_at' => null,
         ]);
     }
 
@@ -174,27 +173,27 @@ class DemoSeeder extends Seeder
         mixed $refundedAt = null
     ): Order {
         $order = Order::create([
-            'id'               => (string) Str::ulid(),
-            'tenant_id'        => $tid,
-            'customer_id'      => $customerId,
-            'package_id'       => $packageId,
-            'status'           => $status,
-            'total_amount'     => $amount,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $customerId,
+            'package_id' => $packageId,
+            'status' => $status,
+            'total_amount' => $amount,
             'platform_fee_pct' => '5.00',
-            'idempotency_key'  => (string) Str::uuid(),
+            'idempotency_key' => (string) Str::uuid(),
         ]);
 
         OrderPayment::create([
-            'id'                    => (string) Str::ulid(),
-            'tenant_id'             => $tid,
-            'order_id'              => $order->id,
-            'stripe_pi_id'          => $fakePiId,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'order_id' => $order->id,
+            'stripe_pi_id' => $fakePiId,
             'stripe_payment_method' => null,
-            'amount_cents'          => (int) (floatval($amount) * 100),
-            'type'                  => 'charge',
-            'status'                => $status,
-            'paid_at'               => $paidAt,
-            'refunded_at'           => $refundedAt,
+            'amount_cents' => (int) (floatval($amount) * 100),
+            'type' => 'charge',
+            'status' => $status,
+            'paid_at' => $paidAt,
+            'refunded_at' => $refundedAt,
         ]);
 
         return $order;
@@ -209,18 +208,18 @@ class DemoSeeder extends Seeder
         array $extra = []
     ): CreditLedger {
         return CreditLedger::create(array_merge([
-            'tenant_id'        => $tid,
-            'dog_id'           => $dogId,
-            'type'             => $type,
-            'delta'            => $delta,
-            'balance_after'    => $balanceAfter,
-            'expires_at'       => null,
-            'order_id'         => null,
-            'attendance_id'    => null,
-            'subscription_id'  => null,
+            'tenant_id' => $tid,
+            'dog_id' => $dogId,
+            'type' => $type,
+            'delta' => $delta,
+            'balance_after' => $balanceAfter,
+            'expires_at' => null,
+            'order_id' => null,
+            'attendance_id' => null,
+            'subscription_id' => null,
             'parent_ledger_id' => null,
-            'created_by'       => null,
-            'note'             => null,
+            'created_by' => null,
+            'note' => null,
         ], $extra));
     }
 
@@ -235,20 +234,20 @@ class DemoSeeder extends Seeder
         ?string $checkedOutBy = null
     ): Attendance {
         return Attendance::create([
-            'id'                 => (string) Str::ulid(),
-            'tenant_id'          => $tid,
-            'dog_id'             => $dogId,
-            'checked_in_by'      => $checkedInBy,
-            'checked_out_by'     => $checkedOutAt !== null ? ($checkedOutBy ?? $checkedInBy) : null,
-            'checked_in_at'      => $checkedInAt,
-            'checked_out_at'     => $checkedOutAt,
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'dog_id' => $dogId,
+            'checked_in_by' => $checkedInBy,
+            'checked_out_by' => $checkedOutAt !== null ? ($checkedOutBy ?? $checkedInBy) : null,
+            'checked_in_at' => $checkedInAt,
+            'checked_out_at' => $checkedOutAt,
             'zero_credit_override' => $zeroOverride,
-            'override_note'      => $overrideNote,
-            'edited_by'          => null,
-            'edited_at'          => null,
-            'edit_note'          => null,
-            'original_in'        => null,
-            'original_out'       => null,
+            'override_note' => $overrideNote,
+            'edited_by' => null,
+            'edited_at' => null,
+            'edit_note' => null,
+            'original_in' => null,
+            'original_out' => null,
         ]);
     }
 
@@ -264,15 +263,15 @@ class DemoSeeder extends Seeder
     ): void {
         $ts = $createdAt ?? now();
         DB::table('notifications')->insert([
-            'id'              => (string) Str::uuid(),
-            'type'            => 'App\Notifications\PawPassNotification',
+            'id' => (string) Str::uuid(),
+            'type' => 'App\Notifications\PawPassNotification',
             'notifiable_type' => 'App\Models\User',
-            'notifiable_id'   => $userId,
-            'data'            => json_encode(array_merge(['event' => $event, 'title' => $title, 'body' => $body], $extra)),
-            'tenant_id'       => $tenantId,
-            'read_at'         => $readAt,
-            'created_at'      => $ts,
-            'updated_at'      => $ts,
+            'notifiable_id' => $userId,
+            'data' => json_encode(array_merge(['event' => $event, 'title' => $title, 'body' => $body], $extra)),
+            'tenant_id' => $tenantId,
+            'read_at' => $readAt,
+            'created_at' => $ts,
+            'updated_at' => $ts,
         ]);
     }
 
@@ -281,14 +280,14 @@ class DemoSeeder extends Seeder
     private function seedPlatformAdmin(): void
     {
         User::create([
-            'id'                => (string) Str::ulid(),
-            'tenant_id'         => null,
-            'customer_id'       => null,
-            'name'              => 'Platform Admin',
-            'email'             => 'admin@pawpass.test',
+            'id' => (string) Str::ulid(),
+            'tenant_id' => null,
+            'customer_id' => null,
+            'name' => 'Platform Admin',
+            'email' => 'admin@pawpass.test',
             'email_verified_at' => now(),
-            'role'              => 'platform_admin',
-            'status'            => 'active',
+            'role' => 'platform_admin',
+            'status' => 'active',
         ]);
         $this->command->info('  [✓] Platform admin');
     }
@@ -300,24 +299,24 @@ class DemoSeeder extends Seeder
         $tid = (string) Str::ulid();
 
         $tenant = Tenant::create([
-            'id'                         => $tid,
-            'name'                       => 'Happy Paws Daycare',
-            'slug'                       => 'happy-paws',
-            'owner_user_id'              => null,
-            'status'                     => 'active',
-            'stripe_account_id'          => null,
-            'stripe_onboarded_at'        => null,
-            'platform_fee_pct'           => '5.00',
-            'payout_schedule'            => 'daily',
-            'low_credit_threshold'       => 2,
-            'checkin_block_at_zero'      => true,
-            'timezone'                   => 'America/New_York',
-            'primary_color'              => '#7c3aed',
-            'plan'                       => 'pro',
-            'plan_billing_cycle'         => 'monthly',
-            'plan_current_period_end'    => now()->addDays(14),
+            'id' => $tid,
+            'name' => 'Happy Paws Daycare',
+            'slug' => 'happy-paws',
+            'owner_user_id' => null,
+            'status' => 'active',
+            'stripe_account_id' => null,
+            'stripe_onboarded_at' => null,
+            'platform_fee_pct' => '5.00',
+            'payout_schedule' => 'daily',
+            'low_credit_threshold' => 2,
+            'checkin_block_at_zero' => true,
+            'timezone' => 'America/New_York',
+            'primary_color' => '#7c3aed',
+            'plan' => 'pro',
+            'plan_billing_cycle' => 'monthly',
+            'plan_current_period_end' => now()->addDays(14),
             'platform_stripe_customer_id' => 'cus_demo_happypaws',
-            'platform_stripe_sub_id'     => 'sub_demo_happypaws',
+            'platform_stripe_sub_id' => 'sub_demo_happypaws',
         ]);
 
         // Stripe Connect
@@ -340,7 +339,7 @@ class DemoSeeder extends Seeder
         $owner = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Alex Morgan', 'email' => 'owner@happy-paws.test',
-            'email_verified_at' => now(), 
+            'email_verified_at' => now(),
             'role' => 'business_owner', 'status' => 'active',
         ]);
         $tenant->update(['owner_user_id' => $owner->id]);
@@ -348,49 +347,49 @@ class DemoSeeder extends Seeder
         $sarah = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Sarah Thompson', 'email' => 'sarah@happy-paws.test',
-            'email_verified_at' => now(), 
+            'email_verified_at' => now(),
             'role' => 'staff', 'status' => 'active',
         ]);
 
         $mike = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Mike Johnson', 'email' => 'mike@happy-paws.test',
-            'email_verified_at' => now(), 
+            'email_verified_at' => now(),
             'role' => 'staff', 'status' => 'active',
         ]);
 
         // Packages
-        $pack5   = $this->makePackage($tid, '5-Day Pack',        'Great for occasional visits.',           'one_time',     '50.00',  5,  1, null, $stripeAcct, 'price_demo_hp_5day');
-        $pack10  = $this->makePackage($tid, '10-Day Pack',       'Best value for regular visitors.',       'one_time',     '90.00',  10, 1, null, $stripeAcct, 'price_demo_hp_10day');
-        $pack20  = $this->makePackage($tid, '20-Day Pack',       'Our most popular pack!',                 'one_time',     '170.00', 20, 1, null, $stripeAcct, 'price_demo_hp_20day', true);
-        $subPack = $this->makePackage($tid, 'Monthly Unlimited', 'Unlimited days for the whole month.',    'subscription', '150.00', 30, 1, null, $stripeAcct, 'price_demo_hp_sub');
-        $famPack = $this->makePackage($tid, 'Family Pack',       'Perfect for families with 2 dogs.',      'one_time',     '160.00', 10, 2, null, $stripeAcct, 'price_demo_hp_family');
+        $pack5 = $this->makePackage($tid, '5-Day Pack', 'Great for occasional visits.', 'one_time', '50.00', 5, 1, null, $stripeAcct, 'price_demo_hp_5day');
+        $pack10 = $this->makePackage($tid, '10-Day Pack', 'Best value for regular visitors.', 'one_time', '90.00', 10, 1, null, $stripeAcct, 'price_demo_hp_10day');
+        $pack20 = $this->makePackage($tid, '20-Day Pack', 'Our most popular pack!', 'one_time', '170.00', 20, 1, null, $stripeAcct, 'price_demo_hp_20day', true);
+        $subPack = $this->makePackage($tid, 'Monthly Unlimited', 'Unlimited days for the whole month.', 'subscription', '150.00', 30, 1, null, $stripeAcct, 'price_demo_hp_sub');
+        $famPack = $this->makePackage($tid, 'Family Pack', 'Perfect for families with 2 dogs.', 'one_time', '160.00', 10, 2, null, $stripeAcct, 'price_demo_hp_family');
 
         // Customers and dogs
-        [$janeUser,   $jane]   = $this->makeCustomerUser($tid, 'Jane Smith',    'jane@happy-paws.test',   '+15551234567');
-        [$robertUser, $robert] = $this->makeCustomerUser($tid, 'Robert Chen',   'robert@happy-paws.test', '+15559876543');
-        [$emilyUser,  $emily]  = $this->makeCustomerUser($tid, 'Emily Davis',   'emily@happy-paws.test',  '+15555551234');
-        [$tomUser,    $tom]    = $this->makeCustomerUser($tid, 'Tom Wilson',     'tom@happy-paws.test',    '+15558765432');
-        [$lisaUser,   $lisa]   = $this->makeCustomerUser($tid, 'Lisa Park',      'lisa@happy-paws.test',   '+15553213456');
-        [$carlosUser, $carlos] = $this->makeCustomerUser($tid, 'Carlos Mendez',  'carlos@happy-paws.test', '+15556789012');
+        [$janeUser,   $jane] = $this->makeCustomerUser($tid, 'Jane Smith', 'jane@happy-paws.test', '+15551234567');
+        [$robertUser, $robert] = $this->makeCustomerUser($tid, 'Robert Chen', 'robert@happy-paws.test', '+15559876543');
+        [$emilyUser,  $emily] = $this->makeCustomerUser($tid, 'Emily Davis', 'emily@happy-paws.test', '+15555551234');
+        [$tomUser,    $tom] = $this->makeCustomerUser($tid, 'Tom Wilson', 'tom@happy-paws.test', '+15558765432');
+        [$lisaUser,   $lisa] = $this->makeCustomerUser($tid, 'Lisa Park', 'lisa@happy-paws.test', '+15553213456');
+        [$carlosUser, $carlos] = $this->makeCustomerUser($tid, 'Carlos Mendez', 'carlos@happy-paws.test', '+15556789012');
 
         $karen = $this->makeCustomerOnly($tid, 'Karen Williams', 'karen@happy-paws.test', '+15554567890');
-        $david = $this->makeCustomerOnly($tid, 'David Kim',      null,                    '+15551112222');
+        $david = $this->makeCustomerOnly($tid, 'David Kim', null, '+15551112222');
 
-        $buddy   = $this->makeDog($tid, $jane->id,   'Buddy',   'Labrador Retriever', '2019-06-15', 'male',   8);
-        $max     = $this->makeDog($tid, $jane->id,   'Max',     'Beagle',             '2021-03-10', 'male',   2);
-        $coco    = $this->makeDog($tid, $robert->id, 'Coco',    'Golden Retriever',   '2020-05-20', 'female', 0);
-        $rocky   = $this->makeDog($tid, $robert->id, 'Rocky',   'German Shepherd',    '2018-09-14', 'male',   6);
-        $daisy   = $this->makeDog($tid, $emily->id,  'Daisy',   'Poodle',             '2020-04-12', 'female', 15);
-        $scout   = $this->makeDog($tid, $emily->id,  'Scout',   'Border Collie',      '2019-11-03', 'male',   0);
-        $bella   = $this->makeDog($tid, $tom->id,    'Bella',   'Dachshund',          '2021-07-22', 'female', 3);
-        $charlie = $this->makeDog($tid, $tom->id,    'Charlie', 'Corgi',              '2020-02-18', 'male',   5);
-        $pepper  = $this->makeDog($tid, $tom->id,    'Pepper',  'Shih Tzu',           '2022-01-05', 'female', 10);
-        $bruno   = $this->makeDog($tid, $lisa->id,   'Bruno',   'Bulldog',            '2019-08-30', 'male',   4);
-        $bear    = $this->makeDog($tid, $lisa->id,   'Bear',    'Husky',              '2020-12-15', 'male',   1);
-        $luna    = $this->makeDog($tid, $carlos->id, 'Luna',    'Chihuahua',          '2021-10-08', 'female', 23);
-        $rex     = $this->makeDog($tid, $karen->id,  'Rex',     'Rottweiler',         '2018-03-25', 'male',   7);
-        $zoe     = $this->makeDog($tid, $david->id,  'Zoe',     'Maltese',            '2022-06-14', 'female', 0);
+        $buddy = $this->makeDog($tid, $jane->id, 'Buddy', 'Labrador Retriever', '2019-06-15', 'male', 8);
+        $max = $this->makeDog($tid, $jane->id, 'Max', 'Beagle', '2021-03-10', 'male', 2);
+        $coco = $this->makeDog($tid, $robert->id, 'Coco', 'Golden Retriever', '2020-05-20', 'female', 0);
+        $rocky = $this->makeDog($tid, $robert->id, 'Rocky', 'German Shepherd', '2018-09-14', 'male', 6);
+        $daisy = $this->makeDog($tid, $emily->id, 'Daisy', 'Poodle', '2020-04-12', 'female', 15);
+        $scout = $this->makeDog($tid, $emily->id, 'Scout', 'Border Collie', '2019-11-03', 'male', 0);
+        $bella = $this->makeDog($tid, $tom->id, 'Bella', 'Dachshund', '2021-07-22', 'female', 3);
+        $charlie = $this->makeDog($tid, $tom->id, 'Charlie', 'Corgi', '2020-02-18', 'male', 5);
+        $pepper = $this->makeDog($tid, $tom->id, 'Pepper', 'Shih Tzu', '2022-01-05', 'female', 10);
+        $bruno = $this->makeDog($tid, $lisa->id, 'Bruno', 'Bulldog', '2019-08-30', 'male', 4);
+        $bear = $this->makeDog($tid, $lisa->id, 'Bear', 'Husky', '2020-12-15', 'male', 1);
+        $luna = $this->makeDog($tid, $carlos->id, 'Luna', 'Chihuahua', '2021-10-08', 'female', 23);
+        $rex = $this->makeDog($tid, $karen->id, 'Rex', 'Rottweiler', '2018-03-25', 'male', 7);
+        $zoe = $this->makeDog($tid, $david->id, 'Zoe', 'Maltese', '2022-06-14', 'female', 0);
 
         // ── Orders & Credit Ledger ─────────────────────────────────────────────
 
@@ -419,43 +418,43 @@ class DemoSeeder extends Seeder
         $attCoco2 = $this->makeAttendance($tid, $coco->id, $sarah->id, now()->subDays(23)->setHour(8), now()->subDays(23)->setHour(16), false, null, $sarah->id);
         $this->makeLedger($tid, $coco->id, 'deduction', -1, 8, ['attendance_id' => $attCoco2->id, 'created_at' => now()->subDays(23)]);
         $this->makeLedger($tid, $coco->id, 'refund', -8, 0, [
-            'order_id'         => $orderCoco->id,
+            'order_id' => $orderCoco->id,
             'parent_ledger_id' => $lCocoPurchase->id,
-            'created_at'       => now()->subDays(20),
+            'created_at' => now()->subDays(20),
         ]);
 
         // Rocky: 5-Day Pack (10d ago) + goodwill +2 + correction_remove -1 = 6
         $orderRocky = $this->makeOrder($tid, $robert->id, $pack5->id, '50.00', now()->subDays(10), 'pi_3demoRockyPurchase00001');
         $this->makeLedger($tid, $rocky->id, 'purchase', 5, 5, ['order_id' => $orderRocky->id, 'created_at' => now()->subDays(10)]);
         $this->makeLedger($tid, $rocky->id, 'goodwill', 2, 7, [
-            'note'       => 'Compensation for scheduling error',
+            'note' => 'Compensation for scheduling error',
             'created_by' => $owner->id,
             'created_at' => now()->subDays(8),
         ]);
         $this->makeLedger($tid, $rocky->id, 'correction_remove', -1, 6, [
-            'note'       => 'Entry correction — one extra credit removed',
+            'note' => 'Entry correction — one extra credit removed',
             'created_by' => $owner->id,
             'created_at' => now()->subDays(7),
         ]);
 
         // Daisy: Active subscription — 30 credits issued 15d ago, 15 deductions = 15
         $subDaisy = Subscription::create([
-            'id'                   => (string) Str::ulid(),
-            'tenant_id'            => $tid,
-            'customer_id'          => $emily->id,
-            'package_id'           => $subPack->id,
-            'dog_id'               => $daisy->id,
-            'status'               => 'active',
-            'stripe_sub_id'        => 'sub_demo_daisy_monthly',
-            'stripe_customer_id'   => 'cus_demo_emily_connect',
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $emily->id,
+            'package_id' => $subPack->id,
+            'dog_id' => $daisy->id,
+            'status' => 'active',
+            'stripe_sub_id' => 'sub_demo_daisy_monthly',
+            'stripe_customer_id' => 'cus_demo_emily_connect',
             'current_period_start' => now()->subDays(15),
-            'current_period_end'   => now()->addDays(15),
-            'cancelled_at'         => null,
+            'current_period_end' => now()->addDays(15),
+            'cancelled_at' => null,
         ]);
         $this->makeLedger($tid, $daisy->id, 'subscription', 30, 30, [
             'subscription_id' => $subDaisy->id,
-            'expires_at'      => now()->addDays(15),
-            'created_at'      => now()->subDays(15),
+            'expires_at' => now()->addDays(15),
+            'created_at' => now()->subDays(15),
         ]);
         for ($i = 1; $i <= 15; $i++) {
             $staffUser = $i % 2 === 0 ? $sarah : $mike;
@@ -466,22 +465,22 @@ class DemoSeeder extends Seeder
 
         // Scout: Cancelled subscription — 30 credits, all consumed
         $subScout = Subscription::create([
-            'id'                   => (string) Str::ulid(),
-            'tenant_id'            => $tid,
-            'customer_id'          => $emily->id,
-            'package_id'           => $subPack->id,
-            'dog_id'               => $scout->id,
-            'status'               => 'cancelled',
-            'stripe_sub_id'        => 'sub_demo_scout_cancelled',
-            'stripe_customer_id'   => 'cus_demo_emily_connect',
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $emily->id,
+            'package_id' => $subPack->id,
+            'dog_id' => $scout->id,
+            'status' => 'cancelled',
+            'stripe_sub_id' => 'sub_demo_scout_cancelled',
+            'stripe_customer_id' => 'cus_demo_emily_connect',
             'current_period_start' => now()->subDays(45),
-            'current_period_end'   => now()->subDays(15),
-            'cancelled_at'         => now()->subDays(15),
+            'current_period_end' => now()->subDays(15),
+            'cancelled_at' => now()->subDays(15),
         ]);
         $this->makeLedger($tid, $scout->id, 'subscription', 30, 30, [
             'subscription_id' => $subScout->id,
-            'expires_at'      => now()->subDays(15),
-            'created_at'      => now()->subDays(45),
+            'expires_at' => now()->subDays(15),
+            'created_at' => now()->subDays(45),
         ]);
         for ($i = 1; $i <= 30; $i++) {
             $staffUser = $i % 2 === 0 ? $sarah : $mike;
@@ -493,16 +492,16 @@ class DemoSeeder extends Seeder
         // Bella: 20-Day Pack (60d ago, expired 30d ago) → expiry_removal + correction_add +3 = 3
         $orderBella = $this->makeOrder($tid, $tom->id, $pack20->id, '170.00', now()->subDays(60), 'pi_3demoBellaPurchase00001');
         $lBellaPurchase = $this->makeLedger($tid, $bella->id, 'purchase', 20, 20, [
-            'order_id'   => $orderBella->id,
+            'order_id' => $orderBella->id,
             'expires_at' => now()->subDays(30),
             'created_at' => now()->subDays(60),
         ]);
         $this->makeLedger($tid, $bella->id, 'expiry_removal', -20, 0, [
             'parent_ledger_id' => $lBellaPurchase->id,
-            'created_at'       => now()->subDays(30),
+            'created_at' => now()->subDays(30),
         ]);
         $this->makeLedger($tid, $bella->id, 'correction_add', 3, 3, [
-            'note'       => 'Courtesy credits after pack expiry',
+            'note' => 'Courtesy credits after pack expiry',
             'created_by' => $owner->id,
             'created_at' => now()->subDays(28),
         ]);
@@ -511,7 +510,7 @@ class DemoSeeder extends Seeder
         $orderCharlie = $this->makeOrder($tid, $tom->id, $pack10->id, '90.00', now()->subDays(15), 'pi_3demoCharliePurchase0001');
         $this->makeLedger($tid, $charlie->id, 'purchase', 10, 10, ['order_id' => $orderCharlie->id, 'created_at' => now()->subDays(15)]);
         $lTransferOut = $this->makeLedger($tid, $charlie->id, 'transfer_out', -5, 5, [
-            'note'       => 'Transferred to Pepper (same owner account)',
+            'note' => 'Transferred to Pepper (same owner account)',
             'created_by' => $owner->id,
             'created_at' => now()->subDays(5),
         ]);
@@ -520,10 +519,10 @@ class DemoSeeder extends Seeder
         $orderPepper = $this->makeOrder($tid, $tom->id, $pack5->id, '50.00', now()->subDays(15), 'pi_3demoPepperPurchase00001');
         $this->makeLedger($tid, $pepper->id, 'purchase', 5, 5, ['order_id' => $orderPepper->id, 'created_at' => now()->subDays(15)]);
         $this->makeLedger($tid, $pepper->id, 'transfer_in', 5, 10, [
-            'note'             => 'Transferred from Charlie (same owner account)',
+            'note' => 'Transferred from Charlie (same owner account)',
             'parent_ledger_id' => $lTransferOut->id,
-            'created_by'       => $owner->id,
-            'created_at'       => now()->subDays(5),
+            'created_by' => $owner->id,
+            'created_at' => now()->subDays(5),
         ]);
 
         // Bruno: 5-Day Pack (7d ago) → 1 deduction = 4
@@ -543,22 +542,22 @@ class DemoSeeder extends Seeder
 
         // Luna: Active subscription — 30 credits issued 7d ago, 7 deductions = 23
         $subLuna = Subscription::create([
-            'id'                   => (string) Str::ulid(),
-            'tenant_id'            => $tid,
-            'customer_id'          => $carlos->id,
-            'package_id'           => $subPack->id,
-            'dog_id'               => $luna->id,
-            'status'               => 'active',
-            'stripe_sub_id'        => 'sub_demo_luna_monthly',
-            'stripe_customer_id'   => 'cus_demo_carlos_connect',
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $carlos->id,
+            'package_id' => $subPack->id,
+            'dog_id' => $luna->id,
+            'status' => 'active',
+            'stripe_sub_id' => 'sub_demo_luna_monthly',
+            'stripe_customer_id' => 'cus_demo_carlos_connect',
             'current_period_start' => now()->subDays(7),
-            'current_period_end'   => now()->addDays(23),
-            'cancelled_at'         => null,
+            'current_period_end' => now()->addDays(23),
+            'cancelled_at' => null,
         ]);
         $this->makeLedger($tid, $luna->id, 'subscription', 30, 30, [
             'subscription_id' => $subLuna->id,
-            'expires_at'      => now()->addDays(23),
-            'created_at'      => now()->subDays(7),
+            'expires_at' => now()->addDays(23),
+            'created_at' => now()->subDays(7),
         ]);
         for ($i = 1; $i <= 7; $i++) {
             $dayAgo = 7 - $i + 1;
@@ -611,7 +610,7 @@ class DemoSeeder extends Seeder
             "Scout's Monthly Unlimited subscription has been cancelled.",
             ['dog_name' => 'Scout'], now()->subDays(12), now()->subDays(15));
         $this->seedNotification($emilyUser->id, $tid, 'credits.empty', 'No Credits Remaining',
-            "Scout has no credits remaining. Purchase a pack to book visits.",
+            'Scout has no credits remaining. Purchase a pack to book visits.',
             ['dog_name' => 'Scout'], null, now()->subDays(14));
 
         $this->seedNotification($tomUser->id, $tid, 'payment.confirmed', 'Payment Confirmed',
@@ -642,24 +641,24 @@ class DemoSeeder extends Seeder
         $tid = (string) Str::ulid();
 
         $tenant = Tenant::create([
-            'id'                         => $tid,
-            'name'                       => 'Coastal Canines',
-            'slug'                       => 'coastal-canines',
-            'owner_user_id'              => null,
-            'status'                     => 'active',
-            'stripe_account_id'          => null,
-            'stripe_onboarded_at'        => null,
-            'platform_fee_pct'           => '5.00',
-            'payout_schedule'            => 'weekly',
-            'low_credit_threshold'       => 2,
-            'checkin_block_at_zero'      => false,
-            'timezone'                   => 'America/Los_Angeles',
-            'primary_color'              => '#0ea5e9',
-            'plan'                       => 'starter',
-            'plan_billing_cycle'         => 'monthly',
-            'plan_current_period_end'    => now()->addDays(21),
+            'id' => $tid,
+            'name' => 'Coastal Canines',
+            'slug' => 'coastal-canines',
+            'owner_user_id' => null,
+            'status' => 'active',
+            'stripe_account_id' => null,
+            'stripe_onboarded_at' => null,
+            'platform_fee_pct' => '5.00',
+            'payout_schedule' => 'weekly',
+            'low_credit_threshold' => 2,
+            'checkin_block_at_zero' => false,
+            'timezone' => 'America/Los_Angeles',
+            'primary_color' => '#0ea5e9',
+            'plan' => 'starter',
+            'plan_billing_cycle' => 'monthly',
+            'plan_current_period_end' => now()->addDays(21),
             'platform_stripe_customer_id' => 'cus_demo_coastal',
-            'platform_stripe_sub_id'     => 'sub_demo_coastal',
+            'platform_stripe_sub_id' => 'sub_demo_coastal',
         ]);
 
         // No Stripe Connect onboarding yet — set placeholder
@@ -669,7 +668,7 @@ class DemoSeeder extends Seeder
         $owner = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Jamie Rivera', 'email' => 'owner@coastal-canines.test',
-            'email_verified_at' => now(), 
+            'email_verified_at' => now(),
             'role' => 'business_owner', 'status' => 'active',
         ]);
         $tenant->update(['owner_user_id' => $owner->id]);
@@ -677,29 +676,29 @@ class DemoSeeder extends Seeder
         $staffUser = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Taylor Brooks', 'email' => 'staff@coastal-canines.test',
-            'email_verified_at' => now(), 
+            'email_verified_at' => now(),
             'role' => 'staff', 'status' => 'active',
         ]);
 
         // Packages
         $stripeAcct = 'acct_1DemoCoastalCanines';
-        $pack5   = $this->makePackage($tid, '5-Day Pack',          'Great starter pack.',                 'one_time',     '45.00',  5,  1, null, $stripeAcct, 'price_demo_cc_5day');
-        $pack10  = $this->makePackage($tid, '10-Day Pack',         'Best value pack.',                    'one_time',     '85.00',  10, 1, null, $stripeAcct, 'price_demo_cc_10day');
-        $subPack = $this->makePackage($tid, 'Monthly Subscription', 'Monthly unlimited access.',          'subscription', '120.00', 30, 1, null, $stripeAcct, 'price_demo_cc_sub');
+        $pack5 = $this->makePackage($tid, '5-Day Pack', 'Great starter pack.', 'one_time', '45.00', 5, 1, null, $stripeAcct, 'price_demo_cc_5day');
+        $pack10 = $this->makePackage($tid, '10-Day Pack', 'Best value pack.', 'one_time', '85.00', 10, 1, null, $stripeAcct, 'price_demo_cc_10day');
+        $subPack = $this->makePackage($tid, 'Monthly Subscription', 'Monthly unlimited access.', 'subscription', '120.00', 30, 1, null, $stripeAcct, 'price_demo_cc_sub');
 
         // Customers and dogs
-        [$amyUser,    $amy]    = $this->makeCustomerUser($tid, 'Amy Garcia',    'amy@coastal-canines.test',    '+14151234567');
-        [$brianUser,  $brian]  = $this->makeCustomerUser($tid, 'Brian Lee',     'brian@coastal-canines.test',  '+14159876543');
-        [$rachelUser, $rachel] = $this->makeCustomerUser($tid, 'Rachel Kim',    'rachel@coastal-canines.test', '+14155551234');
+        [$amyUser,    $amy] = $this->makeCustomerUser($tid, 'Amy Garcia', 'amy@coastal-canines.test', '+14151234567');
+        [$brianUser,  $brian] = $this->makeCustomerUser($tid, 'Brian Lee', 'brian@coastal-canines.test', '+14159876543');
+        [$rachelUser, $rachel] = $this->makeCustomerUser($tid, 'Rachel Kim', 'rachel@coastal-canines.test', '+14155551234');
         $marcus = $this->makeCustomerOnly($tid, 'Marcus Johnson', null, '+14153214321');
 
-        $milo   = $this->makeDog($tid, $amy->id,    'Milo',   'Labrador Mix',      '2021-03-15', 'male',   1);
-        $rosie  = $this->makeDog($tid, $amy->id,    'Rosie',  'Cocker Spaniel',    '2020-08-22', 'female', 3);
-        $duke   = $this->makeDog($tid, $brian->id,  'Duke',   'Doberman',          '2019-05-10', 'male',   20);
-        $bailey = $this->makeDog($tid, $brian->id,  'Bailey', 'Weimaraner',        '2022-02-14', 'female', 0);
-        $mocha  = $this->makeDog($tid, $rachel->id, 'Mocha',  'Chocolate Labrador','2020-11-30', 'female', 8);
-        $teddy  = $this->makeDog($tid, $rachel->id, 'Teddy',  'Golden Retriever',  '2021-06-18', 'male',   12);
-        $ginger = $this->makeDog($tid, $marcus->id, 'Ginger', 'Irish Setter',      '2020-04-05', 'female', 5);
+        $milo = $this->makeDog($tid, $amy->id, 'Milo', 'Labrador Mix', '2021-03-15', 'male', 1);
+        $rosie = $this->makeDog($tid, $amy->id, 'Rosie', 'Cocker Spaniel', '2020-08-22', 'female', 3);
+        $duke = $this->makeDog($tid, $brian->id, 'Duke', 'Doberman', '2019-05-10', 'male', 20);
+        $bailey = $this->makeDog($tid, $brian->id, 'Bailey', 'Weimaraner', '2022-02-14', 'female', 0);
+        $mocha = $this->makeDog($tid, $rachel->id, 'Mocha', 'Chocolate Labrador', '2020-11-30', 'female', 8);
+        $teddy = $this->makeDog($tid, $rachel->id, 'Teddy', 'Golden Retriever', '2021-06-18', 'male', 12);
+        $ginger = $this->makeDog($tid, $marcus->id, 'Ginger', 'Irish Setter', '2020-04-05', 'female', 5);
 
         // Milo: 5-Day Pack + history
         $orderMilo = $this->makeOrder($tid, $amy->id, $pack5->id, '45.00', now()->subDays(12), 'pi_3demoMiloPurchase000001');
@@ -719,22 +718,22 @@ class DemoSeeder extends Seeder
 
         // Duke: Active subscription — 30 credits, 10 deductions = 20
         $subDuke = Subscription::create([
-            'id'                   => (string) Str::ulid(),
-            'tenant_id'            => $tid,
-            'customer_id'          => $brian->id,
-            'package_id'           => $subPack->id,
-            'dog_id'               => $duke->id,
-            'status'               => 'active',
-            'stripe_sub_id'        => 'sub_demo_duke_monthly',
-            'stripe_customer_id'   => 'cus_demo_brian_cc',
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tid,
+            'customer_id' => $brian->id,
+            'package_id' => $subPack->id,
+            'dog_id' => $duke->id,
+            'status' => 'active',
+            'stripe_sub_id' => 'sub_demo_duke_monthly',
+            'stripe_customer_id' => 'cus_demo_brian_cc',
             'current_period_start' => now()->subDays(10),
-            'current_period_end'   => now()->addDays(20),
-            'cancelled_at'         => null,
+            'current_period_end' => now()->addDays(20),
+            'cancelled_at' => null,
         ]);
         $this->makeLedger($tid, $duke->id, 'subscription', 30, 30, [
             'subscription_id' => $subDuke->id,
-            'expires_at'      => now()->addDays(20),
-            'created_at'      => now()->subDays(10),
+            'expires_at' => now()->addDays(20),
+            'created_at' => now()->subDays(10),
         ]);
         for ($i = 1; $i <= 10; $i++) {
             $dayAgo = 10 - $i + 1;
@@ -759,7 +758,7 @@ class DemoSeeder extends Seeder
         $orderTeddy = $this->makeOrder($tid, $rachel->id, $pack10->id, '85.00', now()->subDays(5), 'pi_3demoTeddyPurchase000001');
         $this->makeLedger($tid, $teddy->id, 'purchase', 10, 10, ['order_id' => $orderTeddy->id, 'created_at' => now()->subDays(5)]);
         $this->makeLedger($tid, $teddy->id, 'goodwill', 2, 12, [
-            'note'       => 'Welcome bonus for new member',
+            'note' => 'Welcome bonus for new member',
             'created_by' => $owner->id,
             'created_at' => now()->subDays(5),
         ]);
@@ -788,33 +787,33 @@ class DemoSeeder extends Seeder
         $tid = (string) Str::ulid();
 
         $tenant = Tenant::create([
-            'id'                         => $tid,
-            'name'                       => 'Bark Box Boarding',
-            'slug'                       => 'bark-box',
-            'owner_user_id'              => null,
-            'status'                     => 'trialing',
-            'stripe_account_id'          => null,
-            'stripe_onboarded_at'        => null,
-            'platform_fee_pct'           => '5.00',
-            'payout_schedule'            => 'monthly',
-            'low_credit_threshold'       => 1,
-            'checkin_block_at_zero'      => false,
-            'timezone'                   => 'America/Chicago',
-            'primary_color'              => '#f97316',
-            'plan'                       => 'free',
-            'plan_billing_cycle'         => null,
-            'plan_current_period_end'    => now()->addDays(21),
-            'trial_started_at'           => now()->subDays(7),
-            'trial_ends_at'              => now()->addDays(21),
+            'id' => $tid,
+            'name' => 'Bark Box Boarding',
+            'slug' => 'bark-box',
+            'owner_user_id' => null,
+            'status' => 'trialing',
+            'stripe_account_id' => null,
+            'stripe_onboarded_at' => null,
+            'platform_fee_pct' => '5.00',
+            'payout_schedule' => 'monthly',
+            'low_credit_threshold' => 1,
+            'checkin_block_at_zero' => false,
+            'timezone' => 'America/Chicago',
+            'primary_color' => '#f97316',
+            'plan' => 'free',
+            'plan_billing_cycle' => null,
+            'plan_current_period_end' => now()->addDays(21),
+            'trial_started_at' => now()->subDays(7),
+            'trial_ends_at' => now()->addDays(21),
             'platform_stripe_customer_id' => 'cus_demo_barkbox',
-            'platform_stripe_sub_id'     => null,
+            'platform_stripe_sub_id' => null,
         ]);
 
         // Users
         $owner = User::create([
             'id' => (string) Str::ulid(), 'tenant_id' => $tid, 'customer_id' => null,
             'name' => 'Casey Bell', 'email' => 'owner@bark-box.test',
-            'email_verified_at' => now(), 
+            'email_verified_at' => now(),
             'role' => 'business_owner', 'status' => 'active',
         ]);
         $tenant->update(['owner_user_id' => $owner->id]);
@@ -827,9 +826,9 @@ class DemoSeeder extends Seeder
         [$chrisUser, $chris] = $this->makeCustomerUser($tid, 'Chris Taylor', 'chris@bark-box.test', '+13121234567');
         $pat = $this->makeCustomerOnly($tid, 'Pat Williams', null, '+13129876543');
 
-        $peanut = $this->makeDog($tid, $chris->id, 'Peanut', 'Miniature Poodle', '2022-04-10', 'male',   5);
-        $noodle = $this->makeDog($tid, $chris->id, 'Noodle', 'Dachshund Mix',    '2021-09-22', 'female', 0);
-        $ace    = $this->makeDog($tid, $pat->id,   'Ace',    'Boxer',            '2020-07-15', 'male',   3);
+        $peanut = $this->makeDog($tid, $chris->id, 'Peanut', 'Miniature Poodle', '2022-04-10', 'male', 5);
+        $noodle = $this->makeDog($tid, $chris->id, 'Noodle', 'Dachshund Mix', '2021-09-22', 'female', 0);
+        $ace = $this->makeDog($tid, $pat->id, 'Ace', 'Boxer', '2020-07-15', 'male', 3);
 
         // Peanut: 5-Day Pack (3d ago) → 0 deductions = 5
         $orderPeanut = $this->makeOrder($tid, $chris->id, $pack5->id, '40.00', now()->subDays(3), 'pi_3demoPeanutPurchase0001');

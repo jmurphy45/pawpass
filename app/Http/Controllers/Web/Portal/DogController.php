@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\Breed;
 use App\Models\Dog;
 use App\Models\DogVaccination;
 use Illuminate\Http\RedirectResponse;
@@ -21,14 +22,14 @@ class DogController extends Controller
             ->orderBy('name')
             ->get()
             ->map(fn ($d) => [
-                'id'             => $d->id,
-                'name'           => $d->name,
-                'breed'          => $d->breed,
-                'color'          => $d->color ?? null,
+                'id' => $d->id,
+                'name' => $d->name,
+                'breed_name' => $d->breed?->name,
+                'color' => $d->color ?? null,
                 'credit_balance' => $d->credit_balance,
                 'credits_expire_at' => $d->credits_expire_at?->toIso8601String(),
                 'unlimited_pass_expires_at' => $d->unlimited_pass_expires_at?->toIso8601String(),
-                'deleted_at'     => $d->deleted_at?->toIso8601String(),
+                'deleted_at' => $d->deleted_at?->toIso8601String(),
             ]);
 
         return Inertia::render('Portal/Dogs/Index', ['dogs' => $dogs]);
@@ -36,23 +37,25 @@ class DogController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Portal/Dogs/Create');
+        $breeds = Breed::orderBy('name')->get(['id', 'name']);
+
+        return Inertia::render('Portal/Dogs/Create', ['breeds' => $breeds]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'  => ['required', 'string', 'max:100'],
-            'breed' => ['nullable', 'string', 'max:100'],
+            'name' => ['required', 'string', 'max:100'],
+            'breed_id' => ['nullable', 'integer', 'exists:breeds,id'],
             'color' => ['nullable', 'string', 'max:7'],
-            'dob'   => ['nullable', 'date'],
+            'dob' => ['nullable', 'date'],
         ]);
 
         $customer = Auth::user()->customer;
         $tenantId = app('current.tenant.id');
 
         Dog::create([
-            'tenant_id'   => $tenantId,
+            'tenant_id' => $tenantId,
             'customer_id' => $customer->id,
             ...$validated,
         ]);
@@ -64,27 +67,30 @@ class DogController extends Controller
     {
         $this->authorizeCustomerDog($dog);
 
+        $dog->load('breed');
+
         $ledger = $dog->creditLedger()
             ->orderByDesc('created_at')
             ->paginate(20);
 
         $vaccinations = $dog->vaccinations()->orderByDesc('administered_at')->get()->map(fn ($v) => [
-            'id'              => $v->id,
-            'vaccine_name'    => $v->vaccine_name,
+            'id' => $v->id,
+            'vaccine_name' => $v->vaccine_name,
             'administered_at' => $v->administered_at->toDateString(),
-            'expires_at'      => $v->expires_at?->toDateString(),
-            'is_valid'        => $v->isValid(),
+            'expires_at' => $v->expires_at?->toDateString(),
+            'is_valid' => $v->isValid(),
         ]);
 
         $dog->load('autoReplenishPackage');
 
         return Inertia::render('Portal/Dogs/Show', [
             'dog' => [
-                'id'             => $dog->id,
-                'name'           => $dog->name,
-                'breed'          => $dog->breed,
-                'color'          => $dog->color ?? null,
-                'dob'            => $dog->dob?->toDateString(),
+                'id' => $dog->id,
+                'name' => $dog->name,
+                'breed_id' => $dog->breed_id,
+                'breed_name' => $dog->breed?->name,
+                'color' => $dog->color ?? null,
+                'dob' => $dog->dob?->toDateString(),
                 'credit_balance' => $dog->credit_balance,
                 'credits_expire_at' => $dog->credits_expire_at?->toIso8601String(),
                 'unlimited_pass_expires_at' => $dog->unlimited_pass_expires_at?->toIso8601String(),
@@ -99,27 +105,27 @@ class DogController extends Controller
                 ->with('package')
                 ->get()
                 ->map(fn ($s) => [
-                    'id'                 => $s->id,
-                    'status'             => $s->status,
-                    'cancelled_at'       => $s->cancelled_at?->toIso8601String(),
+                    'id' => $s->id,
+                    'status' => $s->status,
+                    'cancelled_at' => $s->cancelled_at?->toIso8601String(),
                     'current_period_end' => $s->current_period_end?->toIso8601String(),
-                    'package'            => ['id' => $s->package->id, 'name' => $s->package->name],
+                    'package' => ['id' => $s->package->id, 'name' => $s->package->name],
                 ]),
             'ledger' => [
                 'data' => collect($ledger->items())->map(fn ($e) => [
-                    'id'            => $e->id,
-                    'type'          => $e->type,
-                    'amount'        => $e->delta,
+                    'id' => $e->id,
+                    'type' => $e->type,
+                    'amount' => $e->delta,
                     'balance_after' => $e->balance_after,
-                    'note'          => $e->note,
-                    'expires_at'    => $e->expires_at?->toIso8601String(),
-                    'created_at'    => $e->created_at->toIso8601String(),
+                    'note' => $e->note,
+                    'expires_at' => $e->expires_at?->toIso8601String(),
+                    'created_at' => $e->created_at->toIso8601String(),
                 ]),
                 'meta' => [
-                    'total'        => $ledger->total(),
-                    'per_page'     => $ledger->perPage(),
+                    'total' => $ledger->total(),
+                    'per_page' => $ledger->perPage(),
                     'current_page' => $ledger->currentPage(),
-                    'last_page'    => $ledger->lastPage(),
+                    'last_page' => $ledger->lastPage(),
                 ],
             ],
         ]);
@@ -129,14 +135,17 @@ class DogController extends Controller
     {
         $this->authorizeCustomerDog($dog);
 
+        $breeds = Breed::orderBy('name')->get(['id', 'name']);
+
         return Inertia::render('Portal/Dogs/Edit', [
             'dog' => [
-                'id'    => $dog->id,
-                'name'  => $dog->name,
-                'breed' => $dog->breed,
+                'id' => $dog->id,
+                'name' => $dog->name,
+                'breed_id' => $dog->breed_id,
                 'color' => $dog->color ?? null,
-                'dob'   => $dog->dob?->toDateString(),
+                'dob' => $dog->dob?->toDateString(),
             ],
+            'breeds' => $breeds,
         ]);
     }
 
@@ -145,10 +154,10 @@ class DogController extends Controller
         $this->authorizeCustomerDog($dog);
 
         $validated = $request->validate([
-            'name'  => ['required', 'string', 'max:100'],
-            'breed' => ['nullable', 'string', 'max:100'],
+            'name' => ['required', 'string', 'max:100'],
+            'breed_id' => ['nullable', 'integer', 'exists:breeds,id'],
             'color' => ['nullable', 'string', 'max:7'],
-            'dob'   => ['nullable', 'date'],
+            'dob' => ['nullable', 'date'],
         ]);
 
         $dog->update($validated);
@@ -161,11 +170,11 @@ class DogController extends Controller
         $this->authorizeCustomerDog($dog);
 
         $validated = $request->validate([
-            'vaccine_name'    => ['required', 'string', 'max:255'],
+            'vaccine_name' => ['required', 'string', 'max:255'],
             'administered_at' => ['required', 'date_format:Y-m-d'],
-            'expires_at'      => ['nullable', 'date_format:Y-m-d', 'after:administered_at'],
+            'expires_at' => ['nullable', 'date_format:Y-m-d', 'after:administered_at'],
             'administered_by' => ['nullable', 'string', 'max:255'],
-            'notes'           => ['nullable', 'string', 'max:2000'],
+            'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $dog->vaccinations()->create($validated);

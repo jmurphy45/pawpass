@@ -16,7 +16,10 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Breed</label>
-          <input v-model="form.breed" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+          <select v-model="form.breed_id" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm">
+            <option :value="null">— Select breed —</option>
+            <option v-for="b in breeds" :key="b.id" :value="b.id">{{ b.name }}</option>
+          </select>
         </div>
         <button type="submit" :disabled="form.processing" class="w-full rounded-lg bg-indigo-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60">
           Create Dog
@@ -30,9 +33,12 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { useForm } from '@inertiajs/vue3';
 
-defineProps<{ customers: Array<{ id: string; name: string }> }>();
+defineProps<{
+  customers: Array<{ id: string; name: string }>;
+  breeds: Array<{ id: number; name: string }>;
+}>();
 
-const form = useForm({ customer_id: '', name: '', breed: '', dob: '', sex: '', vet_name: '', vet_phone: '' });
+const form = useForm({ customer_id: '', name: '', breed_id: null as number | null, dob: '', sex: '', vet_name: '', vet_phone: '' });
 
 function submit() {
   form.post(route('admin.dogs.store'));

@@ -25,11 +25,13 @@
 
           <div>
             <label class="block text-sm font-medium text-text-body mb-1.5">Breed</label>
-            <input
-              v-model="form.breed"
-              type="text"
+            <select
+              v-model="form.breed_id"
               class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
-            />
+            >
+              <option :value="null">— Select breed —</option>
+              <option v-for="b in breeds" :key="b.id" :value="b.id">{{ b.name }}</option>
+            </select>
           </div>
 
           <div>
@@ -79,16 +81,19 @@ import PortalLayout from '@/Layouts/PortalLayout.vue';
 interface DogEditProps {
   id: string;
   name: string;
-  breed: string | null;
+  breed_id: number | null;
   color: string | null;
   dob: string | null;
 }
 
-const props = defineProps<{ dog: DogEditProps }>();
+const props = defineProps<{
+  dog: DogEditProps;
+  breeds: Array<{ id: number; name: string }>;
+}>();
 
 const form = useForm({
   name: props.dog.name,
-  breed: props.dog.breed ?? '',
+  breed_id: props.dog.breed_id ?? null,
   color: props.dog.color ?? '',
   dob: props.dog.dob ?? '',
 });

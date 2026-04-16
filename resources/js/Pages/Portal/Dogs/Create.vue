@@ -26,12 +26,13 @@
 
           <div>
             <label class="block text-sm font-medium text-text-body mb-1.5">Breed</label>
-            <input
-              v-model="form.breed"
-              type="text"
+            <select
+              v-model="form.breed_id"
               class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
-              placeholder="e.g. Golden Retriever"
-            />
+            >
+              <option :value="null">— Select breed —</option>
+              <option v-for="b in breeds" :key="b.id" :value="b.id">{{ b.name }}</option>
+            </select>
           </div>
 
           <div>
@@ -78,9 +79,13 @@
 import { Link, useForm } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 
+defineProps<{
+  breeds: Array<{ id: number; name: string }>;
+}>();
+
 const form = useForm({
   name: '',
-  breed: '',
+  breed_id: null as number | null,
   color: '',
   dob: '',
 });
