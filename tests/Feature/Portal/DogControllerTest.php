@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Portal;
 
+use App\Models\Breed;
 use App\Models\CreditLedger;
 use App\Models\Customer;
 use App\Models\Dog;
@@ -58,16 +59,18 @@ class DogControllerTest extends TestCase
 
     public function test_customer_can_create_a_dog(): void
     {
+        $breed = Breed::factory()->create(['name' => 'Labrador']);
+
         $response = $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/dogs', [
                 'name' => 'Buddy',
-                'breed' => 'Labrador',
+                'breed_id' => $breed->id,
                 'sex' => 'male',
             ]);
 
         $response->assertStatus(201)
             ->assertJsonPath('data.name', 'Buddy')
-            ->assertJsonPath('data.breed', 'Labrador');
+            ->assertJsonPath('data.breed_name', 'Labrador');
 
         $this->assertDatabaseHas('dogs', [
             'name' => 'Buddy',

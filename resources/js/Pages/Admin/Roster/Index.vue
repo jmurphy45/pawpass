@@ -36,123 +36,103 @@
           {{ roster.length === 0 ? 'No dogs on the roster today.' : 'No dogs match your search.' }}
         </div>
         <ul v-else>
-          <template v-for="dog in filteredRoster" :key="dog.id">
-            <!-- Main row -->
-            <li class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-3">
-              <!-- Avatar with status dot -->
-              <div class="relative shrink-0">
-                <div class="h-9 w-9 rounded-full bg-surface-subtle flex items-center justify-center text-sm font-semibold text-text-body">
-                  {{ dog.name[0]?.toUpperCase() }}
-                </div>
-                <span
-                  class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white"
-                  :class="{
-                    'bg-green-500': dog.attendance_state === 'checked_in',
-                    'bg-gray-300': dog.attendance_state === 'not_in',
-                    'bg-blue-400': dog.attendance_state === 'done',
-                  }"
-                />
+          <li
+            v-for="dog in filteredRoster"
+            :key="dog.id"
+            class="flex items-center border-b border-border-warm px-5 py-3 transition-colors hover:bg-surface last:border-b-0 gap-3"
+          >
+            <!-- Avatar with status dot -->
+            <div class="relative shrink-0">
+              <div class="h-9 w-9 rounded-full bg-surface-subtle flex items-center justify-center text-sm font-semibold text-text-body">
+                {{ dog.name[0]?.toUpperCase() }}
               </div>
+              <span
+                class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white"
+                :class="{
+                  'bg-green-500': dog.attendance_state === 'checked_in',
+                  'bg-gray-300': dog.attendance_state === 'not_in',
+                  'bg-blue-400': dog.attendance_state === 'done',
+                }"
+              />
+            </div>
 
-              <!-- Dog info — clickable to expand addons if checked in -->
-              <div
-                class="flex-1 min-w-0"
-                :class="{ 'cursor-pointer': dog.attendance_state !== 'not_in' }"
-                @click="dog.attendance_state !== 'not_in' ? toggleExpand(dog.id) : null"
-              >
-                <p class="text-sm font-medium text-text-body truncate">{{ dog.name }}</p>
-                <p class="text-xs text-text-muted truncate">
-                  {{ dog.customer_name }}
-                  <span v-if="dog.attendance_state === 'checked_in' && dog.checked_in_at" class="ml-1 text-green-600 font-medium">
-                    · In for {{ checkinDuration(dog.checked_in_at) }}
-                  </span>
-                  <span v-else-if="dog.attendance_addons.length > 0" class="ml-1 text-indigo-500">
-                    · {{ dog.attendance_addons.length }} add-on{{ dog.attendance_addons.length !== 1 ? 's' : '' }}
-                  </span>
-                </p>
-              </div>
+            <!-- Dog info -->
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-text-body truncate">{{ dog.name }}</p>
+              <p class="text-xs text-text-muted truncate">
+                {{ dog.customer_name }}
+                <span v-if="dog.attendance_state === 'checked_in' && dog.checked_in_at" class="ml-1 text-green-600 font-medium">
+                  · In for {{ checkinDuration(dog.checked_in_at) }}
+                </span>
+                <span v-else-if="dog.attendance_addons.length > 0" class="ml-1 text-indigo-500">
+                  · {{ dog.attendance_addons.length }} add-on{{ dog.attendance_addons.length !== 1 ? 's' : '' }}
+                </span>
+              </p>
+            </div>
 
-              <!-- Credit badge (hidden on mobile) -->
-              <AppBadge
-                class="hidden sm:inline-flex"
-                :color="dog.credit_balance <= 0 && !dog.unlimited_pass_active ? 'red' : dog.credit_status === 'low' ? 'yellow' : 'gray'"
-              >
-                <span v-if="dog.unlimited_pass_active">Unlimited</span>
-                <span v-else>{{ dog.credit_balance }} cr</span>
-              </AppBadge>
+            <!-- Credit badge (hidden on mobile) -->
+            <AppBadge
+              class="hidden sm:inline-flex"
+              :color="dog.credit_balance <= 0 && !dog.unlimited_pass_active ? 'red' : dog.credit_status === 'low' ? 'yellow' : 'gray'"
+            >
+              <span v-if="dog.unlimited_pass_active">Unlimited</span>
+              <span v-else>{{ dog.credit_balance }} cr</span>
+            </AppBadge>
 
-              <!-- Status badge -->
-              <AppBadge :color="dog.attendance_state === 'checked_in' ? 'green' : dog.attendance_state === 'done' ? 'blue' : 'gray'">
-                {{ dog.attendance_state === 'checked_in' ? 'In' : dog.attendance_state === 'done' ? 'Done' : 'Out' }}
-              </AppBadge>
+            <!-- Status badge -->
+            <AppBadge :color="dog.attendance_state === 'checked_in' ? 'green' : dog.attendance_state === 'done' ? 'blue' : 'gray'">
+              {{ dog.attendance_state === 'checked_in' ? 'In' : dog.attendance_state === 'done' ? 'Done' : 'Out' }}
+            </AppBadge>
 
-              <!-- Action buttons -->
-              <div v-if="dog.attendance_state === 'not_in'">
+            <!-- Action buttons -->
+            <div class="flex items-center gap-2 shrink-0">
+              <!-- Not yet in: just Check In -->
+              <template v-if="dog.attendance_state === 'not_in'">
                 <AppButton
                   variant="primary"
                   size="sm"
                   :loading="pendingDogId === dog.id"
                   @click="checkin(dog)"
                 >Check In</AppButton>
-              </div>
-              <div v-if="dog.attendance_state === 'checked_in'">
+              </template>
+
+              <!-- Checked in: Add-on + Check Out -->
+              <template v-if="dog.attendance_state === 'checked_in'">
                 <AppButton
                   variant="secondary"
+                  size="sm"
+                  @click="openAddonModal(dog)"
+                >
+                  <span class="flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add-on
+                    <span v-if="dog.attendance_addons.length > 0" class="ml-0.5 bg-indigo-100 text-indigo-700 rounded-full px-1.5 py-0 text-xs font-semibold leading-4">{{ dog.attendance_addons.length }}</span>
+                  </span>
+                </AppButton>
+                <AppButton
+                  variant="primary"
                   size="sm"
                   :loading="pendingDogId === dog.id"
                   @click="checkout(dog.id)"
                 >Check Out</AppButton>
-              </div>
-              <div v-if="dog.attendance_state === 'done'" class="w-20" />
-            </li>
+              </template>
 
-            <!-- Expanded add-on panel -->
-            <li
-              v-if="expandedDogId === dog.id && dog.attendance_state !== 'not_in'"
-              class="border-t border-border bg-surface-subtle px-5 py-3 space-y-2"
-            >
-              <p class="text-xs font-semibold text-text-muted uppercase tracking-wide">Add-on Services</p>
-
-              <!-- Existing addons -->
-              <div v-if="dog.attendance_addons.length === 0" class="text-xs text-text-muted">No add-ons yet.</div>
-              <div
-                v-for="addon in dog.attendance_addons"
-                :key="addon.id"
-                class="flex items-center justify-between text-sm"
-              >
-                <span class="text-text-body">{{ addon.name }}</span>
-                <div class="flex items-center gap-3">
-                  <span class="text-text-muted text-xs">{{ addon.quantity }} × ${{ (addon.unit_price_cents / 100).toFixed(2) }}</span>
-                  <button
-                    v-if="dog.attendance_state === 'checked_in'"
-                    @click="removeAddon(dog.attendance_id!, addon.id)"
-                    class="text-red-400 hover:text-red-600 text-xs"
-                    title="Remove"
-                  >×</button>
-                </div>
-              </div>
-
-              <!-- Add addon form (only when still checked in) -->
-              <form
-                v-if="dog.attendance_state === 'checked_in'"
-                @submit.prevent="addAddon(dog.attendance_id!, dog.id)"
-                class="flex gap-2 pt-1 border-t border-border"
-              >
-                <select v-model="addonSelections[dog.id]" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 flex-1 py-1 text-xs">
-                  <option value="">Select add-on…</option>
-                  <option v-for="at in addonTypes" :key="at.id" :value="at.id">
-                    {{ at.name }} (${{ (at.price_cents / 100).toFixed(2) }})
-                  </option>
-                </select>
+              <!-- Done: view add-ons if any -->
+              <template v-if="dog.attendance_state === 'done'">
                 <AppButton
-                  type="submit"
-                  variant="primary"
+                  v-if="dog.attendance_addons.length > 0"
+                  variant="secondary"
                   size="sm"
-                  :disabled="!addonSelections[dog.id]"
-                >Add</AppButton>
-              </form>
-            </li>
-          </template>
+                  @click="openAddonModal(dog)"
+                >
+                  {{ dog.attendance_addons.length }} add-on{{ dog.attendance_addons.length !== 1 ? 's' : '' }}
+                </AppButton>
+                <div v-else class="w-20" />
+              </template>
+            </div>
+          </li>
         </ul>
       </AppCard>
     </div>
@@ -178,12 +158,103 @@
         class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
       />
     </AppModal>
+
+    <!-- Add-on modal -->
+    <TransitionRoot as="template" :show="addonModal.open">
+      <Dialog class="relative z-50" @close="addonModal.open = false">
+        <TransitionChild
+          as="template"
+          enter="ease-out duration-200" enter-from="opacity-0" enter-to="opacity-100"
+          leave="ease-in duration-150" leave-from="opacity-100" leave-to="opacity-0"
+        >
+          <div class="fixed inset-0 bg-black/50 transition-opacity" />
+        </TransitionChild>
+
+        <div class="fixed inset-0 z-10 flex items-end sm:items-center justify-center sm:p-4">
+          <TransitionChild
+            as="template"
+            enter="ease-out duration-200" enter-from="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" enter-to="opacity-100 translate-y-0 sm:scale-100"
+            leave="ease-in duration-150" leave-from="opacity-100 translate-y-0 sm:scale-100" leave-to="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+          >
+            <DialogPanel class="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-hidden">
+              <!-- Header -->
+              <div class="flex items-center justify-between px-5 pt-5 pb-3">
+                <DialogTitle class="text-base font-semibold text-gray-900">
+                  Add-ons — {{ addonModal.dogName }}
+                </DialogTitle>
+                <button @click="addonModal.open = false" class="text-gray-400 hover:text-gray-600 transition-colors p-1 -mr-1">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="px-5 pb-5 space-y-4">
+                <!-- Existing add-ons -->
+                <div v-if="addonModalCurrentAddons.length > 0">
+                  <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Added</p>
+                  <div class="space-y-1.5">
+                    <div
+                      v-for="addon in addonModalCurrentAddons"
+                      :key="addon.id"
+                      class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2"
+                    >
+                      <div>
+                        <span class="text-sm font-medium text-gray-800">{{ addon.name }}</span>
+                        <span class="ml-2 text-xs text-gray-400">{{ addon.quantity }} × ${{ (addon.unit_price_cents / 100).toFixed(2) }}</span>
+                      </div>
+                      <button
+                        v-if="addonModal.state === 'checked_in'"
+                        @click="removeAddon(addonModal.attendanceId, addon.id)"
+                        class="text-red-400 hover:text-red-600 text-xs font-medium transition-colors ml-3"
+                      >Remove</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Available add-on services (only when checked in) -->
+                <div v-if="addonModal.state === 'checked_in' && addonTypes.length > 0">
+                  <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Add a Service</p>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      v-for="at in addonTypes"
+                      :key="at.id"
+                      @click="addAddonFromModal(at.id)"
+                      :disabled="addonModal.pendingAddonId === at.id"
+                      class="flex flex-col items-center justify-center gap-0.5 rounded-xl border border-gray-200 bg-white px-3 py-3.5 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span class="text-sm font-semibold text-gray-800">{{ at.name }}</span>
+                      <span class="text-xs text-gray-500">${{ (at.price_cents / 100).toFixed(2) }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="addonModal.state === 'checked_in' && addonTypes.length === 0 && addonModalCurrentAddons.length === 0" class="text-sm text-gray-400 text-center py-2">
+                  No add-on services configured.
+                </div>
+
+                <!-- Done state: view only -->
+                <div v-if="addonModal.state === 'done' && addonModalCurrentAddons.length === 0" class="text-sm text-gray-400 text-center py-2">
+                  No add-ons recorded.
+                </div>
+
+                <button
+                  @click="addonModal.open = false"
+                  class="w-full mt-1 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-700 transition-colors"
+                >Done</button>
+              </div>
+            </DialogPanel>
+          </TransitionChild>
+        </div>
+      </Dialog>
+    </TransitionRoot>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onUnmounted, reactive, ref } from 'vue';
 import { router, usePoll } from '@inertiajs/vue3';
+import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AppInput from '@/Components/AppInput.vue';
 import AppModal from '@/Components/AppModal.vue';
@@ -222,8 +293,6 @@ const props = defineProps<{
   addonTypes: AddonType[];
 }>();
 
-const expandedDogId = ref<string | null>(null);
-const addonSelections = reactive<Record<string, string>>({});
 const searchQuery = ref('');
 const activeTab = ref<'all' | 'checked_in' | 'not_in' | 'done'>('all');
 const pendingDogId = ref<string | null>(null);
@@ -237,12 +306,28 @@ const overrideModal = reactive({
   note: '',
 });
 
+// Add-on modal state
+const addonModal = reactive({
+  open: false,
+  dogId: '',
+  dogName: '',
+  attendanceId: '',
+  state: '' as 'checked_in' | 'done' | '',
+  pendingAddonId: null as string | null,
+});
+
+// Derive current add-ons from live roster props so partial reloads update the modal
+const addonModalCurrentAddons = computed<AddonEntry[]>(() => {
+  if (!addonModal.open) return [];
+  return props.roster.find(d => d.id === addonModal.dogId)?.attendance_addons ?? [];
+});
+
 // Live clock for "in for X" durations — ticks every 60s
 const now = ref(new Date());
 const clockTimer = setInterval(() => { now.value = new Date(); }, 60_000);
 onUnmounted(() => clearInterval(clockTimer));
 
-// Auto-refresh roster every 60 seconds using Inertia's built-in polling
+// Auto-refresh roster every 60 seconds
 usePoll(60_000, { only: ['roster', 'addonTypes'] });
 
 const tabs = [
@@ -256,7 +341,6 @@ const stateOrder: Record<string, number> = { checked_in: 0, not_in: 1, done: 2 }
 
 const filteredRoster = computed(() => {
   const q = searchQuery.value.toLowerCase();
-
   return [...props.roster]
     .filter(dog => {
       if (activeTab.value !== 'all' && dog.attendance_state !== activeTab.value) return false;
@@ -276,10 +360,6 @@ const todayLabel = computed(() =>
   new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
 );
 
-function toggleExpand(dogId: string) {
-  expandedDogId.value = expandedDogId.value === dogId ? null : dogId;
-}
-
 function checkinDuration(checkedInAt: string): string {
   const diffMs = now.value.getTime() - new Date(checkedInAt).getTime();
   const totalMins = Math.max(0, Math.floor(diffMs / 60_000));
@@ -290,7 +370,6 @@ function checkinDuration(checkedInAt: string): string {
 }
 
 function checkin(dog: RosterDog) {
-  // Show override modal for zero-credit dogs (unlimited pass exempt)
   if (dog.credit_balance <= 0 && !dog.unlimited_pass_active) {
     overrideModal.open = true;
     overrideModal.dogId = dog.id;
@@ -338,26 +417,36 @@ function checkout(dogId: string) {
   );
 }
 
-function addAddon(attendanceId: string, dogId: string) {
-  const addonTypeId = addonSelections[dogId];
-  if (!addonTypeId) return;
+function openAddonModal(dog: RosterDog) {
+  addonModal.open = true;
+  addonModal.dogId = dog.id;
+  addonModal.dogName = dog.name;
+  addonModal.attendanceId = dog.attendance_id ?? '';
+  addonModal.state = dog.attendance_state as 'checked_in' | 'done';
+  addonModal.pendingAddonId = null;
+}
 
-  router.post(route('admin.roster.attendance-addons.store', attendanceId), {
-    addon_type_id: addonTypeId,
-  }, {
-    preserveScroll: true,
-    only: ['roster', 'addonTypes'],
-    onSuccess: () => { addonSelections[dogId] = ''; },
-  });
+function addAddonFromModal(addonTypeId: string) {
+  if (!addonModal.attendanceId) return;
+  addonModal.pendingAddonId = addonTypeId;
+  router.post(
+    route('admin.roster.attendance-addons.store', addonModal.attendanceId),
+    { addon_type_id: addonTypeId },
+    {
+      preserveScroll: true,
+      only: ['roster', 'addonTypes'],
+      onFinish: () => { addonModal.pendingAddonId = null; },
+    },
+  );
 }
 
 function removeAddon(attendanceId: string, addonId: number) {
-  router.delete(route('admin.roster.attendance-addons.destroy', {
-    attendance: attendanceId,
-    addon: addonId,
-  }), {
-    preserveScroll: true,
-    only: ['roster', 'addonTypes'],
-  });
+  router.delete(
+    route('admin.roster.attendance-addons.destroy', { attendance: attendanceId, addon: addonId }),
+    {
+      preserveScroll: true,
+      only: ['roster', 'addonTypes'],
+    },
+  );
 }
 </script>
