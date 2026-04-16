@@ -16,7 +16,8 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "./vendor/bin/sail artisan test && ./vendor/bin/sail npm run build"
+                        "command": "./vendor/bin/sail artisan test && ./vendor/bin/sail npm run build",
+                        "timeout": 360
                     }
                 ]
             }

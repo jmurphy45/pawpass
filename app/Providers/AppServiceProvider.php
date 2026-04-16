@@ -69,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SmsUsageService::class);
         $this->app->singleton(TenantEventService::class);
         $this->app->singleton(PromotionService::class);
+        $this->app->singleton(OrderService::class);
         $this->app->bind(KennelAvailabilityService::class);
         $this->app->bind(VaccinationComplianceService::class);
     }
