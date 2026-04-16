@@ -614,4 +614,74 @@ class RosterControllerTest extends TestCase
         ]);
         $this->assertDatabaseCount('tenant_events', 1);
     }
+
+    public function test_index_includes_checked_in_at_for_checked_in_dog(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
+
+        Attendance::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
+            'checked_out_at' => null,
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $this->get('/admin/roster')->assertInertia(fn ($page) => $page
+            ->component('Admin/Roster/Index')
+            ->has('roster', 1)
+            ->where('roster.0.attendance_state', 'checked_in')
+            ->whereNot('roster.0.checked_in_at', null)
+        );
+    }
+
+    public function test_index_checked_in_at_is_null_for_dog_not_yet_checked_in(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        Dog::factory()->forCustomer($customer)->create(['credit_balance' => 3]);
+
+        $this->actingAs($this->staff);
+
+        $this->get('/admin/roster')->assertInertia(fn ($page) => $page
+            ->component('Admin/Roster/Index')
+            ->has('roster', 1)
+            ->where('roster.0.attendance_state', 'not_in')
+            ->where('roster.0.checked_in_at', null)
+        );
+    }
+
+    public function test_index_unlimited_pass_active_true_when_pass_not_expired(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        Dog::factory()->forCustomer($customer)->create([
+            'credit_balance' => 0,
+            'unlimited_pass_expires_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $this->get('/admin/roster')->assertInertia(fn ($page) => $page
+            ->component('Admin/Roster/Index')
+            ->where('roster.0.unlimited_pass_active', true)
+        );
+    }
+
+    public function test_index_unlimited_pass_active_false_when_no_pass(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        Dog::factory()->forCustomer($customer)->create([
+            'credit_balance' => 5,
+            'unlimited_pass_expires_at' => null,
+        ]);
+
+        $this->actingAs($this->staff);
+
+        $this->get('/admin/roster')->assertInertia(fn ($page) => $page
+            ->component('Admin/Roster/Index')
+            ->where('roster.0.unlimited_pass_active', false)
+        );
+    }
 }

@@ -81,6 +81,8 @@ class RosterController extends Controller
                 'credit_status' => $creditStatus,
                 'attendance_state' => $attendanceState,
                 'attendance_id' => $todayAttendance?->id,
+                'checked_in_at' => $todayAttendance?->checked_in_at?->toIso8601String(),
+                'unlimited_pass_active' => (bool) $dog->unlimited_pass_expires_at?->isFuture(),
                 'attendance_addons' => $attendanceAddons,
             ];
         });
@@ -278,7 +280,7 @@ class RosterController extends Controller
         }
 
         $tenantId = app('current.tenant.id');
-        $tenant   = Tenant::find($tenantId);
+        $tenant = Tenant::find($tenantId);
 
         $startOfTodayUtc = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
 
@@ -298,9 +300,9 @@ class RosterController extends Controller
             $attendance->update([
                 'checked_out_at' => $endOfDay,
                 'checked_out_by' => $staffId,
-                'edited_at'      => now(),
-                'edited_by'      => $staffId,
-                'edit_note'      => 'Checked out via stale check-in email link',
+                'edited_at' => now(),
+                'edited_by' => $staffId,
+                'edit_note' => 'Checked out via stale check-in email link',
             ]);
 
             try {
@@ -308,7 +310,7 @@ class RosterController extends Controller
             } catch (\Throwable $e) {
                 Log::warning('checkoutStale: capture skipped', [
                     'attendance_id' => $attendance->id,
-                    'error'         => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -337,13 +339,13 @@ class RosterController extends Controller
         $tenant = Tenant::find($attendance->tenant_id);
 
         $order = Order::create([
-            'tenant_id'      => $attendance->tenant_id,
-            'customer_id'    => $customer?->id,
-            'attendance_id'  => $attendance->id,
-            'type'           => OrderType::Daycare,
-            'status'         => 'pending',
+            'tenant_id' => $attendance->tenant_id,
+            'customer_id' => $customer?->id,
+            'attendance_id' => $attendance->id,
+            'type' => OrderType::Daycare,
+            'status' => 'pending',
             'cancellable_at' => null,
-            'total_amount'   => $totalCents / 100,
+            'total_amount' => $totalCents / 100,
         ]);
 
         foreach ($attendance->addons as $i => $addon) {

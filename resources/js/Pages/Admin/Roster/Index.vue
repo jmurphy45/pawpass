@@ -63,7 +63,10 @@
                 <p class="text-sm font-medium text-text-body truncate">{{ dog.name }}</p>
                 <p class="text-xs text-text-muted truncate">
                   {{ dog.customer_name }}
-                  <span v-if="dog.attendance_addons.length > 0" class="ml-1 text-indigo-500">
+                  <span v-if="dog.attendance_state === 'checked_in' && dog.checked_in_at" class="ml-1 text-green-600 font-medium">
+                    · In for {{ checkinDuration(dog.checked_in_at) }}
+                  </span>
+                  <span v-else-if="dog.attendance_addons.length > 0" class="ml-1 text-indigo-500">
                     · {{ dog.attendance_addons.length }} add-on{{ dog.attendance_addons.length !== 1 ? 's' : '' }}
                   </span>
                 </p>
@@ -72,8 +75,11 @@
               <!-- Credit badge (hidden on mobile) -->
               <AppBadge
                 class="hidden sm:inline-flex"
-                :color="dog.credit_balance <= 0 ? 'red' : dog.credit_status === 'low' ? 'yellow' : 'gray'"
-              >{{ dog.credit_balance }} cr</AppBadge>
+                :color="dog.credit_balance <= 0 && !dog.unlimited_pass_active ? 'red' : dog.credit_status === 'low' ? 'yellow' : 'gray'"
+              >
+                <span v-if="dog.unlimited_pass_active">Unlimited</span>
+                <span v-else>{{ dog.credit_balance }} cr</span>
+              </AppBadge>
 
               <!-- Status badge -->
               <AppBadge :color="dog.attendance_state === 'checked_in' ? 'green' : dog.attendance_state === 'done' ? 'blue' : 'gray'">
@@ -81,12 +87,22 @@
               </AppBadge>
 
               <!-- Action buttons -->
-              <form v-if="dog.attendance_state === 'not_in'" @submit.prevent="checkin(dog.id)">
-                <AppButton type="submit" variant="primary" size="sm">Check In</AppButton>
-              </form>
-              <form v-if="dog.attendance_state === 'checked_in'" @submit.prevent="checkout(dog.id)">
-                <AppButton type="submit" variant="secondary" size="sm">Check Out</AppButton>
-              </form>
+              <div v-if="dog.attendance_state === 'not_in'">
+                <AppButton
+                  variant="primary"
+                  size="sm"
+                  :loading="pendingDogId === dog.id"
+                  @click="checkin(dog)"
+                >Check In</AppButton>
+              </div>
+              <div v-if="dog.attendance_state === 'checked_in'">
+                <AppButton
+                  variant="secondary"
+                  size="sm"
+                  :loading="pendingDogId === dog.id"
+                  @click="checkout(dog.id)"
+                >Check Out</AppButton>
+              </div>
               <div v-if="dog.attendance_state === 'done'" class="w-20" />
             </li>
 
@@ -119,7 +135,7 @@
               <!-- Add addon form (only when still checked in) -->
               <form
                 v-if="dog.attendance_state === 'checked_in'"
-                @submit.prevent="addAddon(dog.attendance_id!)"
+                @submit.prevent="addAddon(dog.attendance_id!, dog.id)"
                 class="flex gap-2 pt-1 border-t border-border"
               >
                 <select v-model="addonSelections[dog.id]" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 flex-1 py-1 text-xs">
@@ -140,14 +156,40 @@
         </ul>
       </AppCard>
     </div>
+
+    <!-- Zero-credit override modal -->
+    <AppModal
+      :open="overrideModal.open"
+      title="No Credits Remaining"
+      confirm-label="Override & Check In"
+      cancel-label="Cancel"
+      :danger="false"
+      @confirm="confirmOverride"
+      @cancel="cancelOverride"
+    >
+      <p class="text-sm text-gray-600 mb-3">
+        <strong>{{ overrideModal.dogName }}</strong> has {{ overrideModal.creditBalance }} credit{{ overrideModal.creditBalance === 1 ? '' : 's' }}.
+        Enter a reason to check in anyway:
+      </p>
+      <textarea
+        v-model="overrideModal.note"
+        rows="3"
+        placeholder="Reason for override…"
+        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
+      />
+    </AppModal>
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
-import { router, useForm } from '@inertiajs/vue3';
+import { computed, onUnmounted, reactive, ref } from 'vue';
+import { router, usePoll } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AppInput from '@/Components/AppInput.vue';
+import AppModal from '@/Components/AppModal.vue';
+import AppBadge from '@/Components/AppBadge.vue';
+import AppCard from '@/Components/AppCard.vue';
+import AppButton from '@/Components/AppButton.vue';
 
 interface AddonEntry {
   id: number;
@@ -170,6 +212,8 @@ interface RosterDog {
   credit_status: string;
   attendance_state: string;
   attendance_id: string | null;
+  checked_in_at: string | null;
+  unlimited_pass_active: boolean;
   attendance_addons: AddonEntry[];
 }
 
@@ -182,6 +226,24 @@ const expandedDogId = ref<string | null>(null);
 const addonSelections = reactive<Record<string, string>>({});
 const searchQuery = ref('');
 const activeTab = ref<'all' | 'checked_in' | 'not_in' | 'done'>('all');
+const pendingDogId = ref<string | null>(null);
+
+// Override modal state
+const overrideModal = reactive({
+  open: false,
+  dogId: '',
+  dogName: '',
+  creditBalance: 0,
+  note: '',
+});
+
+// Live clock for "in for X" durations — ticks every 60s
+const now = ref(new Date());
+const clockTimer = setInterval(() => { now.value = new Date(); }, 60_000);
+onUnmounted(() => clearInterval(clockTimer));
+
+// Auto-refresh roster every 60 seconds using Inertia's built-in polling
+usePoll(60_000, { only: ['roster', 'addonTypes'] });
 
 const tabs = [
   { value: 'all', label: 'All' },
@@ -218,27 +280,74 @@ function toggleExpand(dogId: string) {
   expandedDogId.value = expandedDogId.value === dogId ? null : dogId;
 }
 
-function checkin(dogId: string) {
-  useForm({ dog_id: dogId }).post(route('admin.roster.checkin'));
+function checkinDuration(checkedInAt: string): string {
+  const diffMs = now.value.getTime() - new Date(checkedInAt).getTime();
+  const totalMins = Math.max(0, Math.floor(diffMs / 60_000));
+  const hours = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+function checkin(dog: RosterDog) {
+  // Show override modal for zero-credit dogs (unlimited pass exempt)
+  if (dog.credit_balance <= 0 && !dog.unlimited_pass_active) {
+    overrideModal.open = true;
+    overrideModal.dogId = dog.id;
+    overrideModal.dogName = dog.name;
+    overrideModal.creditBalance = dog.credit_balance;
+    overrideModal.note = '';
+    return;
+  }
+  doCheckin(dog.id);
+}
+
+function doCheckin(dogId: string, override = false, note = '') {
+  pendingDogId.value = dogId;
+  router.post(
+    route('admin.roster.checkin'),
+    { dog_id: dogId, zero_credit_override: override, override_note: note || undefined },
+    {
+      preserveScroll: true,
+      only: ['roster', 'addonTypes'],
+      onFinish: () => { pendingDogId.value = null; },
+    },
+  );
+}
+
+function confirmOverride() {
+  const { dogId, note } = overrideModal;
+  overrideModal.open = false;
+  doCheckin(dogId, true, note);
+}
+
+function cancelOverride() {
+  overrideModal.open = false;
 }
 
 function checkout(dogId: string) {
-  useForm({ dog_id: dogId }).post(route('admin.roster.checkout'));
+  pendingDogId.value = dogId;
+  router.post(
+    route('admin.roster.checkout'),
+    { dog_id: dogId },
+    {
+      preserveScroll: true,
+      only: ['roster', 'addonTypes'],
+      onFinish: () => { pendingDogId.value = null; },
+    },
+  );
 }
 
-function addAddon(attendanceId: string) {
-  const dogId = Object.keys(addonSelections).find(id =>
-    props.roster.find(d => d.id === id)?.attendance_id === attendanceId
-  );
-  const addonTypeId = dogId ? addonSelections[dogId] : '';
+function addAddon(attendanceId: string, dogId: string) {
+  const addonTypeId = addonSelections[dogId];
   if (!addonTypeId) return;
 
   router.post(route('admin.roster.attendance-addons.store', attendanceId), {
     addon_type_id: addonTypeId,
   }, {
-    onSuccess: () => {
-      if (dogId) addonSelections[dogId] = '';
-    },
+    preserveScroll: true,
+    only: ['roster', 'addonTypes'],
+    onSuccess: () => { addonSelections[dogId] = ''; },
   });
 }
 
@@ -246,6 +355,9 @@ function removeAddon(attendanceId: string, addonId: number) {
   router.delete(route('admin.roster.attendance-addons.destroy', {
     attendance: attendanceId,
     addon: addonId,
-  }));
+  }), {
+    preserveScroll: true,
+    only: ['roster', 'addonTypes'],
+  });
 }
 </script>
