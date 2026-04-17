@@ -34,6 +34,10 @@ class AttendancePaymentService
         }
 
         try {
+            $this->stripe->confirmPaymentIntent(
+                $authorizedPayment->stripe_pi_id,
+                $tenant->stripe_account_id,
+            );
             $this->stripe->capturePaymentIntent(
                 $authorizedPayment->stripe_pi_id,
                 $tenant->stripe_account_id,

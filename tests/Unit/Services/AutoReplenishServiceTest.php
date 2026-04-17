@@ -14,7 +14,6 @@ use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Mockery\MockInterface;
-use Stripe\Exception\CardException;
 use Tests\TestCase;
 
 class AutoReplenishServiceTest extends TestCase
@@ -110,7 +109,7 @@ class AutoReplenishServiceTest extends TestCase
 
         $this->assertDatabaseHas('orders', [
             'customer_id' => $customer->id,
-            'package_id'  => $package->id,
+            'package_id' => $package->id,
         ]);
         $this->assertDatabaseHas('order_payments', [
             'stripe_pi_id' => 'pi_auto_test',
@@ -170,7 +169,7 @@ class AutoReplenishServiceTest extends TestCase
         $customer = $dog->customer;
         $package = Package::find($dog->auto_replenish_package_id);
 
-        $fakeIntent = (object) ['id' => 'pi_sync_ok', 'status' => 'succeeded'];
+        $fakeIntent = (object) ['id' => 'pi_sync_ok', 'status' => 'requires_confirmation'];
 
         $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeIntent) {
             $mock->shouldReceive('createPaymentIntent')->once()->andReturn($fakeIntent);
@@ -228,11 +227,11 @@ class AutoReplenishServiceTest extends TestCase
         $tenant = $dog->tenant;
         $tenant->update(['billing_address' => ['postal_code' => '90210', 'country' => 'US'], 'tax_collection_enabled' => true]);
 
-        $fakeCalc   = (object) ['id' => 'txc_sync_test', 'tax_amount_exclusive' => 150];
-        $fakeIntent = (object) ['id' => 'pi_sync_tax', 'status' => 'succeeded'];
+        $fakeCalc = (object) ['id' => 'txc_sync_test', 'tax_amount_exclusive' => 150];
+        $fakeIntent = (object) ['id' => 'pi_sync_tax', 'status' => 'requires_confirmation'];
 
         $capturedAmount = null;
-        $capturedMeta   = null;
+        $capturedMeta = null;
 
         $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeCalc, $fakeIntent, &$capturedAmount, &$capturedMeta) {
             $mock->shouldReceive('calculateTax')->once()->andReturn($fakeCalc);
@@ -240,7 +239,8 @@ class AutoReplenishServiceTest extends TestCase
                 ->once()
                 ->andReturnUsing(function ($amount, $currency, $accountId, $fee, $metadata) use ($fakeIntent, &$capturedAmount, &$capturedMeta) {
                     $capturedAmount = $amount;
-                    $capturedMeta   = $metadata;
+                    $capturedMeta = $metadata;
+
                     return $fakeIntent;
                 });
         });
@@ -264,7 +264,7 @@ class AutoReplenishServiceTest extends TestCase
         $dog = $this->makeDog();
         $dog->tenant->update(['billing_address' => ['postal_code' => '90210', 'country' => 'US']]);
 
-        $fakeIntent = (object) ['id' => 'pi_sync_notax', 'status' => 'succeeded'];
+        $fakeIntent = (object) ['id' => 'pi_sync_notax', 'status' => 'requires_confirmation'];
 
         $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeIntent) {
             $mock->shouldNotReceive('calculateTax');
@@ -286,7 +286,7 @@ class AutoReplenishServiceTest extends TestCase
         $tenant = $dog->tenant;
         $tenant->update(['billing_address' => null, 'tax_collection_enabled' => true]);
 
-        $fakeIntent = (object) ['id' => 'pi_sync_noaddr', 'status' => 'succeeded'];
+        $fakeIntent = (object) ['id' => 'pi_sync_noaddr', 'status' => 'requires_confirmation'];
 
         $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeIntent) {
             $mock->shouldNotReceive('calculateTax');
@@ -325,7 +325,7 @@ class AutoReplenishServiceTest extends TestCase
     {
         [$dog, $package] = $this->makeDogAndPackage();
 
-        $fakeIntent = (object) ['id' => 'pi_tfp_ok', 'status' => 'succeeded'];
+        $fakeIntent = (object) ['id' => 'pi_tfp_ok', 'status' => 'requires_confirmation'];
 
         $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeIntent) {
             $mock->shouldReceive('createPaymentIntent')->once()->andReturn($fakeIntent);
@@ -400,11 +400,11 @@ class AutoReplenishServiceTest extends TestCase
         $tenant = $dog->tenant;
         $tenant->update(['billing_address' => ['postal_code' => '10001', 'country' => 'US'], 'tax_collection_enabled' => true]);
 
-        $fakeCalc   = (object) ['id' => 'txc_tfp_test', 'tax_amount_exclusive' => 200];
-        $fakeIntent = (object) ['id' => 'pi_tfp_tax', 'status' => 'succeeded'];
+        $fakeCalc = (object) ['id' => 'txc_tfp_test', 'tax_amount_exclusive' => 200];
+        $fakeIntent = (object) ['id' => 'pi_tfp_tax', 'status' => 'requires_confirmation'];
 
         $capturedAmount = null;
-        $capturedMeta   = null;
+        $capturedMeta = null;
 
         $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeCalc, $fakeIntent, &$capturedAmount, &$capturedMeta) {
             $mock->shouldReceive('calculateTax')->once()->andReturn($fakeCalc);
@@ -412,7 +412,8 @@ class AutoReplenishServiceTest extends TestCase
                 ->once()
                 ->andReturnUsing(function ($amount, $currency, $accountId, $fee, $metadata) use ($fakeIntent, &$capturedAmount, &$capturedMeta) {
                     $capturedAmount = $amount;
-                    $capturedMeta   = $metadata;
+                    $capturedMeta = $metadata;
+
                     return $fakeIntent;
                 });
         });
@@ -435,7 +436,7 @@ class AutoReplenishServiceTest extends TestCase
         [$dog, $package] = $this->makeDogAndPackage();
         $dog->tenant->update(['billing_address' => ['postal_code' => '10001', 'country' => 'US']]);
 
-        $fakeIntent = (object) ['id' => 'pi_tfp_notax', 'status' => 'succeeded'];
+        $fakeIntent = (object) ['id' => 'pi_tfp_notax', 'status' => 'requires_confirmation'];
 
         $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeIntent) {
             $mock->shouldNotReceive('calculateTax');
@@ -457,7 +458,7 @@ class AutoReplenishServiceTest extends TestCase
         $tenant = $dog->tenant;
         $tenant->update(['billing_address' => null, 'tax_collection_enabled' => true]);
 
-        $fakeIntent = (object) ['id' => 'pi_tfp_noaddr', 'status' => 'succeeded'];
+        $fakeIntent = (object) ['id' => 'pi_tfp_noaddr', 'status' => 'requires_confirmation'];
 
         $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeIntent) {
             $mock->shouldNotReceive('calculateTax');
@@ -480,10 +481,10 @@ class AutoReplenishServiceTest extends TestCase
 
         $dog = $this->makeDog();
         $order = Order::factory()->create([
-            'tenant_id'   => $dog->tenant_id,
+            'tenant_id' => $dog->tenant_id,
             'customer_id' => $dog->customer_id,
-            'status'      => 'paid',
-            'created_at'  => now()->subSeconds(30),
+            'status' => 'paid',
+            'created_at' => now()->subSeconds(30),
         ]);
         $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
 
@@ -496,10 +497,10 @@ class AutoReplenishServiceTest extends TestCase
     {
         $dog = $this->makeDog();
         $stale = Order::factory()->create([
-            'tenant_id'   => $dog->tenant_id,
+            'tenant_id' => $dog->tenant_id,
             'customer_id' => $dog->customer_id,
-            'status'      => 'paid',
-            'created_at'  => now()->subMinutes(2),
+            'status' => 'paid',
+            'created_at' => now()->subMinutes(2),
         ]);
         $stale->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
 
@@ -519,9 +520,9 @@ class AutoReplenishServiceTest extends TestCase
 
         $dog = $this->makeDog();
         $order = Order::factory()->create([
-            'tenant_id'   => $dog->tenant_id,
+            'tenant_id' => $dog->tenant_id,
             'customer_id' => $dog->customer_id,
-            'status'      => 'pending',
+            'status' => 'pending',
         ]);
         $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
 
@@ -537,9 +538,9 @@ class AutoReplenishServiceTest extends TestCase
 
         [$dog, $package] = $this->makeDogAndPackage();
         $order = Order::factory()->create([
-            'tenant_id'   => $dog->tenant_id,
+            'tenant_id' => $dog->tenant_id,
             'customer_id' => $dog->customer_id,
-            'status'      => 'pending',
+            'status' => 'pending',
         ]);
         $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
 

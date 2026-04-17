@@ -47,7 +47,7 @@ class AlertStaleCheckins implements ShouldQueue
             } catch (\Throwable $e) {
                 Log::error('AlertStaleCheckins failed for tenant', [
                     'tenant_id' => $tenant->id,
-                    'error'     => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -64,9 +64,9 @@ class AlertStaleCheckins implements ShouldQueue
             $attendance->update([
                 'checked_out_at' => $endOfDay,
                 'checked_out_by' => null,
-                'edited_at'      => now(),
-                'edited_by'      => null,
-                'edit_note'      => 'Auto-checked out by system (stale check-in alert)',
+                'edited_at' => now(),
+                'edited_by' => null,
+                'edit_note' => 'Auto-checked out by system (stale check-in alert)',
             ]);
 
             try {
@@ -74,7 +74,7 @@ class AlertStaleCheckins implements ShouldQueue
             } catch (\Throwable $e) {
                 Log::warning('AlertStaleCheckins: Stripe capture skipped', [
                     'attendance_id' => $attendance->id,
-                    'error'         => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -82,17 +82,27 @@ class AlertStaleCheckins implements ShouldQueue
 
     private function notifyStaff(Tenant $tenant, $records, NotificationService $notificationService): void
     {
+        $appUrl = config('app.url');
+        $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?? 'https';
+        $host = parse_url($appUrl, PHP_URL_HOST);
+        $parts = explode('.', $host);
+        $root = count($parts) >= 3 ? implode('.', array_slice($parts, -2)) : $host;
+
+        URL::forceRootUrl("{$scheme}://{$tenant->slug}.{$root}");
+
         $checkoutUrl = URL::temporarySignedRoute(
             'admin.attendance.checkout-stale',
             now()->addDays(3),
             ['tenant' => $tenant->id],
         );
 
+        URL::forceRootUrl($appUrl);
+
         $dogNames = $records->map(fn ($a) => $a->dog?->name)->filter()->values()->all();
 
         $payload = [
-            'dog_count'   => count($dogNames),
-            'dog_names'   => $dogNames,
+            'dog_count' => count($dogNames),
+            'dog_names' => $dogNames,
             'checkout_url' => $checkoutUrl,
         ];
 

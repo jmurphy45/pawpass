@@ -528,6 +528,10 @@ class RosterControllerTest extends TestCase
             ->once()
             ->with('pi_auth', 3662, 'acct_test', Mockery::any())
             ->andReturn((object) ['id' => 'pi_auth']);
+        $stripe->shouldReceive('confirmPaymentIntent')
+            ->once()
+            ->with('pi_auth', 'acct_test')
+            ->andReturn((object) ['id' => 'pi_auth', 'status' => 'requires_capture']);
         $stripe->shouldReceive('capturePaymentIntent')
             ->once()
             ->with('pi_auth', 'acct_test')

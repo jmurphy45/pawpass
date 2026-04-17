@@ -31,10 +31,10 @@ class AlertStaleCheckinsTest extends TestCase
 
     private function makeTenantWithOwnerAndDog(array $tenantOverrides = []): array
     {
-        $tenant   = Tenant::factory()->withOwner()->create($tenantOverrides);
-        $owner    = User::find($tenant->owner_user_id);
+        $tenant = Tenant::factory()->withOwner()->create($tenantOverrides);
+        $owner = User::find($tenant->owner_user_id);
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
-        $dog      = Dog::factory()->forCustomer($customer)->create();
+        $dog = Dog::factory()->forCustomer($customer)->create();
 
         return compact('tenant', 'owner', 'customer', 'dog');
     }
@@ -42,9 +42,9 @@ class AlertStaleCheckinsTest extends TestCase
     private function makeStaleAttendance(Dog $dog, Tenant $tenant, string $checkedInAt = '-1 day'): Attendance
     {
         return Attendance::factory()->create([
-            'tenant_id'      => $tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_at'  => now($tenant->timezone ?? 'UTC')->modify($checkedInAt)->startOfDay()->addHours(9)->utc(),
+            'tenant_id' => $tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_at' => now($tenant->timezone ?? 'UTC')->modify($checkedInAt)->startOfDay()->addHours(9)->utc(),
             'checked_out_at' => null,
         ]);
     }
@@ -65,7 +65,7 @@ class AlertStaleCheckinsTest extends TestCase
     {
         ['tenant' => $tenant, 'dog' => $dog] = $this->makeTenantWithOwnerAndDog([
             'auto_checkout_stale' => true,
-            'timezone'            => 'America/Chicago',
+            'timezone' => 'America/Chicago',
         ]);
 
         $attendance = $this->makeStaleAttendance($dog, $tenant, '-1 day');
@@ -90,7 +90,7 @@ class AlertStaleCheckinsTest extends TestCase
     {
         ['tenant' => $tenant, 'dog' => $dog] = $this->makeTenantWithOwnerAndDog([
             'auto_checkout_stale' => true,
-            'timezone'            => 'America/New_York',
+            'timezone' => 'America/New_York',
         ]);
 
         $attendance = $this->makeStaleAttendance($dog, $tenant, '-1 day');
@@ -126,7 +126,7 @@ class AlertStaleCheckinsTest extends TestCase
 
         ['tenant' => $tenant, 'dog' => $dog] = $this->makeTenantWithOwnerAndDog([
             'auto_checkout_stale' => true,
-            'timezone'            => 'America/Chicago', // UTC-6
+            'timezone' => 'America/Chicago', // UTC-6
         ]);
 
         // Yesterday 11 PM CST = today 5 AM UTC (UTC date = today → old query misses it)
@@ -135,9 +135,9 @@ class AlertStaleCheckinsTest extends TestCase
             ->utc();
 
         $attendance = Attendance::factory()->create([
-            'tenant_id'      => $tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_at'  => $checkedInAt,
+            'tenant_id' => $tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_at' => $checkedInAt,
             'checked_out_at' => null,
         ]);
 
@@ -158,9 +158,9 @@ class AlertStaleCheckinsTest extends TestCase
         ]);
 
         $todayAttendance = Attendance::factory()->create([
-            'tenant_id'      => $tenant->id,
-            'dog_id'         => $dog->id,
-            'checked_in_at'  => now()->startOfDay()->addHours(8),
+            'tenant_id' => $tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_at' => now()->startOfDay()->addHours(8),
             'checked_out_at' => null,
         ]);
 
@@ -207,10 +207,11 @@ class AlertStaleCheckinsTest extends TestCase
 
         $notifications = $this->mockNotifications();
         $notifications->shouldReceive('dispatch')
-            ->with('attendance.stale_checkins', $tenant->id, $owner->id, \Mockery::on(function ($payload) use ($dog) {
+            ->with('attendance.stale_checkins', $tenant->id, $owner->id, \Mockery::on(function ($payload) use ($dog, $tenant) {
                 return $payload['dog_count'] === 1
                     && in_array($dog->name, $payload['dog_names'])
-                    && isset($payload['checkout_url']);
+                    && isset($payload['checkout_url'])
+                    && str_contains($payload['checkout_url'], $tenant->slug);
             }))
             ->once();
         $notifications->shouldReceive('dispatch')->withAnyArgs()->zeroOrMoreTimes();
@@ -231,8 +232,8 @@ class AlertStaleCheckinsTest extends TestCase
 
         $staff = User::factory()->create([
             'tenant_id' => $tenant->id,
-            'role'      => 'staff',
-            'status'    => 'active',
+            'role' => 'staff',
+            'status' => 'active',
         ]);
 
         $this->makeStaleAttendance($dog, $tenant);
@@ -257,8 +258,8 @@ class AlertStaleCheckinsTest extends TestCase
 
         $suspended = User::factory()->create([
             'tenant_id' => $tenant->id,
-            'role'      => 'staff',
-            'status'    => 'suspended',
+            'role' => 'staff',
+            'status' => 'suspended',
         ]);
 
         $this->makeStaleAttendance($dog, $tenant);
@@ -326,10 +327,10 @@ class AlertStaleCheckinsTest extends TestCase
         $tenant = Tenant::factory()->create(['slug' => 'stale-checkout-a', 'status' => 'active']);
         URL::forceRootUrl('http://stale-checkout-a.pawpass.com');
 
-        $owner    = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'business_owner']);
+        $owner = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'business_owner']);
         $tenant->update(['owner_user_id' => $owner->id]);
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
-        $dog      = Dog::factory()->forCustomer($customer)->create();
+        $dog = Dog::factory()->forCustomer($customer)->create();
 
         $attendance = $this->makeStaleAttendance($dog, $tenant);
 
@@ -340,11 +341,11 @@ class AlertStaleCheckinsTest extends TestCase
         );
 
         $this->get($url)
-             ->assertOk()
-             ->assertInertia(fn ($page) => $page
-                 ->component('Admin/Roster/StaleCheckoutConfirmation')
-                 ->where('checked_out_count', 1)
-             );
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Roster/StaleCheckoutConfirmation')
+                ->where('checked_out_count', 1)
+            );
 
         $attendance->refresh();
         $this->assertNotNull($attendance->checked_out_at);
@@ -357,9 +358,9 @@ class AlertStaleCheckinsTest extends TestCase
         $tenant = Tenant::factory()->create(['slug' => 'stale-checkout-b', 'status' => 'active']);
         URL::forceRootUrl('http://stale-checkout-b.pawpass.com');
 
-        $staff    = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'staff', 'status' => 'active']);
+        $staff = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'staff', 'status' => 'active']);
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
-        $dog      = Dog::factory()->forCustomer($customer)->create();
+        $dog = Dog::factory()->forCustomer($customer)->create();
 
         $attendance = $this->makeStaleAttendance($dog, $tenant);
 
@@ -370,8 +371,8 @@ class AlertStaleCheckinsTest extends TestCase
         );
 
         $this->actingAs($staff)
-             ->get($url)
-             ->assertOk();
+            ->get($url)
+            ->assertOk();
 
         $attendance->refresh();
         $this->assertEquals($staff->id, $attendance->checked_out_by);
@@ -384,7 +385,7 @@ class AlertStaleCheckinsTest extends TestCase
         URL::forceRootUrl('http://stale-checkout-c.pawpass.com');
 
         $this->get('/admin/attendance/checkout-stale')
-             ->assertForbidden();
+            ->assertForbidden();
     }
 
     public function test_only_stale_records_for_correct_tenant_are_checked_out(): void
@@ -394,8 +395,8 @@ class AlertStaleCheckinsTest extends TestCase
 
         $customerA = Customer::factory()->create(['tenant_id' => $tenantA->id]);
         $customerB = Customer::factory()->create(['tenant_id' => $tenantB->id]);
-        $dogA      = Dog::factory()->forCustomer($customerA)->create();
-        $dogB      = Dog::factory()->forCustomer($customerB)->create();
+        $dogA = Dog::factory()->forCustomer($customerA)->create();
+        $dogB = Dog::factory()->forCustomer($customerB)->create();
 
         $staleA = $this->makeStaleAttendance($dogA, $tenantA);
         $staleB = $this->makeStaleAttendance($dogB, $tenantB);

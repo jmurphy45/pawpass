@@ -8,11 +8,8 @@ use App\Models\Attendance;
 use App\Models\Dog;
 use App\Models\Order;
 use App\Models\Package;
-use App\Models\OrderLineItem;
-use App\Models\OrderPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Services\DogCreditService;
 
 class AutoReplenishService
 {
@@ -132,27 +129,27 @@ class AutoReplenishService
         }
 
         $subtotalCents = (int) round((float) $package->price * 100);
-        $feePct        = $tenant->effectivePlatformFeePct($subtotalCents);
-        $feeCents      = (int) round($subtotalCents * $feePct / 100);
+        $feePct = $tenant->effectivePlatformFeePct($subtotalCents);
+        $feeCents = (int) round($subtotalCents * $feePct / 100);
 
         [$taxAmountCents, $taxCalcId] = $this->resolveTax($subtotalCents, $tenant, $package);
         $totalCents = $subtotalCents + $taxAmountCents;
 
         $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct, $subtotalCents, $taxAmountCents, $taxCalcId, $totalCents) {
             $order = Order::create([
-                'tenant_id'          => $tenant->id,
-                'customer_id'        => $customer->id,
-                'package_id'         => $package->id,
-                'status'             => 'pending',
-                'total_amount'       => $totalCents / 100,
-                'subtotal_cents'     => $subtotalCents,
-                'tax_amount_cents'   => $taxAmountCents,
+                'tenant_id' => $tenant->id,
+                'customer_id' => $customer->id,
+                'package_id' => $package->id,
+                'status' => 'pending',
+                'total_amount' => $totalCents / 100,
+                'subtotal_cents' => $subtotalCents,
+                'tax_amount_cents' => $taxAmountCents,
                 'stripe_tax_calc_id' => $taxCalcId,
-                'platform_fee_pct'   => $feePct,
+                'platform_fee_pct' => $feePct,
             ]);
 
             $order->orderDogs()->create([
-                'dog_id'         => $dog->id,
+                'dog_id' => $dog->id,
                 'credits_issued' => 0,
             ]);
 
@@ -160,11 +157,11 @@ class AutoReplenishService
         });
 
         $metadata = [
-            'order_id'       => $order->id,
-            'tenant_id'      => $tenant->id,
-            'customer_id'    => $customer->id,
-            'package_id'     => $package->id,
-            'dog_ids'        => $dog->id,
+            'order_id' => $order->id,
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => $package->id,
+            'dog_ids' => $dog->id,
             'auto_replenish' => 'true',
         ];
 
@@ -187,25 +184,25 @@ class AutoReplenishService
             );
 
             $order->lineItems()->create([
-                'tenant_id'        => $tenant->id,
-                'description'      => $package->name,
-                'quantity'         => 1,
+                'tenant_id' => $tenant->id,
+                'description' => $package->name,
+                'quantity' => 1,
                 'unit_price_cents' => $subtotalCents,
-                'sort_order'       => 0,
+                'sort_order' => 0,
             ]);
 
             $order->payments()->create([
-                'tenant_id'    => $tenant->id,
+                'tenant_id' => $tenant->id,
                 'stripe_pi_id' => $intent->id,
                 'amount_cents' => $totalCents,
-                'type'         => PaymentType::Full,
-                'status'       => 'pending',
+                'type' => PaymentType::Full,
+                'status' => 'pending',
             ]);
         } catch (\Throwable $e) {
             Log::error('AutoReplenish: PaymentIntent failed', [
-                'dog_id'  => $dog->id,
+                'dog_id' => $dog->id,
                 'order_id' => $order->id,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             $order->transitionTo(OrderStatus::Failed);
@@ -249,28 +246,28 @@ class AutoReplenishService
         }
 
         $subtotalCents = (int) round((float) $package->price * 100);
-        $feePct        = $tenant->effectivePlatformFeePct($subtotalCents);
-        $feeCents      = (int) round($subtotalCents * $feePct / 100);
+        $feePct = $tenant->effectivePlatformFeePct($subtotalCents);
+        $feeCents = (int) round($subtotalCents * $feePct / 100);
 
         [$taxAmountCents, $taxCalcId] = $this->resolveTax($subtotalCents, $tenant, $package);
         $totalCents = $subtotalCents + $taxAmountCents;
 
         $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct, $subtotalCents, $taxAmountCents, $taxCalcId, $totalCents, $attendance) {
             $order = Order::create([
-                'tenant_id'          => $tenant->id,
-                'customer_id'        => $customer->id,
-                'package_id'         => $package->id,
-                'attendance_id'      => $attendance?->id,
-                'status'             => 'pending',
-                'total_amount'       => $totalCents / 100,
-                'subtotal_cents'     => $subtotalCents,
-                'tax_amount_cents'   => $taxAmountCents,
+                'tenant_id' => $tenant->id,
+                'customer_id' => $customer->id,
+                'package_id' => $package->id,
+                'attendance_id' => $attendance?->id,
+                'status' => 'pending',
+                'total_amount' => $totalCents / 100,
+                'subtotal_cents' => $subtotalCents,
+                'tax_amount_cents' => $taxAmountCents,
                 'stripe_tax_calc_id' => $taxCalcId,
-                'platform_fee_pct'   => $feePct,
+                'platform_fee_pct' => $feePct,
             ]);
 
             $order->orderDogs()->create([
-                'dog_id'         => $dog->id,
+                'dog_id' => $dog->id,
                 'credits_issued' => 0,
             ]);
 
@@ -278,11 +275,11 @@ class AutoReplenishService
         });
 
         $metadata = [
-            'order_id'       => $order->id,
-            'tenant_id'      => $tenant->id,
-            'customer_id'    => $customer->id,
-            'package_id'     => $package->id,
-            'dog_ids'        => $dog->id,
+            'order_id' => $order->id,
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => $package->id,
+            'dog_ids' => $dog->id,
             'auto_replenish' => 'true',
         ];
 
@@ -298,14 +295,14 @@ class AutoReplenishService
                 applicationFeeCents: $feeCents,
                 metadata: $metadata,
                 stripeCustomerId: $customer->stripe_customer_id,
-                confirm: true,
+                confirm: false,
                 offSession: true,
                 paymentMethodId: $customer->stripe_payment_method_id,
                 paymentMethodTypes: ['card'],
                 captureMethod: 'manual',
             );
 
-            if (! in_array($intent->status, ['requires_capture', 'succeeded'])) {
+            if ($intent->status !== 'requires_confirmation') {
                 $order->transitionTo(OrderStatus::Failed);
 
                 return false;
@@ -313,19 +310,19 @@ class AutoReplenishService
 
             DB::transaction(function () use ($order, $dog, $package, $tenant, $intent, $subtotalCents, $totalCents) {
                 $order->lineItems()->create([
-                    'tenant_id'        => $tenant->id,
-                    'description'      => $package->name,
-                    'quantity'         => 1,
+                    'tenant_id' => $tenant->id,
+                    'description' => $package->name,
+                    'quantity' => 1,
                     'unit_price_cents' => $subtotalCents,
-                    'sort_order'       => 0,
+                    'sort_order' => 0,
                 ]);
 
                 $order->payments()->create([
-                    'tenant_id'    => $tenant->id,
+                    'tenant_id' => $tenant->id,
                     'stripe_pi_id' => $intent->id,
                     'amount_cents' => $totalCents,
-                    'type'         => PaymentType::Full,
-                    'status'       => 'authorized',
+                    'type' => PaymentType::Full,
+                    'status' => 'authorized',
                 ]);
 
                 $order->transitionTo(OrderStatus::Authorized);
@@ -336,9 +333,9 @@ class AutoReplenishService
             return true;
         } catch (\Throwable $e) {
             Log::error('AutoReplenish (sync): PaymentIntent failed', [
-                'dog_id'   => $dog->id,
+                'dog_id' => $dog->id,
                 'order_id' => $order->id,
-                'error'    => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             $order->transitionTo(OrderStatus::Failed);
@@ -374,7 +371,7 @@ class AutoReplenishService
                 stripeAccountId: $tenant->stripe_account_id,
                 customerAddress: [
                     'postal_code' => $postalCode,
-                    'country'     => $tenant->billing_address['country'] ?? 'US',
+                    'country' => $tenant->billing_address['country'] ?? 'US',
                 ],
                 reference: (string) $package->id,
             );
@@ -383,7 +380,7 @@ class AutoReplenishService
         } catch (\Throwable $e) {
             Log::warning('AutoReplenish: tax calculation failed, proceeding without tax', [
                 'tenant_id' => $tenant->id,
-                'error'     => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             return [0, null];

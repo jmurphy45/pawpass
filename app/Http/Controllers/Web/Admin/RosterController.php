@@ -489,6 +489,7 @@ class RosterController extends Controller
 
         $authorizedPayment->update(['amount_cents' => $newTotalCents]);
 
+        $this->stripe->confirmPaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
         $this->stripe->capturePaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
 
         $authorizedPayment->transitionTo(\App\Enums\PaymentStatus::Paid);

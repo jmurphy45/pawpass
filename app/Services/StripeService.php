@@ -113,6 +113,14 @@ class StripeService
         return $this->client->paymentIntents->update($piId, $params, ['stripe_account' => $stripeAccountId]);
     }
 
+    public function confirmPaymentIntent(string $piId, string $stripeAccountId): object
+    {
+        return $this->client->paymentIntents->confirm($piId, [
+            'off_session' => true,
+            'error_on_requires_action' => true,
+        ], ['stripe_account' => $stripeAccountId]);
+    }
+
     public function capturePaymentIntent(string $piId, string $stripeAccountId): object
     {
         return $this->client->paymentIntents->capture($piId, [], ['stripe_account' => $stripeAccountId]);
