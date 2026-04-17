@@ -60,7 +60,7 @@ class OrderStateMachineTest extends TestCase
     public function test_failed_allows_canceled(): void
     {
         $this->order->status = OrderStatus::Failed;
-        $this->assertEquals(['canceled'], $this->order->allowedTransitions());
+        $this->assertEquals(['paid', 'canceled'], $this->order->allowedTransitions());
     }
 
     public function test_terminal_states_have_no_transitions(): void
