@@ -17,6 +17,7 @@ use App\Models\Tenant;
 use App\Services\AttendancePaymentService;
 use App\Services\AutoReplenishService;
 use App\Services\DogCreditService;
+use App\Services\OrderService;
 use App\Services\StripeService;
 use App\Services\TenantEventService;
 use Illuminate\Http\RedirectResponse;
@@ -33,6 +34,7 @@ class RosterController extends Controller
         private AutoReplenishService $autoReplenish,
         private TenantEventService $events,
         private AttendancePaymentService $attendancePayments,
+        private OrderService $orderService,
     ) {}
 
     public function index(): Response
@@ -225,15 +227,26 @@ class RosterController extends Controller
             'checked_out_by' => auth()->id(),
         ]);
 
-        $this->attendancePayments->captureAuthorized($attendance);
+        $attendance = $attendance->fresh();
+        $attendance->loadMissing('addons');
+        $addonSubtotalCents = $attendance->addons->sum(fn ($a) => $a->unit_price_cents * $a->quantity);
+
+        $authorizedOrder = Order::where('attendance_id', $attendance->id)
+            ->where('status', 'authorized')
+            ->with(['payments', 'lineItems'])
+            ->first();
+
+        if ($authorizedOrder && $addonSubtotalCents > 0) {
+            $chargedCents = $this->combineAndCapture($attendance, $authorizedOrder, $tenant);
+        } else {
+            $this->attendancePayments->captureAuthorized($attendance);
+            $chargedCents = $this->chargeAttendanceAddons($attendance);
+        }
 
         $dog = Dog::find($request->dog_id);
-
-        $chargedCents = $this->chargeAttendanceAddons($attendance->fresh());
-
         $successMsg = "{$dog?->name} checked out.";
         if ($chargedCents > 0) {
-            $successMsg .= ' $'.number_format($chargedCents / 100, 2).' charged for add-ons.';
+            $successMsg .= ' $'.number_format($chargedCents / 100, 2).' charged.';
         }
 
         return back()->with('success', $successMsg);
@@ -355,15 +368,17 @@ class RosterController extends Controller
         $customer = $dog?->customer;
         $tenant = Tenant::find($attendance->tenant_id);
 
-        $order = Order::create([
+        $subtotalCents = $totalCents;
+        $order = $this->orderService->create([
             'tenant_id' => $attendance->tenant_id,
             'customer_id' => $customer?->id,
             'attendance_id' => $attendance->id,
             'type' => OrderType::Daycare,
             'status' => 'pending',
             'cancellable_at' => null,
-            'total_amount' => $totalCents / 100,
-        ]);
+        ], $tenant, $subtotalCents, 'addon');
+
+        $totalCents = (int) round((float) $order->total_amount * 100);
 
         foreach ($attendance->addons as $i => $addon) {
             $order->lineItems()->create([
@@ -381,17 +396,22 @@ class RosterController extends Controller
             $feePct = $tenant->effectivePlatformFeePct($totalCents);
             $feeCents = (int) round($totalCents * $feePct / 100);
 
+            $metadata = [
+                'attendance_id' => $attendance->id,
+                'tenant_id' => $attendance->tenant_id,
+                'dog_name' => $dog?->name,
+                'type' => 'daycare_addons',
+            ];
+            if ($order->stripe_tax_calc_id) {
+                $metadata['tax_calculation_id'] = $order->stripe_tax_calc_id;
+            }
+
             $pi = $this->stripe->createPaymentIntent(
                 $totalCents,
                 'usd',
                 $stripeAccountId,
                 $feeCents,
-                [
-                    'attendance_id' => $attendance->id,
-                    'tenant_id' => $attendance->tenant_id,
-                    'dog_name' => $dog?->name,
-                    'type' => 'daycare_addons',
-                ],
+                $metadata,
                 $customer->stripe_customer_id,
                 true,
                 true,
@@ -415,5 +435,66 @@ class RosterController extends Controller
         }
 
         return 0;
+    }
+
+    private function combineAndCapture(Attendance $attendance, Order $authorizedOrder, Tenant $tenant): int
+    {
+        $authorizedPayment = $authorizedOrder->payments->where('status', 'authorized')->first();
+
+        if (! $authorizedPayment || ! $tenant->stripe_account_id) {
+            $this->attendancePayments->captureAuthorized($attendance);
+
+            return $this->chargeAttendanceAddons($attendance);
+        }
+
+        $attendance->loadMissing('addons');
+
+        $packageSubtotalCents = $authorizedOrder->subtotal_cents
+            ?? (int) round((float) $authorizedOrder->total_amount * 100);
+        $addonSubtotalCents = $attendance->addons->sum(fn ($a) => $a->unit_price_cents * $a->quantity);
+        $combinedSubtotalCents = $packageSubtotalCents + $addonSubtotalCents;
+
+        [$taxAmountCents, $taxCalcId] = $this->orderService->resolveTax(
+            $combinedSubtotalCents, $tenant, 'addon_combined'
+        );
+        $newTotalCents = $combinedSubtotalCents + $taxAmountCents;
+
+        $feePct = $authorizedOrder->platform_fee_pct ?? $tenant->effectivePlatformFeePct($newTotalCents);
+        $newFeeCents = (int) round($newTotalCents * (float) $feePct / 100);
+
+        $this->stripe->updatePaymentIntentAmount(
+            $authorizedPayment->stripe_pi_id,
+            $newTotalCents,
+            $tenant->stripe_account_id,
+            $newFeeCents,
+        );
+
+        $sortOffset = $authorizedOrder->lineItems()->count();
+        foreach ($attendance->addons as $i => $addon) {
+            $authorizedOrder->lineItems()->create([
+                'tenant_id' => $attendance->tenant_id,
+                'description' => $addon->addonType?->name ?? 'Add-on',
+                'quantity' => $addon->quantity,
+                'unit_price_cents' => $addon->unit_price_cents,
+                'sort_order' => $sortOffset + $i,
+            ]);
+        }
+
+        $authorizedOrder->update([
+            'subtotal_cents' => $combinedSubtotalCents,
+            'tax_amount_cents' => $taxAmountCents,
+            'stripe_tax_calc_id' => $taxCalcId,
+            'total_amount' => number_format($newTotalCents / 100, 2, '.', ''),
+        ]);
+
+        $authorizedPayment->update(['amount_cents' => $newTotalCents]);
+
+        $this->stripe->capturePaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
+
+        $authorizedPayment->transitionTo(\App\Enums\PaymentStatus::Paid);
+        $authorizedPayment->update(['paid_at' => now()]);
+        $authorizedOrder->transitionTo(OrderStatus::Paid);
+
+        return $newTotalCents;
     }
 }

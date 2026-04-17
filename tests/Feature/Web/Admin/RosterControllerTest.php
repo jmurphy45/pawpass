@@ -456,6 +456,168 @@ class RosterControllerTest extends TestCase
         ]);
     }
 
+    public function test_checkout_combines_replenish_and_addons_into_single_order(): void
+    {
+        $customer = Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_customer_id' => 'cus_combine',
+            'stripe_payment_method_id' => 'pm_combine',
+            'stripe_pm_last4' => '4242',
+            'stripe_pm_brand' => 'visa',
+        ]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 0]);
+        $this->tenant->update([
+            'stripe_account_id' => 'acct_test',
+            'platform_fee_pct' => 5.0,
+            'tax_collection_enabled' => true,
+            'billing_address' => ['postal_code' => '10001', 'country' => 'US'],
+        ]);
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
+            'checked_out_at' => null,
+        ]);
+
+        // Simulate the auto-replenish order created at check-in
+        $authorizedOrder = Order::create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $customer->id,
+            'attendance_id' => $attendance->id,
+            'status' => 'authorized',
+            'total_amount' => '21.80',
+            'subtotal_cents' => 2000,
+            'tax_amount_cents' => 180,
+            'stripe_tax_calc_id' => 'txrc_orig',
+            'platform_fee_pct' => 5.0,
+        ]);
+        $authorizedOrder->lineItems()->create([
+            'tenant_id' => $this->tenant->id,
+            'description' => 'Day Pack',
+            'quantity' => 1,
+            'unit_price_cents' => 2000,
+            'sort_order' => 0,
+        ]);
+        $authorizedOrder->payments()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_pi_id' => 'pi_auth',
+            'amount_cents' => 2180,
+            'type' => 'full',
+            'status' => 'authorized',
+        ]);
+
+        $addonType = AddonType::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'context' => 'daycare',
+            'price_cents' => 1500,
+        ]);
+        AttendanceAddon::create([
+            'attendance_id' => $attendance->id,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
+            'unit_price_cents' => 1500,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('calculateTax')
+            ->once()
+            ->andReturn((object) ['tax_amount_exclusive' => 162, 'id' => 'txrc_test']);
+        $stripe->shouldReceive('updatePaymentIntentAmount')
+            ->once()
+            ->with('pi_auth', 3662, 'acct_test', Mockery::any())
+            ->andReturn((object) ['id' => 'pi_auth']);
+        $stripe->shouldReceive('capturePaymentIntent')
+            ->once()
+            ->with('pi_auth', 'acct_test')
+            ->andReturn((object) ['id' => 'pi_auth', 'status' => 'succeeded']);
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+
+        $this->post('/admin/roster/checkout', ['dog_id' => $dog->id]);
+
+        // Only ONE order for this attendance
+        $this->assertSame(1, Order::where('attendance_id', $attendance->id)->count());
+
+        $authorizedOrder->refresh();
+        $this->assertSame(3500, $authorizedOrder->subtotal_cents);
+        $this->assertSame(162, $authorizedOrder->tax_amount_cents);
+        $this->assertSame('txrc_test', $authorizedOrder->stripe_tax_calc_id);
+        $this->assertEquals('36.62', $authorizedOrder->total_amount);
+        $this->assertSame(2, $authorizedOrder->lineItems()->count());
+        $this->assertSame(\App\Enums\OrderStatus::Paid, $authorizedOrder->status);
+
+        $this->assertDatabaseHas('order_payments', [
+            'stripe_pi_id' => 'pi_auth',
+            'amount_cents' => 3662,
+            'status' => 'paid',
+        ]);
+    }
+
+    public function test_checkout_charges_addons_with_tax_when_dog_has_credits(): void
+    {
+        $customer = Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_customer_id' => 'cus_tax',
+            'stripe_payment_method_id' => 'pm_tax',
+            'stripe_pm_last4' => '4242',
+            'stripe_pm_brand' => 'visa',
+        ]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 5]);
+        $this->tenant->update([
+            'stripe_account_id' => 'acct_test',
+            'platform_fee_pct' => 5.0,
+            'tax_collection_enabled' => true,
+            'billing_address' => ['postal_code' => '10001', 'country' => 'US'],
+        ]);
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
+            'checked_out_at' => null,
+        ]);
+        $addonType = AddonType::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'context' => 'daycare',
+            'price_cents' => 1500,
+        ]);
+        AttendanceAddon::create([
+            'attendance_id' => $attendance->id,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
+            'unit_price_cents' => 1500,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('calculateTax')
+            ->once()
+            ->andReturn((object) ['tax_amount_exclusive' => 135, 'id' => 'txrc_addon']);
+        $stripe->shouldReceive('createPaymentIntent')
+            ->once()
+            ->with(1635, Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any())
+            ->andReturn((object) ['id' => 'pi_tax', 'client_secret' => 'secret']);
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+
+        $this->post('/admin/roster/checkout', ['dog_id' => $dog->id]);
+
+        $this->assertDatabaseHas('orders', [
+            'attendance_id' => $attendance->id,
+            'tax_amount_cents' => 135,
+            'stripe_tax_calc_id' => 'txrc_addon',
+        ]);
+        $this->assertDatabaseHas('order_payments', [
+            'stripe_pi_id' => 'pi_tax',
+            'amount_cents' => 1635,
+            'status' => 'paid',
+        ]);
+    }
+
     public function test_checkout_creates_pending_order_when_no_card(): void
     {
         $customer = Customer::factory()->create([
