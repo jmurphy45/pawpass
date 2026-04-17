@@ -276,7 +276,9 @@ class RosterController extends Controller
             abort(404);
         }
 
-        if (Order::where('attendance_id', $attendance->id)->exists()) {
+        if (Order::where('attendance_id', $attendance->id)
+            ->whereHas('payments', fn ($q) => $q->where('type', 'charge'))
+            ->exists()) {
             abort(409, 'ALREADY_BILLED');
         }
 
@@ -341,8 +343,11 @@ class RosterController extends Controller
             return 0;
         }
 
-        // Don't double-charge if order already exists
-        if (Order::where('attendance_id', $attendance->id)->exists()) {
+        // Don't double-charge if an add-on charge order already exists.
+        // The base authorized/captured daycare order (payment type=full) is excluded.
+        if (Order::where('attendance_id', $attendance->id)
+            ->whereHas('payments', fn ($q) => $q->where('type', 'charge'))
+            ->exists()) {
             return 0;
         }
 

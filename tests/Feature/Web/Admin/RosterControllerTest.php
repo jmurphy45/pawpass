@@ -545,14 +545,21 @@ class RosterControllerTest extends TestCase
             'unit_price_cents' => $addonType->price_cents,
         ]);
 
-        // Simulate a billing order already created for this attendance
-        Order::create([
+        // Simulate an add-on charge order already created for this attendance
+        $addonOrder = Order::create([
             'tenant_id' => $this->tenant->id,
             'customer_id' => $customer->id,
             'attendance_id' => $attendance->id,
             'type' => 'daycare',
             'status' => 'paid',
             'total_amount' => $addonType->price_cents / 100,
+        ]);
+        $addonOrder->payments()->create([
+            'tenant_id' => $this->tenant->id,
+            'amount_cents' => $addonType->price_cents,
+            'type' => 'charge',
+            'status' => 'paid',
+            'paid_at' => now(),
         ]);
 
         $this->actingAs($this->staff);
