@@ -36,27 +36,27 @@ class Order extends Model
     protected function casts(): array
     {
         return [
-            'type'             => OrderType::class,
-            'status'           => OrderStatus::class,
-            'total_amount'     => 'decimal:2',
+            'type' => OrderType::class,
+            'status' => OrderStatus::class,
+            'total_amount' => 'decimal:2',
             'platform_fee_pct' => 'decimal:2',
-            'subtotal_cents'   => 'integer',
+            'subtotal_cents' => 'integer',
             'tax_amount_cents' => 'integer',
-            'cancellable_at'   => 'immutable_datetime',
-            'created_at'       => 'immutable_datetime',
-            'updated_at'       => 'immutable_datetime',
+            'cancellable_at' => 'immutable_datetime',
+            'created_at' => 'immutable_datetime',
+            'updated_at' => 'immutable_datetime',
         ];
     }
 
     private const TRANSITIONS = [
-        'pending'            => ['authorized', 'paid', 'failed', 'canceled'],
-        'authorized'         => ['paid', 'failed', 'canceled', 'refunded'],
-        'paid'               => ['partially_refunded', 'refunded', 'disputed'],
+        'pending' => ['authorized', 'paid', 'failed', 'canceled'],
+        'authorized' => ['paid', 'failed', 'canceled', 'refunded'],
+        'paid' => ['partially_refunded', 'refunded', 'disputed'],
         'partially_refunded' => ['refunded', 'disputed'],
-        'failed'             => ['canceled'],
-        'refunded'           => [],
-        'canceled'           => [],
-        'disputed'           => [],
+        'failed' => ['paid', 'canceled'],
+        'refunded' => [],
+        'canceled' => [],
+        'disputed' => [],
     ];
 
     public function allowedTransitions(): array

@@ -10,8 +10,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderPayment;
-use App\Models\RawWebhook;
-use App\Models\Reservation;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\DogCreditService;
@@ -44,9 +42,9 @@ class StripeWebhookController extends Controller
         }
 
         $inserted = DB::table('raw_webhooks')->insertOrIgnore([
-            'provider'    => 'stripe',
-            'event_id'    => $event->id,
-            'payload'     => $payload,
+            'provider' => 'stripe',
+            'event_id' => $event->id,
+            'payload' => $payload,
             'received_at' => now(),
         ]);
 
@@ -55,15 +53,15 @@ class StripeWebhookController extends Controller
         }
 
         return match ($event->type) {
-            'payment_intent.succeeded'               => $this->handlePaymentIntentSucceeded($event->data->object),
-            'payment_intent.payment_failed'          => $this->handlePaymentIntentFailed($event->data->object),
+            'payment_intent.succeeded' => $this->handlePaymentIntentSucceeded($event->data->object),
+            'payment_intent.payment_failed' => $this->handlePaymentIntentFailed($event->data->object),
             'payment_intent.amount_capturable_updated' => $this->handleDepositAuthorized($event->data->object),
-            'charge.dispute.created'                 => $this->handleDisputeCreated($event->data->object),
-            'charge.dispute.closed'                  => $this->handleDisputeClosed($event->data->object),
-            'account.updated'                        => $this->handleAccountUpdated($event->data->object),
-            'payment_intent.canceled'                => $this->handlePaymentIntentCanceled($event->data->object),
-            'setup_intent.succeeded'                 => $this->handleSetupIntentSucceeded($event->data->object),
-            default                                  => response()->json(['data' => 'ok']),
+            'charge.dispute.created' => $this->handleDisputeCreated($event->data->object),
+            'charge.dispute.closed' => $this->handleDisputeClosed($event->data->object),
+            'account.updated' => $this->handleAccountUpdated($event->data->object),
+            'payment_intent.canceled' => $this->handlePaymentIntentCanceled($event->data->object),
+            'setup_intent.succeeded' => $this->handleSetupIntentSucceeded($event->data->object),
+            default => response()->json(['data' => 'ok']),
         };
     }
 
@@ -74,7 +72,7 @@ class StripeWebhookController extends Controller
         }
 
         $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
-        $order   = $payment?->order;
+        $order = $payment?->order;
 
         if (! $order) {
             return response()->json(['data' => 'ok']);
@@ -147,13 +145,19 @@ class StripeWebhookController extends Controller
             ->where('id', $customer->id)
             ->update(['outstanding_balance_cents' => DB::raw("GREATEST(0, outstanding_balance_cents - {$amountCents})")]);
 
+        Order::allTenants()
+            ->where('customer_id', $customer->id)
+            ->where('status', OrderStatus::Failed)
+            ->get()
+            ->each(fn ($order) => $order->transitionTo(OrderStatus::Paid));
+
         return response()->json(['data' => 'ok']);
     }
 
     private function handlePaymentIntentFailed(object $pi): JsonResponse
     {
         $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
-        $order   = $payment?->order;
+        $order = $payment?->order;
 
         if ($order) {
             Log::warning('payment_intent.failed', ['order_id' => $order->id, 'pi_id' => $pi->id]);
@@ -175,7 +179,7 @@ class StripeWebhookController extends Controller
 
     private function handleDepositAuthorized(object $pi): JsonResponse
     {
-        $payment     = OrderPayment::where('stripe_pi_id', $pi->id)->with('order.reservation')->first();
+        $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order.reservation')->first();
         $reservation = $payment?->order?->reservation;
 
         if ($reservation && $reservation->status === 'pending') {
@@ -243,7 +247,7 @@ class StripeWebhookController extends Controller
     private function handlePaymentIntentCanceled(object $pi): JsonResponse
     {
         $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
-        $order   = $payment?->order;
+        $order = $payment?->order;
 
         if (! $order || $order->status === OrderStatus::Canceled) {
             return response()->json(['data' => 'ok']);

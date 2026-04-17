@@ -83,8 +83,8 @@ class StripeWebhookTest extends TestCase
 
         $payment = OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_abc123',
-            'status'       => 'pending',
-            'paid_at'      => null,
+            'status' => 'pending',
+            'paid_at' => null,
         ]);
 
         $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
@@ -138,8 +138,8 @@ class StripeWebhookTest extends TestCase
 
         OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_paid123',
-            'status'       => 'paid',
-            'paid_at'      => now(),
+            'status' => 'paid',
+            'paid_at' => now(),
         ]);
 
         $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 5]);
@@ -199,7 +199,7 @@ class StripeWebhookTest extends TestCase
 
         OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_dispute123',
-            'status'       => 'paid',
+            'status' => 'paid',
         ]);
 
         $event = $this->makeEvent('charge.dispute.created', [
@@ -227,21 +227,21 @@ class StripeWebhookTest extends TestCase
 
     public function test_payment_intent_canceled_marks_order_and_payment_canceled(): void
     {
-        $tenant   = Tenant::factory()->create(['status' => 'active']);
+        $tenant = Tenant::factory()->create(['status' => 'active']);
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
-        $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
+        $package = Package::factory()->create(['tenant_id' => $tenant->id]);
 
         $order = Order::factory()->create([
-            'tenant_id'   => $tenant->id,
+            'tenant_id' => $tenant->id,
             'customer_id' => $customer->id,
-            'package_id'  => $package->id,
-            'status'      => 'pending',
+            'package_id' => $package->id,
+            'status' => 'pending',
         ]);
 
         $payment = OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_canceled123',
-            'status'       => 'pending',
-            'paid_at'      => null,
+            'status' => 'pending',
+            'paid_at' => null,
         ]);
 
         $event = $this->makeEvent('payment_intent.canceled', ['id' => 'pi_canceled123']);
@@ -256,14 +256,14 @@ class StripeWebhookTest extends TestCase
 
     public function test_payment_intent_canceled_is_idempotent(): void
     {
-        $tenant   = Tenant::factory()->create(['status' => 'active']);
+        $tenant = Tenant::factory()->create(['status' => 'active']);
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
-        $package  = Package::factory()->create(['tenant_id' => $tenant->id]);
+        $package = Package::factory()->create(['tenant_id' => $tenant->id]);
 
         $order = Order::factory()->canceled()->create([
-            'tenant_id'   => $tenant->id,
+            'tenant_id' => $tenant->id,
             'customer_id' => $customer->id,
-            'package_id'  => $package->id,
+            'package_id' => $package->id,
         ]);
 
         OrderPayment::factory()->forOrder($order)->canceled()->create([
@@ -287,24 +287,24 @@ class StripeWebhookTest extends TestCase
 
     public function test_deposit_authorized_sets_order_and_payment_to_authorized(): void
     {
-        $tenant   = Tenant::factory()->create();
+        $tenant = Tenant::factory()->create();
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
 
         $reservation = Reservation::factory()->create([
             'tenant_id' => $tenant->id,
-            'status'    => 'pending',
+            'status' => 'pending',
         ]);
 
         $order = Order::factory()->create([
-            'tenant_id'      => $tenant->id,
-            'customer_id'    => $customer->id,
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
             'reservation_id' => $reservation->id,
-            'status'         => 'pending',
+            'status' => 'pending',
         ]);
 
         $payment = OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_deposit123',
-            'status'       => 'pending',
+            'status' => 'pending',
         ]);
 
         $event = $this->makeEvent('payment_intent.amount_capturable_updated', ['id' => 'pi_deposit123']);
@@ -326,7 +326,7 @@ class StripeWebhookTest extends TestCase
         ]);
 
         $event = $this->makeEvent('payment_intent.succeeded', [
-            'id'     => 'pi_balance_test',
+            'id' => 'pi_balance_test',
             'amount' => 5000,
             'metadata' => (object) [
                 'charge_type' => 'outstanding_balance',
@@ -340,6 +340,37 @@ class StripeWebhookTest extends TestCase
         $this->assertEquals(0, $customer->fresh()->outstanding_balance_cents);
     }
 
+    public function test_outstanding_balance_charge_marks_failed_orders_as_paid(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create([
+            'tenant_id' => $tenant->id,
+            'outstanding_balance_cents' => 5000,
+        ]);
+        $package = Package::factory()->create(['tenant_id' => $tenant->id]);
+        $order = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => $package->id,
+            'status' => OrderStatus::Failed,
+            'total_amount' => 50.00,
+        ]);
+
+        $event = $this->makeEvent('payment_intent.succeeded', [
+            'id' => 'pi_balance_orders',
+            'amount' => 5000,
+            'metadata' => (object) [
+                'charge_type' => 'outstanding_balance',
+                'customer_id' => $customer->id,
+            ],
+        ]);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+
+        $this->assertEquals(OrderStatus::Paid, $order->fresh()->status);
+    }
+
     public function test_outstanding_balance_charge_partial_subtracts_only_paid_amount(): void
     {
         $tenant = Tenant::factory()->create(['status' => 'active']);
@@ -349,7 +380,7 @@ class StripeWebhookTest extends TestCase
         ]);
 
         $event = $this->makeEvent('payment_intent.succeeded', [
-            'id'     => 'pi_balance_partial',
+            'id' => 'pi_balance_partial',
             'amount' => 5000,
             'metadata' => (object) [
                 'charge_type' => 'outstanding_balance',
@@ -372,7 +403,7 @@ class StripeWebhookTest extends TestCase
         ]);
 
         $event = $this->makeEvent('payment_intent.succeeded', [
-            'id'     => 'pi_balance_idempotent',
+            'id' => 'pi_balance_idempotent',
             'amount' => 5000,
             'metadata' => (object) [
                 'charge_type' => 'outstanding_balance',
@@ -389,7 +420,7 @@ class StripeWebhookTest extends TestCase
     public function test_outstanding_balance_charge_with_unknown_customer_returns_ok(): void
     {
         $event = $this->makeEvent('payment_intent.succeeded', [
-            'id'     => 'pi_balance_unknown',
+            'id' => 'pi_balance_unknown',
             'amount' => 5000,
             'metadata' => (object) [
                 'charge_type' => 'outstanding_balance',
@@ -403,33 +434,33 @@ class StripeWebhookTest extends TestCase
 
     public function test_replayed_event_id_returns_200_and_does_not_process_twice(): void
     {
-        $tenant  = Tenant::factory()->create(['status' => 'active']);
+        $tenant = Tenant::factory()->create(['status' => 'active']);
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
-        $package  = Package::factory()->create([
-            'tenant_id'    => $tenant->id,
-            'type'         => 'one_time',
+        $package = Package::factory()->create([
+            'tenant_id' => $tenant->id,
+            'type' => 'one_time',
             'credit_count' => 5,
         ]);
         $dog = Dog::factory()->forCustomer($customer)->withCredits(0)->create();
 
         $order = Order::factory()->create([
-            'tenant_id'   => $tenant->id,
+            'tenant_id' => $tenant->id,
             'customer_id' => $customer->id,
-            'package_id'  => $package->id,
-            'status'      => 'pending',
+            'package_id' => $package->id,
+            'status' => 'pending',
         ]);
         $payment = OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_replay_test',
-            'status'       => 'pending',
-            'paid_at'      => null,
+            'status' => 'pending',
+            'paid_at' => null,
         ]);
         $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
 
         // Pre-insert the event as already received (simulates a prior delivery)
         \App\Models\RawWebhook::create([
-            'provider'    => 'stripe',
-            'event_id'    => 'evt_replay123',
-            'payload'     => '{}',
+            'provider' => 'stripe',
+            'event_id' => 'evt_replay123',
+            'payload' => '{}',
             'received_at' => now(),
         ]);
 
