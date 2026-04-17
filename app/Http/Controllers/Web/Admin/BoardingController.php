@@ -11,9 +11,8 @@ use App\Models\AddonType;
 use App\Models\BoardingReportCard;
 use App\Models\KennelUnit;
 use App\Models\Order;
-use App\Models\ReservationAddon;
-use App\Models\OrderPayment;
 use App\Models\Reservation;
+use App\Models\ReservationAddon;
 use App\Models\Tenant;
 use App\Services\PlanFeatureCache;
 use App\Services\StripeService;
@@ -65,7 +64,7 @@ class BoardingController extends Controller
 
         return Inertia::render('Admin/Boarding/Reservations', [
             'reservations' => $reservations,
-            'filters'      => $request->only('status', 'from', 'to'),
+            'filters' => $request->only('status', 'from', 'to'),
         ]);
     }
 
@@ -84,12 +83,12 @@ class BoardingController extends Controller
         }
 
         return Inertia::render('Admin/Boarding/ReservationShow', [
-            'reservation'           => $reservation,
-            'reportCards'           => $reservation->reportCards->sortBy('report_date')->values(),
-            'addons'                => $reservation->addons,
-            'addonTypes'            => $addonTypes,
+            'reservation' => $reservation,
+            'reportCards' => $reservation->reportCards->sortBy('report_date')->values(),
+            'addons' => $reservation->addons,
+            'addonTypes' => $addonTypes,
             'vaccinationCompliance' => $compliance,
-            'savedCard'             => [
+            'savedCard' => [
                 'last4' => $reservation->customer?->stripe_pm_last4,
                 'brand' => $reservation->customer?->stripe_pm_brand,
                 'pm_id' => $reservation->customer?->stripe_payment_method_id,
@@ -103,7 +102,7 @@ class BoardingController extends Controller
             'actual_checkout_date' => [
                 'required',
                 'date',
-                'after_or_equal:' . $reservation->starts_at->toDateString(),
+                'after_or_equal:'.$reservation->starts_at->toDateString(),
             ],
         ]);
 
@@ -112,17 +111,17 @@ class BoardingController extends Controller
         }
 
         $actualCheckout = Carbon::parse($validated['actual_checkout_date'])->startOfDay();
-        $actualDays     = $reservation->starts_at->diffInDays($actualCheckout);
-        $nightlyRate    = $reservation->nightly_rate_cents ?? 0;
-        $nightsTotal    = $actualDays * $nightlyRate;
+        $actualDays = $reservation->starts_at->diffInDays($actualCheckout);
+        $nightlyRate = $reservation->nightly_rate_cents ?? 0;
+        $nightsTotal = $actualDays * $nightlyRate;
         $reservation->load('addons.addonType');
-        $addonsTotal    = $reservation->addons->sum(fn ($a) => $a->unit_price_cents * $a->quantity);
+        $addonsTotal = $reservation->addons->sum(fn ($a) => $a->unit_price_cents * $a->quantity);
 
         // Get or create the boarding order for this reservation
         $order = $reservation->order ?? $this->createBoardingOrder($reservation);
 
         // Deposit already paid (tracked in order_payments)
-        $depositPayment   = $order->payments()->whereIn('status', ['paid', 'authorized'])->where('type', PaymentType::Deposit->value)->first();
+        $depositPayment = $order->payments()->whereIn('status', ['paid', 'authorized'])->where('type', PaymentType::Deposit->value)->first();
         $depositPaidCents = $depositPayment?->amount_cents ?? 0;
 
         $balance = max(0, $nightsTotal + $addonsTotal - $depositPaidCents);
@@ -133,31 +132,31 @@ class BoardingController extends Controller
         $order->lineItems()->delete();
         if ($nightlyRate > 0 && $actualDays > 0) {
             $order->lineItems()->create([
-                'tenant_id'        => $reservation->tenant_id,
-                'description'      => 'Nightly Rate × '.$actualDays,
-                'quantity'         => $actualDays,
+                'tenant_id' => $reservation->tenant_id,
+                'description' => 'Nightly Rate × '.$actualDays,
+                'quantity' => $actualDays,
                 'unit_price_cents' => $nightlyRate,
-                'sort_order'       => 0,
+                'sort_order' => 0,
             ]);
         }
         foreach ($reservation->addons as $i => $addon) {
             $order->lineItems()->create([
-                'tenant_id'        => $reservation->tenant_id,
-                'description'      => $addon->addonType?->name ?? 'Add-on',
-                'quantity'         => $addon->quantity,
+                'tenant_id' => $reservation->tenant_id,
+                'description' => $addon->addonType?->name ?? 'Add-on',
+                'quantity' => $addon->quantity,
                 'unit_price_cents' => $addon->unit_price_cents,
-                'sort_order'       => $i + 1,
+                'sort_order' => $i + 1,
             ]);
         }
 
         $chargedCents = 0;
 
         if ($balance > 0) {
-            $customer        = $reservation->customer;
+            $customer = $reservation->customer;
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($customer?->stripe_payment_method_id && $stripeAccountId) {
-                $feePct   = $tenant->effectivePlatformFeePct($balance);
+                $feePct = $tenant->effectivePlatformFeePct($balance);
                 $feeCents = (int) round($balance * $feePct / 100);
 
                 try {
@@ -168,9 +167,9 @@ class BoardingController extends Controller
                         $feeCents,
                         [
                             'reservation_id' => $reservation->id,
-                            'tenant_id'      => $reservation->tenant_id,
-                            'dog_name'       => $reservation->dog?->name,
-                            'type'           => 'boarding_checkout',
+                            'tenant_id' => $reservation->tenant_id,
+                            'dog_name' => $reservation->dog?->name,
+                            'type' => 'boarding_checkout',
                         ],
                         $customer->stripe_customer_id,
                         true,
@@ -184,12 +183,12 @@ class BoardingController extends Controller
                 }
 
                 $order->payments()->create([
-                    'tenant_id'             => $reservation->tenant_id,
-                    'stripe_pi_id'          => $pi->id,
-                    'amount_cents'          => $balance,
-                    'type'                  => PaymentType::Balance,
-                    'status'                => 'paid',
-                    'paid_at'               => now(),
+                    'tenant_id' => $reservation->tenant_id,
+                    'stripe_pi_id' => $pi->id,
+                    'amount_cents' => $balance,
+                    'type' => PaymentType::Balance,
+                    'status' => 'paid',
+                    'paid_at' => now(),
                 ]);
 
                 $chargedCents = $balance;
@@ -198,14 +197,18 @@ class BoardingController extends Controller
 
         // Update total amount and mark order paid
         $totalCents = $depositPaidCents + $chargedCents;
-        $order->update(['total_amount' => number_format($totalCents / 100, 2, '.', '')]);
+        $effectiveFeePct = $tenant?->effectivePlatformFeePct($totalCents) ?? 5.0;
+        $order->update([
+            'total_amount' => number_format($totalCents / 100, 2, '.', ''),
+            'platform_fee_pct' => $effectiveFeePct,
+        ]);
         $order->transitionTo(OrderStatus::Paid);
 
         $reservation->transitionTo('checked_out', auth()->id());
         $reservation->update(['actual_checkout_at' => $actualCheckout]);
 
         $message = $chargedCents > 0
-            ? 'Dog checked out. Balance of $' . number_format($chargedCents / 100, 2) . ' charged.'
+            ? 'Dog checked out. Balance of $'.number_format($chargedCents / 100, 2).' charged.'
             : 'Dog checked out. No balance charged.';
 
         return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', $message);
@@ -214,14 +217,14 @@ class BoardingController extends Controller
     private function createBoardingOrder(Reservation $reservation): Order
     {
         return Order::create([
-            'tenant_id'        => $reservation->tenant_id,
-            'customer_id'      => $reservation->customer_id,
-            'package_id'       => null,
-            'reservation_id'   => $reservation->id,
-            'type'             => OrderType::Boarding,
-            'status'           => 'pending',
-            'total_amount'     => '0.00',
-            'platform_fee_pct' => Tenant::find($reservation->tenant_id)?->platform_fee_pct ?? 5.0,
+            'tenant_id' => $reservation->tenant_id,
+            'customer_id' => $reservation->customer_id,
+            'package_id' => null,
+            'reservation_id' => $reservation->id,
+            'type' => OrderType::Boarding,
+            'status' => 'pending',
+            'total_amount' => '0.00',
+            'platform_fee_pct' => Tenant::find($reservation->tenant_id)?->effectivePlatformFeePct() ?? 5.0,
         ]);
     }
 
@@ -229,17 +232,17 @@ class BoardingController extends Controller
     {
         $validated = $request->validate([
             'report_date' => ['required', 'date'],
-            'notes'       => ['required', 'string', 'max:5000'],
+            'notes' => ['required', 'string', 'max:5000'],
         ]);
 
         BoardingReportCard::updateOrCreate(
             [
                 'reservation_id' => $reservation->id,
-                'report_date'    => $validated['report_date'],
+                'report_date' => $validated['report_date'],
             ],
             [
-                'tenant_id'  => app('current.tenant.id'),
-                'notes'      => $validated['notes'],
+                'tenant_id' => app('current.tenant.id'),
+                'notes' => $validated['notes'],
                 'created_by' => auth()->id(),
             ]
         );
@@ -271,9 +274,9 @@ class BoardingController extends Controller
         $addonType = AddonType::findOrFail($validated['addon_type_id']);
 
         ReservationAddon::create([
-            'reservation_id'   => $reservation->id,
-            'addon_type_id'    => $addonType->id,
-            'quantity'         => 1,
+            'reservation_id' => $reservation->id,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
             'unit_price_cents' => $addonType->price_cents,
         ]);
 
@@ -310,7 +313,7 @@ class BoardingController extends Controller
             ->first();
 
         if ($depositPayment?->stripe_pi_id) {
-            $tenant          = Tenant::find($reservation->tenant_id);
+            $tenant = Tenant::find($reservation->tenant_id);
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($stripeAccountId) {
@@ -328,11 +331,11 @@ class BoardingController extends Controller
         }
 
         $label = match ($newStatus) {
-            'confirmed'   => 'Reservation confirmed.',
-            'checked_in'  => 'Dog checked in.',
+            'confirmed' => 'Reservation confirmed.',
+            'checked_in' => 'Dog checked in.',
             'checked_out' => 'Dog checked out.',
-            'cancelled'   => 'Reservation cancelled.',
-            default       => 'Reservation updated.',
+            'cancelled' => 'Reservation cancelled.',
+            default => 'Reservation updated.',
         };
 
         return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', $label);
@@ -343,23 +346,23 @@ class BoardingController extends Controller
         $this->requireOwner();
 
         $validated = $request->validate([
-            'name'               => ['required', 'string', 'max:255'],
-            'type'               => ['required', Rule::in(['standard', 'suite', 'large', 'run'])],
-            'capacity'           => ['nullable', 'integer', 'min:1', 'max:100'],
-            'description'        => ['nullable', 'string', 'max:2000'],
-            'is_active'          => ['nullable', 'boolean'],
-            'sort_order'         => ['nullable', 'integer', 'min:0'],
+            'name' => ['required', 'string', 'max:255'],
+            'type' => ['required', Rule::in(['standard', 'suite', 'large', 'run'])],
+            'capacity' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'is_active' => ['nullable', 'boolean'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
             'nightly_rate_cents' => ['required', 'integer', 'min:0'],
         ]);
 
         KennelUnit::create([
-            'tenant_id'          => app('current.tenant.id'),
-            'name'               => $validated['name'],
-            'type'               => $validated['type'],
-            'capacity'           => $validated['capacity'] ?? 1,
-            'description'        => $validated['description'] ?? null,
-            'is_active'          => $validated['is_active'] ?? true,
-            'sort_order'         => $validated['sort_order'] ?? 0,
+            'tenant_id' => app('current.tenant.id'),
+            'name' => $validated['name'],
+            'type' => $validated['type'],
+            'capacity' => $validated['capacity'] ?? 1,
+            'description' => $validated['description'] ?? null,
+            'is_active' => $validated['is_active'] ?? true,
+            'sort_order' => $validated['sort_order'] ?? 0,
             'nightly_rate_cents' => $validated['nightly_rate_cents'],
         ]);
 
@@ -371,12 +374,12 @@ class BoardingController extends Controller
         $this->requireOwner();
 
         $validated = $request->validate([
-            'name'               => ['sometimes', 'string', 'max:255'],
-            'type'               => ['sometimes', Rule::in(['standard', 'suite', 'large', 'run'])],
-            'capacity'           => ['sometimes', 'integer', 'min:1', 'max:100'],
-            'description'        => ['nullable', 'string', 'max:2000'],
-            'is_active'          => ['sometimes', 'boolean'],
-            'sort_order'         => ['sometimes', 'integer', 'min:0'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'type' => ['sometimes', Rule::in(['standard', 'suite', 'large', 'run'])],
+            'capacity' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'is_active' => ['sometimes', 'boolean'],
+            'sort_order' => ['sometimes', 'integer', 'min:0'],
             'nightly_rate_cents' => ['sometimes', 'required', 'integer', 'min:0'],
         ]);
 
@@ -410,7 +413,7 @@ class BoardingController extends Controller
         $this->requireBoarding();
         $view = $request->input('view', 'week');
         $from = $request->input('from', now()->startOfWeek(\Carbon\CarbonInterface::MONDAY)->toDateString());
-        $to   = $request->input('to', now()->startOfWeek(\Carbon\CarbonInterface::MONDAY)->addDays(6)->toDateString());
+        $to = $request->input('to', now()->startOfWeek(\Carbon\CarbonInterface::MONDAY)->addDays(6)->toDateString());
 
         $units = KennelUnit::where('is_active', true)
             ->orderBy('sort_order')
@@ -424,9 +427,9 @@ class BoardingController extends Controller
 
         return Inertia::render('Admin/Boarding/Occupancy', [
             'units' => $units,
-            'from'  => $from,
-            'to'    => $to,
-            'view'  => $view,
+            'from' => $from,
+            'to' => $to,
+            'view' => $view,
         ]);
     }
 }

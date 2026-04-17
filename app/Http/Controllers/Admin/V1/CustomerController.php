@@ -24,6 +24,7 @@ class CustomerController extends Controller
         private readonly StripeService $stripe,
         private readonly NotificationService $notificationService,
     ) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $query = Customer::query();
@@ -119,17 +120,17 @@ class CustomerController extends Controller
         }
 
         $amountCents = $customer->outstanding_balance_cents;
-        $feeCents    = (int) round($amountCents * (($tenant->platform_fee_pct ?? 5) / 100));
+        $feeCents = (int) round($amountCents * $tenant->effectivePlatformFeePct($amountCents) / 100);
 
         $pi = $this->stripe->createOutstandingBalancePaymentIntent(
-            amountCents:       $amountCents,
-            stripeAccountId:   $tenant->stripe_account_id,
+            amountCents: $amountCents,
+            stripeAccountId: $tenant->stripe_account_id,
             applicationFeeCents: $feeCents,
-            stripeCustomerId:  $customer->stripe_customer_id,
-            paymentMethodId:   $customer->stripe_payment_method_id,
+            stripeCustomerId: $customer->stripe_customer_id,
+            paymentMethodId: $customer->stripe_payment_method_id,
             metadata: [
                 'customer_id' => $customer->id,
-                'tenant_id'   => $tenant->id,
+                'tenant_id' => $tenant->id,
             ],
         );
 

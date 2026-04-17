@@ -29,7 +29,7 @@ class CustomerControllerStripeTest extends TestCase
         $this->setUpJwt();
 
         PlatformPlan::factory()->create([
-            'slug'     => 'starter',
+            'slug' => 'starter',
             'features' => ['add_customers', 'add_dogs', 'customer_portal', 'email_notifications', 'basic_reporting'],
         ]);
 
@@ -153,6 +153,54 @@ class CustomerControllerStripeTest extends TestCase
 
         $response->assertStatus(202);
         $response->assertJsonPath('data.pi_id', 'pi_test_123');
+    }
+
+    public function test_charge_balance_uses_zero_fee_when_founders_plan_under_gmv_cap(): void
+    {
+        PlatformPlan::factory()->create([
+            'slug' => 'founders',
+            'features' => [],
+            'platform_fee_pct' => 2.0,
+            'monthly_gmv_cap_cents' => 10_000_00, // $10,000 cap
+        ]);
+
+        $tenant = Tenant::factory()->create([
+            'slug' => 'founders-test',
+            'status' => 'active',
+            'plan' => 'founders',
+            'stripe_account_id' => 'acct_founders',
+            'platform_fee_pct' => 2.0,
+        ]);
+        URL::forceRootUrl('http://founders-test.pawpass.com');
+
+        $owner = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'business_owner',
+        ]);
+
+        $customer = Customer::factory()
+            ->for($tenant)
+            ->withStripePaymentMethod()
+            ->withOutstandingBalance(5000)
+            ->create();
+
+        $capturedFee = null;
+        $this->mock(StripeService::class, function (MockInterface $mock) use (&$capturedFee) {
+            $mock->shouldReceive('createOutstandingBalancePaymentIntent')
+                ->once()
+                ->withArgs(function ($amountCents, $stripeAccountId, $applicationFeeCents) use (&$capturedFee) {
+                    $capturedFee = $applicationFeeCents;
+
+                    return true;
+                })
+                ->andReturn((object) ['id' => 'pi_founders_test', 'status' => 'succeeded']);
+        });
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$this->jwtFor($owner)])
+            ->postJson("/api/admin/v1/customers/{$customer->id}/charge-balance");
+
+        $response->assertStatus(202);
+        $this->assertSame(0, $capturedFee, 'Application fee should be 0 when founders tenant is under GMV cap');
     }
 
     public function test_charge_balance_requires_business_owner_role(): void

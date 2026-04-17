@@ -252,7 +252,7 @@ class CustomerController extends Controller
         }
 
         $amountCents = $customer->outstanding_balance_cents;
-        $feeCents = (int) round($amountCents * (($tenant->platform_fee_pct ?? 5) / 100));
+        $feeCents = (int) round($amountCents * $tenant->effectivePlatformFeePct($amountCents) / 100);
 
         try {
             $this->stripe->createOutstandingBalancePaymentIntent(
