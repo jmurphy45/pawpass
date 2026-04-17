@@ -7,6 +7,7 @@ use App\Enums\OrderType;
 use App\Enums\PaymentType;
 use App\Exceptions\InsufficientCreditsException;
 use App\Http\Controllers\Controller;
+use App\Jobs\CancelPaymentIntentJob;
 use App\Models\AddonType;
 use App\Models\Attendance;
 use App\Models\AttendanceAddon;
@@ -466,8 +467,8 @@ class RosterController extends Controller
 
         if ($pi->status === 'requires_capture') {
             // PI was already confirmed (e.g. from a prior partial attempt) so its amount
-            // can't be updated. Cancel it and create a single fresh combined charge.
-            $this->stripe->cancelPaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
+            // can't be updated. Queue cancellation and create a single fresh combined charge.
+            CancelPaymentIntentJob::dispatch($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
 
             $dog = Dog::find($attendance->dog_id);
             $customer = $dog?->customer;

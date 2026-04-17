@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Jobs\CancelPaymentIntentJob;
 use App\Models\AddonType;
 use App\Models\Attendance;
 use App\Models\AttendanceAddon;
@@ -903,18 +904,15 @@ class RosterControllerTest extends TestCase
             'unit_price_cents' => 1500,
         ]);
 
+        \Illuminate\Support\Facades\Queue::fake();
+
         $stripe = Mockery::mock(StripeService::class);
         // Retrieval returns the PI is already confirmed and awaiting capture
         $stripe->shouldReceive('retrievePaymentIntent')
             ->once()
             ->with('pi_stale', 'acct_test')
             ->andReturn((object) ['id' => 'pi_stale', 'status' => 'requires_capture']);
-        // Cancel the stale PI
-        $stripe->shouldReceive('cancelPaymentIntent')
-            ->once()
-            ->with('pi_stale', 'acct_test')
-            ->andReturn((object) ['id' => 'pi_stale', 'status' => 'canceled']);
-        // Create a fresh combined PI
+        // Create a fresh combined PI (cancellation is async)
         $stripe->shouldReceive('createPaymentIntent')
             ->once()
             ->withArgs(fn ($amount) => $amount === 3500)
@@ -937,6 +935,10 @@ class RosterControllerTest extends TestCase
             'amount_cents' => 3500,
             'status' => 'paid',
         ]);
+
+        \Illuminate\Support\Facades\Queue::assertPushed(CancelPaymentIntentJob::class, function ($job) {
+            return $job->paymentIntentId === 'pi_stale' && $job->stripeAccountId === 'acct_test';
+        });
     }
 
     public function test_index_unlimited_pass_active_false_when_no_pass(): void

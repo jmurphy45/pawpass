@@ -168,8 +168,7 @@
             </button>
           </div>
         </div>
-        <p v-if="chargeError" class="mb-2 text-xs text-red-600">{{ chargeError }}</p>
-        <div v-if="orders.length === 0" class="bg-white rounded-xl border border-border-warm px-5 py-8 text-center text-sm text-text-muted">
+<div v-if="orders.length === 0" class="bg-white rounded-xl border border-border-warm px-5 py-8 text-center text-sm text-text-muted">
           No orders yet.
         </div>
         <div v-else class="bg-white rounded-xl border border-border-warm overflow-hidden">
@@ -282,7 +281,6 @@ const props = defineProps<{
 }>();
 
 const chargeLoading = ref(false);
-const chargeError = ref<string | null>(null);
 const notifyLoading = ref(false);
 const notifySent = ref(false);
 
@@ -367,11 +365,8 @@ const totalFailed = computed(() =>
 
 function chargeOutstandingBalance() {
   chargeLoading.value = true;
-  chargeError.value = null;
   router.post(route('admin.customers.charge-balance', props.customer.id), {}, {
-    onSuccess: () => { router.reload({ only: ['customer'] }); },
-    onError:   (errors: Record<string, string>) => { chargeError.value = errors.message ?? 'Charge failed. Please try again.'; },
-    onFinish:  () => { chargeLoading.value = false; },
+    onFinish: () => { chargeLoading.value = false; },
   });
 }
 
