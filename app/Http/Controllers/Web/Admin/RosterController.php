@@ -151,6 +151,11 @@ class RosterController extends Controller
 
         if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && ! $tenant->checkin_block_at_zero) {
             if ($dog->auto_replenish_enabled && $dog->auto_replenish_package_id) {
+                if (! $dog->customer?->stripe_payment_method_id) {
+                    $attendance->delete();
+
+                    return back()->with('error', 'Auto-replenish failed: '.($dog->customer?->name ?? 'Customer').' has no card on file.');
+                }
                 if (! $this->autoReplenish->triggerSync($dog, $attendance)) {
                     $attendance->delete();
 
@@ -159,10 +164,17 @@ class RosterController extends Controller
                 $dog = $dog->fresh();
             } elseif ($tenant->auto_charge_at_zero_package_id) {
                 $package = Package::find($tenant->auto_charge_at_zero_package_id);
-                if ($package && ! $this->autoReplenish->triggerForPackage($dog, $package, $attendance)) {
-                    $attendance->delete();
+                if ($package) {
+                    if (! $dog->customer?->stripe_payment_method_id) {
+                        $attendance->delete();
 
-                    return back()->with('error', 'Auto-charge failed. Check payment method.');
+                        return back()->with('error', 'Auto-charge failed: '.($dog->customer?->name ?? 'Customer').' has no card on file.');
+                    }
+                    if (! $this->autoReplenish->triggerForPackage($dog, $package, $attendance)) {
+                        $attendance->delete();
+
+                        return back()->with('error', 'Auto-charge failed. Check payment method.');
+                    }
                 }
                 $dog = $dog->fresh();
             }
