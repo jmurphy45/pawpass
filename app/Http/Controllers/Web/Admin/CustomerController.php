@@ -184,6 +184,7 @@ class CustomerController extends Controller
         ]);
 
         $totalCredits = $customer->dogs->sum('credit_balance');
+        $tenant = Tenant::find(app('current.tenant.id'));
 
         return Inertia::render('Admin/Customers/Show', [
             'customer' => [
@@ -202,6 +203,8 @@ class CustomerController extends Controller
                 'total_spent' => (float) ($customer->orders_sum_total_amount ?? 0),
                 'total_credits' => $totalCredits,
                 'created_at' => $customer->created_at->toIso8601String(),
+                'stripe_publishable_key' => config('services.stripe.key'),
+                'stripe_account_id' => $tenant?->stripe_account_id,
             ],
             'dogs' => $dogs,
             'orders' => $orders,
@@ -268,6 +271,71 @@ class CustomerController extends Controller
         }
 
         return back()->with('success', 'Charge initiated successfully.');
+    }
+
+    public function setupPaymentMethod(Customer $customer): \Illuminate\Http\JsonResponse
+    {
+        $tenant = Tenant::find(app('current.tenant.id'));
+
+        if (! $tenant?->stripe_account_id) {
+            return response()->json(['error' => 'Stripe not connected.'], 422);
+        }
+
+        if (! $customer->stripe_customer_id) {
+            try {
+                $sc = $this->stripe->createCustomer($customer->email, $customer->name, $tenant->stripe_account_id);
+                $customer->update(['stripe_customer_id' => $sc->id]);
+            } catch (\Throwable $e) {
+                return response()->json(['error' => 'Could not create Stripe customer: '.$e->getMessage()], 422);
+            }
+        }
+
+        $si = $this->stripe->createSetupIntent(
+            $customer->stripe_customer_id,
+            ['customer_id' => $customer->id],
+            $tenant->stripe_account_id,
+        );
+
+        return response()->json(['client_secret' => $si->client_secret]);
+    }
+
+    public function confirmPaymentMethod(Request $request, Customer $customer): RedirectResponse
+    {
+        $request->validate(['setup_intent_id' => ['required', 'string']]);
+
+        $tenant = Tenant::find(app('current.tenant.id'));
+
+        if (! $tenant?->stripe_account_id) {
+            return back()->with('error', 'Stripe not connected.');
+        }
+
+        try {
+            $si = $this->stripe->retrieveSetupIntent($request->setup_intent_id, $tenant->stripe_account_id);
+
+            if ($si->status !== 'succeeded') {
+                return back()->with('error', 'Card setup did not complete.');
+            }
+
+            $pmId = is_string($si->payment_method) ? $si->payment_method : $si->payment_method->id;
+
+            try {
+                $this->stripe->attachPaymentMethod($pmId, $customer->stripe_customer_id, $tenant->stripe_account_id);
+            } catch (\Throwable) {
+                // Already attached — safe to ignore
+            }
+
+            $pm = $this->stripe->retrievePaymentMethod($pmId, $tenant->stripe_account_id);
+
+            $customer->update([
+                'stripe_payment_method_id' => $pmId,
+                'stripe_pm_last4' => $pm->card?->last4,
+                'stripe_pm_brand' => $pm->card?->brand,
+            ]);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Could not save card: '.$e->getMessage());
+        }
+
+        return back()->with('success', 'Card saved successfully.');
     }
 
     private function authorizeOwnerOrStaff(): void

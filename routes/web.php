@@ -1,47 +1,47 @@
 <?php
 
 use App\Http\Controllers\HomeController;
-use App\Http\Controllers\Web\DaycareDirectoryController;
-use App\Http\Controllers\Web\TenantRegistrationController;
 use App\Http\Controllers\Web\Admin\Auth\AcceptInviteController;
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
-use App\Http\Controllers\Web\Admin\VerifyEmailController as AdminVerifyEmailController;
 use App\Http\Controllers\Web\Admin\Auth\LogoutController as AdminLogoutController;
-use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Web\Admin\CustomerController as AdminCustomerController;
-use App\Http\Controllers\Web\Admin\DogController as AdminDogController;
-use App\Http\Controllers\Web\Admin\RosterController as AdminRosterController;
-use App\Http\Controllers\Web\Admin\CreditController as AdminCreditController;
-use App\Http\Controllers\Web\Admin\PackageController as AdminPackageController;
-use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptController;
-use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
-use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
-use App\Http\Controllers\Web\Admin\LogoController as AdminLogoController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
-use App\Http\Controllers\Web\Admin\TaxController as AdminTaxController;
-use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController;
-use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController;
-use App\Http\Controllers\Web\Admin\VaccinationRequirementController as AdminVaccinationRequirementController;
 use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
+use App\Http\Controllers\Web\Admin\CreditController as AdminCreditController;
+use App\Http\Controllers\Web\Admin\CustomerController as AdminCustomerController;
+use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Web\Admin\DogController as AdminDogController;
 use App\Http\Controllers\Web\Admin\HelpController as AdminHelpController;
+use App\Http\Controllers\Web\Admin\LogoController as AdminLogoController;
+use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptController;
+use App\Http\Controllers\Web\Admin\PackageController as AdminPackageController;
+use App\Http\Controllers\Web\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Web\Admin\PromotionController as AdminPromotionController;
+use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Web\Admin\RosterController as AdminRosterController;
+use App\Http\Controllers\Web\Admin\ServicesController as AdminServicesController;
+use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Web\Admin\TaxController as AdminTaxController;
+use App\Http\Controllers\Web\Admin\VaccinationRequirementController as AdminVaccinationRequirementController;
+use App\Http\Controllers\Web\Admin\VerifyEmailController as AdminVerifyEmailController;
+use App\Http\Controllers\Web\Auth\MagicLinkController;
+use App\Http\Controllers\Web\DaycareDirectoryController;
+use App\Http\Controllers\Web\Portal\AccountController;
+use App\Http\Controllers\Web\Portal\AttendanceController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
 use App\Http\Controllers\Web\Portal\Auth\RegisterController;
 use App\Http\Controllers\Web\Portal\Auth\VerifyEmailController;
-use App\Http\Controllers\Web\Portal\AccountController;
-use App\Http\Controllers\Web\Portal\AttendanceController;
+use App\Http\Controllers\Web\Portal\AutoReplenishController;
+use App\Http\Controllers\Web\Portal\BoardingController as PortalBoardingController;
 use App\Http\Controllers\Web\Portal\DashboardController;
 use App\Http\Controllers\Web\Portal\DogController;
 use App\Http\Controllers\Web\Portal\HistoryController;
-use App\Http\Controllers\Web\Portal\AutoReplenishController;
-use App\Http\Controllers\Web\Portal\SubscriptionController;
 use App\Http\Controllers\Web\Portal\NotificationController;
 use App\Http\Controllers\Web\Portal\OrderReceiptController;
-use App\Http\Controllers\Web\Portal\BoardingController as PortalBoardingController;
 use App\Http\Controllers\Web\Portal\PurchaseController;
-use App\Http\Controllers\Web\Auth\MagicLinkController;
+use App\Http\Controllers\Web\Portal\SubscriptionController;
+use App\Http\Controllers\Web\TenantRegistrationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
@@ -49,8 +49,8 @@ Route::get('/', HomeController::class)->name('home');
 // Magic-link passwordless authentication (no tenant scope — works for any portal)
 Route::prefix('auth/magic-link')->group(function () {
     Route::post('/request', [MagicLinkController::class, 'request'])->name('magic-link.request');
-    Route::get('/verify',   [MagicLinkController::class, 'verify'])->name('magic-link.verify');
-    Route::get('/confirm',  [MagicLinkController::class, 'confirmShow'])->name('magic-link.confirm');
+    Route::get('/verify', [MagicLinkController::class, 'verify'])->name('magic-link.verify');
+    Route::get('/confirm', [MagicLinkController::class, 'confirmShow'])->name('magic-link.confirm');
     Route::post('/confirm', [MagicLinkController::class, 'confirm'])->name('magic-link.confirm.store');
 });
 
@@ -93,6 +93,8 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/customers/{customer}', [AdminCustomerController::class, 'show'])->name('admin.customers.show');
         Route::post('/customers/{customer}/request-payment-update', [AdminCustomerController::class, 'requestPaymentUpdate'])->name('admin.customers.request-payment-update');
         Route::post('/customers/{customer}/charge-balance', [AdminCustomerController::class, 'chargeBalance'])->name('admin.customers.charge-balance');
+        Route::post('/customers/{customer}/setup-payment-method', [AdminCustomerController::class, 'setupPaymentMethod'])->name('admin.customers.setup-payment-method');
+        Route::post('/customers/{customer}/confirm-payment-method', [AdminCustomerController::class, 'confirmPaymentMethod'])->name('admin.customers.confirm-payment-method');
 
         // Dogs
         Route::get('/dogs', [AdminDogController::class, 'index'])->name('admin.dogs.index');
@@ -216,7 +218,6 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::post('/register', [RegisterController::class, 'store'])->name('portal.register.store');
 
         Route::get('/verify-email', [VerifyEmailController::class, 'show'])->name('portal.verify-email');
-
 
     });
 

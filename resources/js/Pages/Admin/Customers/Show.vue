@@ -51,12 +51,40 @@
           </div>
           <div>
             <p class="text-xs text-text-muted">Payment Method</p>
-            <p class="text-sm text-text-body">
-              <span v-if="customer.stripe_pm_last4">
-                {{ capitalize(customer.stripe_pm_brand ?? '') }} ···· {{ customer.stripe_pm_last4 }}
-              </span>
-              <span v-else>—</span>
-            </p>
+            <div v-if="!cardFormOpen" class="flex items-center gap-2">
+              <p class="text-sm text-text-body">
+                <span v-if="customer.stripe_pm_last4">
+                  {{ capitalize(customer.stripe_pm_brand ?? '') }} ···· {{ customer.stripe_pm_last4 }}
+                </span>
+                <span v-else>—</span>
+              </p>
+              <button
+                v-if="customer.stripe_account_id && customer.stripe_publishable_key"
+                class="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                @click="openCardForm"
+              >
+                {{ customer.stripe_pm_last4 ? 'Update' : 'Add Card' }}
+              </button>
+            </div>
+            <div v-else class="mt-1 space-y-2">
+              <div id="card-element" class="rounded-lg border border-border-warm bg-white px-3 py-2.5 text-sm" />
+              <p v-if="cardError" class="text-xs text-red-600">{{ cardError }}</p>
+              <div class="flex items-center gap-2">
+                <button
+                  :disabled="cardLoading"
+                  class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+                  @click="submitCard"
+                >
+                  {{ cardLoading ? 'Saving…' : 'Save Card' }}
+                </button>
+                <button
+                  class="text-xs text-text-muted hover:text-text-body"
+                  @click="cardFormOpen = false; cardError = null"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
           <div v-if="customer.notes" class="sm:col-span-2">
             <p class="text-xs text-text-muted">Notes</p>
@@ -199,8 +227,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { loadStripe } from '@stripe/stripe-js';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 interface Dog {
@@ -245,6 +274,8 @@ const props = defineProps<{
     total_spent: number;
     total_credits: number;
     created_at: string;
+    stripe_publishable_key: string | null;
+    stripe_account_id: string | null;
   };
   dogs: Dog[];
   orders: Order[];
@@ -254,6 +285,77 @@ const chargeLoading = ref(false);
 const chargeError = ref<string | null>(null);
 const notifyLoading = ref(false);
 const notifySent = ref(false);
+
+const cardFormOpen = ref(false);
+const cardLoading = ref(false);
+const cardError = ref<string | null>(null);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let stripeInstance: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cardElement: any = null;
+
+async function openCardForm() {
+  cardFormOpen.value = true;
+  cardError.value = null;
+  await nextTick();
+
+  if (!stripeInstance) {
+    stripeInstance = await loadStripe(props.customer.stripe_publishable_key!, {
+      stripeAccount: props.customer.stripe_account_id ?? undefined,
+    });
+  }
+
+  if (stripeInstance && !cardElement) {
+    const elements = stripeInstance.elements();
+    cardElement = elements.create('card', { style: { base: { fontSize: '14px' } } });
+    cardElement.mount('#card-element');
+  }
+}
+
+async function submitCard() {
+  if (!stripeInstance || !cardElement) return;
+  cardLoading.value = true;
+  cardError.value = null;
+
+  try {
+    const res = await fetch(route('admin.customers.setup-payment-method', props.customer.id), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    const data = await res.json();
+    if (!res.ok) { cardError.value = data.error ?? 'Setup failed.'; return; }
+
+    const { error, setupIntent } = await stripeInstance.confirmCardSetup(data.client_secret, {
+      payment_method: { card: cardElement },
+    });
+
+    if (error) { cardError.value = error.message ?? 'Card confirmation failed.'; return; }
+
+    router.post(route('admin.customers.confirm-payment-method', props.customer.id), {
+      setup_intent_id: setupIntent.id,
+    }, {
+      onSuccess: () => {
+        cardFormOpen.value = false;
+        cardElement?.destroy();
+        cardElement = null;
+        stripeInstance = null;
+        router.reload({ only: ['customer'] });
+      },
+      onError: () => { cardError.value = 'Could not save card. Please try again.'; },
+      onFinish: () => { cardLoading.value = false; },
+    });
+  } catch {
+    cardError.value = 'An unexpected error occurred.';
+    cardLoading.value = false;
+  }
+}
 
 const totalPaid = computed(() =>
   props.orders.filter(o => ['paid', 'partially_refunded'].includes(o.status)).reduce((s, o) => s + o.total_amount, 0),
