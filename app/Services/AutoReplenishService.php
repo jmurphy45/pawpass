@@ -296,7 +296,7 @@ class AutoReplenishService
                 metadata: $metadata,
                 stripeCustomerId: $customer->stripe_customer_id,
                 confirm: false,
-                offSession: true,
+                offSession: false,
                 paymentMethodId: $customer->stripe_payment_method_id,
                 paymentMethodTypes: ['card'],
                 captureMethod: 'manual',

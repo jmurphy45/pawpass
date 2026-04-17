@@ -462,6 +462,77 @@ class RosterController extends Controller
         $feePct = $authorizedOrder->platform_fee_pct ?? $tenant->effectivePlatformFeePct($newTotalCents);
         $newFeeCents = (int) round($newTotalCents * (float) $feePct / 100);
 
+        $pi = $this->stripe->retrievePaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
+
+        if ($pi->status === 'requires_capture') {
+            // PI was already confirmed (e.g. from a prior partial attempt) so its amount
+            // can't be updated. Cancel it and create a single fresh combined charge.
+            $this->stripe->cancelPaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
+
+            $dog = Dog::find($attendance->dog_id);
+            $customer = $dog?->customer;
+
+            $metadata = [
+                'attendance_id' => $attendance->id,
+                'tenant_id' => $attendance->tenant_id,
+                'dog_name' => $dog?->name,
+                'type' => 'daycare_combined',
+            ];
+            if ($taxCalcId) {
+                $metadata['tax_calculation_id'] = $taxCalcId;
+            }
+
+            $newPi = $this->stripe->createPaymentIntent(
+                $newTotalCents,
+                'usd',
+                $tenant->stripe_account_id,
+                $newFeeCents,
+                $metadata,
+                $customer?->stripe_customer_id,
+                true,
+                true,
+                $customer?->stripe_payment_method_id,
+                [],
+                null,
+            );
+
+            $sortOffset = $authorizedOrder->lineItems()->count();
+            foreach ($attendance->addons as $i => $addon) {
+                $authorizedOrder->lineItems()->create([
+                    'tenant_id' => $attendance->tenant_id,
+                    'description' => $addon->addonType?->name ?? 'Add-on',
+                    'quantity' => $addon->quantity,
+                    'unit_price_cents' => $addon->unit_price_cents,
+                    'sort_order' => $sortOffset + $i,
+                ]);
+            }
+
+            $authorizedOrder->update([
+                'subtotal_cents' => $combinedSubtotalCents,
+                'tax_amount_cents' => $taxAmountCents,
+                'stripe_tax_calc_id' => $taxCalcId,
+                'total_amount' => number_format($newTotalCents / 100, 2, '.', ''),
+            ]);
+
+            $authorizedPayment->update([
+                'stripe_pi_id' => $newPi->id,
+                'amount_cents' => $newTotalCents,
+            ]);
+
+            $authorizedPayment->transitionTo(\App\Enums\PaymentStatus::Paid);
+            $authorizedPayment->update(['paid_at' => now()]);
+            $authorizedOrder->transitionTo(OrderStatus::Paid);
+
+            return $newTotalCents;
+        }
+
+        if ($pi->status !== 'requires_confirmation') {
+            // Unknown state — fall back to two separate charges
+            $this->attendancePayments->captureAuthorized($attendance);
+
+            return $this->chargeAttendanceAddons($attendance);
+        }
+
         $this->stripe->updatePaymentIntentAmount(
             $authorizedPayment->stripe_pi_id,
             $newTotalCents,

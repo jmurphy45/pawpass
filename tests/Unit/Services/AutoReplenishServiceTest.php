@@ -431,6 +431,29 @@ class AutoReplenishServiceTest extends TestCase
         $this->assertDatabaseHas('orders', ['tax_amount_cents' => 200, 'stripe_tax_calc_id' => 'txc_tfp_test']);
     }
 
+    public function test_trigger_sync_does_not_pass_off_session_to_payment_intent(): void
+    {
+        $dog = $this->makeDog();
+
+        $fakeIntent = (object) ['id' => 'pi_sync_nosession', 'status' => 'requires_confirmation'];
+
+        $this->mock(StripeService::class, function (MockInterface $mock) use ($fakeIntent) {
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->withArgs(function ($amount, $currency, $accountId, $fee, $metadata, $customerId, $confirm, $offSession) {
+                    return $confirm === false && $offSession === false;
+                })
+                ->andReturn($fakeIntent);
+        });
+
+        $this->mock(DogCreditService::class)->shouldIgnoreMissing();
+
+        $service = app(AutoReplenishService::class);
+        $result = $service->triggerSync($dog);
+
+        $this->assertTrue($result);
+    }
+
     public function test_trigger_for_package_skips_tax_when_tax_collection_disabled(): void
     {
         [$dog, $package] = $this->makeDogAndPackage();
