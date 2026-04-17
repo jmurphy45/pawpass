@@ -388,7 +388,7 @@ function doCheckin(dogId: string, override = false, note = '') {
     { dog_id: dogId, zero_credit_override: override, override_note: note || undefined },
     {
       preserveScroll: true,
-      only: ['roster', 'addonTypes'],
+      only: ['roster', 'addonTypes', 'flash'],
       onFinish: () => { pendingDogId.value = null; },
     },
   );
@@ -411,7 +411,7 @@ function checkout(dogId: string) {
     { dog_id: dogId },
     {
       preserveScroll: true,
-      only: ['roster', 'addonTypes'],
+      only: ['roster', 'addonTypes', 'flash'],
       onFinish: () => { pendingDogId.value = null; },
     },
   );
@@ -434,7 +434,7 @@ function addAddonFromModal(addonTypeId: string) {
     { addon_type_id: addonTypeId },
     {
       preserveScroll: true,
-      only: ['roster', 'addonTypes'],
+      only: ['roster', 'addonTypes', 'flash'],
       onFinish: () => { addonModal.pendingAddonId = null; },
     },
   );
@@ -445,7 +445,7 @@ function removeAddon(attendanceId: string, addonId: number) {
     route('admin.roster.attendance-addons.destroy', { attendance: attendanceId, addon: addonId }),
     {
       preserveScroll: true,
-      only: ['roster', 'addonTypes'],
+      only: ['roster', 'addonTypes', 'flash'],
     },
   );
 }
