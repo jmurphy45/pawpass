@@ -187,6 +187,12 @@
                             Billing
                           </Link>
                         </li>
+                        <li>
+                          <Link :href="route('admin.tax.index')" :class="[isActive('admin.tax.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <ReceiptPercentIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Tax
+                          </Link>
+                        </li>
                       </ul>
                     </li>
 
@@ -364,6 +370,12 @@
                     Billing
                   </Link>
                 </li>
+                <li>
+                  <Link :href="route('admin.tax.index')" :class="[isActive('admin.tax.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <ReceiptPercentIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Tax
+                  </Link>
+                </li>
               </ul>
             </li>
 
@@ -434,6 +446,7 @@ import {
   ShieldCheckIcon,
   SparklesIcon,
   Squares2X2Icon,
+  ReceiptPercentIcon,
   TagIcon,
   UserGroupIcon,
   UsersIcon,
