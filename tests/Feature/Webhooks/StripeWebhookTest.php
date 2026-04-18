@@ -184,6 +184,58 @@ class StripeWebhookTest extends TestCase
         $this->assertEquals(OrderStatus::Failed, $order->status);
     }
 
+    public function test_payment_intent_failed_from_authorized_state_marks_order_failed(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package = Package::factory()->create(['tenant_id' => $tenant->id]);
+
+        $order = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => $package->id,
+            'status' => 'authorized',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->authorized()->create([
+            'stripe_pi_id' => 'pi_auth_failed',
+        ]);
+
+        $event = $this->makeEvent('payment_intent.payment_failed', ['id' => 'pi_auth_failed']);
+        $this->mockStripeVerify($event);
+
+        $response = $this->postWebhook([], 'valid-sig');
+
+        $response->assertStatus(200);
+        $this->assertEquals(OrderStatus::Failed, $order->fresh()->status);
+    }
+
+    public function test_payment_intent_failed_is_idempotent_when_already_failed(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package = Package::factory()->create(['tenant_id' => $tenant->id]);
+
+        $order = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => $package->id,
+            'status' => 'failed',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_already_failed',
+            'status' => 'failed',
+            'paid_at' => null,
+        ]);
+
+        $event = $this->makeEvent('payment_intent.payment_failed', ['id' => 'pi_already_failed']);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+        $this->assertEquals(OrderStatus::Failed, $order->fresh()->status);
+    }
+
     public function test_dispute_created_sets_order_status_to_disputed(): void
     {
         $tenant = Tenant::factory()->create(['status' => 'active']);

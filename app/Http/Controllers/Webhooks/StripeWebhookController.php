@@ -159,18 +159,20 @@ class StripeWebhookController extends Controller
         $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
         $order = $payment?->order;
 
-        if ($order) {
-            Log::warning('payment_intent.failed', ['order_id' => $order->id, 'pi_id' => $pi->id]);
-            $payment->transitionTo(PaymentStatus::Failed);
-            $order->transitionTo(OrderStatus::Failed);
+        if (! $order || $order->status === OrderStatus::Failed) {
+            return response()->json(['data' => 'ok']);
+        }
 
-            $isAutoReplenish = ($pi->metadata->auto_replenish ?? null) === 'true';
-            if ($isAutoReplenish) {
-                $order->load('customer');
-                $userId = $order->customer?->user_id;
-                if ($userId) {
-                    $this->notificationService->dispatch('auto_replenish.failed', $order->tenant_id, $userId, ['order_id' => $order->id]);
-                }
+        Log::warning('payment_intent.failed', ['order_id' => $order->id, 'pi_id' => $pi->id]);
+        $payment->transitionTo(PaymentStatus::Failed);
+        $order->transitionTo(OrderStatus::Failed);
+
+        $isAutoReplenish = ($pi->metadata->auto_replenish ?? null) === 'true';
+        if ($isAutoReplenish) {
+            $order->load('customer');
+            $userId = $order->customer?->user_id;
+            if ($userId) {
+                $this->notificationService->dispatch('auto_replenish.failed', $order->tenant_id, $userId, ['order_id' => $order->id]);
             }
         }
 
