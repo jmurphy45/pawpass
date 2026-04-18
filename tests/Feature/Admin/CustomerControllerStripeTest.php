@@ -303,4 +303,47 @@ class CustomerControllerStripeTest extends TestCase
             'email' => null,
         ]);
     }
+
+    public function test_charge_balance_returns_422_when_card_is_declined(): void
+    {
+        $customer = Customer::factory()
+            ->for($this->tenant)
+            ->withStripePaymentMethod()
+            ->withOutstandingBalance(5000)
+            ->create();
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createOutstandingBalancePaymentIntent')
+                ->once()
+                ->andThrow(new \Stripe\Exception\CardException('Your card was declined.', null, 'card_declined'));
+        });
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson("/api/admin/v1/customers/{$customer->id}/charge-balance");
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error_code', 'CARD_DECLINED');
+        $response->assertJsonPath('message', 'Your card was declined.');
+    }
+
+    public function test_charge_balance_returns_502_on_generic_stripe_error(): void
+    {
+        $customer = Customer::factory()
+            ->for($this->tenant)
+            ->withStripePaymentMethod()
+            ->withOutstandingBalance(5000)
+            ->create();
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createOutstandingBalancePaymentIntent')
+                ->once()
+                ->andThrow(new \Stripe\Exception\ApiErrorException('Stripe service unavailable.'));
+        });
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson("/api/admin/v1/customers/{$customer->id}/charge-balance");
+
+        $response->assertStatus(502);
+        $response->assertJsonPath('error_code', 'PAYMENT_ERROR');
+    }
 }
