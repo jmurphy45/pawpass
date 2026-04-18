@@ -41,7 +41,7 @@ class OrderPayment extends Model
 
     private const TRANSITIONS = [
         'pending'            => ['authorized', 'paid', 'failed', 'canceled'],
-        'authorized'         => ['paid', 'refunded', 'canceled'],
+        'authorized'         => ['paid', 'failed', 'refunded', 'canceled'],
         'paid'               => ['partially_refunded', 'refunded', 'disputed'],
         'partially_refunded' => ['refunded', 'disputed'],
         'failed'             => ['canceled'],

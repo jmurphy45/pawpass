@@ -32,11 +32,11 @@ class PaymentStateMachineTest extends TestCase
         );
     }
 
-    public function test_authorized_allows_paid_refunded_canceled(): void
+    public function test_authorized_allows_paid_failed_refunded_canceled(): void
     {
         $this->payment->status = PaymentStatus::Authorized;
         $this->assertEquals(
-            ['paid', 'refunded', 'canceled'],
+            ['paid', 'failed', 'refunded', 'canceled'],
             $this->payment->allowedTransitions()
         );
     }
@@ -113,6 +113,14 @@ class PaymentStateMachineTest extends TestCase
         $this->payment->refresh();
         $this->payment->transitionTo(PaymentStatus::Refunded);
         $this->assertEquals(PaymentStatus::Refunded, $this->payment->fresh()->status);
+    }
+
+    public function test_transition_chain_authorized_to_failed(): void
+    {
+        $this->payment->transitionTo(PaymentStatus::Authorized);
+        $this->payment->refresh();
+        $this->payment->transitionTo(PaymentStatus::Failed);
+        $this->assertEquals(PaymentStatus::Failed, $this->payment->fresh()->status);
     }
 
     // --- isTerminal helper ---
