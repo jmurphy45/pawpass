@@ -122,17 +122,29 @@ class CustomerController extends Controller
         $amountCents = $customer->outstanding_balance_cents;
         $feeCents = (int) round($amountCents * $tenant->effectivePlatformFeePct($amountCents) / 100);
 
-        $pi = $this->stripe->createOutstandingBalancePaymentIntent(
-            amountCents: $amountCents,
-            stripeAccountId: $tenant->stripe_account_id,
-            applicationFeeCents: $feeCents,
-            stripeCustomerId: $customer->stripe_customer_id,
-            paymentMethodId: $customer->stripe_payment_method_id,
-            metadata: [
-                'customer_id' => $customer->id,
-                'tenant_id' => $tenant->id,
-            ],
-        );
+        try {
+            $pi = $this->stripe->createOutstandingBalancePaymentIntent(
+                amountCents: $amountCents,
+                stripeAccountId: $tenant->stripe_account_id,
+                applicationFeeCents: $feeCents,
+                stripeCustomerId: $customer->stripe_customer_id,
+                paymentMethodId: $customer->stripe_payment_method_id,
+                metadata: [
+                    'customer_id' => $customer->id,
+                    'tenant_id' => $tenant->id,
+                ],
+            );
+        } catch (\Stripe\Exception\CardException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'error_code' => 'CARD_DECLINED',
+            ], 422);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'error_code' => 'PAYMENT_ERROR',
+            ], 502);
+        }
 
         return response()->json(['data' => ['pi_id' => $pi->id, 'status' => $pi->status]], 202);
     }

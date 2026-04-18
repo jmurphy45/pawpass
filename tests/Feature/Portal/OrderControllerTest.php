@@ -336,4 +336,23 @@ class OrderControllerTest extends TestCase
 
         $this->assertEquals(['card', 'us_bank_account'], $capturedTypes);
     }
+
+    public function test_store_returns_422_when_stripe_payment_intent_creation_fails(): void
+    {
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')->zeroOrMoreTimes()->andReturn((object) ['id' => 'cus_err']);
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->andThrow(new \Stripe\Exception\ApiErrorException('Stripe error.'));
+        });
+
+        $response = $this->withHeaders($this->authHeaders('idem-stripe-err'))
+            ->postJson('/api/portal/v1/orders', [
+                'package_id' => $this->package->id,
+                'dog_ids' => [$this->dog->id],
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error_code', 'STRIPE_ERROR');
+    }
 }

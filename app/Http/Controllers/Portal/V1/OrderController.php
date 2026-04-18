@@ -95,15 +95,19 @@ class OrderController extends Controller
         $taxCalcId = null;
 
         if (Feature::active('tax_daycare_orders') && $request->postal_code && $tenant->stripe_account_id) {
-            $calculation = $this->stripe->calculateTax(
-                $discountedSubtotal,
-                'usd',
-                $tenant->stripe_account_id,
-                ['postal_code' => $request->postal_code, 'country' => $request->country ?? 'US'],
-                $package->id,
-            );
-            $taxAmountCents = $calculation->tax_amount_exclusive;
-            $taxCalcId = $calculation->id;
+            try {
+                $calculation = $this->stripe->calculateTax(
+                    $discountedSubtotal,
+                    'usd',
+                    $tenant->stripe_account_id,
+                    ['postal_code' => $request->postal_code, 'country' => $request->country ?? 'US'],
+                    $package->id,
+                );
+                $taxAmountCents = $calculation->tax_amount_exclusive;
+                $taxCalcId = $calculation->id;
+            } catch (\Stripe\Exception\ApiErrorException) {
+                // Proceed without tax if calculation fails
+            }
         }
 
         $totalCents = $discountedSubtotal + $taxAmountCents;
@@ -148,15 +152,22 @@ class OrderController extends Controller
             $metadata['tax_calculation_id'] = $taxCalcId;
         }
 
-        $pi = $this->stripe->createPaymentIntent(
-            $totalCents,
-            'usd',
-            $tenant->stripe_account_id,
-            $applicationFeeCents,
-            $metadata,
-            $stripeCustomerId,
-            paymentMethodTypes: ['card', 'us_bank_account'],
-        );
+        try {
+            $pi = $this->stripe->createPaymentIntent(
+                $totalCents,
+                'usd',
+                $tenant->stripe_account_id,
+                $applicationFeeCents,
+                $metadata,
+                $stripeCustomerId,
+                paymentMethodTypes: ['card', 'us_bank_account'],
+            );
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'error_code' => 'STRIPE_ERROR',
+            ], 422);
+        }
 
         $order->lineItems()->create([
             'tenant_id'        => $tenantId,
@@ -215,13 +226,17 @@ class OrderController extends Controller
 
         $subtotalCents = (int) round($package->price * 100);
 
-        $calculation = $this->stripe->calculateTax(
-            $subtotalCents,
-            'usd',
-            $tenant->stripe_account_id,
-            ['postal_code' => $validated['postal_code'], 'country' => $validated['country'] ?? 'US'],
-            $package->id,
-        );
+        try {
+            $calculation = $this->stripe->calculateTax(
+                $subtotalCents,
+                'usd',
+                $tenant->stripe_account_id,
+                ['postal_code' => $validated['postal_code'], 'country' => $validated['country'] ?? 'US'],
+                $package->id,
+            );
+        } catch (\Stripe\Exception\ApiErrorException) {
+            return response()->json(['data' => ['tax_enabled' => false, 'tax_amount' => '0.00', 'subtotal_amount' => number_format($subtotalCents / 100, 2), 'total_amount' => number_format($subtotalCents / 100, 2)]]);
+        }
 
         return response()->json(['data' => [
             'tax_enabled' => true,
