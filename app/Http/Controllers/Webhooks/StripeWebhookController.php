@@ -149,7 +149,22 @@ class StripeWebhookController extends Controller
             ->where('customer_id', $customer->id)
             ->where('status', OrderStatus::Failed)
             ->get()
-            ->each(fn ($order) => $order->transitionTo(OrderStatus::Paid));
+            ->each(function ($order) {
+                $order->transitionTo(OrderStatus::Paid);
+
+                if ($order->type !== OrderType::Daycare) {
+                    return;
+                }
+
+                $order->load(['orderDogs.dog', 'package']);
+                foreach ($order->orderDogs as $orderDog) {
+                    if ($order->package->type === 'unlimited') {
+                        $this->creditService->issueUnlimitedPass($order, $orderDog->dog);
+                    } else {
+                        $this->creditService->issueFromOrder($order, $orderDog->dog);
+                    }
+                }
+            });
 
         return response()->json(['data' => 'ok']);
     }
@@ -167,9 +182,14 @@ class StripeWebhookController extends Controller
         $payment->transitionTo(PaymentStatus::Failed);
         $order->transitionTo(OrderStatus::Failed);
 
+        $order->load('customer');
+
+        if ($customer = $order->customer) {
+            $customer->increment('outstanding_balance_cents', $payment->amount_cents);
+        }
+
         $isAutoReplenish = ($pi->metadata->auto_replenish ?? null) === 'true';
         if ($isAutoReplenish) {
-            $order->load('customer');
             $userId = $order->customer?->user_id;
             if ($userId) {
                 $this->notificationService->dispatch('auto_replenish.failed', $order->tenant_id, $userId, ['order_id' => $order->id]);

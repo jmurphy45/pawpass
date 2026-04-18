@@ -530,4 +530,76 @@ class StripeWebhookTest extends TestCase
         // Only one raw_webhook row for this event_id
         $this->assertDatabaseCount('raw_webhooks', 1);
     }
+
+    public function test_payment_intent_failed_sets_outstanding_balance_on_customer(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create([
+            'tenant_id' => $tenant->id,
+            'outstanding_balance_cents' => 0,
+        ]);
+        $package = Package::factory()->create(['tenant_id' => $tenant->id]);
+
+        $order = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => $package->id,
+            'status' => 'pending',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->pending()->create([
+            'stripe_pi_id' => 'pi_fail_balance',
+            'amount_cents' => 5000,
+        ]);
+
+        $event = $this->makeEvent('payment_intent.payment_failed', ['id' => 'pi_fail_balance']);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+
+        $this->assertEquals(5000, $customer->fresh()->outstanding_balance_cents);
+    }
+
+    public function test_outstanding_balance_charge_issues_credits_for_daycare_order(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create([
+            'tenant_id' => $tenant->id,
+            'outstanding_balance_cents' => 5000,
+        ]);
+        $package = Package::factory()->create([
+            'tenant_id' => $tenant->id,
+            'type' => 'one_time',
+            'credit_count' => 5,
+        ]);
+        $dog = Dog::factory()->forCustomer($customer)->withCredits(0)->create();
+
+        $order = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => $package->id,
+            'status' => OrderStatus::Failed,
+            'total_amount' => 50.00,
+        ]);
+        $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
+
+        $event = $this->makeEvent('payment_intent.succeeded', [
+            'id' => 'pi_bal_credits',
+            'amount' => 5000,
+            'metadata' => (object) [
+                'charge_type' => 'outstanding_balance',
+                'customer_id' => $customer->id,
+            ],
+        ]);
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+
+        $this->assertEquals(5, $dog->fresh()->credit_balance);
+        $this->assertDatabaseHas('credit_ledger', [
+            'dog_id' => $dog->id,
+            'type' => 'purchase',
+            'delta' => 5,
+        ]);
+    }
 }
