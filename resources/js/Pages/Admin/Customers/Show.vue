@@ -158,11 +158,18 @@
             >
               {{ notifySent ? 'Sent ✓' : notifyLoading ? 'Sending…' : 'Request Card Update' }}
             </button>
+            <span
+              v-if="customer.is_owner && customer.outstanding_balance_cents > 0 && customer.is_charge_pending"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-yellow-50 px-3 py-1.5 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20"
+            >
+              <svg class="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+              Charge processing…
+            </span>
             <button
-              v-if="customer.is_owner && customer.outstanding_balance_cents > 0 && customer.has_stripe_customer && customer.stripe_pm_last4"
+              v-else-if="customer.is_owner && customer.outstanding_balance_cents > 0 && customer.has_stripe_customer && customer.stripe_pm_last4"
               :disabled="chargeLoading"
               class="inline-flex items-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
-              @click="chargeOutstandingBalance"
+              @click="showChargeModal = true"
             >
               {{ chargeLoading ? 'Charging…' : `Charge Now · ${formatMoney(customer.outstanding_balance_cents / 100)}` }}
             </button>
@@ -222,6 +229,45 @@
         </div>
       </div>
     </div>
+
+    <!-- Charge confirmation modal -->
+    <Teleport to="body">
+      <div
+        v-if="showChargeModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        @click.self="showChargeModal = false"
+      >
+        <div class="w-full max-w-sm rounded-xl bg-white shadow-xl border border-border-warm p-6 space-y-4">
+          <div>
+            <h3 class="text-base font-semibold text-text-body">Confirm Charge</h3>
+            <p class="text-sm text-text-muted mt-1">This will charge the card on file for the full outstanding balance.</p>
+          </div>
+          <div class="rounded-lg bg-surface border border-border-warm p-4 space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-text-muted">Amount</span>
+              <span class="font-semibold text-text-body">{{ formatMoney(customer.outstanding_balance_cents / 100) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-text-muted">Card</span>
+              <span class="text-text-body">{{ capitalize(customer.stripe_pm_brand ?? '') }} ···· {{ customer.stripe_pm_last4 }}</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-1">
+            <button
+              class="text-sm text-text-muted hover:text-text-body transition-colors"
+              @click="showChargeModal = false"
+            >Cancel</button>
+            <button
+              :disabled="chargeLoading"
+              class="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
+              @click="chargeOutstandingBalance"
+            >
+              {{ chargeLoading ? 'Charging…' : 'Confirm Charge' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </AdminLayout>
 </template>
 
@@ -269,6 +315,7 @@ const props = defineProps<{
     stripe_pm_last4: string | null;
     stripe_pm_brand: string | null;
     outstanding_balance_cents: number;
+    is_charge_pending: boolean;
     total_orders: number;
     total_spent: number;
     total_credits: number;
@@ -280,6 +327,7 @@ const props = defineProps<{
   orders: Order[];
 }>();
 
+const showChargeModal = ref(false);
 const chargeLoading = ref(false);
 const notifyLoading = ref(false);
 const notifySent = ref(false);
@@ -364,6 +412,7 @@ const totalFailed = computed(() =>
 );
 
 function chargeOutstandingBalance() {
+  showChargeModal.value = false;
   chargeLoading.value = true;
   router.post(route('admin.customers.charge-balance', props.customer.id), {}, {
     onFinish: () => { chargeLoading.value = false; },

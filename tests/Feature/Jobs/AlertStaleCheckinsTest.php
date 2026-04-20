@@ -211,7 +211,7 @@ class AlertStaleCheckinsTest extends TestCase
                 return $payload['dog_count'] === 1
                     && in_array($dog->name, $payload['dog_names'])
                     && isset($payload['checkout_url'])
-                    && str_contains($payload['checkout_url'], $tenant->slug);
+                    && str_starts_with($payload['checkout_url'], "http://{$tenant->slug}.".config('app.domain'));
             }))
             ->once();
         $notifications->shouldReceive('dispatch')->withAnyArgs()->zeroOrMoreTimes();

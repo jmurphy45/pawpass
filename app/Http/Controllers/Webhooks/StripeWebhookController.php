@@ -143,7 +143,10 @@ class StripeWebhookController extends Controller
 
         DB::table('customers')
             ->where('id', $customer->id)
-            ->update(['outstanding_balance_cents' => DB::raw("GREATEST(0, outstanding_balance_cents - {$amountCents})")]);
+            ->update([
+                'outstanding_balance_cents' => DB::raw("GREATEST(0, outstanding_balance_cents - {$amountCents})"),
+                'charge_pending_at' => null,
+            ]);
 
         Order::allTenants()
             ->where('customer_id', $customer->id)
@@ -171,6 +174,15 @@ class StripeWebhookController extends Controller
 
     private function handlePaymentIntentFailed(object $pi): JsonResponse
     {
+        if (($pi->metadata->charge_type ?? null) === 'outstanding_balance') {
+            $customerId = $pi->metadata->customer_id ?? null;
+            if ($customerId) {
+                DB::table('customers')->where('id', $customerId)->update(['charge_pending_at' => null]);
+            }
+
+            return response()->json(['data' => 'ok']);
+        }
+
         $payment = OrderPayment::where('stripe_pi_id', $pi->id)->with('order')->first();
         $order = $payment?->order;
 

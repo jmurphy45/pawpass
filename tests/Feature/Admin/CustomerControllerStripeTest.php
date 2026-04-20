@@ -315,7 +315,7 @@ class CustomerControllerStripeTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createOutstandingBalancePaymentIntent')
                 ->once()
-                ->andThrow(new \Stripe\Exception\CardException('Your card was declined.', null, 'card_declined'));
+                ->andThrow(\Stripe\Exception\CardException::factory('Your card was declined.', null, null, null, null, 'card_declined', 'card_declined'));
         });
 
         $response = $this->withHeaders($this->ownerHeaders())
@@ -337,7 +337,7 @@ class CustomerControllerStripeTest extends TestCase
         $this->mock(StripeService::class, function (MockInterface $mock) {
             $mock->shouldReceive('createOutstandingBalancePaymentIntent')
                 ->once()
-                ->andThrow(new \Stripe\Exception\ApiErrorException('Stripe service unavailable.'));
+                ->andThrow(\Stripe\Exception\InvalidRequestException::factory('Stripe service unavailable.'));
         });
 
         $response = $this->withHeaders($this->ownerHeaders())

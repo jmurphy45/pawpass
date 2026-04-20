@@ -152,7 +152,7 @@ class CustomerController extends Controller
     public function show(Customer $customer): Response
     {
         $customer->loadCount('orders')->loadSum(['orders as orders_sum_total_amount' => fn ($q) => $q->whereIn('status', ['paid', 'partially_refunded'])], 'total_amount');
-        $customer->load(['dogs' => fn ($q) => $q->withTrashed(), 'orders.package']);
+        $customer->load(['dogs' => fn ($q) => $q->withTrashed()->with('breed'), 'orders.package']);
 
         $dogs = $customer->dogs->map(function ($dog) {
             $lastAttendance = $dog->attendances()->latest('checked_in_at')->value('checked_in_at');
@@ -160,7 +160,7 @@ class CustomerController extends Controller
             return [
                 'id' => $dog->id,
                 'name' => $dog->name,
-                'breed' => $dog->breed,
+                'breed' => $dog->breed?->name,
                 'sex' => $dog->sex,
                 'dob' => $dog->dob?->toDateString(),
                 'status' => $dog->status?->value ?? 'active',
@@ -197,6 +197,7 @@ class CustomerController extends Controller
                 'stripe_pm_last4' => $customer->stripe_pm_last4,
                 'stripe_pm_brand' => $customer->stripe_pm_brand,
                 'outstanding_balance_cents' => $customer->outstanding_balance_cents ?? 0,
+                'is_charge_pending' => $customer->charge_pending_at !== null,
                 'has_stripe_customer' => $customer->stripe_customer_id !== null,
                 'is_owner' => auth()->user()->role === 'business_owner',
                 'total_orders' => $customer->orders_count,
@@ -269,6 +270,9 @@ class CustomerController extends Controller
         } catch (\Throwable $e) {
             return back()->with('error', 'Charge failed: '.$e->getMessage());
         }
+
+        $customer->charge_pending_at = now();
+        $customer->save();
 
         return back()->with('success', 'Charge initiated successfully.');
     }

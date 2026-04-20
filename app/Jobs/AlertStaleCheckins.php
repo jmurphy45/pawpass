@@ -82,21 +82,20 @@ class AlertStaleCheckins implements ShouldQueue
 
     private function notifyStaff(Tenant $tenant, $records, NotificationService $notificationService): void
     {
-        $appUrl = config('app.url');
-        $scheme = parse_url($appUrl, PHP_URL_SCHEME) ?? 'https';
-        $host = parse_url($appUrl, PHP_URL_HOST);
-        $parts = explode('.', $host);
-        $root = count($parts) >= 3 ? implode('.', array_slice($parts, -2)) : $host;
+        $scheme = parse_url(config('app.url'), PHP_URL_SCHEME) ?? 'https';
+        $domain = config('app.domain');
 
-        URL::forceRootUrl("{$scheme}://{$tenant->slug}.{$root}");
+        URL::forceRootUrl("{$scheme}://{$tenant->slug}.{$domain}");
 
-        $checkoutUrl = URL::temporarySignedRoute(
-            'admin.attendance.checkout-stale',
-            now()->addDays(3),
-            ['tenant' => $tenant->id],
-        );
-
-        URL::forceRootUrl($appUrl);
+        try {
+            $checkoutUrl = URL::temporarySignedRoute(
+                'admin.attendance.checkout-stale',
+                now()->addDays(3),
+                ['tenant' => $tenant->id],
+            );
+        } finally {
+            URL::forceRootUrl(null);
+        }
 
         $dogNames = $records->map(fn ($a) => $a->dog?->name)->filter()->values()->all();
 

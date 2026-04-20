@@ -343,7 +343,7 @@ class OrderControllerTest extends TestCase
             $mock->shouldReceive('createCustomer')->zeroOrMoreTimes()->andReturn((object) ['id' => 'cus_err']);
             $mock->shouldReceive('createPaymentIntent')
                 ->once()
-                ->andThrow(new \Stripe\Exception\ApiErrorException('Stripe error.'));
+                ->andThrow(\Stripe\Exception\InvalidRequestException::factory('Stripe error.'));
         });
 
         $response = $this->withHeaders($this->authHeaders('idem-stripe-err'))
