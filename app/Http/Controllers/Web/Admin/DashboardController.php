@@ -33,10 +33,10 @@ class DashboardController extends Controller
             ->limit(10)
             ->get()
             ->map(fn ($dog) => [
-                'id'             => $dog->id,
-                'name'           => $dog->name,
+                'id' => $dog->id,
+                'name' => $dog->name,
                 'credit_balance' => $dog->credit_balance,
-                'customer_name'  => $dog->customer?->name,
+                'customer_name' => $dog->customer?->name,
             ]);
 
         $recentAttendance = Attendance::with(['dog', 'dog.customer'])
@@ -44,22 +44,40 @@ class DashboardController extends Controller
             ->limit(10)
             ->get()
             ->map(fn ($a) => [
-                'id'             => $a->id,
-                'dog_name'       => $a->dog?->name,
-                'customer_name'  => $a->dog?->customer?->name,
-                'checked_in_at'  => $a->checked_in_at->toIso8601String(),
+                'id' => $a->id,
+                'dog_name' => $a->dog?->name,
+                'customer_name' => $a->dog?->customer?->name,
+                'checked_in_at' => $a->checked_in_at->toIso8601String(),
                 'checked_out_at' => $a->checked_out_at?->toIso8601String(),
             ]);
+
+        $outstandingCustomers = Customer::where('outstanding_balance_cents', '>', 0)
+            ->orderByDesc('outstanding_balance_cents')
+            ->limit(10)
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'outstanding_balance_cents' => $c->outstanding_balance_cents,
+                'has_payment_method' => $c->stripe_payment_method_id !== null && $c->stripe_customer_id !== null,
+                'charge_pending_at' => $c->charge_pending_at?->toIso8601String(),
+            ]);
+
+        $outstandingTotal = Customer::where('outstanding_balance_cents', '>', 0)->sum('outstanding_balance_cents');
+        $outstandingCount = Customer::where('outstanding_balance_cents', '>', 0)->count();
 
         $checklist = $this->buildChecklist($tenant);
 
         return Inertia::render('Admin/Dashboard', [
-            'checkinsToday'   => $checkinsToday,
-            'customersCount'  => $customersCount,
-            'dogsCount'       => $dogsCount,
-            'lowCreditDogs'   => $lowCreditDogs,
+            'checkinsToday' => $checkinsToday,
+            'customersCount' => $customersCount,
+            'dogsCount' => $dogsCount,
+            'lowCreditDogs' => $lowCreditDogs,
             'recentAttendance' => $recentAttendance,
-            'onboarding'      => $checklist,
+            'onboarding' => $checklist,
+            'outstandingTotal' => (int) $outstandingTotal,
+            'outstandingCount' => $outstandingCount,
+            'outstandingCustomers' => $outstandingCustomers,
         ]);
     }
 
@@ -73,41 +91,41 @@ class DashboardController extends Controller
 
         $steps = [
             [
-                'key'        => 'stripe',
-                'label'      => 'Connect Stripe to accept payments',
-                'done'       => $tenant->stripe_onboarded_at !== null,
+                'key' => 'stripe',
+                'label' => 'Connect Stripe to accept payments',
+                'done' => $tenant->stripe_onboarded_at !== null,
                 'owner_only' => true,
-                'route'      => 'admin.billing.index',
+                'route' => 'admin.billing.index',
             ],
             [
-                'key'        => 'package',
-                'label'      => 'Create your first package',
-                'done'       => Package::allTenants()->where('tenant_id', $tenantId)->exists(),
+                'key' => 'package',
+                'label' => 'Create your first package',
+                'done' => Package::allTenants()->where('tenant_id', $tenantId)->exists(),
                 'owner_only' => true,
-                'route'      => 'admin.packages.create',
+                'route' => 'admin.packages.create',
             ],
             [
-                'key'        => 'customer',
-                'label'      => 'Add your first customer',
-                'done'       => Customer::count() > 0,
+                'key' => 'customer',
+                'label' => 'Add your first customer',
+                'done' => Customer::count() > 0,
                 'owner_only' => false,
-                'route'      => 'admin.customers.create',
+                'route' => 'admin.customers.create',
             ],
             [
-                'key'        => 'staff',
-                'label'      => 'Invite a staff member',
-                'done'       => User::where('tenant_id', $tenantId)
-                                    ->where('id', '!=', $tenant->owner_user_id)
-                                    ->exists(),
+                'key' => 'staff',
+                'label' => 'Invite a staff member',
+                'done' => User::where('tenant_id', $tenantId)
+                    ->where('id', '!=', $tenant->owner_user_id)
+                    ->exists(),
                 'owner_only' => true,
-                'route'      => 'admin.settings.index',
+                'route' => 'admin.settings.index',
             ],
             [
-                'key'        => 'logo',
-                'label'      => 'Upload your business logo',
-                'done'       => $tenant->logo_url !== null,
+                'key' => 'logo',
+                'label' => 'Upload your business logo',
+                'done' => $tenant->logo_url !== null,
                 'owner_only' => false,
-                'route'      => 'admin.settings.index',
+                'route' => 'admin.settings.index',
             ],
         ];
 

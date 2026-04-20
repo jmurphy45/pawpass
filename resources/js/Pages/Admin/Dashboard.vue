@@ -101,6 +101,49 @@
           </ul>
         </AppCard>
       </div>
+
+      <!-- Outstanding Balances -->
+      <AppCard class="overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div>
+            <h2 class="text-sm font-semibold text-text-body">Outstanding Balances</h2>
+            <p v-if="outstandingCount > 0" class="text-xs text-text-muted mt-0.5">
+              {{ outstandingCount }} customer{{ outstandingCount === 1 ? '' : 's' }} with open balances
+            </p>
+          </div>
+          <span v-if="outstandingTotal > 0" class="text-sm font-semibold text-red-600">{{ formatCurrency(outstandingTotal) }}</span>
+        </div>
+        <div v-if="outstandingCustomers.length === 0" class="px-5 py-6 text-sm text-text-muted">No outstanding balances.</div>
+        <ul v-else>
+          <li
+            v-for="customer in outstandingCustomers"
+            :key="customer.id"
+            class="flex items-center border-b border-border-warm px-5 py-3 last:border-b-0 transition-colors hover:bg-surface"
+          >
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-text-body truncate">{{ customer.name }}</p>
+            </div>
+            <span class="text-sm font-semibold text-red-600 mr-3">{{ formatCurrency(customer.outstanding_balance_cents) }}</span>
+            <div class="shrink-0 w-20 text-right">
+              <AppBadge v-if="customer.charge_pending_at" color="yellow">Pending</AppBadge>
+              <AppBadge v-else-if="!customer.has_payment_method" color="gray">No card</AppBadge>
+              <button
+                v-else-if="isOwner"
+                :disabled="charging[customer.id]"
+                class="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 px-2.5 py-1 rounded-md transition-colors"
+                @click="chargeCustomer(customer)"
+              >
+                {{ charging[customer.id] ? '…' : 'Charge' }}
+              </button>
+            </div>
+          </li>
+        </ul>
+        <div v-if="outstandingCustomers.length > 0" class="px-5 py-3 border-t border-border-warm">
+          <Link :href="route('admin.customers.index')" class="text-xs font-medium text-indigo-600 hover:text-indigo-800">
+            View all customers →
+          </Link>
+        </div>
+      </AppCard>
     </div>
   </AdminLayout>
 </template>
@@ -108,6 +151,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import type { PageProps } from '@/types';
 
@@ -119,6 +163,14 @@ interface OnboardingStep {
   route: string;
 }
 
+interface OutstandingCustomer {
+  id: string;
+  name: string;
+  outstanding_balance_cents: number;
+  has_payment_method: boolean;
+  charge_pending_at: string | null;
+}
+
 const props = defineProps<{
   checkinsToday: number;
   customersCount: number;
@@ -126,6 +178,9 @@ const props = defineProps<{
   lowCreditDogs: Array<{ id: string; name: string; credit_balance: number; customer_name: string | null }>;
   recentAttendance: Array<{ id: string; dog_name: string | null; customer_name: string | null; checked_in_at: string; checked_out_at: string | null }>;
   onboarding: OnboardingStep[];
+  outstandingTotal: number;
+  outstandingCount: number;
+  outstandingCustomers: OutstandingCustomer[];
 }>();
 
 const page = usePage<PageProps>();
@@ -143,4 +198,22 @@ const visibleSteps = computed(() =>
 );
 
 const completedCount = computed(() => visibleSteps.value.filter(s => s.done).length);
+
+function formatCurrency(cents: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+}
+
+const charging = ref<Record<string, boolean>>({});
+
+async function chargeCustomer(customer: OutstandingCustomer) {
+  charging.value[customer.id] = true;
+  try {
+    await axios.post(`/api/admin/v1/customers/${customer.id}/charge-balance`);
+    customer.charge_pending_at = new Date().toISOString();
+  } catch (e: any) {
+    alert(e.response?.data?.message ?? 'Failed to initiate charge.');
+  } finally {
+    charging.value[customer.id] = false;
+  }
+}
 </script>
