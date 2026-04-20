@@ -407,32 +407,46 @@ class RosterController extends Controller
                 $metadata['tax_calculation_id'] = $order->stripe_tax_calc_id;
             }
 
-            $pi = $this->stripe->createPaymentIntent(
-                $totalCents,
-                'usd',
-                $stripeAccountId,
-                $feeCents,
-                $metadata,
-                $customer->stripe_customer_id,
-                true,
-                true,
-                $customer->stripe_payment_method_id,
-                [],
-                null,
-            );
+            try {
+                $pi = $this->stripe->createPaymentIntent(
+                    $totalCents,
+                    'usd',
+                    $stripeAccountId,
+                    $feeCents,
+                    $metadata,
+                    $customer->stripe_customer_id,
+                    true,
+                    true,
+                    $customer->stripe_payment_method_id,
+                    [],
+                    null,
+                );
 
-            $order->payments()->create([
-                'tenant_id' => $attendance->tenant_id,
-                'stripe_pi_id' => $pi->id,
-                'amount_cents' => $totalCents,
-                'type' => PaymentType::Charge,
-                'status' => 'paid',
-                'paid_at' => now(),
-            ]);
+                $order->payments()->create([
+                    'tenant_id' => $attendance->tenant_id,
+                    'stripe_pi_id' => $pi->id,
+                    'amount_cents' => $totalCents,
+                    'type' => PaymentType::Charge,
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                ]);
 
-            $order->transitionTo(OrderStatus::Paid);
+                $order->transitionTo(OrderStatus::Paid);
 
-            return $totalCents;
+                return $totalCents;
+            } catch (\Throwable $e) {
+                Log::warning('chargeAttendanceAddons: Stripe charge failed', [
+                    'attendance_id' => $attendance->id,
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $order->transitionTo(OrderStatus::Failed);
+
+                if ($customer) {
+                    $customer->increment('outstanding_balance_cents', $totalCents);
+                }
+            }
         }
 
         return 0;
@@ -463,7 +477,18 @@ class RosterController extends Controller
         $feePct = $authorizedOrder->platform_fee_pct ?? $tenant->effectivePlatformFeePct($newTotalCents);
         $newFeeCents = (int) round($newTotalCents * (float) $feePct / 100);
 
-        $pi = $this->stripe->retrievePaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
+        try {
+            $pi = $this->stripe->retrievePaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
+        } catch (\Throwable $e) {
+            Log::warning('combineAndCapture: retrievePaymentIntent failed', [
+                'attendance_id' => $attendance->id,
+                'stripe_pi_id' => $authorizedPayment->stripe_pi_id,
+                'error' => $e->getMessage(),
+            ]);
+            $this->attendancePayments->captureAuthorized($attendance);
+
+            return $this->chargeAttendanceAddons($attendance);
+        }
 
         if ($pi->status === 'requires_capture') {
             // PI was already confirmed (e.g. from a prior partial attempt) so its amount
@@ -483,48 +508,64 @@ class RosterController extends Controller
                 $metadata['tax_calculation_id'] = $taxCalcId;
             }
 
-            $newPi = $this->stripe->createPaymentIntent(
-                $newTotalCents,
-                'usd',
-                $tenant->stripe_account_id,
-                $newFeeCents,
-                $metadata,
-                $customer?->stripe_customer_id,
-                true,
-                true,
-                $customer?->stripe_payment_method_id,
-                [],
-                null,
-            );
+            try {
+                $newPi = $this->stripe->createPaymentIntent(
+                    $newTotalCents,
+                    'usd',
+                    $tenant->stripe_account_id,
+                    $newFeeCents,
+                    $metadata,
+                    $customer?->stripe_customer_id,
+                    true,
+                    true,
+                    $customer?->stripe_payment_method_id,
+                    [],
+                    null,
+                );
 
-            $sortOffset = $authorizedOrder->lineItems()->count();
-            foreach ($attendance->addons as $i => $addon) {
-                $authorizedOrder->lineItems()->create([
-                    'tenant_id' => $attendance->tenant_id,
-                    'description' => $addon->addonType?->name ?? 'Add-on',
-                    'quantity' => $addon->quantity,
-                    'unit_price_cents' => $addon->unit_price_cents,
-                    'sort_order' => $sortOffset + $i,
+                $sortOffset = $authorizedOrder->lineItems()->count();
+                foreach ($attendance->addons as $i => $addon) {
+                    $authorizedOrder->lineItems()->create([
+                        'tenant_id' => $attendance->tenant_id,
+                        'description' => $addon->addonType?->name ?? 'Add-on',
+                        'quantity' => $addon->quantity,
+                        'unit_price_cents' => $addon->unit_price_cents,
+                        'sort_order' => $sortOffset + $i,
+                    ]);
+                }
+
+                $authorizedOrder->update([
+                    'subtotal_cents' => $combinedSubtotalCents,
+                    'tax_amount_cents' => $taxAmountCents,
+                    'stripe_tax_calc_id' => $taxCalcId,
+                    'total_amount' => number_format($newTotalCents / 100, 2, '.', ''),
                 ]);
+
+                $authorizedPayment->update([
+                    'stripe_pi_id' => $newPi->id,
+                    'amount_cents' => $newTotalCents,
+                ]);
+
+                $authorizedPayment->transitionTo(\App\Enums\PaymentStatus::Paid);
+                $authorizedPayment->update(['paid_at' => now()]);
+                $authorizedOrder->transitionTo(OrderStatus::Paid);
+
+                return $newTotalCents;
+            } catch (\Throwable $e) {
+                Log::warning('combineAndCapture: fresh combined PI failed', [
+                    'attendance_id' => $attendance->id,
+                    'order_id' => $authorizedOrder->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $authorizedOrder->transitionTo(OrderStatus::Failed);
+
+                if ($customer) {
+                    $customer->increment('outstanding_balance_cents', $newTotalCents);
+                }
+
+                return 0;
             }
-
-            $authorizedOrder->update([
-                'subtotal_cents' => $combinedSubtotalCents,
-                'tax_amount_cents' => $taxAmountCents,
-                'stripe_tax_calc_id' => $taxCalcId,
-                'total_amount' => number_format($newTotalCents / 100, 2, '.', ''),
-            ]);
-
-            $authorizedPayment->update([
-                'stripe_pi_id' => $newPi->id,
-                'amount_cents' => $newTotalCents,
-            ]);
-
-            $authorizedPayment->transitionTo(\App\Enums\PaymentStatus::Paid);
-            $authorizedPayment->update(['paid_at' => now()]);
-            $authorizedOrder->transitionTo(OrderStatus::Paid);
-
-            return $newTotalCents;
         }
 
         if ($pi->status !== 'requires_confirmation') {
@@ -533,13 +574,6 @@ class RosterController extends Controller
 
             return $this->chargeAttendanceAddons($attendance);
         }
-
-        $this->stripe->updatePaymentIntentAmount(
-            $authorizedPayment->stripe_pi_id,
-            $newTotalCents,
-            $tenant->stripe_account_id,
-            $newFeeCents,
-        );
 
         $sortOffset = $authorizedOrder->lineItems()->count();
         foreach ($attendance->addons as $i => $addon) {
@@ -561,13 +595,39 @@ class RosterController extends Controller
 
         $authorizedPayment->update(['amount_cents' => $newTotalCents]);
 
-        $this->stripe->confirmPaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
-        $this->stripe->capturePaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
+        try {
+            $this->stripe->updatePaymentIntentAmount(
+                $authorizedPayment->stripe_pi_id,
+                $newTotalCents,
+                $tenant->stripe_account_id,
+                $newFeeCents,
+            );
 
-        $authorizedPayment->transitionTo(\App\Enums\PaymentStatus::Paid);
-        $authorizedPayment->update(['paid_at' => now()]);
-        $authorizedOrder->transitionTo(OrderStatus::Paid);
+            $this->stripe->confirmPaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
+            $this->stripe->capturePaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
 
-        return $newTotalCents;
+            $authorizedPayment->transitionTo(\App\Enums\PaymentStatus::Paid);
+            $authorizedPayment->update(['paid_at' => now()]);
+            $authorizedOrder->transitionTo(OrderStatus::Paid);
+
+            return $newTotalCents;
+        } catch (\Throwable $e) {
+            Log::warning('combineAndCapture: confirm/capture failed', [
+                'attendance_id' => $attendance->id,
+                'order_id' => $authorizedOrder->id,
+                'stripe_pi_id' => $authorizedPayment->stripe_pi_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $authorizedOrder->transitionTo(OrderStatus::Failed);
+
+            $dog = Dog::find($attendance->dog_id);
+            $customer = $dog?->customer;
+            if ($customer) {
+                $customer->increment('outstanding_balance_cents', $newTotalCents);
+            }
+
+            return 0;
+        }
     }
 }

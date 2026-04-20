@@ -956,4 +956,115 @@ class RosterControllerTest extends TestCase
             ->where('roster.0.unlimited_pass_active', false)
         );
     }
+
+    public function test_checkout_charges_addon_when_zero_credit_override_and_customer_has_payment_method(): void
+    {
+        $this->tenant->update([
+            'checkin_block_at_zero' => true,
+            'stripe_account_id' => 'acct_override',
+            'platform_fee_pct' => 5.0,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_customer_id' => 'cus_override',
+            'stripe_payment_method_id' => 'pm_override',
+        ]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 0]);
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
+            'checked_out_at' => null,
+            'zero_credit_override' => true,
+        ]);
+        $addonType = AddonType::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'context' => 'daycare',
+            'price_cents' => 2000,
+        ]);
+        AttendanceAddon::create([
+            'attendance_id' => $attendance->id,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
+            'unit_price_cents' => 2000,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('createPaymentIntent')
+            ->once()
+            ->andReturn((object) ['id' => 'pi_addon_override', 'client_secret' => 'secret']);
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post('/admin/roster/checkout', ['dog_id' => $dog->id]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('order_payments', [
+            'stripe_pi_id' => 'pi_addon_override',
+            'amount_cents' => 2000,
+            'status' => 'paid',
+        ]);
+        $this->assertDatabaseHas('orders', [
+            'attendance_id' => $attendance->id,
+            'status' => 'paid',
+        ]);
+    }
+
+    public function test_checkout_with_addon_degrades_gracefully_when_stripe_fails_on_zero_credit_override(): void
+    {
+        $this->tenant->update([
+            'checkin_block_at_zero' => true,
+            'stripe_account_id' => 'acct_override',
+            'platform_fee_pct' => 5.0,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'stripe_customer_id' => 'cus_override',
+            'stripe_payment_method_id' => 'pm_override',
+        ]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['credit_balance' => 0]);
+
+        $attendance = Attendance::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'checked_in_by' => $this->staff->id,
+            'checked_in_at' => now(),
+            'checked_out_at' => null,
+            'zero_credit_override' => true,
+        ]);
+        $addonType = AddonType::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'context' => 'daycare',
+            'price_cents' => 2000,
+        ]);
+        AttendanceAddon::create([
+            'attendance_id' => $attendance->id,
+            'addon_type_id' => $addonType->id,
+            'quantity' => 1,
+            'unit_price_cents' => 2000,
+        ]);
+
+        $stripe = Mockery::mock(StripeService::class);
+        $stripe->shouldReceive('createPaymentIntent')
+            ->once()
+            ->andThrow(new \Stripe\Exception\CardException('Card declined'));
+        $this->app->instance(StripeService::class, $stripe);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post('/admin/roster/checkout', ['dog_id' => $dog->id]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('orders', [
+            'attendance_id' => $attendance->id,
+            'status' => 'failed',
+        ]);
+        $this->assertEquals(2000, $customer->fresh()->outstanding_balance_cents);
+    }
 }
