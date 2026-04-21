@@ -17,7 +17,7 @@ class PlatformFeatureSeeder extends Seeder
             ['slug' => 'basic_reporting',     'name' => 'Basic Reporting',        'description' => 'Attendance and credit reports.', 'is_marketing' => true,  'sort_order' => 50],
             ['slug' => 'sms_notifications',   'name' => 'SMS Notifications',      'description' => 'Send SMS alerts to customers.', 'is_marketing' => true,  'sort_order' => 60],
             ['slug' => 'financial_reports',   'name' => 'Financial Reports',      'description' => 'Revenue, payout and financial analytics.', 'is_marketing' => true,  'sort_order' => 70],
-            ['slug' => 'weekly_daily_payouts','name' => 'Weekly & Daily Payouts', 'description' => 'Faster Stripe payout schedules.', 'is_marketing' => true,  'sort_order' => 80],
+            ['slug' => 'weekly_daily_payouts', 'name' => 'Weekly & Daily Payouts', 'description' => 'Faster Stripe payout schedules.', 'is_marketing' => true,  'sort_order' => 80],
             ['slug' => 'custom_branding',     'name' => 'Custom Branding',        'description' => 'Your logo and colors throughout the app.', 'is_marketing' => true,  'sort_order' => 90],
             ['slug' => 'pwa',                 'name' => 'Mobile App (PWA)',       'description' => 'Installable mobile app for customers.', 'is_marketing' => true,  'sort_order' => 100],
             ['slug' => 'white_label',         'name' => 'White Label',            'description' => 'Remove all PawPass branding.', 'is_marketing' => true,  'sort_order' => 110],
@@ -30,6 +30,8 @@ class PlatformFeatureSeeder extends Seeder
             ['slug' => 'addon_services',           'name' => 'Add-on Services',              'description' => 'Charge customers per-service add-ons at check-in.',          'is_marketing' => true,  'sort_order' => 180],
             ['slug' => 'broadcast_notifications',  'name' => 'Broadcast Notifications',      'description' => 'Send announcements to all customers at once.',               'is_marketing' => true,  'sort_order' => 190],
             ['slug' => 'auto_replenish',            'name' => 'Auto-Replenish at Check-in',   'description' => 'Automatically charge saved cards when a dog checks in with zero credits.', 'is_marketing' => true, 'sort_order' => 200],
+            ['slug' => 'manage_packages',           'name' => 'Manage Packages',              'description' => 'Create, edit, and archive packages.',                                     'is_marketing' => true, 'sort_order' => 55],
+            ['slug' => 'manage_promotions',         'name' => 'Manage Promotions',            'description' => 'Create and manage promotional discount codes.',                           'is_marketing' => true, 'sort_order' => 57],
         ];
 
         foreach ($features as $feature) {

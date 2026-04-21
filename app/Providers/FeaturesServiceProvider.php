@@ -19,27 +19,26 @@ class FeaturesServiceProvider extends ServiceProvider
         'recurring_checkout', 'vaccination_management',
         'advanced_credit_ops', 'boarding', 'addon_services',
         'broadcast_notifications', 'auto_replenish',
+        'manage_packages', 'manage_promotions',
     ];
 
     public function boot(): void
     {
         try {
-            $features = PlatformFeature::pluck('slug')->all();
-            if (empty($features)) {
-                $features = self::FALLBACK_FEATURES;
-            }
+            $dbFeatures = PlatformFeature::pluck('slug')->all();
+            $features = empty($dbFeatures)
+                ? self::FALLBACK_FEATURES
+                : array_unique(array_merge(self::FALLBACK_FEATURES, $dbFeatures));
         } catch (\Throwable) {
             $features = self::FALLBACK_FEATURES;
         }
 
         foreach ($features as $feature) {
-            Feature::define($feature, fn (?Tenant $tenant) =>
-                app(PlanFeatureCache::class)->hasFeature($tenant?->plan ?? 'free', $feature)
+            Feature::define($feature, fn (?Tenant $tenant) => app(PlanFeatureCache::class)->hasFeature($tenant?->plan ?? 'free', $feature)
             );
         }
 
-        Feature::define('staff_limit', fn (?Tenant $tenant) =>
-            app(PlanFeatureCache::class)->staffLimit($tenant?->plan ?? 'free')
+        Feature::define('staff_limit', fn (?Tenant $tenant) => app(PlanFeatureCache::class)->staffLimit($tenant?->plan ?? 'free')
         );
 
         // Global A/B test flag — not plan-gated; controlled via tinker or admin

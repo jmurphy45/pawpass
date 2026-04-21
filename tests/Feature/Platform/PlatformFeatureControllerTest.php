@@ -32,12 +32,13 @@ class PlatformFeatureControllerTest extends TestCase
     public function test_platform_admin_can_list_features(): void
     {
         PlatformFeature::factory()->count(3)->create();
+        $total = PlatformFeature::count();
 
         $response = $this->withHeaders($this->headers())
             ->getJson('/api/platform/v1/features');
 
         $response->assertStatus(200);
-        $this->assertCount(3, $response->json('data'));
+        $this->assertCount($total, $response->json('data'));
         $response->assertJsonStructure(['data' => [['id', 'slug', 'name', 'description', 'is_marketing', 'sort_order']]]);
     }
 
@@ -45,11 +46,11 @@ class PlatformFeatureControllerTest extends TestCase
     {
         $response = $this->withHeaders($this->headers())
             ->postJson('/api/platform/v1/features', [
-                'slug'         => 'new_feature',
-                'name'         => 'New Feature',
-                'description'  => 'A brand new feature.',
+                'slug' => 'new_feature',
+                'name' => 'New Feature',
+                'description' => 'A brand new feature.',
                 'is_marketing' => true,
-                'sort_order'   => 99,
+                'sort_order' => 99,
             ]);
 
         $response->assertStatus(201)
