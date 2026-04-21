@@ -1,45 +1,116 @@
-# Task: Production Hardening — Webhook Dedup, Job Retries, Idempotency
+# Task: Daycare Leaderboard + SEO Enhancement
 
-## Phase 1 — Webhook Deduplication
+## Goal
+Build a public leaderboard showing daily activity stats per daycare, and improve
+search indexing for queries like "doggy daycare Memphis" and "boarding Memphis April 20".
 
-- [x] Add failing test: sending the same Stripe event_id twice returns 200 both times but only processes once (credits issued once)
-- [x] Migration: add `UNIQUE(provider, event_id)` to `raw_webhooks`
-- [x] Update `StripeWebhookController::handle()`: use `insertOrIgnore`; if 0 rows inserted (duplicate), return 200 early
-- [x] Update `StripeBillingWebhookController::handle()` with same pattern
+---
 
-## Phase 2 — Job Retry Configuration
+## Phase 1 — LeaderboardService (data layer)
 
-- [x] Add `$tries = 3` and `$backoff = [60, 300, 900]` to all 14 jobs missing retry config
-- [x] Update `ProcessAutoReplenishJob`: bump from `$tries = 1` to `$tries = 3`, add backoff
+- [ ] Add failing tests for `LeaderboardService`
+  - `dogsCurrentlyCheckedIn(tenantId)` — count where `checked_out_at IS NULL` and `checked_in_at::date = today`
+  - `dogsTodayTotal(tenantId)` — count all check-ins today regardless of checkout
+  - `leaderboardStats(Collection<Tenant>)` — returns ranked array with both counts per tenant
+  - Verification: tests fail with class-not-found
 
-## Phase 3 — ExpireSubscriptionCredits Idempotency
+- [ ] Implement `LeaderboardService`
+  - Uses `attend_tenant_active_idx` partial index for currently-in count
+  - Bulk loads stats for all tenants in one query (no N+1)
+  - Results cached in Redis for 5 minutes (key: `leaderboard:{state}:{city}` or `leaderboard:all`)
+  - Verification: all service tests pass
 
-- [x] Add failing test: job implements `ShouldBeUnique`
-- [x] Add failing test: running twice sequentially dispatches `ProcessAutoReplenishJob` only once
-- [x] Fix: implement `ShouldBeUnique` on `ExpireSubscriptionCredits`
+---
 
-## Verification
+## Phase 2 — Routes + LeaderboardController
 
-- [x] `./vendor/bin/sail artisan test` — 1221 passed, no regressions
+- [ ] Add failing feature test for `GET /leaderboard`
+  - Returns list of publicly listed active tenants ranked by dogs-in-today
+  - Filters to only `is_publicly_listed = true` + active statuses
+  - Verification: test fails 404
+
+- [ ] Add failing feature test for `GET /leaderboard/{state}/{city}`
+  - Returns only tenants matching that city/state
+  - Returns correct Inertia page with city-specific title prop
+  - Verification: test fails 404
+
+- [ ] Add routes to `routes/web.php`
+  ```
+  GET /leaderboard               → LeaderboardController@index
+  GET /leaderboard/{state}/{city} → LeaderboardController@city
+  ```
+
+- [ ] Implement `LeaderboardController`
+  - `index()` — top 50 across all cities, passes SEO head props
+  - `city($state, $city)` — filtered list, normalizes slug to display name
+  - Both return Inertia `Leaderboard` with `{ tenants, stats, headTitle, headDescription }`
+  - Verification: both feature tests pass
+
+---
+
+## Phase 3 — Leaderboard.vue page
+
+- [ ] Create `resources/js/Pages/Leaderboard.vue`
+  - `<Head>` with dynamic `headTitle` / `headDescription` props
+  - Ranked table/card list: rank badge, logo, name, city+state, dogs in now, dogs today total
+  - "Book Now" link → `https://{slug}.pawpass.com`
+  - "View city" link on each row → `/leaderboard/{state}/{city}` (when on global page)
+  - City filter input with Inertia `router.visit` on submit
+  - Kennel badge if `business_type` is `kennel` or `hybrid`
+  - Responsive: cards on mobile, table on desktop
+  - Verification: `npm run build` passes; page loads in browser with real data
+
+---
+
+## Phase 4 — SEO meta tags on existing pages
+
+- [ ] Add `<Head>` to `FindADaycare.vue`
+  - Global: "Find a Doggy Daycare Near You | PawPass"
+  - City page: "Doggy Daycare in {City}, {State} | PawPass" + meta description listing count
+  - Verification: view-source shows correct `<title>` and `<meta name="description">`
+
+- [ ] Add `<Head>` to `Home.vue` tenant landing page branch
+  - "{Tenant Name} — Doggy Daycare in {City}, {State}"
+  - Meta description from `business_description`
+  - Verification: view-source on a tenant subdomain
+
+---
+
+## Phase 5 — Schema.org structured data on tenant pages
+
+- [ ] Add `LocalBusiness` JSON-LD to `Home.vue` (tenant branch only)
+  - Type: `DaycareOrNursery` (for daycares) or `LodgingBusiness` (for kennels/hybrid)
+  - Fields: `name`, `address`, `telephone`, `url`, `image` (logo), `description`, `geo` (if available)
+  - Verification: paste URL into Google Rich Results Test (or schema.org validator)
+
+- [ ] Add `LocalBusiness` JSON-LD to each city page in `FindADaycare.vue`
+  - `ItemList` wrapping each daycare's `LocalBusiness` stub
+  - Verification: schema.org validator passes
+
+---
+
+## Phase 6 — Sitemap updates
+
+- [ ] Update `GenerateSitemapCommand` to include leaderboard URLs
+  - `GET /leaderboard` — priority 0.8, daily change frequency
+  - `GET /leaderboard/{state}/{city}` — one entry per distinct city (same source query as existing city pages), priority 0.7, daily
+  - Verification: run command locally, check `/public/sitemap.xml` contains new URLs
 
 ---
 
 ## Review
 
-### Summary of Changes
+*(Fill in after all tasks complete)*
 
-- `database/migrations/2026_04_11_000001_add_unique_event_id_to_raw_webhooks.php` — adds `UNIQUE(provider, event_id)` to `raw_webhooks`
-- `StripeWebhookController` / `StripeBillingWebhookController` — replace `Model::create()` with `DB::table()->insertOrIgnore()`; return 200 immediately on duplicate event_id
-- 14 jobs — added `$tries = 3` and `$backoff = [60, 300, 900]`: `AlertStaleCheckins`, `CancelStalePendingOrders`, `ExpireSubscriptionCredits`, `ExpireTrials`, `ProcessDunning`, `PruneDispatchedPending`, `PruneOldNotifications`, `PruneRawWebhooks`, `SendTrialExpirationWarnings`, `SendUpgradeNudges`, `SendVaccinationExpiringSoonWarnings`, `SendVaccinationExpiringUrgentWarnings`, `WarmPlatformReportCaches`, `WarmTenantReportCaches`
-- `ProcessAutoReplenishJob` — bumped from `$tries = 1` to `$tries = 3`, added `$backoff`
-- `ExpireSubscriptionCredits` — added `ShouldBeUnique` to prevent concurrent double-runs
+### Summary of Changes
+-
 
 ### Tests Added or Updated
-
-- `tests/Feature/Webhooks/StripeWebhookTest.php` — `test_replayed_event_id_returns_200_and_does_not_process_twice`
-- `tests/Unit/Jobs/ExpireSubscriptionCreditsTest.php` — `test_job_implements_should_be_unique_to_prevent_concurrent_double_runs`, `test_running_twice_sequentially_dispatches_auto_replenish_only_once`
+-
 
 ### Build Status
+- Tests:
+- Build:
 
-- Tests: 1221 passed (no regressions)
-- Build: Not run (no frontend changes)
+### Notes
+-
