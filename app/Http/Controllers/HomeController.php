@@ -30,11 +30,17 @@ class HomeController extends Controller
 
                 if ($tenant) {
                     $tenantData = [
-                        'name'          => $tenant->name,
-                        'slug'          => $tenant->slug,
-                        'logo_url'      => $tenant->logo_url,
-                        'primary_color' => $tenant->primary_color ?? '#4f46e5',
-                        'business_type' => $tenant->business_type,
+                        'name'                 => $tenant->name,
+                        'slug'                 => $tenant->slug,
+                        'logo_url'             => $tenant->logo_url,
+                        'primary_color'        => $tenant->primary_color ?? '#4f46e5',
+                        'business_type'        => $tenant->business_type,
+                        'business_address'     => $tenant->business_address,
+                        'business_city'        => $tenant->business_city,
+                        'business_state'       => $tenant->business_state,
+                        'business_zip'         => $tenant->business_zip,
+                        'business_phone'       => $tenant->business_phone,
+                        'business_description' => $tenant->business_description,
                     ];
 
                     $tenantPackages = Package::allTenants()
@@ -73,12 +79,24 @@ class HomeController extends Controller
 
         // If this is a known tenant subdomain, render the tenant landing page
         if ($tenantData) {
+            $typeLabel = match ($tenantData['business_type']) {
+                'kennel' => 'Dog Boarding',
+                'hybrid' => 'Dog Daycare & Boarding',
+                default  => 'Dog Daycare',
+            };
+            $locationSuffix = $tenantData['business_city'] && $tenantData['business_state']
+                ? " in {$tenantData['business_city']}, {$tenantData['business_state']}"
+                : '';
+
             return inertia('Home', [
                 'tenant'       => $tenantData,
                 'packages'     => $tenantPackages,
                 'kennel_units' => $kennelUnits,
                 'plans'        => [],
                 'show_pricing_calculator' => false,
+                'headTitle'       => "{$tenantData['name']} — {$typeLabel}{$locationSuffix}",
+                'headDescription' => $tenantData['business_description']
+                    ?? "{$tenantData['name']} offers {$typeLabel}{$locationSuffix}. Book online through PawPass.",
             ]);
         }
 
@@ -118,6 +136,8 @@ class HomeController extends Controller
             'show_pricing_calculator' => true,
             'tenant'                  => null,
             'packages'                => [],
+            'headTitle'       => 'PawPass — Doggy Daycare Management Software',
+            'headDescription' => 'PawPass helps dog daycares and boarding kennels manage check-ins, credits, and customers. Start your free trial today.',
         ]);
     }
 }

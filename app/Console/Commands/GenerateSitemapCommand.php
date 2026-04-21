@@ -26,11 +26,28 @@ class GenerateSitemapCommand extends Command
         $sitemap->add(
             Url::create('/find-a-daycare')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
         );
+        $sitemap->add(
+            Url::create('/leaderboard')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
+        );
+        $sitemap->add(
+            Url::create('/find-boarding')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
+        );
 
-        // Per-city SEO pages (one per unique state+city combination)
+        // Per-city SEO pages — all publicly listed tenants
         $cities = Tenant::query()
             ->where('is_publicly_listed', true)
             ->whereIn('status', ['active', 'trialing', 'free_tier', 'past_due'])
+            ->whereNotNull('business_city')
+            ->whereNotNull('business_state')
+            ->select('business_state', 'business_city')
+            ->distinct()
+            ->get();
+
+        // Boarding-specific city pages — only kennel/hybrid tenants
+        $boardingCities = Tenant::query()
+            ->where('is_publicly_listed', true)
+            ->whereIn('status', ['active', 'trialing', 'free_tier', 'past_due'])
+            ->whereIn('business_type', ['kennel', 'hybrid'])
             ->whereNotNull('business_city')
             ->whereNotNull('business_state')
             ->select('business_state', 'business_city')
@@ -45,6 +62,22 @@ class GenerateSitemapCommand extends Command
                 Url::create("/find-a-daycare/{$stateSlug}/{$citySlug}")
                     ->setPriority(0.7)
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+            );
+            $sitemap->add(
+                Url::create("/leaderboard/{$stateSlug}/{$citySlug}")
+                    ->setPriority(0.7)
+                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
+            );
+        }
+
+        foreach ($boardingCities as $location) {
+            $stateSlug = strtolower($location->business_state);
+            $citySlug  = str_replace(' ', '-', strtolower($location->business_city));
+
+            $sitemap->add(
+                Url::create("/find-boarding/{$stateSlug}/{$citySlug}")
+                    ->setPriority(0.7)
+                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
             );
         }
 
@@ -67,7 +100,12 @@ class GenerateSitemapCommand extends Command
 
         $sitemap->writeToFile(public_path('sitemap.xml'));
 
-        $this->info("Sitemap generated: {$cities->count()} city pages, {$tenants->count()} tenant pages.");
+        $this->info(sprintf(
+            'Sitemap generated: %d city pages, %d boarding city pages, %d tenant pages.',
+            $cities->count(),
+            $boardingCities->count(),
+            $tenants->count(),
+        ));
 
         return self::SUCCESS;
     }

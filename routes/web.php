@@ -25,7 +25,9 @@ use App\Http\Controllers\Web\Admin\TaxController as AdminTaxController;
 use App\Http\Controllers\Web\Admin\VaccinationRequirementController as AdminVaccinationRequirementController;
 use App\Http\Controllers\Web\Admin\VerifyEmailController as AdminVerifyEmailController;
 use App\Http\Controllers\Web\Auth\MagicLinkController;
+use App\Http\Controllers\Web\BoardingSearchController;
 use App\Http\Controllers\Web\DaycareDirectoryController;
+use App\Http\Controllers\Web\LeaderboardController;
 use App\Http\Controllers\Web\Portal\AccountController;
 use App\Http\Controllers\Web\Portal\AttendanceController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
@@ -57,6 +59,14 @@ Route::prefix('auth/magic-link')->group(function () {
 // Public daycare directory
 Route::get('/find-a-daycare', [DaycareDirectoryController::class, 'index'])->name('daycare.directory');
 Route::get('/find-a-daycare/{state}/{city}', [DaycareDirectoryController::class, 'index'])->name('daycare.directory.city');
+
+// Public leaderboard
+Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
+Route::get('/leaderboard/{state}/{city}', [LeaderboardController::class, 'city'])->name('leaderboard.city');
+
+// Boarding availability search
+Route::get('/find-boarding', [BoardingSearchController::class, 'index'])->name('boarding.search');
+Route::get('/find-boarding/{state}/{city}', [BoardingSearchController::class, 'index'])->name('boarding.search.city');
 
 // Tenant self-registration (no tenant middleware — this creates a new tenant)
 Route::get('/register', [TenantRegistrationController::class, 'create'])->name('tenant.register');

@@ -1,4 +1,12 @@
 <template>
+  <Head v-if="headTitle">
+    <title>{{ headTitle }}</title>
+    <meta name="description" :content="headDescription ?? ''" />
+    <meta property="og:title" :content="headTitle" />
+    <meta property="og:description" :content="headDescription ?? ''" />
+    <component v-if="tenantSchema" is="script" type="application/ld+json" v-html="tenantSchema" />
+  </Head>
+
   <!-- ===== TENANT LANDING PAGE ===== -->
   <div v-if="tenant" class="tenant-page min-h-screen" style="font-family: 'DM Sans', system-ui, sans-serif;">
 
@@ -892,6 +900,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Head } from '@inertiajs/vue3'
 import PricingCalculator from '@/Components/PricingCalculator.vue'
 
 // ── Props ─────────────────────────────────────────────────────
@@ -918,6 +927,12 @@ interface TenantData {
   logo_url: string | null
   primary_color: string
   business_type: string | null
+  business_address: string | null
+  business_city: string | null
+  business_state: string | null
+  business_zip: string | null
+  business_phone: string | null
+  business_description: string | null
 }
 
 interface PackageData {
@@ -945,10 +960,41 @@ const props = defineProps<{
   tenant: TenantData | null
   packages: PackageData[]
   kennel_units?: KennelUnitData[]
+  headTitle?: string
+  headDescription?: string
 }>()
 
-// ── Nav state ────────────────────────────────────────────────
+// ── Schema.org JSON-LD ───────────────────────────────────────
 const appDomain = (import.meta.env.VITE_APP_DOMAIN as string) || 'pawpass.local'
+
+const tenantSchema = computed(() => {
+  const t = props.tenant
+  if (!t) return null
+
+  const schemaType = t.business_type === 'kennel' ? 'LodgingBusiness' : 'LocalBusiness'
+  const schema: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': schemaType,
+    'name': t.name,
+    'url': `https://${t.slug}.${appDomain}`,
+  }
+  if (t.logo_url) schema['image'] = t.logo_url
+  if (t.business_description) schema['description'] = t.business_description
+  if (t.business_phone) schema['telephone'] = t.business_phone
+  if (t.business_city || t.business_address) {
+    schema['address'] = {
+      '@type': 'PostalAddress',
+      ...(t.business_address && { streetAddress: t.business_address }),
+      ...(t.business_city   && { addressLocality: t.business_city }),
+      ...(t.business_state  && { addressRegion: t.business_state }),
+      ...(t.business_zip    && { postalCode: t.business_zip }),
+      'addressCountry': 'US',
+    }
+  }
+  return JSON.stringify(schema)
+})
+
+// ── Nav state ────────────────────────────────────────────────
 
 const navScrolled = ref(false)
 const heroSentinel = ref<HTMLElement | null>(null)
