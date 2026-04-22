@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\DogVaccination;
 use App\Models\Package;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,12 +25,13 @@ class DogControllerTest extends TestCase
     {
         parent::setUp();
 
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['add_dogs', 'vaccination_management']]);
         $this->tenant = Tenant::factory()->create(['slug' => 'testco', 'status' => 'active', 'plan' => 'starter']);
         URL::forceRootUrl('http://testco.pawpass.com');
 
         $this->staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
     }
 
@@ -86,8 +88,8 @@ class DogControllerTest extends TestCase
 
         $response = $this->post('/admin/dogs', [
             'customer_id' => $customer->id,
-            'name'        => 'Buddy',
-            'breed'       => 'Labrador',
+            'name' => 'Buddy',
+            'breed' => 'Labrador',
         ]);
 
         $response->assertRedirect();
@@ -102,8 +104,8 @@ class DogControllerTest extends TestCase
         $this->actingAs($this->staff);
 
         $response = $this->patch("/admin/dogs/{$dog->id}", [
-            'name'   => 'New Name',
-            'breed'  => 'Poodle',
+            'name' => 'New Name',
+            'breed' => 'Poodle',
             'status' => 'active',
         ]);
 
@@ -120,16 +122,16 @@ class DogControllerTest extends TestCase
         $this->actingAs($this->staff);
 
         $response = $this->patch("/admin/dogs/{$dog->id}", [
-            'name'                      => $dog->name,
-            'auto_replenish_enabled'    => true,
+            'name' => $dog->name,
+            'auto_replenish_enabled' => true,
             'auto_replenish_package_id' => $package->id,
-            'status'                    => 'active',
+            'status' => 'active',
         ]);
 
         $response->assertRedirect(route('admin.dogs.show', $dog));
         $this->assertDatabaseHas('dogs', [
-            'id'                        => $dog->id,
-            'auto_replenish_enabled'    => true,
+            'id' => $dog->id,
+            'auto_replenish_enabled' => true,
             'auto_replenish_package_id' => $package->id,
         ]);
     }
@@ -139,21 +141,21 @@ class DogControllerTest extends TestCase
         $package = Package::factory()->autoReplenish()->create(['tenant_id' => $this->tenant->id]);
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $dog = Dog::factory()->forCustomer($customer)->create([
-            'auto_replenish_enabled'    => true,
+            'auto_replenish_enabled' => true,
             'auto_replenish_package_id' => $package->id,
         ]);
 
         $this->actingAs($this->staff);
 
         $this->patch("/admin/dogs/{$dog->id}", [
-            'name'                   => $dog->name,
+            'name' => $dog->name,
             'auto_replenish_enabled' => false,
-            'status'                 => 'active',
+            'status' => 'active',
         ]);
 
         $this->assertDatabaseHas('dogs', [
-            'id'                        => $dog->id,
-            'auto_replenish_enabled'    => false,
+            'id' => $dog->id,
+            'auto_replenish_enabled' => false,
             'auto_replenish_package_id' => null,
         ]);
     }
@@ -215,15 +217,15 @@ class DogControllerTest extends TestCase
         $this->actingAs($this->staff);
 
         $response = $this->post("/admin/dogs/{$dog->id}/vaccinations", [
-            'vaccine_name'    => 'Bordetella',
+            'vaccine_name' => 'Bordetella',
             'administered_at' => '2026-01-15',
-            'expires_at'      => '2027-01-15',
+            'expires_at' => '2027-01-15',
         ]);
 
         $response->assertRedirect(route('admin.dogs.show', $dog));
         $this->assertDatabaseHas('dog_vaccinations', [
-            'dog_id'       => $dog->id,
-            'tenant_id'    => $this->tenant->id,
+            'dog_id' => $dog->id,
+            'tenant_id' => $this->tenant->id,
             'vaccine_name' => 'Bordetella',
         ]);
     }
@@ -276,7 +278,7 @@ class DogControllerTest extends TestCase
         $this->actingAs($this->staff);
 
         $response = $this->patch("/admin/dogs/{$dog->id}", [
-            'name'   => $dog->name,
+            'name' => $dog->name,
             'status' => 'suspended',
         ]);
 

@@ -25,6 +25,7 @@ class CustomerControllerTest extends TestCase
     {
         parent::setUp();
 
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['add_customers']]);
         $this->tenant = Tenant::factory()->create(['slug' => 'testco', 'status' => 'active', 'plan' => 'starter']);
         URL::forceRootUrl('http://testco.pawpass.com');
 

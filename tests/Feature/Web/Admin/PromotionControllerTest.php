@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Models\PlatformPlan;
 use App\Models\Promotion;
 use App\Models\Tenant;
 use App\Models\User;
@@ -23,21 +24,22 @@ class PromotionControllerTest extends TestCase
     {
         parent::setUp();
 
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['manage_promotions']]);
         $this->tenant = Tenant::factory()->create([
-            'slug'   => 'promo-admin-test',
+            'slug' => 'promo-admin-test',
             'status' => 'active',
-            'plan'   => 'starter',
+            'plan' => 'starter',
         ]);
         URL::forceRootUrl('http://promo-admin-test.pawpass.com');
 
         $this->owner = User::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'role'      => 'business_owner',
+            'role' => 'business_owner',
         ]);
 
         $this->staff = User::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'role'      => 'staff',
+            'role' => 'staff',
         ]);
     }
 
@@ -60,18 +62,18 @@ class PromotionControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $response = $this->post('/admin/promotions', [
-            'name'           => 'Summer Sale',
-            'code'           => 'SUMMER10',
-            'type'           => 'percentage',
+            'name' => 'Summer Sale',
+            'code' => 'SUMMER10',
+            'type' => 'percentage',
             'discount_value' => 10,
         ]);
 
         $response->assertRedirect('/admin/promotions');
         $this->assertDatabaseHas('promotions', [
-            'tenant_id'      => $this->tenant->id,
-            'code'           => 'SUMMER10',
+            'tenant_id' => $this->tenant->id,
+            'code' => 'SUMMER10',
             'discount_value' => 10,
-            'is_active'      => true,
+            'is_active' => true,
         ]);
     }
 
@@ -80,9 +82,9 @@ class PromotionControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $this->post('/admin/promotions', [
-            'name'           => 'Test',
-            'code'           => 'lowercase',
-            'type'           => 'percentage',
+            'name' => 'Test',
+            'code' => 'lowercase',
+            'type' => 'percentage',
             'discount_value' => 5,
         ]);
 
@@ -94,9 +96,9 @@ class PromotionControllerTest extends TestCase
         $this->actingAs($this->staff);
 
         $response = $this->post('/admin/promotions', [
-            'name'           => 'Staff Promo',
-            'code'           => 'STAFF',
-            'type'           => 'percentage',
+            'name' => 'Staff Promo',
+            'code' => 'STAFF',
+            'type' => 'percentage',
             'discount_value' => 5,
         ]);
 
@@ -136,9 +138,9 @@ class PromotionControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $response = $this->post('/admin/promotions', [
-            'name'           => 'Bad',
-            'code'           => 'BAD',
-            'type'           => 'percentage',
+            'name' => 'Bad',
+            'code' => 'BAD',
+            'type' => 'percentage',
             'discount_value' => 110,
         ]);
 
@@ -151,14 +153,14 @@ class PromotionControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $this->post('/admin/promotions', [
-            'name'           => 'Event Test',
-            'code'           => 'EVTTEST',
-            'type'           => 'percentage',
+            'name' => 'Event Test',
+            'code' => 'EVTTEST',
+            'type' => 'percentage',
             'discount_value' => 15,
         ]);
 
         $this->assertDatabaseHas('tenant_events', [
-            'tenant_id'  => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'event_type' => 'promo_created',
         ]);
     }

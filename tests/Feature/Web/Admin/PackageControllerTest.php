@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Web\Admin;
 
-use App\Jobs\SyncPackageToStripe;
 use App\Models\Package;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,6 +23,7 @@ class PackageControllerTest extends TestCase
     {
         parent::setUp();
 
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['manage_packages']]);
         $this->tenant = Tenant::factory()->create([
             'slug' => 'testco',
             'status' => 'active',
@@ -34,8 +35,8 @@ class PackageControllerTest extends TestCase
 
         $this->owner = User::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'role'      => 'business_owner',
-            'status'    => 'active',
+            'role' => 'business_owner',
+            'status' => 'active',
         ]);
     }
 
@@ -57,7 +58,7 @@ class PackageControllerTest extends TestCase
     {
         $staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         $this->actingAs($staff);
@@ -72,12 +73,12 @@ class PackageControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $response = $this->post('/admin/packages', [
-            'name'         => 'Day Pack',
-            'type'         => 'one_time',
-            'price'        => 5000,
+            'name' => 'Day Pack',
+            'type' => 'one_time',
+            'price' => 5000,
             'credit_count' => 10,
-            'dog_limit'    => 1,
-            'is_active'    => true,
+            'dog_limit' => 1,
+            'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.packages.index'));
@@ -91,10 +92,10 @@ class PackageControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $response = $this->patch("/admin/packages/{$package->id}", [
-            'name'         => 'New Name',
-            'price'        => 6000,
+            'name' => 'New Name',
+            'price' => 6000,
             'credit_count' => 12,
-            'dog_limit'    => 1,
+            'dog_limit' => 1,
         ]);
 
         $response->assertRedirect(route('admin.packages.index'));
@@ -118,27 +119,27 @@ class PackageControllerTest extends TestCase
         Queue::fake();
 
         $package = Package::factory()->create([
-            'tenant_id'                 => $this->tenant->id,
-            'type'                      => 'one_time',
-            'name'                      => 'Old',
+            'tenant_id' => $this->tenant->id,
+            'type' => 'one_time',
+            'name' => 'Old',
             'is_auto_replenish_eligible' => false,
-            'stripe_product_id'         => 'prod_existing',
+            'stripe_product_id' => 'prod_existing',
         ]);
 
         $this->actingAs($this->owner);
 
         $response = $this->patch("/admin/packages/{$package->id}", [
-            'name'                      => 'Old',
-            'price'                     => $package->price,
-            'credit_count'              => $package->credit_count,
-            'dog_limit'                 => 1,
+            'name' => 'Old',
+            'price' => $package->price,
+            'credit_count' => $package->credit_count,
+            'dog_limit' => 1,
             'is_auto_replenish_eligible' => true,
         ]);
 
         $response->assertRedirect(route('admin.packages.index'));
 
         $this->assertDatabaseHas('packages', [
-            'id'                        => $package->id,
+            'id' => $package->id,
             'is_auto_replenish_eligible' => true,
         ]);
     }
@@ -146,7 +147,7 @@ class PackageControllerTest extends TestCase
     public function test_edit_page_includes_auto_replenish_eligible(): void
     {
         $package = Package::factory()->create([
-            'tenant_id'                 => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'is_auto_replenish_eligible' => true,
         ]);
 

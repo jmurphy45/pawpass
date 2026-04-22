@@ -98,8 +98,10 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
 
         // Customers
         Route::get('/customers', [AdminCustomerController::class, 'index'])->name('admin.customers.index');
-        Route::get('/customers/create', [AdminCustomerController::class, 'create'])->name('admin.customers.create');
-        Route::post('/customers', [AdminCustomerController::class, 'store'])->name('admin.customers.store');
+        Route::middleware('plan:add_customers')->group(function () {
+            Route::get('/customers/create', [AdminCustomerController::class, 'create'])->name('admin.customers.create');
+            Route::post('/customers', [AdminCustomerController::class, 'store'])->name('admin.customers.store');
+        });
         Route::get('/customers/{customer}', [AdminCustomerController::class, 'show'])->name('admin.customers.show');
         Route::post('/customers/{customer}/request-payment-update', [AdminCustomerController::class, 'requestPaymentUpdate'])->name('admin.customers.request-payment-update');
         Route::post('/customers/{customer}/charge-balance', [AdminCustomerController::class, 'chargeBalance'])->name('admin.customers.charge-balance');
@@ -108,27 +110,33 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
 
         // Dogs
         Route::get('/dogs', [AdminDogController::class, 'index'])->name('admin.dogs.index');
-        Route::get('/dogs/create', [AdminDogController::class, 'create'])->name('admin.dogs.create');
-        Route::post('/dogs', [AdminDogController::class, 'store'])->name('admin.dogs.store');
+        Route::middleware('plan:add_dogs')->group(function () {
+            Route::get('/dogs/create', [AdminDogController::class, 'create'])->name('admin.dogs.create');
+            Route::post('/dogs', [AdminDogController::class, 'store'])->name('admin.dogs.store');
+        });
         Route::get('/dogs/{dog}', [AdminDogController::class, 'show'])->name('admin.dogs.show');
         Route::get('/dogs/{dog}/edit', [AdminDogController::class, 'edit'])->name('admin.dogs.edit');
         Route::patch('/dogs/{dog}', [AdminDogController::class, 'update'])->name('admin.dogs.update');
-        Route::post('/dogs/{dog}/vaccinations', [AdminDogController::class, 'storeVaccination'])->name('admin.dogs.vaccinations.store');
-        Route::delete('/dogs/{dog}/vaccinations/{vaccination}', [AdminDogController::class, 'destroyVaccination'])->name('admin.dogs.vaccinations.destroy');
+        Route::middleware('plan:vaccination_management')->group(function () {
+            Route::post('/dogs/{dog}/vaccinations', [AdminDogController::class, 'storeVaccination'])->name('admin.dogs.vaccinations.store');
+            Route::delete('/dogs/{dog}/vaccinations/{vaccination}', [AdminDogController::class, 'destroyVaccination'])->name('admin.dogs.vaccinations.destroy');
+        });
 
         // Boarding
-        Route::get('/boarding/reservations', [AdminBoardingController::class, 'reservations'])->name('admin.boarding.reservations');
-        Route::get('/boarding/reservations/{reservation}', [AdminBoardingController::class, 'showReservation'])->name('admin.boarding.reservations.show');
-        Route::patch('/boarding/reservations/{reservation}', [AdminBoardingController::class, 'updateReservation'])->name('admin.boarding.reservations.update');
-        Route::post('/boarding/reservations/{reservation}/checkout', [AdminBoardingController::class, 'processCheckout'])->name('admin.boarding.reservations.checkout');
-        Route::post('/boarding/reservations/{reservation}/report-cards', [AdminBoardingController::class, 'storeReportCard'])->name('admin.boarding.reservations.report-cards.store');
-        Route::post('/boarding/reservations/{reservation}/addons', [AdminBoardingController::class, 'storeAddon'])->name('admin.boarding.reservations.addons.store');
-        Route::delete('/boarding/reservations/{reservation}/addons/{addon}', [AdminBoardingController::class, 'destroyAddon'])->name('admin.boarding.reservations.addons.destroy');
-        Route::get('/boarding/occupancy', [AdminBoardingController::class, 'occupancy'])->name('admin.boarding.occupancy');
-        Route::get('/boarding/units', [AdminBoardingController::class, 'kennelUnits'])->name('admin.boarding.units');
-        Route::post('/boarding/units', [AdminBoardingController::class, 'storeKennelUnit'])->name('admin.boarding.units.store');
-        Route::patch('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'updateKennelUnit'])->name('admin.boarding.units.update');
-        Route::delete('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'destroyKennelUnit'])->name('admin.boarding.units.destroy');
+        Route::middleware('plan:boarding')->group(function () {
+            Route::get('/boarding/reservations', [AdminBoardingController::class, 'reservations'])->name('admin.boarding.reservations');
+            Route::get('/boarding/reservations/{reservation}', [AdminBoardingController::class, 'showReservation'])->name('admin.boarding.reservations.show');
+            Route::patch('/boarding/reservations/{reservation}', [AdminBoardingController::class, 'updateReservation'])->name('admin.boarding.reservations.update');
+            Route::post('/boarding/reservations/{reservation}/checkout', [AdminBoardingController::class, 'processCheckout'])->name('admin.boarding.reservations.checkout');
+            Route::post('/boarding/reservations/{reservation}/report-cards', [AdminBoardingController::class, 'storeReportCard'])->name('admin.boarding.reservations.report-cards.store');
+            Route::post('/boarding/reservations/{reservation}/addons', [AdminBoardingController::class, 'storeAddon'])->name('admin.boarding.reservations.addons.store');
+            Route::delete('/boarding/reservations/{reservation}/addons/{addon}', [AdminBoardingController::class, 'destroyAddon'])->name('admin.boarding.reservations.addons.destroy');
+            Route::get('/boarding/occupancy', [AdminBoardingController::class, 'occupancy'])->name('admin.boarding.occupancy');
+            Route::get('/boarding/units', [AdminBoardingController::class, 'kennelUnits'])->name('admin.boarding.units');
+            Route::post('/boarding/units', [AdminBoardingController::class, 'storeKennelUnit'])->name('admin.boarding.units.store');
+            Route::patch('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'updateKennelUnit'])->name('admin.boarding.units.update');
+            Route::delete('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'destroyKennelUnit'])->name('admin.boarding.units.destroy');
+        });
 
         // Roster
         Route::get('/roster', [AdminRosterController::class, 'index'])->name('admin.roster.index');
@@ -168,14 +176,16 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::delete('/settings/logo', [AdminLogoController::class, 'destroy'])->name('admin.settings.logo.destroy');
 
         // Reports
-        Route::get('/reports', [AdminReportController::class, 'index'])->name('admin.reports.index');
-        Route::get('/reports/revenue', [AdminReportController::class, 'revenue'])->name('admin.reports.revenue');
-        Route::get('/reports/packages', [AdminReportController::class, 'packages'])->name('admin.reports.packages');
-        Route::get('/reports/credits', [AdminReportController::class, 'credits'])->name('admin.reports.credits');
-        Route::get('/reports/customers', [AdminReportController::class, 'customers'])->name('admin.reports.customers');
-        Route::get('/reports/attendance', [AdminReportController::class, 'attendance'])->name('admin.reports.attendance');
-        Route::get('/reports/credit-status', [AdminReportController::class, 'creditStatus'])->name('admin.reports.credit-status');
-        Route::get('/reports/vaccinations', [AdminReportController::class, 'vaccinations'])->middleware('plan:vaccination_management')->name('admin.reports.vaccinations');
+        Route::middleware('plan:basic_reporting')->group(function () {
+            Route::get('/reports', [AdminReportController::class, 'index'])->name('admin.reports.index');
+            Route::get('/reports/packages', [AdminReportController::class, 'packages'])->name('admin.reports.packages');
+            Route::get('/reports/credits', [AdminReportController::class, 'credits'])->name('admin.reports.credits');
+            Route::get('/reports/customers', [AdminReportController::class, 'customers'])->name('admin.reports.customers');
+            Route::get('/reports/attendance', [AdminReportController::class, 'attendance'])->name('admin.reports.attendance');
+            Route::get('/reports/credit-status', [AdminReportController::class, 'creditStatus'])->name('admin.reports.credit-status');
+            Route::get('/reports/vaccinations', [AdminReportController::class, 'vaccinations'])->middleware('plan:vaccination_management')->name('admin.reports.vaccinations');
+            Route::get('/reports/revenue', [AdminReportController::class, 'revenue'])->middleware('plan:financial_reports')->name('admin.reports.revenue');
+        });
 
         // Vaccination Requirements
         Route::middleware('plan:vaccination_management')->group(function () {
@@ -185,10 +195,12 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         });
 
         // Services (Add-on type catalog)
-        Route::get('/services', [AdminServicesController::class, 'index'])->name('admin.services.index');
-        Route::post('/services', [AdminServicesController::class, 'store'])->name('admin.services.store');
-        Route::patch('/services/{addonType}', [AdminServicesController::class, 'update'])->name('admin.services.update');
-        Route::delete('/services/{addonType}', [AdminServicesController::class, 'destroy'])->name('admin.services.destroy');
+        Route::middleware('plan:addon_services')->group(function () {
+            Route::get('/services', [AdminServicesController::class, 'index'])->name('admin.services.index');
+            Route::post('/services', [AdminServicesController::class, 'store'])->name('admin.services.store');
+            Route::patch('/services/{addonType}', [AdminServicesController::class, 'update'])->name('admin.services.update');
+            Route::delete('/services/{addonType}', [AdminServicesController::class, 'destroy'])->name('admin.services.destroy');
+        });
 
         // Promotions
         Route::middleware('plan:manage_promotions')->group(function () {
@@ -199,9 +211,11 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         });
 
         // Notifications / Broadcast
-        Route::get('/notifications/broadcast', [AdminBroadcastController::class, 'index'])->name('admin.notifications.broadcast');
-        Route::post('/notifications/broadcast', [AdminBroadcastController::class, 'store'])->name('admin.notifications.broadcast.store');
-        Route::get('/notifications/sms-usage', [AdminBroadcastController::class, 'smsUsage'])->name('admin.notifications.sms-usage');
+        Route::middleware('plan:broadcast_notifications')->group(function () {
+            Route::get('/notifications/broadcast', [AdminBroadcastController::class, 'index'])->name('admin.notifications.broadcast');
+            Route::post('/notifications/broadcast', [AdminBroadcastController::class, 'store'])->name('admin.notifications.broadcast.store');
+            Route::get('/notifications/sms-usage', [AdminBroadcastController::class, 'smsUsage'])->name('admin.notifications.sms-usage');
+        });
 
         // Billing (business_owner only enforced in controller)
         Route::get('/billing', [AdminBillingController::class, 'index'])->name('admin.billing.index');
