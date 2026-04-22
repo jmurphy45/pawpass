@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VaccinationRequirement;
@@ -23,17 +24,18 @@ class VaccinationRequirementControllerTest extends TestCase
     {
         parent::setUp();
 
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['vaccination_management']]);
         $this->tenant = Tenant::factory()->create(['slug' => 'testco', 'status' => 'active', 'plan' => 'starter']);
         URL::forceRootUrl('http://testco.pawpass.com');
 
         $this->owner = User::factory()->businessOwner()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         $this->staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
     }
 
@@ -73,7 +75,7 @@ class VaccinationRequirementControllerTest extends TestCase
 
         $response->assertRedirect(route('admin.vaccination-requirements.index'));
         $this->assertDatabaseHas('vaccination_requirements', [
-            'tenant_id'    => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'vaccine_name' => 'Rabies',
         ]);
     }

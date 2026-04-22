@@ -142,13 +142,15 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::post('/dogs/{dog}/credits/correction', [AdminCreditController::class, 'correction'])->name('admin.credits.correction');
         Route::post('/dogs/{dog}/credits/transfer', [AdminCreditController::class, 'transfer'])->name('admin.credits.transfer');
 
-        // Packages (business_owner only enforced in controller)
-        Route::get('/packages', [AdminPackageController::class, 'index'])->name('admin.packages.index');
-        Route::get('/packages/create', [AdminPackageController::class, 'create'])->name('admin.packages.create');
-        Route::post('/packages', [AdminPackageController::class, 'store'])->middleware('stripe.onboarded')->name('admin.packages.store');
-        Route::get('/packages/{package}/edit', [AdminPackageController::class, 'edit'])->name('admin.packages.edit');
-        Route::patch('/packages/{package}', [AdminPackageController::class, 'update'])->middleware('stripe.onboarded')->name('admin.packages.update');
-        Route::post('/packages/{package}/archive', [AdminPackageController::class, 'archive'])->middleware('stripe.onboarded')->name('admin.packages.archive');
+        // Packages
+        Route::middleware('plan:manage_packages')->group(function () {
+            Route::get('/packages', [AdminPackageController::class, 'index'])->name('admin.packages.index');
+            Route::get('/packages/create', [AdminPackageController::class, 'create'])->name('admin.packages.create');
+            Route::post('/packages', [AdminPackageController::class, 'store'])->middleware('stripe.onboarded')->name('admin.packages.store');
+            Route::get('/packages/{package}/edit', [AdminPackageController::class, 'edit'])->name('admin.packages.edit');
+            Route::patch('/packages/{package}', [AdminPackageController::class, 'update'])->middleware('stripe.onboarded')->name('admin.packages.update');
+            Route::post('/packages/{package}/archive', [AdminPackageController::class, 'archive'])->middleware('stripe.onboarded')->name('admin.packages.archive');
+        });
 
         // Payments
         Route::get('/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
@@ -176,9 +178,11 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/reports/vaccinations', [AdminReportController::class, 'vaccinations'])->middleware('plan:vaccination_management')->name('admin.reports.vaccinations');
 
         // Vaccination Requirements
-        Route::get('/vaccination-requirements', [AdminVaccinationRequirementController::class, 'index'])->name('admin.vaccination-requirements.index');
-        Route::post('/vaccination-requirements', [AdminVaccinationRequirementController::class, 'store'])->name('admin.vaccination-requirements.store');
-        Route::delete('/vaccination-requirements/{vaccinationRequirement}', [AdminVaccinationRequirementController::class, 'destroy'])->name('admin.vaccination-requirements.destroy');
+        Route::middleware('plan:vaccination_management')->group(function () {
+            Route::get('/vaccination-requirements', [AdminVaccinationRequirementController::class, 'index'])->name('admin.vaccination-requirements.index');
+            Route::post('/vaccination-requirements', [AdminVaccinationRequirementController::class, 'store'])->name('admin.vaccination-requirements.store');
+            Route::delete('/vaccination-requirements/{vaccinationRequirement}', [AdminVaccinationRequirementController::class, 'destroy'])->name('admin.vaccination-requirements.destroy');
+        });
 
         // Services (Add-on type catalog)
         Route::get('/services', [AdminServicesController::class, 'index'])->name('admin.services.index');
@@ -187,10 +191,12 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::delete('/services/{addonType}', [AdminServicesController::class, 'destroy'])->name('admin.services.destroy');
 
         // Promotions
-        Route::get('/promotions', [AdminPromotionController::class, 'index'])->name('admin.promotions.index');
-        Route::post('/promotions', [AdminPromotionController::class, 'store'])->name('admin.promotions.store');
-        Route::patch('/promotions/{promotion}', [AdminPromotionController::class, 'update'])->name('admin.promotions.update');
-        Route::delete('/promotions/{promotion}', [AdminPromotionController::class, 'destroy'])->name('admin.promotions.destroy');
+        Route::middleware('plan:manage_promotions')->group(function () {
+            Route::get('/promotions', [AdminPromotionController::class, 'index'])->name('admin.promotions.index');
+            Route::post('/promotions', [AdminPromotionController::class, 'store'])->name('admin.promotions.store');
+            Route::patch('/promotions/{promotion}', [AdminPromotionController::class, 'update'])->name('admin.promotions.update');
+            Route::delete('/promotions/{promotion}', [AdminPromotionController::class, 'destroy'])->name('admin.promotions.destroy');
+        });
 
         // Notifications / Broadcast
         Route::get('/notifications/broadcast', [AdminBroadcastController::class, 'index'])->name('admin.notifications.broadcast');
