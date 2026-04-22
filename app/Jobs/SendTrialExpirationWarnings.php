@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Models\PlatformSubscriptionEvent;
 use App\Models\Tenant;
 use App\Services\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,11 +27,14 @@ class SendTrialExpirationWarnings implements ShouldQueue
                 ->whereBetween('trial_ends_at', [$start, $end])
                 ->whereNotNull('owner_user_id')
                 ->each(function (Tenant $tenant) use ($days, $notificationService) {
+                    $host = parse_url(config('app.url'), PHP_URL_HOST);
+                    $billingUrl = 'https://'.$tenant->slug.'.'.$host.'/admin/billing';
+
                     $notificationService->dispatch(
                         'trial.expiring_soon',
                         $tenant->id,
                         $tenant->owner_user_id,
-                        ['days_remaining' => $days],
+                        ['days_remaining' => $days, 'billing_url' => $billingUrl],
                     );
                 });
         }

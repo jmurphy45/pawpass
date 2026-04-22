@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentType;
-use App\Exceptions\InsufficientCreditsException;
+use App\Exceptions\CheckInException;
 use App\Http\Controllers\Controller;
 use App\Jobs\CancelPaymentIntentJob;
 use App\Models\AddonType;
@@ -13,11 +13,9 @@ use App\Models\Attendance;
 use App\Models\AttendanceAddon;
 use App\Models\Dog;
 use App\Models\Order;
-use App\Models\Package;
 use App\Models\Tenant;
 use App\Services\AttendancePaymentService;
-use App\Services\AutoReplenishService;
-use App\Services\DogCreditService;
+use App\Services\CheckInService;
 use App\Services\OrderService;
 use App\Services\StripeService;
 use App\Services\TenantEventService;
@@ -30,9 +28,8 @@ use Inertia\Response;
 class RosterController extends Controller
 {
     public function __construct(
-        private DogCreditService $credits,
+        private CheckInService $checkIn,
         private StripeService $stripe,
-        private AutoReplenishService $autoReplenish,
         private TenantEventService $events,
         private AttendancePaymentService $attendancePayments,
         private OrderService $orderService,
@@ -110,90 +107,28 @@ class RosterController extends Controller
             'override_note' => ['nullable', 'string'],
         ]);
 
-        $tenantId = app('current.tenant.id');
-        $tenant = Tenant::find($tenantId);
-        $staffUser = auth()->user();
-
         $dog = Dog::find($request->dog_id);
+        $tenant = Tenant::find(app('current.tenant.id'));
 
         if (! $dog) {
             return back()->with('error', 'Dog not found.');
         }
 
-        if (! $dog->status->isEligible()) {
-            return back()->withErrors(['dog_id' => "{$dog->name} is {$dog->status->label()} and cannot be checked in."]);
-        }
-
-        $startOfToday = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
-
-        $openAttendance = Attendance::where('dog_id', $dog->id)
-            ->where('checked_in_at', '>=', $startOfToday)
-            ->whereNull('checked_out_at')
-            ->exists();
-
-        if ($openAttendance) {
-            return back()->with('error', 'Dog is already checked in today.');
-        }
-
-        // Implicit override when tenant policy permits zero-credit check-ins
-        $override = $request->boolean('zero_credit_override') || ! $tenant->checkin_block_at_zero;
-        $hasUnlimitedPass = $dog->unlimited_pass_expires_at?->isFuture();
-
-        if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && $tenant->checkin_block_at_zero && ! $request->boolean('zero_credit_override')) {
-            return back()->with('error', 'Cannot check in dog with zero credits.');
-        }
-
-        $attendance = Attendance::create([
-            'tenant_id' => $tenantId,
-            'dog_id' => $dog->id,
-            'checked_in_by' => $staffUser->id,
-            'checked_in_at' => now(),
-            'zero_credit_override' => $override,
-            'override_note' => $request->override_note,
-        ]);
-
-        if ($dog->credit_balance <= 0 && ! $hasUnlimitedPass && ! $tenant->checkin_block_at_zero) {
-            if ($dog->auto_replenish_enabled && $dog->auto_replenish_package_id) {
-                if (! $dog->customer?->stripe_payment_method_id) {
-                    $attendance->delete();
-
-                    return back()->with('error', 'Auto-replenish failed: '.($dog->customer?->name ?? 'Customer').' has no card on file.');
-                }
-                if (! $this->autoReplenish->triggerSync($dog, $attendance)) {
-                    $attendance->delete();
-
-                    return back()->with('error', 'Auto-replenish charge failed. Check payment method.');
-                }
-                $dog = $dog->fresh();
-            } elseif ($tenant->auto_charge_at_zero_package_id) {
-                $package = Package::find($tenant->auto_charge_at_zero_package_id);
-                if ($package) {
-                    if (! $dog->customer?->stripe_payment_method_id) {
-                        $attendance->delete();
-
-                        return back()->with('error', 'Auto-charge failed: '.($dog->customer?->name ?? 'Customer').' has no card on file.');
-                    }
-                    if (! $this->autoReplenish->triggerForPackage($dog, $package, $attendance)) {
-                        $attendance->delete();
-
-                        return back()->with('error', 'Auto-charge failed. Check payment method.');
-                    }
-                }
-                $dog = $dog->fresh();
-            }
-        }
-
         try {
-            $this->credits->deductForAttendance($attendance);
-        } catch (InsufficientCreditsException $e) {
-            $attendance->delete();
-
-            return back()->with('error', 'Cannot check in dog with zero credits.');
+            $attendance = $this->checkIn->execute(
+                dog: $dog,
+                staff: auth()->user(),
+                tenant: $tenant,
+                manualOverride: $request->boolean('zero_credit_override'),
+                note: $request->override_note,
+            );
+        } catch (CheckInException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        $this->events->recordOnce($tenantId, 'first_checkin');
+        $this->events->recordOnce($tenant->id, 'first_checkin');
 
-        if ($override) {
+        if ($attendance->zero_credit_override) {
             Order::whereHas('orderDogs', fn ($q) => $q->where('dog_id', $dog->id))
                 ->where('status', 'pending')
                 ->whereNotNull('cancellable_at')

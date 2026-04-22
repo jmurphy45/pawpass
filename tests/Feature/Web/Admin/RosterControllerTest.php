@@ -754,7 +754,7 @@ class RosterControllerTest extends TestCase
         $response = $this->post('/admin/roster/checkin', ['dog_id' => $dog->id]);
 
         $response->assertRedirect();
-        $response->assertSessionHasErrors('dog_id');
+        $response->assertSessionHas('error');
         $this->assertDatabaseMissing('attendances', ['dog_id' => $dog->id]);
     }
 
@@ -771,7 +771,7 @@ class RosterControllerTest extends TestCase
         $response = $this->post('/admin/roster/checkin', ['dog_id' => $dog->id]);
 
         $response->assertRedirect();
-        $response->assertSessionHasErrors('dog_id');
+        $response->assertSessionHas('error');
         $this->assertDatabaseMissing('attendances', ['dog_id' => $dog->id]);
     }
 

@@ -72,6 +72,10 @@ class PawPassNotification extends Notification implements ShouldQueue
             $message->action('Update Payment Method', $this->data['portal_url']);
         }
 
+        if ($this->type === 'trial.expiring_soon' && isset($this->data['billing_url'])) {
+            $message->action('Upgrade Now', $this->data['billing_url']);
+        }
+
         if ($notifiable && $notifiable->tenant_id) {
             $tenant = Tenant::find($notifiable->tenant_id);
             if ($tenant) {
@@ -115,6 +119,23 @@ class PawPassNotification extends Notification implements ShouldQueue
         ];
     }
 
+    private function buildTrialExpiringMessage(): array
+    {
+        $days = $this->data['days_remaining'] ?? 7;
+
+        if ($days === 1) {
+            return [
+                'Your free trial ends tomorrow',
+                'Your PawPass free trial expires tomorrow. Upgrade now to keep your data and continue accepting bookings without interruption.',
+            ];
+        }
+
+        return [
+            "Your free trial ends in {$days} days",
+            "Your PawPass free trial ends in {$days} days. Upgrade to a paid plan to keep all your customers, dogs, and booking history — nothing gets lost when you upgrade.",
+        ];
+    }
+
     private function buildStaleCheckinsMessage(): array
     {
         $count = $this->data['dog_count'] ?? 0;
@@ -147,6 +168,7 @@ class PawPassNotification extends Notification implements ShouldQueue
             'vaccinations.expiring_urgent' => $this->buildVaccinationUrgentMessage(),
             'attendance.stale_checkins' => $this->buildStaleCheckinsMessage(),
             'payment.update_requested' => ['Action Required: Update Your Payment Method', 'Your account has an outstanding balance. Please update your payment method in the portal to resolve it.'],
+            'trial.expiring_soon' => $this->buildTrialExpiringMessage(),
             default => [$this->type, $this->type],
         };
     }
