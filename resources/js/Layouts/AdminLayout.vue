@@ -125,7 +125,7 @@
                             Payments
                           </Link>
                         </li>
-                        <li>
+                        <li v-if="hasManagePromotions">
                           <Link :href="route('admin.promotions.index')" :class="[isActive('admin.promotions.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
                             <TagIcon class="size-6 shrink-0" aria-hidden="true" />
                             Promotions
@@ -157,7 +157,7 @@
                     <li v-if="isOwner">
                       <div class="text-xs/6 font-semibold text-indigo-200">Owner</div>
                       <ul role="list" class="-mx-2 mt-2 space-y-1">
-                        <li>
+                        <li v-if="hasManagePackages">
                           <Link :href="route('admin.packages.index')" :class="[isActive('admin.packages.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
                             <ArchiveBoxIcon class="size-6 shrink-0" aria-hidden="true" />
                             Packages
@@ -169,7 +169,7 @@
                             Services
                           </Link>
                         </li>
-                        <li>
+                        <li v-if="hasVaccinationManagement">
                           <Link :href="route('admin.vaccination-requirements.index')" :class="[isActive('admin.vaccination-requirements.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
                             <ShieldCheckIcon class="size-6 shrink-0" aria-hidden="true" />
                             Vaccinations
@@ -472,6 +472,9 @@ const hasReports = computed(() => hasFeature('basic_reporting'));
 const hasBoarding = computed(() => hasFeature('boarding'));
 const hasAddonServices = computed(() => hasFeature('addon_services'));
 const hasBroadcast = computed(() => hasFeature('broadcast_notifications'));
+const hasManagePackages = computed(() => hasFeature('manage_packages'));
+const hasManagePromotions = computed(() => hasFeature('manage_promotions'));
+const hasVaccinationManagement = computed(() => hasFeature('vaccination_management'));
 
 const dismissedFlash = ref<Record<string, boolean>>({});
 function dismissFlash(key: string) { dismissedFlash.value[key] = true; }

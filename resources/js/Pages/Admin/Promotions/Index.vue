@@ -3,13 +3,13 @@
     <div class="space-y-6">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-text-body">Promotions</h1>
-        <AppButton v-if="isOwner" variant="primary" @click="showForm = !showForm">
+        <AppButton v-if="isOwner && hasManagePromotions" variant="primary" @click="showForm = !showForm">
           {{ showForm ? 'Cancel' : 'New Promotion' }}
         </AppButton>
       </div>
 
       <!-- Create form -->
-      <AppCard v-if="showForm && isOwner" :padded="true" class="space-y-4">
+      <AppCard v-if="showForm && isOwner && hasManagePromotions" :padded="true" class="space-y-4">
         <h2 class="text-base font-semibold text-text-body">New Promotion</h2>
         <form @submit.prevent="submitCreate" class="space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -138,8 +138,11 @@ import { useForm, usePage } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import AppButton from '@/Components/AppButton.vue'
 import AppCard from '@/Components/AppCard.vue'
+import { useFeatures } from '@/composables/useFeatures'
 
 const page = usePage()
+const { hasFeature } = useFeatures()
+const hasManagePromotions = computed(() => hasFeature('manage_promotions'))
 
 interface Package {
   id: string

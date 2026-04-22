@@ -6,7 +6,7 @@
           <h1 class="text-2xl font-bold text-text-body">Customers</h1>
           <p class="text-sm text-text-muted mt-0.5">{{ customers.total }} total</p>
         </div>
-        <Link :href="route('admin.customers.create')"><AppButton variant="primary">Add Customer</AppButton></Link>
+        <Link v-if="hasAddCustomers" :href="route('admin.customers.create')"><AppButton variant="primary">Add Customer</AppButton></Link>
       </div>
 
       <!-- Search -->
@@ -85,12 +85,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AppInput from '@/Components/AppInput.vue';
 import AppButton from '@/Components/AppButton.vue';
+import { useFeatures } from '@/composables/useFeatures';
+
+const { hasFeature } = useFeatures();
+const hasAddCustomers = computed(() => hasFeature('add_customers'));
 
 interface Customer {
   id: string;

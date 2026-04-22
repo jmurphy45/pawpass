@@ -6,7 +6,7 @@
           <h1 class="text-2xl font-bold text-text-body">Dogs</h1>
           <p class="text-sm text-text-muted mt-0.5">{{ dogs.total }} total</p>
         </div>
-        <Link :href="route('admin.dogs.create')"><AppButton variant="primary">Add Dog</AppButton></Link>
+        <Link v-if="hasAddDogs" :href="route('admin.dogs.create')"><AppButton variant="primary">Add Dog</AppButton></Link>
       </div>
 
       <!-- Filters -->
@@ -105,11 +105,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AppInput from '@/Components/AppInput.vue';
+import { useFeatures } from '@/composables/useFeatures';
+
+const { hasFeature } = useFeatures();
+const hasAddDogs = computed(() => hasFeature('add_dogs'));
 
 interface Dog {
   id: string;
