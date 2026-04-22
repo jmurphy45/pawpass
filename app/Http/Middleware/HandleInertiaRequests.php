@@ -19,13 +19,13 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
-        $tenantModel  = null;
+        $tenantModel = null;
         $tenantLoaded = false;
-        $getTenant    = function () use (&$tenantModel, &$tenantLoaded) {
+        $getTenant = function () use (&$tenantModel, &$tenantLoaded) {
             if (! $tenantLoaded) {
                 $tenantLoaded = true;
-                $id           = app('current.tenant.id');
-                $tenantModel  = $id ? Tenant::find($id) : null;
+                $id = app('current.tenant.id');
+                $tenantModel = $id ? Tenant::find($id) : null;
             }
 
             return $tenantModel;
@@ -33,35 +33,37 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
-            'tenant'      => function () use ($getTenant) {
+            'tenant' => function () use ($getTenant) {
                 $t = $getTenant();
                 if (! $t) {
                     return null;
                 }
 
                 return [
-                    'name'          => $t->name,
-                    'slug'          => $t->slug,
+                    'name' => $t->name,
+                    'slug' => $t->slug,
                     'primary_color' => $t->primary_color ?? '#4f46e5',
-                    'logo_url'      => $t->logo_url ?? null,
+                    'logo_url' => $t->logo_url ?? null,
                     'business_type' => $t->business_type ?? 'daycare',
                 ];
             },
-            'tenantPlan'     => fn () => $getTenant()?->plan,
-            'tenantStatus'   => fn () => $getTenant()?->status,
+            'tenantPlan' => fn () => $getTenant()?->plan,
+            'tenantStatus' => fn () => $getTenant()?->status,
             'tenantFeatures' => fn () => ($plan = $getTenant()?->plan)
                 ? app(PlanFeatureCache::class)->featuresForPlan($plan)
                 : [],
-            'auth'        => function () {
+            'tenantTrialEndsAt' => fn () => $getTenant()?->trial_ends_at?->toIso8601String(),
+            'tenantBillingPmAttached' => fn () => $getTenant()?->billing_pm_attached_at !== null,
+            'auth' => function () {
                 $user = Auth::guard('web')->user();
 
                 return [
                     'user' => $user ? [
-                        'id'    => $user->id,
-                        'name'  => $user->name,
+                        'id' => $user->id,
+                        'name' => $user->name,
                         'email' => $user->email,
                         'phone' => $user->phone ?? null,
-                        'role'  => $user->role,
+                        'role' => $user->role,
                     ] : null,
                 ];
             },
@@ -70,9 +72,9 @@ class HandleInertiaRequests extends Middleware
 
                 return $user ? $user->notifications()->whereNull('read_at')->count() : 0;
             },
-            'flash'       => [
+            'flash' => [
                 'success' => fn () => $request->session()->get('success'),
-                'error'   => fn () => $request->session()->get('error'),
+                'error' => fn () => $request->session()->get('error'),
             ],
         ];
     }

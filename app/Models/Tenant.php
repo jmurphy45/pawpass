@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUlid;
-use App\Models\Order;
 use App\Services\PlanFeatureCache;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -51,6 +50,7 @@ class Tenant extends Model
         'business_description',
         'is_publicly_listed',
         'auto_checkout_stale',
+        'billing_pm_attached_at',
     ];
 
     protected $hidden = [
@@ -73,6 +73,7 @@ class Tenant extends Model
             'tax_collection_enabled' => 'boolean',
             'is_publicly_listed' => 'boolean',
             'auto_checkout_stale' => 'boolean',
+            'billing_pm_attached_at' => 'datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',

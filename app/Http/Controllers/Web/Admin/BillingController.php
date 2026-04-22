@@ -141,13 +141,19 @@ class BillingController extends Controller
 
         $stripeSub = $this->billing->createSubscription($tenant, $priceId, $validated['cycle'], $paymentMethodId);
 
-        $tenant->update([
+        $updates = [
             'plan' => $validated['plan'],
             'plan_billing_cycle' => $validated['cycle'],
             'platform_stripe_sub_id' => $stripeSub->id,
             'status' => 'active',
             'plan_current_period_end' => $stripeSub->current_period_end ? Carbon::createFromTimestamp($stripeSub->current_period_end) : null,
-        ]);
+        ];
+
+        if ($paymentMethodId) {
+            $updates['billing_pm_attached_at'] = now();
+        }
+
+        $tenant->update($updates);
 
         PlatformSubscriptionEvent::create([
             'tenant_id' => $tenant->id,
@@ -235,6 +241,8 @@ class BillingController extends Controller
             $tenant->platform_stripe_customer_id,
             $validated['payment_method_id'],
         );
+
+        $tenant->update(['billing_pm_attached_at' => now()]);
 
         return response()->json(['success' => true]);
     }

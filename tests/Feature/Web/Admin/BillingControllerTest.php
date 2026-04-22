@@ -23,16 +23,16 @@ class BillingControllerTest extends TestCase
         parent::setUp();
 
         $this->tenant = Tenant::factory()->create([
-            'slug'   => 'testco',
+            'slug' => 'testco',
             'status' => 'active',
-            'plan'   => 'starter',
+            'plan' => 'starter',
         ]);
         URL::forceRootUrl('http://testco.pawpass.com');
 
         $this->owner = User::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'role'      => 'business_owner',
-            'status'    => 'active',
+            'role' => 'business_owner',
+            'status' => 'active',
         ]);
     }
 
@@ -54,7 +54,7 @@ class BillingControllerTest extends TestCase
     {
         $staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         $this->actingAs($staff);
@@ -81,12 +81,12 @@ class BillingControllerTest extends TestCase
     public function test_subscribe_delegates_to_billing_service(): void
     {
         $plan = PlatformPlan::factory()->synced()->create([
-            'slug'      => 'pro',
+            'slug' => 'pro',
             'is_active' => true,
         ]);
 
         $stripeSub = (object) [
-            'id'                 => 'sub_test123',
+            'id' => 'sub_test123',
             'current_period_end' => now()->addMonth()->timestamp,
         ];
 
@@ -101,9 +101,9 @@ class BillingControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $response = $this->post('/admin/billing/subscribe', [
-            'plan'               => 'pro',
-            'cycle'              => 'monthly',
-            'payment_method_id'  => 'pm_testcard',
+            'plan' => 'pro',
+            'cycle' => 'monthly',
+            'payment_method_id' => 'pm_testcard',
         ]);
 
         $response->assertRedirect();
@@ -147,10 +147,10 @@ class BillingControllerTest extends TestCase
     public function test_subscribe_returns_422_when_plan_not_synced(): void
     {
         PlatformPlan::factory()->create([
-            'slug'                    => 'unsynced',
-            'is_active'               => true,
+            'slug' => 'unsynced',
+            'is_active' => true,
             'stripe_monthly_price_id' => null,
-            'stripe_annual_price_id'  => null,
+            'stripe_annual_price_id' => null,
         ]);
 
         $this->tenant->update(['platform_stripe_customer_id' => 'cus_existing']);
@@ -162,8 +162,8 @@ class BillingControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $response = $this->post('/admin/billing/subscribe', [
-            'plan'              => 'unsynced',
-            'cycle'             => 'monthly',
+            'plan' => 'unsynced',
+            'cycle' => 'monthly',
             'payment_method_id' => 'pm_test',
         ]);
 
@@ -173,12 +173,12 @@ class BillingControllerTest extends TestCase
     public function test_upgrade_delegates_to_billing_service(): void
     {
         $this->tenant->update([
-            'status'                 => 'active',
+            'status' => 'active',
             'platform_stripe_sub_id' => 'sub_existing',
         ]);
 
         $plan = PlatformPlan::factory()->synced()->create([
-            'slug'      => 'business',
+            'slug' => 'business',
             'is_active' => true,
         ]);
 
@@ -190,7 +190,7 @@ class BillingControllerTest extends TestCase
         $this->actingAs($this->owner);
 
         $response = $this->post('/admin/billing/upgrade', [
-            'plan'  => 'business',
+            'plan' => 'business',
             'cycle' => 'monthly',
         ]);
 
@@ -219,10 +219,10 @@ class BillingControllerTest extends TestCase
 
         $pm = (object) [
             'card' => (object) [
-                'brand'     => 'visa',
-                'last4'     => '4242',
+                'brand' => 'visa',
+                'last4' => '4242',
                 'exp_month' => 12,
-                'exp_year'  => 2027,
+                'exp_year' => 2027,
             ],
         ];
 
@@ -279,7 +279,7 @@ class BillingControllerTest extends TestCase
     {
         $staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         $this->actingAs($staff);
@@ -289,5 +289,76 @@ class BillingControllerTest extends TestCase
         ]);
 
         $response->assertStatus(403);
+    }
+
+    public function test_update_payment_method_sets_billing_pm_attached_at(): void
+    {
+        $this->tenant->update(['platform_stripe_customer_id' => 'cus_existing']);
+
+        $this->mock(StripeBillingService::class)
+            ->shouldReceive('attachPaymentMethod')
+            ->once()
+            ->with('cus_existing', 'pm_newcard');
+
+        $this->actingAs($this->owner);
+
+        $this->postJson('/admin/billing/payment-method', [
+            'payment_method_id' => 'pm_newcard',
+        ]);
+
+        $this->assertNotNull($this->tenant->fresh()->billing_pm_attached_at);
+    }
+
+    public function test_subscribe_with_payment_method_sets_billing_pm_attached_at(): void
+    {
+        $plan = PlatformPlan::factory()->synced()->create([
+            'slug' => 'starter',
+            'is_active' => true,
+        ]);
+
+        $stripeSub = (object) [
+            'id' => 'sub_test456',
+            'current_period_end' => now()->addMonth()->timestamp,
+        ];
+
+        $this->mock(StripeBillingService::class)
+            ->shouldReceive('createCustomer')->once()->andReturn('cus_new')
+            ->shouldReceive('attachPaymentMethod')->once()->with('cus_new', 'pm_testcard')
+            ->shouldReceive('createSubscription')->once()->andReturn($stripeSub);
+
+        $this->actingAs($this->owner);
+
+        $this->post('/admin/billing/subscribe', [
+            'plan' => 'starter',
+            'cycle' => 'monthly',
+            'payment_method_id' => 'pm_testcard',
+        ]);
+
+        $this->assertNotNull($this->tenant->fresh()->billing_pm_attached_at);
+    }
+
+    public function test_subscribe_without_payment_method_does_not_set_billing_pm_attached_at(): void
+    {
+        $this->tenant->update([
+            'platform_stripe_customer_id' => 'cus_existing',
+            'platform_stripe_sub_id' => 'sub_existing',
+        ]);
+
+        PlatformPlan::factory()->synced()->create([
+            'slug' => 'starter',
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeBillingService::class)
+            ->shouldReceive('changePlan')->once()->andReturn((object) []);
+
+        $this->actingAs($this->owner);
+
+        $this->post('/admin/billing/upgrade', [
+            'plan' => 'starter',
+            'cycle' => 'monthly',
+        ]);
+
+        $this->assertNull($this->tenant->fresh()->billing_pm_attached_at);
     }
 }

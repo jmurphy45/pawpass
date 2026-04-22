@@ -47,6 +47,30 @@ class TenantFactory extends Factory
         });
     }
 
+    public function trialing(int $daysRemaining = 14): static
+    {
+        return $this->state([
+            'status' => 'trialing',
+            'trial_ends_at' => now()->addDays($daysRemaining),
+        ]);
+    }
+
+    public function trialExpired(): static
+    {
+        return $this->state([
+            'status' => 'trialing',
+            'trial_ends_at' => now()->subDay(),
+        ]);
+    }
+
+    public function pastDue(): static
+    {
+        return $this->state([
+            'status' => 'past_due',
+            'plan_past_due_since' => now()->subDays(3),
+        ]);
+    }
+
     public function pending(): static
     {
         return $this->state(['status' => 'pending_verification']);
