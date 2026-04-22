@@ -31,24 +31,24 @@ class LeaderboardServiceTest extends TestCase
         // Today, still checked in
         Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog1->id,
-            'checked_in_at'  => now(),
+            'dog_id' => $dog1->id,
+            'checked_in_at' => now(),
             'checked_out_at' => null,
         ]);
 
         // Today, already checked out — should NOT count toward "currently in"
         Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog2->id,
-            'checked_in_at'  => now()->subHours(8),
+            'dog_id' => $dog2->id,
+            'checked_in_at' => now()->subHours(8),
             'checked_out_at' => now()->subHour(),
         ]);
 
         // Yesterday, still "open" — should NOT count (different date)
         Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog3->id,
-            'checked_in_at'  => now()->subDay(),
+            'dog_id' => $dog3->id,
+            'checked_in_at' => now()->subDay(),
             'checked_out_at' => null,
         ]);
 
@@ -60,6 +60,8 @@ class LeaderboardServiceTest extends TestCase
 
     public function test_today_total_includes_checked_out_dogs(): void
     {
+        $this->travelTo(now()->startOfDay()->addHours(14));
+
         $tenant = Tenant::factory()->create(['status' => 'active']);
         $dog1 = Dog::factory()->create(['tenant_id' => $tenant->id]);
         $dog2 = Dog::factory()->create(['tenant_id' => $tenant->id]);
@@ -68,24 +70,24 @@ class LeaderboardServiceTest extends TestCase
         // Today, still in
         Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog1->id,
-            'checked_in_at'  => now(),
+            'dog_id' => $dog1->id,
+            'checked_in_at' => now(),
             'checked_out_at' => null,
         ]);
 
         // Today, checked out
         Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog2->id,
-            'checked_in_at'  => now()->subHours(8),
+            'dog_id' => $dog2->id,
+            'checked_in_at' => now()->subHours(8),
             'checked_out_at' => now()->subHour(),
         ]);
 
         // Yesterday — should NOT count
         Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog3->id,
-            'checked_in_at'  => now()->subDay(),
+            'dog_id' => $dog3->id,
+            'checked_in_at' => now()->subDay(),
             'checked_out_at' => null,
         ]);
 
