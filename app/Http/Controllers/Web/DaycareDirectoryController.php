@@ -91,6 +91,15 @@ class DaycareDirectoryController extends Controller
             })->values()->all();
         }
 
+        if ($searchCity && $searchState) {
+            $headTitle       = "Doggy Daycare in {$searchCity}, {$searchState} | PawPass";
+            $headDescription = "Browse dog daycares and boarding kennels in {$searchCity}, {$searchState}. "
+                . count($results) . " facilities listed on PawPass.";
+        } else {
+            $headTitle       = 'Find a Doggy Daycare Near You | PawPass';
+            $headDescription = 'Search dog daycares and boarding kennels across the US. Filter by city, state, or ZIP. Compare facilities and book online.';
+        }
+
         return Inertia::render('FindADaycare', [
             'results' => $results,
             'search' => [
@@ -102,6 +111,8 @@ class DaycareDirectoryController extends Controller
             ],
             'searched' => $hasSearch,
             'us_states' => $this->regionService->usStates(),
+            'headTitle'       => $headTitle,
+            'headDescription' => $headDescription,
         ]);
     }
 }

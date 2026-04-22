@@ -1,4 +1,12 @@
 <template>
+  <Head>
+    <title>{{ headTitle }}</title>
+    <meta name="description" :content="headDescription" />
+    <meta property="og:title" :content="headTitle" />
+    <meta property="og:description" :content="headDescription" />
+    <component v-if="citySchema" is="script" type="application/ld+json" v-html="citySchema" />
+  </Head>
+
   <div class="min-h-screen" style="background: #faf9f6; font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;">
 
     <!-- ═══ HERO + SEARCH ═══ -->
@@ -265,8 +273,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
 
 const appDomain = import.meta.env.VITE_APP_DOMAIN ?? 'pawpass.com';
 
@@ -290,6 +298,8 @@ const props = defineProps<{
   search: { city: string; state: string; zip: string; date_from: string; date_to: string };
   searched: boolean;
   us_states: { value: string; label: string }[];
+  headTitle: string;
+  headDescription: string;
 }>();
 
 const searchMode = ref(props.search.zip ? 'zip' : 'city');
@@ -330,6 +340,36 @@ function typeClass(type: string): string {
   if (type === 'hybrid') return 'bg-amber-100 text-amber-700';
   return 'bg-indigo-100 text-indigo-700';
 }
+
+const citySchema = computed(() => {
+  if (!props.search.city || !props.search.state || props.results.length === 0) return null;
+
+  const items = props.results.map((d, i) => ({
+    '@type': 'ListItem',
+    'position': i + 1,
+    'item': {
+      '@type': d.business_type === 'kennel' ? 'LodgingBusiness' : 'LocalBusiness',
+      'name': d.name,
+      'url': `https://${d.slug}.${appDomain}`,
+      ...(d.description && { description: d.description }),
+      ...(d.phone       && { telephone: d.phone }),
+      'address': {
+        '@type': 'PostalAddress',
+        'addressLocality': d.city,
+        'addressRegion': d.state,
+        'addressCountry': 'US',
+      },
+    },
+  }));
+
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    'name': `Dog Daycares in ${props.search.city}, ${props.search.state}`,
+    'numberOfItems': items.length,
+    'itemListElement': items,
+  });
+});
 </script>
 
 <style scoped>
