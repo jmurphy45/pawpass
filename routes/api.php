@@ -253,6 +253,13 @@ Route::prefix('admin/v1')
             Route::get('reports/payout-forecast', [AdminReportController::class, 'payoutForecast']);
             Route::get('reports/credits', [AdminReportController::class, 'credits']);
             Route::get('reports/customers/ltv', [AdminReportController::class, 'customersLtv']);
+            Route::get('reports/promotions', [AdminReportController::class, 'promotions']);
+            Route::get('reports/boarding', [AdminReportController::class, 'boardingRevenue']);
+        });
+
+        // Reports — Owner + basic_reporting (real-time)
+        Route::middleware(['role:business_owner', 'plan:basic_reporting'])->group(function () {
+            Route::get('reports/outstanding-balances', [AdminReportController::class, 'outstandingBalances']);
         });
 
         Route::middleware('role:business_owner')->group(function () {

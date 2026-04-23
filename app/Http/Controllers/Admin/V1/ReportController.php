@@ -11,16 +11,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
-    public function __construct(private readonly ReportService $reportService)
-    {
-    }
+    public function __construct(private readonly ReportService $reportService) {}
 
     public function revenue(Request $request): JsonResponse|StreamedResponse
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
-        $to       = $request->input('to', now()->endOfDay()->toDateTimeString());
-        $groupBy  = $request->input('group_by', 'month');
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
+        $to = $request->input('to', now()->endOfDay()->toDateTimeString());
+        $groupBy = $request->input('group_by', 'month');
 
         $data = Cache::remember(
             "report:{$tenantId}:revenue",
@@ -55,8 +53,8 @@ class ReportController extends Controller
     public function packages(Request $request): JsonResponse|StreamedResponse
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
-        $to       = $request->input('to', now()->endOfDay()->toDateTimeString());
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
+        $to = $request->input('to', now()->endOfDay()->toDateTimeString());
 
         $data = Cache::remember(
             "report:{$tenantId}:packages",
@@ -74,8 +72,8 @@ class ReportController extends Controller
     public function credits(Request $request): JsonResponse|StreamedResponse
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
-        $to       = $request->input('to', now()->endOfDay()->toDateTimeString());
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
+        $to = $request->input('to', now()->endOfDay()->toDateTimeString());
 
         $data = Cache::remember(
             "report:{$tenantId}:credits",
@@ -93,8 +91,8 @@ class ReportController extends Controller
     public function customersLtv(Request $request): JsonResponse|StreamedResponse
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
-        $to       = $request->input('to', now()->endOfDay()->toDateTimeString());
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
+        $to = $request->input('to', now()->endOfDay()->toDateTimeString());
 
         $data = Cache::remember(
             "report:{$tenantId}:customers_ltv",
@@ -112,9 +110,9 @@ class ReportController extends Controller
     public function attendance(Request $request): JsonResponse|StreamedResponse
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subDays(30)->startOfDay()->toDateTimeString());
-        $to       = $request->input('to', now()->endOfDay()->toDateTimeString());
-        $groupBy  = $request->input('group_by', 'day');
+        $from = $request->input('from', now()->subDays(30)->startOfDay()->toDateTimeString());
+        $to = $request->input('to', now()->endOfDay()->toDateTimeString());
+        $groupBy = $request->input('group_by', 'day');
 
         $data = $this->reportService->attendance($tenantId, $from, $to, $groupBy);
 
@@ -128,7 +126,7 @@ class ReportController extends Controller
     public function rosterHistory(Request $request): JsonResponse|StreamedResponse
     {
         $tenantId = app('current.tenant.id');
-        $date     = $request->input('date', now()->toDateString());
+        $date = $request->input('date', now()->toDateString());
 
         $data = $this->reportService->rosterHistory($tenantId, $date);
 
@@ -150,6 +148,7 @@ class ReportController extends Controller
                 array_map(fn ($d) => array_merge($d, ['category' => 'zero']), $data['zero']),
                 array_map(fn ($d) => array_merge($d, ['category' => 'low']), $data['low'])
             );
+
             return $this->csvResponse($flat, ['id', 'dog_name', 'customer_name', 'credit_balance', 'category'], 'credit_status');
         }
 
@@ -159,14 +158,66 @@ class ReportController extends Controller
     public function staffActivity(Request $request): JsonResponse|StreamedResponse
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subDays(30)->startOfDay()->toDateTimeString());
-        $to       = $request->input('to', now()->endOfDay()->toDateTimeString());
-        $userId   = $request->input('user_id');
+        $from = $request->input('from', now()->subDays(30)->startOfDay()->toDateTimeString());
+        $to = $request->input('to', now()->endOfDay()->toDateTimeString());
+        $userId = $request->input('user_id');
 
         $data = $this->reportService->staffActivity($tenantId, $from, $to, $userId);
 
         if ($request->input('format') === 'csv') {
             return $this->csvResponse($data, ['user_id', 'user_name', 'checkins'], 'staff_activity');
+        }
+
+        return response()->json(['data' => $data, 'meta' => ['tenant_id' => $tenantId]]);
+    }
+
+    public function promotions(Request $request): JsonResponse|StreamedResponse
+    {
+        $tenantId = app('current.tenant.id');
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
+        $to = $request->input('to', now()->endOfDay()->toDateTimeString());
+
+        $data = Cache::remember(
+            "report:{$tenantId}:promotions",
+            60 * 60 * 25,
+            fn () => $this->reportService->promotions($tenantId, $from, $to)
+        );
+
+        if ($request->input('format') === 'csv') {
+            return $this->csvResponse($data, ['code', 'name', 'type', 'discount_value', 'redemptions', 'total_discount_cents'], 'promotions');
+        }
+
+        return response()->json(['data' => $data, 'meta' => ['tenant_id' => $tenantId]]);
+    }
+
+    public function boardingRevenue(Request $request): JsonResponse|StreamedResponse
+    {
+        $tenantId = app('current.tenant.id');
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateTimeString());
+        $to = $request->input('to', now()->endOfDay()->toDateTimeString());
+        $groupBy = $request->input('group_by', 'month');
+
+        $data = Cache::remember(
+            "report:{$tenantId}:boarding_revenue",
+            60 * 60 * 25,
+            fn () => $this->reportService->boardingRevenue($tenantId, $from, $to, $groupBy)
+        );
+
+        if ($request->input('format') === 'csv') {
+            return $this->csvResponse($data, ['period', 'gross', 'fee', 'net', 'orders'], 'boarding_revenue');
+        }
+
+        return response()->json(['data' => $data, 'meta' => ['tenant_id' => $tenantId]]);
+    }
+
+    public function outstandingBalances(Request $request): JsonResponse|StreamedResponse
+    {
+        $tenantId = app('current.tenant.id');
+
+        $data = $this->reportService->outstandingBalances($tenantId);
+
+        if ($request->input('format') === 'csv') {
+            return $this->csvResponse($data, ['customer_name', 'email', 'outstanding_balance_cents', 'charge_pending_at'], 'outstanding_balances');
         }
 
         return response()->json(['data' => $data, 'meta' => ['tenant_id' => $tenantId]]);
