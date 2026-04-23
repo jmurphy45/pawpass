@@ -180,6 +180,6 @@ class Tenant extends Model
             ->where('created_at', '>=', now()->startOfMonth())
             ->sum(DB::raw('ROUND(total_amount * 100)'));
 
-        return $mtdCents < $capCents ? 0.0 : (float) $this->platform_fee_pct;
+        return ($mtdCents + $amountCents) < $capCents ? 0.0 : (float) $this->platform_fee_pct;
     }
 }

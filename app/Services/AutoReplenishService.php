@@ -135,7 +135,7 @@ class AutoReplenishService
         [$taxAmountCents, $taxCalcId] = $this->resolveTax($subtotalCents, $tenant, $package);
         $totalCents = $subtotalCents + $taxAmountCents;
 
-        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct, $subtotalCents, $taxAmountCents, $taxCalcId, $totalCents) {
+        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct, $feeCents, $subtotalCents, $taxAmountCents, $taxCalcId, $totalCents) {
             $order = Order::create([
                 'tenant_id' => $tenant->id,
                 'customer_id' => $customer->id,
@@ -146,6 +146,7 @@ class AutoReplenishService
                 'tax_amount_cents' => $taxAmountCents,
                 'stripe_tax_calc_id' => $taxCalcId,
                 'platform_fee_pct' => $feePct,
+                'platform_fee_amount_cents' => $feeCents,
             ]);
 
             $order->orderDogs()->create([
@@ -252,7 +253,7 @@ class AutoReplenishService
         [$taxAmountCents, $taxCalcId] = $this->resolveTax($subtotalCents, $tenant, $package);
         $totalCents = $subtotalCents + $taxAmountCents;
 
-        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct, $subtotalCents, $taxAmountCents, $taxCalcId, $totalCents, $attendance) {
+        $order = DB::transaction(function () use ($dog, $customer, $package, $tenant, $feePct, $feeCents, $subtotalCents, $taxAmountCents, $taxCalcId, $totalCents, $attendance) {
             $order = Order::create([
                 'tenant_id' => $tenant->id,
                 'customer_id' => $customer->id,
@@ -264,6 +265,7 @@ class AutoReplenishService
                 'tax_amount_cents' => $taxAmountCents,
                 'stripe_tax_calc_id' => $taxCalcId,
                 'platform_fee_pct' => $feePct,
+                'platform_fee_amount_cents' => $feeCents,
             ]);
 
             $order->orderDogs()->create([

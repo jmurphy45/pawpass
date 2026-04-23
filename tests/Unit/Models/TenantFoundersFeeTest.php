@@ -16,11 +16,11 @@ class TenantFoundersFeeTest extends TestCase
     private function foundersplan(): PlatformPlan
     {
         return PlatformPlan::factory()->create([
-            'slug'                   => 'founders',
-            'features'               => [],
-            'staff_limit'            => 15,
-            'monthly_gmv_cap_cents'  => 1_000_000, // $10,000
-            'platform_fee_pct'       => 2.00,
+            'slug' => 'founders',
+            'features' => [],
+            'staff_limit' => 15,
+            'monthly_gmv_cap_cents' => 1_000_000, // $10,000
+            'platform_fee_pct' => 2.00,
         ]);
     }
 
@@ -29,16 +29,16 @@ class TenantFoundersFeeTest extends TestCase
         $this->foundersplan();
 
         $tenant = Tenant::factory()->create([
-            'plan'             => 'founders',
+            'plan' => 'founders',
             'platform_fee_pct' => 2.00,
         ]);
 
         // $500 of paid orders this month — well under $10,000 cap
         Order::factory()->create([
-            'tenant_id'    => $tenant->id,
-            'status'       => 'paid',
+            'tenant_id' => $tenant->id,
+            'status' => 'paid',
             'total_amount' => '500.00',
-            'created_at'   => now()->startOfMonth()->addDays(1),
+            'created_at' => now()->startOfMonth()->addDays(1),
         ]);
 
         app()->forgetInstance(PlanFeatureCache::class);
@@ -51,16 +51,16 @@ class TenantFoundersFeeTest extends TestCase
         $this->foundersplan();
 
         $tenant = Tenant::factory()->create([
-            'plan'             => 'founders',
+            'plan' => 'founders',
             'platform_fee_pct' => 2.00,
         ]);
 
         // $10,500 of paid orders — over the $10,000 cap
         Order::factory()->create([
-            'tenant_id'    => $tenant->id,
-            'status'       => 'paid',
+            'tenant_id' => $tenant->id,
+            'status' => 'paid',
             'total_amount' => '10500.00',
-            'created_at'   => now()->startOfMonth()->addDays(1),
+            'created_at' => now()->startOfMonth()->addDays(1),
         ]);
 
         app()->forgetInstance(PlanFeatureCache::class);
@@ -71,15 +71,15 @@ class TenantFoundersFeeTest extends TestCase
     public function test_effective_fee_returns_platform_fee_pct_when_no_cap_set(): void
     {
         PlatformPlan::factory()->create([
-            'slug'                  => 'pro',
-            'features'              => [],
-            'staff_limit'           => 15,
+            'slug' => 'pro',
+            'features' => [],
+            'staff_limit' => 15,
             'monthly_gmv_cap_cents' => null,
-            'platform_fee_pct'      => 3.00,
+            'platform_fee_pct' => 3.00,
         ]);
 
         $tenant = Tenant::factory()->create([
-            'plan'             => 'pro',
+            'plan' => 'pro',
             'platform_fee_pct' => 3.00,
         ]);
 
@@ -104,7 +104,7 @@ class TenantFoundersFeeTest extends TestCase
         $this->foundersplan();
 
         $tenant = Tenant::factory()->create([
-            'plan'             => 'founders',
+            'plan' => 'founders',
             'platform_fee_pct' => 2.00,
         ]);
 
@@ -112,18 +112,18 @@ class TenantFoundersFeeTest extends TestCase
         // Use startOfMonth()->subDay()->startOfMonth() to avoid subMonth() overflow on dates like March 29
         // (subMonth() on March 29 overflows to March 1 since Feb has no 29th day in non-leap years)
         Order::factory()->create([
-            'tenant_id'    => $tenant->id,
-            'status'       => 'paid',
+            'tenant_id' => $tenant->id,
+            'status' => 'paid',
             'total_amount' => '20000.00',
-            'created_at'   => now()->startOfMonth()->subDay()->startOfMonth()->addDays(5),
+            'created_at' => now()->startOfMonth()->subDay()->startOfMonth()->addDays(5),
         ]);
 
         // Small order this month
         Order::factory()->create([
-            'tenant_id'    => $tenant->id,
-            'status'       => 'paid',
+            'tenant_id' => $tenant->id,
+            'status' => 'paid',
             'total_amount' => '100.00',
-            'created_at'   => now()->startOfMonth()->addDays(1),
+            'created_at' => now()->startOfMonth()->addDays(1),
         ]);
 
         app()->forgetInstance(PlanFeatureCache::class);
@@ -131,21 +131,44 @@ class TenantFoundersFeeTest extends TestCase
         $this->assertEquals(0.0, $tenant->effectivePlatformFeePct(5000));
     }
 
+    public function test_effective_fee_charged_when_order_pushes_tenant_over_cap(): void
+    {
+        $this->foundersplan();
+
+        $tenant = Tenant::factory()->create([
+            'plan' => 'founders',
+            'platform_fee_pct' => 2.00,
+        ]);
+
+        // $9,800 MTD — just under the $10,000 cap
+        Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => 'paid',
+            'total_amount' => '9800.00',
+            'created_at' => now()->startOfMonth()->addDays(1),
+        ]);
+
+        app()->forgetInstance(PlanFeatureCache::class);
+
+        // A $300 order would push MTD to $10,100 — over cap → fee must apply
+        $this->assertEquals(2.0, $tenant->effectivePlatformFeePct(30000));
+    }
+
     public function test_unpaid_orders_excluded_from_mtd(): void
     {
         $this->foundersplan();
 
         $tenant = Tenant::factory()->create([
-            'plan'             => 'founders',
+            'plan' => 'founders',
             'platform_fee_pct' => 2.00,
         ]);
 
         // Pending/failed orders should not count
         Order::factory()->create([
-            'tenant_id'    => $tenant->id,
-            'status'       => 'pending',
+            'tenant_id' => $tenant->id,
+            'status' => 'pending',
             'total_amount' => '20000.00',
-            'created_at'   => now()->startOfMonth()->addDays(1),
+            'created_at' => now()->startOfMonth()->addDays(1),
         ]);
 
         app()->forgetInstance(PlanFeatureCache::class);

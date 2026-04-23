@@ -223,6 +223,9 @@ class BoardingController extends Controller
             ]);
         }
 
+        $feePct = $tenant ? $tenant->effectivePlatformFeePct($balance) : 5.0;
+        $feeCents = $balance > 0 ? (int) round($balance * $feePct / 100) : 0;
+
         $chargedCents = 0;
 
         if ($balance > 0) {
@@ -230,9 +233,6 @@ class BoardingController extends Controller
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($customer?->stripe_payment_method_id && $stripeAccountId) {
-                $feePct = $tenant->effectivePlatformFeePct($balance);
-                $feeCents = (int) round($balance * $feePct / 100);
-
                 try {
                     $pi = $this->stripe->createPaymentIntent(
                         $balance,
@@ -271,14 +271,13 @@ class BoardingController extends Controller
 
         // Update total amount (subtotal + tax) and mark order paid
         $totalCents = $subtotalCents + $taxAmountCents;
-        $effectiveFeePct = $tenant?->effectivePlatformFeePct($subtotalCents) ?? 5.0;
         $order->update([
             'subtotal_cents' => $subtotalCents,
             'tax_amount_cents' => $taxAmountCents,
             'stripe_tax_calc_id' => $taxCalcId,
             'total_amount' => number_format($totalCents / 100, 2, '.', ''),
-            'platform_fee_pct' => $effectiveFeePct,
-            'platform_fee_amount_cents' => $feeCents ?? 0,
+            'platform_fee_pct' => $feePct,
+            'platform_fee_amount_cents' => $feeCents,
         ]);
         $order->transitionTo(OrderStatus::Paid);
 

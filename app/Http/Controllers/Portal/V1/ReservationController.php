@@ -84,7 +84,7 @@ class ReservationController extends Controller
         $violations = $this->vaccination->getViolations($dog, $tenantId);
         if (! empty($violations)) {
             return response()->json([
-                'error'      => 'DOG_VACCINATION_INCOMPLETE',
+                'error' => 'DOG_VACCINATION_INCOMPLETE',
                 'violations' => $violations,
             ], 422);
         }
@@ -95,20 +95,20 @@ class ReservationController extends Controller
             $tenantId, $dog, $customerId, $request, $unit, $startsAt, $endsAt, &$clientSecret
         ) {
             $res = Reservation::create([
-                'tenant_id'          => $tenantId,
-                'dog_id'             => $dog->id,
-                'customer_id'        => $customerId,
-                'kennel_unit_id'     => $request->kennel_unit_id,
-                'status'             => 'pending',
-                'starts_at'          => $startsAt,
-                'ends_at'            => $endsAt,
+                'tenant_id' => $tenantId,
+                'dog_id' => $dog->id,
+                'customer_id' => $customerId,
+                'kennel_unit_id' => $request->kennel_unit_id,
+                'status' => 'pending',
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt,
                 'nightly_rate_cents' => $unit?->nightly_rate_cents,
-                'notes'              => $request->notes,
-                'feeding_schedule'   => $request->feeding_schedule,
-                'medication_notes'   => $request->medication_notes,
-                'behavioral_notes'   => $request->behavioral_notes,
-                'emergency_contact'  => $request->emergency_contact,
-                'created_by'         => auth()->id(),
+                'notes' => $request->notes,
+                'feeding_schedule' => $request->feeding_schedule,
+                'medication_notes' => $request->medication_notes,
+                'behavioral_notes' => $request->behavioral_notes,
+                'emergency_contact' => $request->emergency_contact,
+                'created_by' => auth()->id(),
             ]);
 
             if ($request->filled('deposit_amount_cents')) {
@@ -116,7 +116,7 @@ class ReservationController extends Controller
 
                 if ($tenant?->stripe_account_id) {
                     $depositCents = (int) $request->deposit_amount_cents;
-                    $feeCents     = (int) round($depositCents * $tenant->effectivePlatformFeePct($depositCents) / 100);
+                    $feeCents = (int) round($depositCents * $tenant->effectivePlatformFeePct($depositCents) / 100);
 
                     $pi = $this->stripe->createHoldPaymentIntent(
                         $depositCents,
@@ -125,28 +125,30 @@ class ReservationController extends Controller
                         $feeCents,
                         [
                             'reservation_id' => $res->id,
-                            'tenant_id'      => $tenantId,
-                            'dog_name'       => $dog->name,
+                            'tenant_id' => $tenantId,
+                            'dog_name' => $dog->name,
                         ]
                     );
 
                     $order = Order::create([
-                        'tenant_id'        => $tenantId,
-                        'customer_id'      => $res->customer_id,
-                        'package_id'       => null,
-                        'reservation_id'   => $res->id,
-                        'type'             => OrderType::Boarding,
-                        'status'           => 'pending',
-                        'total_amount'     => number_format($depositCents / 100, 2, '.', ''),
+                        'tenant_id' => $tenantId,
+                        'customer_id' => $res->customer_id,
+                        'package_id' => null,
+                        'reservation_id' => $res->id,
+                        'type' => OrderType::Boarding,
+                        'status' => 'pending',
+                        'total_amount' => number_format($depositCents / 100, 2, '.', ''),
+                        'subtotal_cents' => $depositCents,
                         'platform_fee_pct' => $tenant->effectivePlatformFeePct($depositCents),
+                        'platform_fee_amount_cents' => $feeCents,
                     ]);
 
                     $order->payments()->create([
-                        'tenant_id'    => $tenantId,
+                        'tenant_id' => $tenantId,
                         'stripe_pi_id' => $pi->id,
                         'amount_cents' => $depositCents,
-                        'type'         => PaymentType::Deposit,
-                        'status'       => 'pending',
+                        'type' => PaymentType::Deposit,
+                        'status' => 'pending',
                     ]);
 
                     $clientSecret = $pi->client_secret;
@@ -172,7 +174,7 @@ class ReservationController extends Controller
         }
 
         $updateData = [
-            'status'       => 'cancelled',
+            'status' => 'cancelled',
             'cancelled_at' => now(),
             'cancelled_by' => auth()->id(),
         ];

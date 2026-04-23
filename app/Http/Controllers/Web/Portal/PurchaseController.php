@@ -115,7 +115,7 @@ class PurchaseController extends Controller
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }
 
-        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs, $feePct, $amountCents) {
+        $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs, $feePct, $feeCents, $amountCents) {
             $order = Order::create([
                 'tenant_id' => $tenantId,
                 'customer_id' => $customer->id,
@@ -124,6 +124,7 @@ class PurchaseController extends Controller
                 'total_amount' => $package->price,
                 'subtotal_cents' => $amountCents,
                 'platform_fee_pct' => $feePct,
+                'platform_fee_amount_cents' => $feeCents,
             ]);
 
             foreach ($dogs as $dog) {
