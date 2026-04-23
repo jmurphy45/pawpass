@@ -13,8 +13,91 @@
           <span class="text-text-muted text-xs">→</span>
           <input v-model="filters.to" type="date" @change="applyFilters" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition py-1.5 w-36" />
           <Link :href="route('admin.boarding.occupancy')"><AppButton variant="secondary" size="sm">Occupancy</AppButton></Link>
+          <AppButton variant="primary" size="sm" @click="showCreate = true">+ New Reservation</AppButton>
         </div>
       </div>
+
+      <!-- Create Reservation Modal -->
+      <Teleport to="body">
+        <div v-if="showCreate" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div class="absolute inset-0 bg-black/40" @click="closeCreate" />
+          <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-5 border-b border-border-warm flex items-center justify-between">
+              <h2 class="text-lg font-semibold text-text-body">New Reservation</h2>
+              <button @click="closeCreate" class="text-text-muted hover:text-text-body transition">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form @submit.prevent="submitCreate" class="px-6 py-5 space-y-4">
+              <!-- Dog -->
+              <div>
+                <label class="block text-sm font-medium text-text-body mb-1">Dog <span class="text-red-500">*</span></label>
+                <select v-model="form.dog_id" class="cr-input">
+                  <option value="">Select a dog…</option>
+                  <option v-for="dog in props.dogs" :key="dog.id" :value="dog.id">
+                    {{ dog.name }}{{ dog.customer ? ` (${dog.customer.name})` : '' }}
+                  </option>
+                </select>
+                <p v-if="form.errors.dog_id" class="cr-error">{{ form.errors.dog_id }}</p>
+              </div>
+
+              <!-- Dates -->
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-medium text-text-body mb-1">Check-in <span class="text-red-500">*</span></label>
+                  <input v-model="form.starts_at" type="date" class="cr-input" />
+                  <p v-if="form.errors.starts_at" class="cr-error">{{ form.errors.starts_at }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-text-body mb-1">Check-out <span class="text-red-500">*</span></label>
+                  <input v-model="form.ends_at" type="date" class="cr-input" />
+                  <p v-if="form.errors.ends_at" class="cr-error">{{ form.errors.ends_at }}</p>
+                </div>
+              </div>
+
+              <!-- Kennel Unit -->
+              <div>
+                <label class="block text-sm font-medium text-text-body mb-1">Kennel Unit</label>
+                <select v-model="form.kennel_unit_id" class="cr-input" @change="onUnitChange">
+                  <option value="">None / unassigned</option>
+                  <option v-for="unit in props.kennelUnits" :key="unit.id" :value="unit.id">
+                    {{ unit.name }} — ${{ (unit.nightly_rate_cents / 100).toFixed(2) }}/night
+                  </option>
+                </select>
+                <p v-if="form.errors.kennel_unit_id" class="cr-error">{{ form.errors.kennel_unit_id }}</p>
+              </div>
+
+              <!-- Nightly Rate -->
+              <div>
+                <label class="block text-sm font-medium text-text-body mb-1">Nightly Rate ($)</label>
+                <input v-model="nightlyRateDollars" type="number" min="0" step="0.01" class="cr-input" placeholder="0.00" />
+              </div>
+
+              <!-- Notes -->
+              <div>
+                <label class="block text-sm font-medium text-text-body mb-1">Notes</label>
+                <textarea v-model="form.notes" rows="3" class="cr-input resize-none" placeholder="Care instructions, special requests…" />
+              </div>
+
+              <!-- Skip vaccination check -->
+              <label class="flex items-center gap-2 text-sm text-text-body cursor-pointer">
+                <input v-model="form.ignore_vaccination_check" type="checkbox" class="rounded border-border-warm" />
+                Skip vaccination compliance check
+              </label>
+
+              <!-- Actions -->
+              <div class="flex justify-end gap-2 pt-1">
+                <AppButton type="button" variant="secondary" size="sm" @click="closeCreate">Cancel</AppButton>
+                <AppButton type="submit" variant="primary" size="sm" :disabled="form.processing">
+                  {{ form.processing ? 'Creating…' : 'Create Reservation' }}
+                </AppButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- Status tabs -->
       <div class="rv-tabs">
@@ -103,8 +186,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
-import { router, Link } from '@inertiajs/vue3';
+import { reactive, ref, computed } from 'vue';
+import { router, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const props = defineProps<{
@@ -122,7 +205,44 @@ const props = defineProps<{
     last_page: number;
   };
   filters: { status: string; from: string; to: string };
+  dogs: Array<{ id: string; name: string; customer: { name: string } | null }>;
+  kennelUnits: Array<{ id: string; name: string; nightly_rate_cents: number }>;
 }>();
+
+const showCreate = ref(false);
+
+const form = useForm({
+  dog_id: '',
+  starts_at: '',
+  ends_at: '',
+  kennel_unit_id: '',
+  nightly_rate_cents: 0,
+  notes: '',
+  ignore_vaccination_check: false,
+});
+
+const nightlyRateDollars = computed({
+  get: () => (form.nightly_rate_cents / 100).toFixed(2),
+  set: (val: string) => {
+    const parsed = parseFloat(val);
+    form.nightly_rate_cents = isNaN(parsed) || val === '' ? 0 : Math.round(parsed * 100);
+  },
+});
+
+function onUnitChange() {
+  const unit = props.kennelUnits.find(u => u.id === form.kennel_unit_id);
+  if (unit) form.nightly_rate_cents = unit.nightly_rate_cents;
+}
+
+function closeCreate() {
+  showCreate.value = false;
+  form.reset();
+  form.clearErrors();
+}
+
+function submitCreate() {
+  form.post(route('admin.boarding.reservations.store'));
+}
 
 const filters = reactive({ ...props.filters });
 
@@ -340,6 +460,31 @@ function statusBadgeColor(status: string): string {
   flex-shrink: 0;
   position: relative;
   z-index: 0;
+}
+
+/* ── Create form inputs ── */
+.cr-input {
+  display: block;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1.5px solid #e5e0d8;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #2a2522;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.cr-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgb(99 102 241 / 0.12);
+}
+
+.cr-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-top: 0.25rem;
 }
 
 /* ── Empty state ── */
