@@ -602,4 +602,42 @@ class StripeWebhookTest extends TestCase
             'delta' => 5,
         ]);
     }
+
+    public function test_payment_intent_succeeded_does_not_double_issue_credits_when_already_paid_by_concurrent_path(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active']);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $package = Package::factory()->create([
+            'tenant_id' => $tenant->id,
+            'type' => 'one_time',
+            'credit_count' => 5,
+        ]);
+        $dog = Dog::factory()->forCustomer($customer)->withCredits(5)->create();
+
+        // Simulate the webhook arriving after another path (e.g. confirm()) already marked the order paid
+        $order = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => $package->id,
+            'status' => 'paid',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_concurrent',
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 5]);
+
+        // Different event ID so the raw_webhooks dedup does NOT block this delivery
+        $event = $this->makeEvent('payment_intent.succeeded', ['id' => 'pi_concurrent'], 'evt_concurrent_new');
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook([], 'valid-sig')->assertStatus(200);
+
+        // Dog balance must remain 5 — not doubled to 10
+        $this->assertEquals(5, $dog->fresh()->credit_balance);
+        $this->assertDatabaseCount('credit_ledger', 0);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Portal\V1;
 
+use App\Enums\OrderStatus;
 use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\V1\StoreOrderRequest;
@@ -79,7 +80,7 @@ class OrderController extends Controller
             $promoResult = $this->promotions->validate($request->promo_code, $customer, $package, $subtotalCents);
             if (! $promoResult->valid) {
                 return response()->json([
-                    'message'    => $promoResult->message ?: 'Invalid promo code.',
+                    'message' => $promoResult->message ?: 'Invalid promo code.',
                     'error_code' => 'INVALID_PROMO_CODE',
                 ], 422);
             }
@@ -114,18 +115,18 @@ class OrderController extends Controller
 
         $order = DB::transaction(function () use ($request, $package, $tenantId, $customer, $idempotencyKey, $effectiveFeePct, $discountedSubtotal, $taxAmountCents, $taxCalcId, $totalCents, $promoResult) {
             $order = Order::create([
-                'tenant_id'          => $tenantId,
-                'customer_id'        => $customer->id,
-                'package_id'         => $package->id,
-                'status'             => 'pending',
-                'cancellable_at'     => now()->addHour(),
-                'total_amount'       => $totalCents / 100,
-                'subtotal_cents'     => $discountedSubtotal,
-                'tax_amount_cents'   => $taxAmountCents,
+                'tenant_id' => $tenantId,
+                'customer_id' => $customer->id,
+                'package_id' => $package->id,
+                'status' => 'pending',
+                'cancellable_at' => now()->addHour(),
+                'total_amount' => $totalCents / 100,
+                'subtotal_cents' => $discountedSubtotal,
+                'tax_amount_cents' => $taxAmountCents,
                 'stripe_tax_calc_id' => $taxCalcId,
-                'platform_fee_pct'   => $effectiveFeePct,
-                'idempotency_key'    => $idempotencyKey,
-                'promotion_id'       => $promoResult?->promotion?->id,
+                'platform_fee_pct' => $effectiveFeePct,
+                'idempotency_key' => $idempotencyKey,
+                'promotion_id' => $promoResult?->promotion?->id,
             ]);
 
             foreach ($request->dog_ids as $dogId) {
@@ -163,6 +164,9 @@ class OrderController extends Controller
                 paymentMethodTypes: ['card', 'us_bank_account'],
             );
         } catch (\Stripe\Exception\ApiErrorException $e) {
+            $order->transitionTo(OrderStatus::Canceled);
+            $order->update(['idempotency_key' => null]);
+
             return response()->json([
                 'message' => $e->getMessage(),
                 'error_code' => 'STRIPE_ERROR',
@@ -170,19 +174,19 @@ class OrderController extends Controller
         }
 
         $order->lineItems()->create([
-            'tenant_id'        => $tenantId,
-            'description'      => $package->name,
-            'quantity'         => 1,
+            'tenant_id' => $tenantId,
+            'description' => $package->name,
+            'quantity' => 1,
             'unit_price_cents' => $discountedSubtotal,
-            'sort_order'       => 0,
+            'sort_order' => 0,
         ]);
 
         $order->payments()->create([
-            'tenant_id'    => $tenantId,
+            'tenant_id' => $tenantId,
             'stripe_pi_id' => $pi->id,
             'amount_cents' => $totalCents,
-            'type'         => PaymentType::Full,
-            'status'       => 'pending',
+            'type' => PaymentType::Full,
+            'status' => 'pending',
         ]);
 
         if ($promoResult?->valid && $promoResult->promotion) {

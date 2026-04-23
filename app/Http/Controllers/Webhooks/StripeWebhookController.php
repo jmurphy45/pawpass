@@ -83,6 +83,12 @@ class StripeWebhookController extends Controller
         }
 
         DB::transaction(function () use ($order, $payment) {
+            // Re-read with a lock so concurrent confirm + webhook calls don't both issue credits
+            $order = Order::lockForUpdate()->find($order->id);
+            if ($order->status === OrderStatus::Paid) {
+                return;
+            }
+
             $payment->transitionTo(PaymentStatus::Paid);
             $payment->update(['paid_at' => now()]);
             $order->transitionTo(OrderStatus::Paid);

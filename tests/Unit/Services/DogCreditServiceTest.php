@@ -510,10 +510,10 @@ class DogCreditServiceTest extends TestCase
             'tenant_id' => $dog->tenant_id,
         ]);
         $subscription = Subscription::factory()->create([
-            'tenant_id'   => $dog->tenant_id,
+            'tenant_id' => $dog->tenant_id,
             'customer_id' => $dog->customer_id,
-            'package_id'  => $package->id,
-            'dog_id'      => $dog->id,
+            'package_id' => $package->id,
+            'dog_id' => $dog->id,
         ]);
         $expiresAt = now()->addDays(30);
 
@@ -534,10 +534,10 @@ class DogCreditServiceTest extends TestCase
             'tenant_id' => $dog->tenant_id,
         ]);
         $subscription = Subscription::factory()->create([
-            'tenant_id'   => $dog->tenant_id,
+            'tenant_id' => $dog->tenant_id,
             'customer_id' => $dog->customer_id,
-            'package_id'  => $package->id,
-            'dog_id'      => $dog->id,
+            'package_id' => $package->id,
+            'dog_id' => $dog->id,
         ]);
         $expiresAt = now()->addDays(30);
 
@@ -556,10 +556,10 @@ class DogCreditServiceTest extends TestCase
             'tenant_id' => $dog->tenant_id,
         ]);
         $subscription = Subscription::factory()->create([
-            'tenant_id'   => $dog->tenant_id,
+            'tenant_id' => $dog->tenant_id,
             'customer_id' => $dog->customer_id,
-            'package_id'  => $package->id,
-            'dog_id'      => $dog->id,
+            'package_id' => $package->id,
+            'dog_id' => $dog->id,
         ]);
 
         $this->service->issueUnlimitedPassFromSubscription($subscription, $dog, now()->addDays(30));
@@ -580,14 +580,14 @@ class DogCreditServiceTest extends TestCase
 
         // Create the pass ledger entry with expires_at matching the dog's unlimited_pass_expires_at
         CreditLedger::allTenants()->newQuery()->insert([
-            'id'             => \Illuminate\Support\Str::ulid(),
-            'tenant_id'      => $dog->tenant_id,
-            'dog_id'         => $dog->id,
-            'type'           => 'subscription',
-            'delta'          => 31,
-            'balance_after'  => 34,
-            'expires_at'     => $passExpiresAt,
-            'created_at'     => now()->subDay(),
+            'id' => \Illuminate\Support\Str::ulid(),
+            'tenant_id' => $dog->tenant_id,
+            'dog_id' => $dog->id,
+            'type' => 'subscription',
+            'delta' => 31,
+            'balance_after' => 34,
+            'expires_at' => $passExpiresAt,
+            'created_at' => now()->subDay(),
         ]);
 
         $this->service->expireUnlimitedPass($dog);
@@ -604,14 +604,14 @@ class DogCreditServiceTest extends TestCase
         $dog->update(['unlimited_pass_expires_at' => $passExpiresAt]);
 
         CreditLedger::allTenants()->newQuery()->insert([
-            'id'             => \Illuminate\Support\Str::ulid(),
-            'tenant_id'      => $dog->tenant_id,
-            'dog_id'         => $dog->id,
-            'type'           => 'subscription',
-            'delta'          => 10,
-            'balance_after'  => 10,
-            'expires_at'     => $passExpiresAt,
-            'created_at'     => now()->subDay(),
+            'id' => \Illuminate\Support\Str::ulid(),
+            'tenant_id' => $dog->tenant_id,
+            'dog_id' => $dog->id,
+            'type' => 'subscription',
+            'delta' => 10,
+            'balance_after' => 10,
+            'expires_at' => $passExpiresAt,
+            'created_at' => now()->subDay(),
         ]);
 
         $this->service->expireUnlimitedPass($dog);
@@ -681,16 +681,16 @@ class DogCreditServiceTest extends TestCase
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
         $package = Package::factory()->autoReplenish()->create(['tenant_id' => $tenant->id]);
         $dog = Dog::factory()->create([
-            'tenant_id'                 => $tenant->id,
-            'customer_id'               => $customer->id,
-            'credit_balance'            => 1,
-            'auto_replenish_enabled'    => true,
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'credit_balance' => 1,
+            'auto_replenish_enabled' => true,
             'auto_replenish_package_id' => $package->id,
         ]);
 
         $attendance = Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog->id,
+            'dog_id' => $dog->id,
         ]);
 
         $this->service->deductForAttendance($attendance);
@@ -706,17 +706,17 @@ class DogCreditServiceTest extends TestCase
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
         $package = Package::factory()->autoReplenish()->create(['tenant_id' => $tenant->id]);
         $dog = Dog::factory()->create([
-            'tenant_id'                 => $tenant->id,
-            'customer_id'               => $customer->id,
-            'credit_balance'            => 1,
-            'auto_replenish_enabled'    => true,
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'credit_balance' => 1,
+            'auto_replenish_enabled' => true,
             'auto_replenish_package_id' => $package->id,
-            'credits_alert_sent_at'     => now()->subHour(), // alert sent recently
+            'credits_alert_sent_at' => now()->subHour(), // alert sent recently
         ]);
 
         $attendance = Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog->id,
+            'dog_id' => $dog->id,
         ]);
 
         $this->service->deductForAttendance($attendance);
@@ -737,16 +737,16 @@ class DogCreditServiceTest extends TestCase
         $customer->update(['user_id' => $user->id]);
         $package = Package::factory()->autoReplenish()->create(['tenant_id' => $tenant->id]);
         $dog = Dog::factory()->create([
-            'tenant_id'                 => $tenant->id,
-            'customer_id'               => $customer->id,
-            'credit_balance'            => 3, // above zero but below threshold
-            'auto_replenish_enabled'    => true,
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'credit_balance' => 3, // above zero but below threshold
+            'auto_replenish_enabled' => true,
             'auto_replenish_package_id' => $package->id,
         ]);
 
         $attendance = Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog->id,
+            'dog_id' => $dog->id,
         ]);
 
         $this->service->deductForAttendance($attendance);
@@ -768,21 +768,57 @@ class DogCreditServiceTest extends TestCase
         $customer->update(['user_id' => $user->id]);
         $package = Package::factory()->autoReplenish()->create(['tenant_id' => $tenant->id]);
         $dog = Dog::factory()->create([
-            'tenant_id'                 => $tenant->id,
-            'customer_id'               => $customer->id,
-            'credit_balance'            => 1,
-            'auto_replenish_enabled'    => true,
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'credit_balance' => 1,
+            'auto_replenish_enabled' => true,
             'auto_replenish_package_id' => $package->id,
         ]);
 
         $attendance = Attendance::factory()->create([
             'tenant_id' => $tenant->id,
-            'dog_id'    => $dog->id,
+            'dog_id' => $dog->id,
         ]);
 
         $this->service->deductForAttendance($attendance);
 
         // balance hits 0 — job dispatched, but no credits.empty notification
         Queue::assertPushed(ProcessAutoReplenishJob::class);
+    }
+
+    // -----------------------------------------------------------
+    // credits_issued tracking on OrderDog
+    // -----------------------------------------------------------
+
+    public function test_issue_from_order_records_credit_count_on_order_dog(): void
+    {
+        $dog = $this->makeDog(0);
+        $order = $this->makeOrder($dog, 10);
+        $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
+
+        $this->service->issueFromOrder($order, $dog);
+
+        $this->assertDatabaseHas('order_dogs', [
+            'order_id' => $order->id,
+            'dog_id' => $dog->id,
+            'credits_issued' => 10,
+        ]);
+    }
+
+    public function test_issue_unlimited_pass_records_credit_count_on_order_dog(): void
+    {
+        $dog = $this->makeDog(0);
+        $order = $this->makeUnlimitedOrder($dog, 30);
+        $order->orderDogs()->create(['dog_id' => $dog->id, 'credits_issued' => 0]);
+
+        $this->service->issueUnlimitedPass($order, $dog);
+
+        $expectedCredits = now()->daysInMonth;
+
+        $this->assertDatabaseHas('order_dogs', [
+            'order_id' => $order->id,
+            'dog_id' => $dog->id,
+            'credits_issued' => $expectedCredits,
+        ]);
     }
 }

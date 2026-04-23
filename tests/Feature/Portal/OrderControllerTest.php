@@ -354,5 +354,37 @@ class OrderControllerTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'STRIPE_ERROR');
+
+        // Order must be written but transitioned to canceled (audit trail), not left as orphaned pending
+        $this->assertDatabaseHas('orders', ['customer_id' => $this->customer->id, 'status' => 'canceled']);
+        // Idempotency key must be released so the customer can retry
+        $this->assertDatabaseMissing('orders', ['customer_id' => $this->customer->id, 'idempotency_key' => 'idem-stripe-err']);
+    }
+
+    public function test_stripe_failure_releases_idempotency_key_for_retry(): void
+    {
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')->zeroOrMoreTimes()->andReturn((object) ['id' => 'cus_retry']);
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->ordered()
+                ->andThrow(\Stripe\Exception\InvalidRequestException::factory('Stripe error.'));
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->ordered()
+                ->andReturn((object) ['id' => 'pi_retry_ok', 'client_secret' => 'secret_retry']);
+        });
+
+        // First attempt fails
+        $this->withHeaders($this->authHeaders('idem-retry-key'))
+            ->postJson('/api/portal/v1/orders', ['package_id' => $this->package->id, 'dog_ids' => [$this->dog->id]])
+            ->assertStatus(422);
+
+        // Retry with same key succeeds — idempotency key was released
+        $retry = $this->withHeaders($this->authHeaders('idem-retry-key'))
+            ->postJson('/api/portal/v1/orders', ['package_id' => $this->package->id, 'dog_ids' => [$this->dog->id]]);
+
+        $retry->assertStatus(201);
+        $this->assertNotNull($retry->json('data.client_secret'));
     }
 }

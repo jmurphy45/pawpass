@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\CreditLedger;
 use App\Models\Dog;
 use App\Models\Order;
+use App\Models\OrderDog;
 use App\Models\Subscription;
 use App\Models\User;
 use DateTimeInterface;
@@ -32,6 +33,10 @@ class DogCreditService
             ]);
 
             $dog->increment('credit_balance', $credits);
+
+            OrderDog::where('order_id', $order->id)
+                ->where('dog_id', $dog->id)
+                ->update(['credits_issued' => $credits]);
         });
     }
 
@@ -39,24 +44,28 @@ class DogCreditService
     {
         DB::transaction(function () use ($order, $dog) {
             $durationDays = $order->package->duration_days ?? 30;
-            $credits      = now()->daysInMonth;
-            $newBalance   = $dog->credit_balance + $credits;
-            $expiresAt    = now()->addDays($durationDays);
+            $credits = now()->daysInMonth;
+            $newBalance = $dog->credit_balance + $credits;
+            $expiresAt = now()->addDays($durationDays);
 
             CreditLedger::create([
-                'tenant_id'     => $dog->tenant_id,
-                'dog_id'        => $dog->id,
-                'type'          => 'purchase',
-                'delta'         => $credits,
+                'tenant_id' => $dog->tenant_id,
+                'dog_id' => $dog->id,
+                'type' => 'purchase',
+                'delta' => $credits,
                 'balance_after' => $newBalance,
-                'order_id'      => $order->id,
-                'expires_at'    => $expiresAt,
+                'order_id' => $order->id,
+                'expires_at' => $expiresAt,
             ]);
 
             $dog->increment('credit_balance', $credits);
             $dog->update([
                 'unlimited_pass_expires_at' => $expiresAt,
             ]);
+
+            OrderDog::where('order_id', $order->id)
+                ->where('dog_id', $dog->id)
+                ->update(['credits_issued' => $credits]);
         });
     }
 
@@ -70,16 +79,16 @@ class DogCreditService
             }
 
             CreditLedger::create([
-                'tenant_id'     => $dog->tenant_id,
-                'dog_id'        => $dog->id,
-                'type'          => 'refund',
-                'delta'         => -$remaining,
+                'tenant_id' => $dog->tenant_id,
+                'dog_id' => $dog->id,
+                'type' => 'refund',
+                'delta' => -$remaining,
                 'balance_after' => 0,
-                'order_id'      => $order->id,
+                'order_id' => $order->id,
             ]);
 
             $dog->update([
-                'credit_balance'           => 0,
+                'credit_balance' => 0,
                 'unlimited_pass_expires_at' => null,
             ]);
         });
@@ -98,7 +107,7 @@ class DogCreditService
         }
 
         DB::transaction(function () use ($attendance, $dog) {
-            $locked     = Dog::lockForUpdate()->find($dog->id);
+            $locked = Dog::lockForUpdate()->find($dog->id);
             $newBalance = $locked->credit_balance - 1;
 
             CreditLedger::create([
@@ -262,17 +271,17 @@ class DogCreditService
         \DateTimeInterface $expiresAt,
     ): void {
         DB::transaction(function () use ($subscription, $dog, $expiresAt) {
-            $credits    = now()->daysInMonth;
+            $credits = now()->daysInMonth;
             $newBalance = $dog->credit_balance + $credits;
 
             CreditLedger::create([
-                'tenant_id'       => $dog->tenant_id,
-                'dog_id'          => $dog->id,
-                'type'            => 'subscription',
-                'delta'           => $credits,
-                'balance_after'   => $newBalance,
+                'tenant_id' => $dog->tenant_id,
+                'dog_id' => $dog->id,
+                'type' => 'subscription',
+                'delta' => $credits,
+                'balance_after' => $newBalance,
                 'subscription_id' => $subscription->id,
-                'expires_at'      => $expiresAt,
+                'expires_at' => $expiresAt,
             ]);
 
             $dog->increment('credit_balance', $credits);
@@ -337,21 +346,22 @@ class DogCreditService
 
             if ($passCredits <= 0) {
                 $dog->update(['unlimited_pass_expires_at' => null]);
+
                 return;
             }
 
             $newBalance = $dog->credit_balance - $passCredits;
 
             CreditLedger::create([
-                'tenant_id'     => $dog->tenant_id,
-                'dog_id'        => $dog->id,
-                'type'          => 'expiry_removal',
-                'delta'         => -$passCredits,
+                'tenant_id' => $dog->tenant_id,
+                'dog_id' => $dog->id,
+                'type' => 'expiry_removal',
+                'delta' => -$passCredits,
                 'balance_after' => $newBalance,
             ]);
 
             $dog->update([
-                'credit_balance'           => $newBalance,
+                'credit_balance' => $newBalance,
                 'unlimited_pass_expires_at' => null,
             ]);
         });

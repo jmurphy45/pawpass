@@ -40,23 +40,23 @@ class PurchaseControllerStripeTest extends TestCase
         parent::setUp();
 
         $this->tenant = Tenant::factory()->create([
-            'slug'              => 'purchasetest',
-            'status'            => 'active',
-            'plan'              => 'starter',
+            'slug' => 'purchasetest',
+            'status' => 'active',
+            'plan' => 'starter',
             'stripe_account_id' => 'acct_purchase123',
-            'platform_fee_pct'  => '5.00',
+            'platform_fee_pct' => '5.00',
         ]);
         URL::forceRootUrl('http://purchasetest.pawpass.com');
 
         $this->customer = Customer::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'name'      => 'Jane Buyer',
-            'email'     => 'jane@example.com',
+            'name' => 'Jane Buyer',
+            'email' => 'jane@example.com',
         ]);
         $this->user = User::factory()->create([
-            'tenant_id'   => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'customer_id' => $this->customer->id,
-            'role'        => 'customer',
+            'role' => 'customer',
         ]);
         $this->customer->update(['user_id' => $this->user->id]);
         $this->dog = Dog::factory()->forCustomer($this->customer)->create();
@@ -66,8 +66,8 @@ class PurchaseControllerStripeTest extends TestCase
     {
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '50.00',
+            'type' => 'one_time',
+            'price' => '50.00',
             'is_active' => true,
         ]);
 
@@ -99,14 +99,14 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response = $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id],
+            'dog_ids' => [$this->dog->id],
         ]);
 
         $response->assertStatus(200);
         $response->assertJsonStructure(['client_secret']);
 
         $this->assertDatabaseHas('customers', [
-            'id'                 => $this->customer->id,
+            'id' => $this->customer->id,
             'stripe_customer_id' => 'cus_new_conn',
         ]);
     }
@@ -117,8 +117,8 @@ class PurchaseControllerStripeTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '50.00',
+            'type' => 'one_time',
+            'price' => '50.00',
             'is_active' => true,
         ]);
 
@@ -147,7 +147,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response = $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id],
+            'dog_ids' => [$this->dog->id],
         ]);
 
         $response->assertStatus(200);
@@ -157,8 +157,8 @@ class PurchaseControllerStripeTest extends TestCase
     {
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '100.00',
+            'type' => 'one_time',
+            'price' => '100.00',
             'is_active' => true,
         ]);
 
@@ -172,6 +172,7 @@ class PurchaseControllerStripeTest extends TestCase
                 ->once()
                 ->andReturnUsing(function () use (&$capturedPayload) {
                     $capturedPayload = func_get_args();
+
                     return (object) ['id' => 'pi_nodest', 'client_secret' => 'secret'];
                 });
         });
@@ -180,7 +181,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id],
+            'dog_ids' => [$this->dog->id],
         ]);
 
         // 3rd positional arg is stripeAccountId (not transferDestination)
@@ -193,8 +194,8 @@ class PurchaseControllerStripeTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '99.00',
+            'type' => 'one_time',
+            'price' => '99.00',
             'dog_limit' => 2,
             'is_active' => true,
         ]);
@@ -208,7 +209,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response = $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id, $dog2->id],
+            'dog_ids' => [$this->dog->id, $dog2->id],
         ]);
 
         $response->assertStatus(200);
@@ -224,8 +225,8 @@ class PurchaseControllerStripeTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '49.00',
+            'type' => 'one_time',
+            'price' => '49.00',
             'dog_limit' => 1,
             'is_active' => true,
         ]);
@@ -234,7 +235,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response = $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id, $dog2->id],
+            'dog_ids' => [$this->dog->id, $dog2->id],
         ]);
 
         $response->assertStatus(422);
@@ -245,7 +246,7 @@ class PurchaseControllerStripeTest extends TestCase
     {
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
+            'type' => 'one_time',
             'is_active' => true,
         ]);
 
@@ -253,7 +254,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response = $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [],
+            'dog_ids' => [],
         ]);
 
         $response->assertStatus(422);
@@ -264,13 +265,13 @@ class PurchaseControllerStripeTest extends TestCase
     {
         $this->tenant->update([
             'tax_collection_enabled' => true,
-            'billing_address'        => ['postal_code' => '10001', 'country' => 'US'],
+            'billing_address' => ['postal_code' => '10001', 'country' => 'US'],
         ]);
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '50.00',
+            'type' => 'one_time',
+            'price' => '50.00',
             'is_active' => true,
         ]);
 
@@ -295,7 +296,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $response = $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id],
+            'dog_ids' => [$this->dog->id],
         ]);
 
         $response->assertStatus(200)
@@ -312,8 +313,8 @@ class PurchaseControllerStripeTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '50.00',
+            'type' => 'one_time',
+            'price' => '50.00',
             'is_active' => true,
         ]);
 
@@ -335,7 +336,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id],
+            'dog_ids' => [$this->dog->id],
         ])->assertStatus(200)->assertJsonFragment(['tax_amount_cents' => 0]);
     }
 
@@ -346,8 +347,8 @@ class PurchaseControllerStripeTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '50.00',
+            'type' => 'one_time',
+            'price' => '50.00',
             'is_active' => true,
         ]);
 
@@ -369,7 +370,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id],
+            'dog_ids' => [$this->dog->id],
         ])->assertStatus(200)->assertJsonFragment(['tax_amount_cents' => 0]);
     }
 
@@ -377,13 +378,13 @@ class PurchaseControllerStripeTest extends TestCase
     {
         $this->tenant->update([
             'tax_collection_enabled' => true,
-            'billing_address'        => ['postal_code' => '90210', 'country' => 'US'],
+            'billing_address' => ['postal_code' => '90210', 'country' => 'US'],
         ]);
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '45.00',
+            'type' => 'one_time',
+            'price' => '45.00',
             'is_active' => true,
         ]);
 
@@ -396,13 +397,13 @@ class PurchaseControllerStripeTest extends TestCase
 
         $this->actingAs($this->user);
 
-        $response = $this->getJson('/my/purchase/tax-preview?package_id=' . $package->id);
+        $response = $this->getJson('/my/purchase/tax-preview?package_id='.$package->id);
 
         $response->assertStatus(200)->assertJson([
-            'tax_enabled'    => true,
+            'tax_enabled' => true,
             'subtotal_cents' => 4500,
-            'tax_cents'      => 396,
-            'total_cents'    => 4896,
+            'tax_cents' => 396,
+            'total_cents' => 4896,
         ]);
     }
 
@@ -412,14 +413,14 @@ class PurchaseControllerStripeTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '45.00',
+            'type' => 'one_time',
+            'price' => '45.00',
             'is_active' => true,
         ]);
 
         $this->actingAs($this->user);
 
-        $response = $this->getJson('/my/purchase/tax-preview?package_id=' . $package->id);
+        $response = $this->getJson('/my/purchase/tax-preview?package_id='.$package->id);
 
         $response->assertStatus(200)->assertJson(['tax_enabled' => false]);
     }
@@ -431,14 +432,14 @@ class PurchaseControllerStripeTest extends TestCase
 
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '45.00',
+            'type' => 'one_time',
+            'price' => '45.00',
             'is_active' => true,
         ]);
 
         $this->actingAs($this->user);
 
-        $response = $this->getJson('/my/purchase/tax-preview?package_id=' . $package->id);
+        $response = $this->getJson('/my/purchase/tax-preview?package_id='.$package->id);
 
         $response->assertStatus(200)->assertJson(['tax_enabled' => false]);
     }
@@ -447,8 +448,8 @@ class PurchaseControllerStripeTest extends TestCase
     {
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '75.00',
+            'type' => 'one_time',
+            'price' => '75.00',
             'is_active' => true,
         ]);
 
@@ -461,7 +462,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id],
+            'dog_ids' => [$this->dog->id],
         ])->assertStatus(200);
 
         $order = Order::where('package_id', $package->id)->latest()->first();
@@ -473,8 +474,8 @@ class PurchaseControllerStripeTest extends TestCase
     {
         $package = Package::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'type'      => 'one_time',
-            'price'     => '50.00',
+            'type' => 'one_time',
+            'price' => '50.00',
             'is_active' => true,
         ]);
 
@@ -488,6 +489,7 @@ class PurchaseControllerStripeTest extends TestCase
                     $args = func_get_args();
                     // paymentMethodTypes is the 10th argument (index 9, named param)
                     $capturedTypes = $args[9] ?? null;
+
                     return (object) ['id' => 'pi_pm', 'client_secret' => 'secret_pm'];
                 });
         });
@@ -496,7 +498,7 @@ class PurchaseControllerStripeTest extends TestCase
 
         $this->postJson('/my/purchase', [
             'package_id' => $package->id,
-            'dog_ids'    => [$this->dog->id],
+            'dog_ids' => [$this->dog->id],
         ])->assertStatus(200);
 
         $this->assertEquals(['card', 'us_bank_account'], $capturedTypes);
@@ -505,26 +507,26 @@ class PurchaseControllerStripeTest extends TestCase
     public function test_confirm_issues_unlimited_credits_for_unlimited_package(): void
     {
         $package = Package::factory()->create([
-            'tenant_id'  => $this->tenant->id,
-            'type'       => 'unlimited',
-            'price'      => '199.00',
-            'is_active'  => true,
-            'dog_limit'  => 1,
+            'tenant_id' => $this->tenant->id,
+            'type' => 'unlimited',
+            'price' => '199.00',
+            'is_active' => true,
+            'dog_limit' => 1,
         ]);
 
         $this->dog->update(['credit_balance' => 0]);
 
         $order = Order::factory()->create([
-            'tenant_id'   => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'customer_id' => $this->customer->id,
-            'package_id'  => $package->id,
-            'status'      => 'pending',
+            'package_id' => $package->id,
+            'status' => 'pending',
         ]);
         $order->orderDogs()->create(['dog_id' => $this->dog->id, 'credits_issued' => 0]);
         OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_unlimited_test',
-            'status'       => 'pending',
-            'type'         => 'full',
+            'status' => 'pending',
+            'type' => 'full',
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -550,27 +552,27 @@ class PurchaseControllerStripeTest extends TestCase
     public function test_confirm_returns_non_200_when_credit_service_fails(): void
     {
         $package = Package::factory()->create([
-            'tenant_id'  => $this->tenant->id,
-            'type'       => 'one_time',
-            'price'      => '50.00',
+            'tenant_id' => $this->tenant->id,
+            'type' => 'one_time',
+            'price' => '50.00',
             'credit_count' => 5,
-            'is_active'  => true,
-            'dog_limit'  => 1,
+            'is_active' => true,
+            'dog_limit' => 1,
         ]);
 
         $this->dog->update(['credit_balance' => 0]);
 
         $order = Order::factory()->create([
-            'tenant_id'   => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'customer_id' => $this->customer->id,
-            'package_id'  => $package->id,
-            'status'      => 'pending',
+            'package_id' => $package->id,
+            'status' => 'pending',
         ]);
         $order->orderDogs()->create(['dog_id' => $this->dog->id, 'credits_issued' => 0]);
         OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_fail_confirm',
-            'status'       => 'pending',
-            'type'         => 'full',
+            'status' => 'pending',
+            'type' => 'full',
         ]);
 
         $this->mock(StripeService::class, function (MockInterface $mock) {
@@ -598,5 +600,90 @@ class PurchaseControllerStripeTest extends TestCase
         $this->assertEquals(0, $this->dog->fresh()->credit_balance);
     }
 
-}
+    // -----------------------------------------------------------------------
+    // Stripe failure → order transitions to canceled (Task 2)
+    // -----------------------------------------------------------------------
 
+    public function test_store_transitions_order_to_canceled_when_stripe_pi_creation_fails(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type' => 'one_time',
+            'price' => '50.00',
+            'credit_count' => 10,
+            'dog_limit' => 3,
+            'is_active' => true,
+        ]);
+
+        $this->mock(StripeService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createCustomer')->zeroOrMoreTimes()->andReturn((object) ['id' => 'cus_fail']);
+            $mock->shouldReceive('attachPaymentMethod')->zeroOrMoreTimes();
+            $mock->shouldReceive('createPaymentIntent')
+                ->once()
+                ->andThrow(\Stripe\Exception\InvalidRequestException::factory('Card declined.'));
+        });
+
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase', [
+            'package_id' => $package->id,
+            'dog_ids' => [$this->dog->id],
+        ]);
+
+        $response->assertStatus(422);
+
+        // Order must exist but be transitioned to canceled, not left orphaned as pending
+        $this->assertDatabaseHas('orders', [
+            'customer_id' => $this->customer->id,
+            'status' => 'canceled',
+        ]);
+        $this->assertDatabaseMissing('orders', [
+            'customer_id' => $this->customer->id,
+            'status' => 'pending',
+        ]);
+    }
+
+    // -----------------------------------------------------------------------
+    // confirm() idempotency with DB lock (Task 4)
+    // -----------------------------------------------------------------------
+
+    public function test_confirm_is_idempotent_when_order_already_paid(): void
+    {
+        $package = Package::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'type' => 'one_time',
+            'credit_count' => 10,
+            'is_active' => true,
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'package_id' => $package->id,
+            'status' => 'paid',
+        ]);
+        $order->orderDogs()->create(['dog_id' => $this->dog->id, 'credits_issued' => 10]);
+
+        OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_already_paid',
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        $this->dog->update(['credit_balance' => 10]);
+
+        // Order is already paid — confirm() should detect this and return early
+        // without calling Stripe or re-issuing credits
+        $this->actingAs($this->user);
+
+        $response = $this->postJson('/my/purchase/confirm', [
+            'payment_intent_id' => 'pi_already_paid',
+        ]);
+
+        $response->assertStatus(200)->assertJsonPath('status', 'paid');
+
+        // Credits must NOT have been re-issued
+        $this->assertEquals(10, $this->dog->fresh()->credit_balance);
+        $this->assertDatabaseCount('credit_ledger', 0);
+    }
+}

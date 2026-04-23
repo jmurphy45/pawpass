@@ -19,10 +19,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Stripe\Exception\ApiErrorException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Pennant\Feature;
+use Stripe\Exception\ApiErrorException;
 
 class PurchaseController extends Controller
 {
@@ -41,15 +41,15 @@ class PurchaseController extends Controller
             ->orderBy('price')
             ->get()
             ->map(fn ($p) => [
-                'id'                         => $p->id,
-                'name'                       => $p->name,
-                'description'                => $p->description,
-                'type'                       => $p->type,
-                'price_cents'                => (int) round((float) $p->price * 100),
-                'credits'                    => $p->credit_count,
-                'max_dogs'                   => $p->dog_limit,
-                'duration_days'              => $p->duration_days,
-                'is_featured'                => $p->is_featured,
+                'id' => $p->id,
+                'name' => $p->name,
+                'description' => $p->description,
+                'type' => $p->type,
+                'price_cents' => (int) round((float) $p->price * 100),
+                'credits' => $p->credit_count,
+                'max_dogs' => $p->dog_limit,
+                'duration_days' => $p->duration_days,
+                'is_featured' => $p->is_featured,
                 'is_auto_replenish_eligible' => (bool) $p->is_auto_replenish_eligible,
             ]);
 
@@ -57,23 +57,23 @@ class PurchaseController extends Controller
             ->orderBy('name')
             ->get()
             ->map(fn ($d) => [
-                'id'                        => $d->id,
-                'name'                      => $d->name,
-                'credits_expire_at'         => $d->credits_expire_at?->toIso8601String(),
-                'auto_replenish_enabled'    => (bool) $d->auto_replenish_enabled,
+                'id' => $d->id,
+                'name' => $d->name,
+                'credits_expire_at' => $d->credits_expire_at?->toIso8601String(),
+                'auto_replenish_enabled' => (bool) $d->auto_replenish_enabled,
                 'auto_replenish_package_id' => $d->auto_replenish_package_id,
             ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
 
         return Inertia::render('Portal/Purchase', [
-            'packages'                   => $packages,
-            'dogs'                       => $dogs,
-            'stripe_key'                 => config('services.stripe.key'),
-            'stripe_account_id'          => $tenant?->stripe_account_id,
-            'auto_replenish_enabled'     => Feature::active('recurring_checkout'),
-            'tax_enabled'                => (bool) $tenant?->tax_collection_enabled,
-            'saved_card'                 => $customer->stripe_payment_method_id
+            'packages' => $packages,
+            'dogs' => $dogs,
+            'stripe_key' => config('services.stripe.key'),
+            'stripe_account_id' => $tenant?->stripe_account_id,
+            'auto_replenish_enabled' => Feature::active('recurring_checkout'),
+            'tax_enabled' => (bool) $tenant?->tax_collection_enabled,
+            'saved_card' => $customer->stripe_payment_method_id
                 ? ['last4' => $customer->stripe_pm_last4, 'brand' => $customer->stripe_pm_brand]
                 : null,
         ]);
@@ -82,53 +82,53 @@ class PurchaseController extends Controller
     public function store(Request $request, StripeService $stripe): JsonResponse
     {
         $request->validate([
-            'package_id'     => ['required', 'string'],
-            'dog_ids'        => ['required', 'array', 'min:1'],
-            'dog_ids.*'      => ['required', 'string'],
-            'save_card'      => ['sometimes', 'boolean'],
+            'package_id' => ['required', 'string'],
+            'dog_ids' => ['required', 'array', 'min:1'],
+            'dog_ids.*' => ['required', 'string'],
+            'save_card' => ['sometimes', 'boolean'],
             'auto_replenish' => ['sometimes', 'boolean'],
         ]);
 
         $customer = Auth::user()->customer;
         $tenantId = app('current.tenant.id');
-        $tenant   = Tenant::find($tenantId);
+        $tenant = Tenant::find($tenantId);
 
         abort_unless($tenant && $tenant->stripe_account_id, 422, 'Stripe not configured for this tenant.');
 
         $package = Package::findOrFail($request->package_id);
 
         $request->validate([
-            'dog_ids' => ['max:' . $package->dog_limit],
+            'dog_ids' => ['max:'.$package->dog_limit],
         ]);
 
         $dogs = collect($request->dog_ids)->map(fn ($id) => $customer->dogs()->findOrFail($id));
 
         $amountCents = (int) round((float) $package->price * 100);
-        $feePct      = $tenant->effectivePlatformFeePct($amountCents);
-        $feeCents    = (int) round($amountCents * $feePct / 100);
+        $feePct = $tenant->effectivePlatformFeePct($amountCents);
+        $feeCents = (int) round($amountCents * $feePct / 100);
 
         if ($customer->stripe_customer_id) {
             $stripeCustomerId = $customer->stripe_customer_id;
         } else {
-            $stripeCustomer   = $stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
+            $stripeCustomer = $stripe->createCustomer($customer->email ?? '', $customer->name, $tenant->stripe_account_id);
             $stripeCustomerId = $stripeCustomer->id;
             $customer->update(['stripe_customer_id' => $stripeCustomerId]);
         }
 
         $order = DB::transaction(function () use ($tenantId, $customer, $package, $dogs, $feePct, $amountCents) {
             $order = Order::create([
-                'tenant_id'        => $tenantId,
-                'customer_id'      => $customer->id,
-                'package_id'       => $package->id,
-                'status'           => 'pending',
-                'total_amount'     => $package->price,
-                'subtotal_cents'   => $amountCents,
+                'tenant_id' => $tenantId,
+                'customer_id' => $customer->id,
+                'package_id' => $package->id,
+                'status' => 'pending',
+                'total_amount' => $package->price,
+                'subtotal_cents' => $amountCents,
                 'platform_fee_pct' => $feePct,
             ]);
 
             foreach ($dogs as $dog) {
                 $order->orderDogs()->create([
-                    'dog_id'         => $dog->id,
+                    'dog_id' => $dog->id,
                     'credits_issued' => 0,
                 ]);
             }
@@ -150,8 +150,8 @@ class PurchaseController extends Controller
                     // PM is permanently unusable; clear it so the user is shown the card input
                     $customer->update([
                         'stripe_payment_method_id' => null,
-                        'stripe_pm_last4'           => null,
-                        'stripe_pm_brand'           => null,
+                        'stripe_pm_last4' => null,
+                        'stripe_pm_brand' => null,
                     ]);
                     $savedPmId = null;
                 }
@@ -160,7 +160,7 @@ class PurchaseController extends Controller
 
         $taxAmountCents = 0;
         $taxCalcId = null;
-        if ($tenant->tax_collection_enabled && !empty($tenant->billing_address['postal_code']) && $tenant->stripe_account_id) {
+        if ($tenant->tax_collection_enabled && ! empty($tenant->billing_address['postal_code']) && $tenant->stripe_account_id) {
             try {
                 $calculation = $stripe->calculateTax(
                     $amountCents,
@@ -168,7 +168,7 @@ class PurchaseController extends Controller
                     $tenant->stripe_account_id,
                     [
                         'postal_code' => $tenant->billing_address['postal_code'],
-                        'country'     => $tenant->billing_address['country'] ?? 'US',
+                        'country' => $tenant->billing_address['country'] ?? 'US',
                     ],
                     $package->id,
                 );
@@ -190,62 +190,64 @@ class PurchaseController extends Controller
                 stripeAccountId: $tenant->stripe_account_id,
                 applicationFeeCents: $feeCents,
                 metadata: [
-                    'order_id'    => $order->id,
-                    'tenant_id'   => $tenantId,
+                    'order_id' => $order->id,
+                    'tenant_id' => $tenantId,
                     'customer_id' => $customer->id,
-                    'package_id'  => $package->id,
-                    'dog_ids'     => $dogs->pluck('id')->implode(','),
+                    'package_id' => $package->id,
+                    'dog_ids' => $dogs->pluck('id')->implode(','),
                 ],
                 stripeCustomerId: $stripeCustomerId,
                 setupFutureUsage: $saveCard ? 'off_session' : null,
                 paymentMethodTypes: ['card', 'us_bank_account'],
             );
         } catch (ApiErrorException $e) {
+            $order->transitionTo(OrderStatus::Canceled);
+
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
         OrderLineItem::create([
-            'tenant_id'       => $tenantId,
-            'order_id'        => $order->id,
-            'description'     => $package->name,
-            'quantity'        => 1,
+            'tenant_id' => $tenantId,
+            'order_id' => $order->id,
+            'description' => $package->name,
+            'quantity' => 1,
             'unit_price_cents' => $amountCents,
-            'sort_order'      => 0,
+            'sort_order' => 0,
         ]);
 
         OrderPayment::create([
-            'tenant_id'   => $tenantId,
-            'order_id'    => $order->id,
+            'tenant_id' => $tenantId,
+            'order_id' => $order->id,
             'stripe_pi_id' => $intent->id,
             'amount_cents' => $totalCents,
-            'type'         => PaymentType::Full,
-            'status'       => 'pending',
+            'type' => PaymentType::Full,
+            'status' => 'pending',
         ]);
 
         return response()->json([
-            'client_secret'     => $intent->client_secret,
+            'client_secret' => $intent->client_secret,
             'payment_method_id' => $savedPmId,
-            'tax_amount_cents'  => $taxAmountCents,
+            'tax_amount_cents' => $taxAmountCents,
         ]);
     }
 
     public function checkPromo(Request $request): JsonResponse
     {
         $request->validate([
-            'code'       => ['required', 'string'],
+            'code' => ['required', 'string'],
             'package_id' => ['required', 'string'],
         ]);
 
         $customer = Auth::user()->customer;
-        $package  = Package::findOrFail($request->package_id);
+        $package = Package::findOrFail($request->package_id);
         $subtotalCents = (int) round((float) $package->price * 100);
 
         $result = $this->promotionService->validate($request->code, $customer, $package, $subtotalCents);
 
         return response()->json([
-            'valid'         => $result->valid,
+            'valid' => $result->valid,
             'discount_cents' => $result->discountCents,
-            'message'       => $result->message,
+            'message' => $result->message,
         ]);
     }
 
@@ -256,7 +258,7 @@ class PurchaseController extends Controller
         ]);
 
         $tenantId = app('current.tenant.id');
-        $tenant   = Tenant::find($tenantId);
+        $tenant = Tenant::find($tenantId);
 
         if (! $tenant || ! $tenant->tax_collection_enabled || empty($tenant->billing_address['postal_code']) || ! $tenant->stripe_account_id) {
             return response()->json(['tax_enabled' => false]);
@@ -272,7 +274,7 @@ class PurchaseController extends Controller
                 $tenant->stripe_account_id,
                 [
                     'postal_code' => $tenant->billing_address['postal_code'],
-                    'country'     => $tenant->billing_address['country'] ?? 'US',
+                    'country' => $tenant->billing_address['country'] ?? 'US',
                 ],
                 $package->id,
             );
@@ -281,10 +283,10 @@ class PurchaseController extends Controller
         }
 
         return response()->json([
-            'tax_enabled'    => true,
+            'tax_enabled' => true,
             'subtotal_cents' => $subtotalCents,
-            'tax_cents'      => $calculation->tax_amount_exclusive,
-            'total_cents'    => $subtotalCents + $calculation->tax_amount_exclusive,
+            'tax_cents' => $calculation->tax_amount_exclusive,
+            'total_cents' => $subtotalCents + $calculation->tax_amount_exclusive,
         ]);
     }
 
@@ -292,8 +294,8 @@ class PurchaseController extends Controller
     {
         $validated = $request->validate([
             'payment_intent_id' => ['required', 'string'],
-            'save_card'         => ['sometimes', 'boolean'],
-            'auto_replenish'    => ['sometimes', 'boolean'],
+            'save_card' => ['sometimes', 'boolean'],
+            'auto_replenish' => ['sometimes', 'boolean'],
         ]);
 
         $customer = Auth::user()->customer;
@@ -303,7 +305,7 @@ class PurchaseController extends Controller
             ->with('order')
             ->first();
 
-        if (!$payment) {
+        if (! $payment) {
             return response()->json(['status' => 'not_found'], 404);
         }
 
@@ -320,7 +322,17 @@ class PurchaseController extends Controller
             return response()->json(['status' => $pi->status]);
         }
 
-        DB::transaction(function () use ($order, $payment, $validated, $request) {
+        $alreadyPaid = false;
+
+        DB::transaction(function () use ($order, $payment, $request, &$alreadyPaid) {
+            // Re-read with a lock so concurrent webhook + confirm calls don't both issue credits
+            $order = Order::lockForUpdate()->find($order->id);
+            if ($order->status === OrderStatus::Paid) {
+                $alreadyPaid = true;
+
+                return;
+            }
+
             $order->transitionTo(OrderStatus::Paid);
             $payment->transitionTo(PaymentStatus::Paid);
             $payment->update(['paid_at' => now()]);
@@ -334,12 +346,16 @@ class PurchaseController extends Controller
 
                 if ($request->boolean('auto_replenish') && $order->package->is_auto_replenish_eligible) {
                     $orderDog->dog->update([
-                        'auto_replenish_enabled'    => true,
+                        'auto_replenish_enabled' => true,
                         'auto_replenish_package_id' => $order->package_id,
                     ]);
                 }
             }
         });
+
+        if ($alreadyPaid) {
+            return response()->json(['status' => 'paid']);
+        }
 
         if ($request->boolean('save_card') && $pi->payment_method) {
             $pm = $stripe->retrievePaymentMethod($pi->payment_method, $stripeAccountId);
@@ -352,8 +368,8 @@ class PurchaseController extends Controller
             }
             $customer->update([
                 'stripe_payment_method_id' => $pm->id,
-                'stripe_pm_last4'          => $pm->card?->last4,
-                'stripe_pm_brand'          => $pm->card?->brand,
+                'stripe_pm_last4' => $pm->card?->last4,
+                'stripe_pm_brand' => $pm->card?->brand,
             ]);
         }
 
