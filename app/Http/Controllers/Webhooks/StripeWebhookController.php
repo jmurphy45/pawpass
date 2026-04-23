@@ -108,12 +108,27 @@ class StripeWebhookController extends Controller
             }
         });
 
-        $taxCalcId = $pi->metadata->tax_calculation_id ?? null;
-        if ($taxCalcId) {
-            $tenant = \App\Models\Tenant::find($order->tenant_id);
-            if ($tenant?->stripe_account_id) {
-                $this->stripe->createTaxTransaction($taxCalcId, $order->id, $tenant->stripe_account_id);
+        $tenant = \App\Models\Tenant::find($order->tenant_id);
+
+        $platformFeeCents = (int) ($pi->application_fee_amount ?? 0);
+        if ($platformFeeCents > 0) {
+            $order->increment('platform_fee_amount_cents', $platformFeeCents);
+        }
+
+        if ($tenant?->stripe_account_id) {
+            try {
+                $processingFee = $this->stripe->retrieveProcessingFee($pi->id, $tenant->stripe_account_id);
+                if ($processingFee !== null) {
+                    $order->increment('processing_fee_amount_cents', $processingFee);
+                }
+            } catch (\Stripe\Exception\ApiErrorException $e) {
+                Log::warning('Failed to retrieve processing fee', ['pi_id' => $pi->id, 'error' => $e->getMessage()]);
             }
+        }
+
+        $taxCalcId = $pi->metadata->tax_calculation_id ?? null;
+        if ($taxCalcId && $tenant?->stripe_account_id) {
+            $this->stripe->createTaxTransaction($taxCalcId, $order->id, $tenant->stripe_account_id);
         }
 
         $order->load('customer');

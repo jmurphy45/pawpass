@@ -205,6 +205,19 @@ class StripeService
         return $this->client->paymentIntents->retrieve($id, [], $opts);
     }
 
+    public function retrieveProcessingFee(string $piId, string $stripeAccountId): ?int
+    {
+        $pi = $this->client->paymentIntents->retrieve(
+            $piId,
+            ['expand' => ['latest_charge.balance_transaction']],
+            ['stripe_account' => $stripeAccountId]
+        );
+
+        $fee = $pi->latest_charge?->balance_transaction?->fee ?? null;
+
+        return is_int($fee) ? $fee : null;
+    }
+
     public function retrieveChargeDetails(string $paymentIntentId, string $stripeAccountId): ?array
     {
         $pi = $this->client->paymentIntents->retrieve(

@@ -192,9 +192,15 @@ class BoardingController extends Controller
         $depositPayment = $order->payments()->whereIn('status', ['paid', 'authorized'])->where('type', PaymentType::Deposit->value)->first();
         $depositPaidCents = $depositPayment?->amount_cents ?? 0;
 
-        $balance = max(0, $nightsTotal + $addonsTotal - $depositPaidCents);
+        $subtotalCents = $nightsTotal + $addonsTotal;
 
         $tenant = Tenant::find($reservation->tenant_id);
+
+        [$taxAmountCents, $taxCalcId] = $tenant
+            ? $this->orderService->resolveTax($subtotalCents, $tenant, 'boarding_checkout')
+            : [0, null];
+
+        $balance = max(0, $subtotalCents + $taxAmountCents - $depositPaidCents);
 
         // Finalize line items (replace any draft nightly rate line item)
         $order->lineItems()->delete();
@@ -263,12 +269,16 @@ class BoardingController extends Controller
             }
         }
 
-        // Update total amount and mark order paid
-        $totalCents = $depositPaidCents + $chargedCents;
-        $effectiveFeePct = $tenant?->effectivePlatformFeePct($totalCents) ?? 5.0;
+        // Update total amount (subtotal + tax) and mark order paid
+        $totalCents = $subtotalCents + $taxAmountCents;
+        $effectiveFeePct = $tenant?->effectivePlatformFeePct($subtotalCents) ?? 5.0;
         $order->update([
+            'subtotal_cents' => $subtotalCents,
+            'tax_amount_cents' => $taxAmountCents,
+            'stripe_tax_calc_id' => $taxCalcId,
             'total_amount' => number_format($totalCents / 100, 2, '.', ''),
             'platform_fee_pct' => $effectiveFeePct,
+            'platform_fee_amount_cents' => $feeCents ?? 0,
         ]);
         $order->transitionTo(OrderStatus::Paid);
 
@@ -291,8 +301,11 @@ class BoardingController extends Controller
             'reservation_id' => $reservation->id,
             'type' => OrderType::Boarding,
             'status' => 'pending',
+            'subtotal_cents' => 0,
+            'tax_amount_cents' => 0,
             'total_amount' => '0.00',
             'platform_fee_pct' => Tenant::find($reservation->tenant_id)?->effectivePlatformFeePct() ?? 5.0,
+            'platform_fee_amount_cents' => 0,
         ]);
     }
 

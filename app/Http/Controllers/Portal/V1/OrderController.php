@@ -113,7 +113,7 @@ class OrderController extends Controller
 
         $totalCents = $discountedSubtotal + $taxAmountCents;
 
-        $order = DB::transaction(function () use ($request, $package, $tenantId, $customer, $idempotencyKey, $effectiveFeePct, $discountedSubtotal, $taxAmountCents, $taxCalcId, $totalCents, $promoResult) {
+        $order = DB::transaction(function () use ($request, $package, $tenantId, $customer, $idempotencyKey, $effectiveFeePct, $applicationFeeCents, $discountedSubtotal, $taxAmountCents, $taxCalcId, $totalCents, $promoResult) {
             $order = Order::create([
                 'tenant_id' => $tenantId,
                 'customer_id' => $customer->id,
@@ -125,6 +125,7 @@ class OrderController extends Controller
                 'tax_amount_cents' => $taxAmountCents,
                 'stripe_tax_calc_id' => $taxCalcId,
                 'platform_fee_pct' => $effectiveFeePct,
+                'platform_fee_amount_cents' => $applicationFeeCents,
                 'idempotency_key' => $idempotencyKey,
                 'promotion_id' => $promoResult?->promotion?->id,
             ]);

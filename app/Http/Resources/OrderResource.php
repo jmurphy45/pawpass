@@ -16,6 +16,12 @@ class OrderResource extends JsonResource
             'tax_amount' => number_format(($this->tax_amount_cents ?? 0) / 100, 2),
             'total_amount' => $this->total_amount,
             'platform_fee_pct' => $this->platform_fee_pct,
+            'platform_fee_amount' => $this->platform_fee_amount_cents !== null
+                ? number_format($this->platform_fee_amount_cents / 100, 2)
+                : null,
+            'processing_fee_amount' => $this->processing_fee_amount_cents !== null
+                ? number_format($this->processing_fee_amount_cents / 100, 2)
+                : null,
             'package' => $this->whenLoaded('package', fn () => [
                 'name' => $this->package->name,
                 'type' => $this->package->type,
