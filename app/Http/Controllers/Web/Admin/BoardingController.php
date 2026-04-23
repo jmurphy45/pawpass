@@ -9,11 +9,14 @@ use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Models\AddonType;
 use App\Models\BoardingReportCard;
+use App\Models\Dog;
 use App\Models\KennelUnit;
 use App\Models\Order;
 use App\Models\Reservation;
 use App\Models\ReservationAddon;
 use App\Models\Tenant;
+use App\Services\KennelAvailabilityService;
+use App\Services\OrderService;
 use App\Services\PlanFeatureCache;
 use App\Services\StripeService;
 use App\Services\VaccinationComplianceService;
@@ -30,6 +33,8 @@ class BoardingController extends Controller
         private VaccinationComplianceService $compliance,
         private StripeService $stripe,
         private PlanFeatureCache $planFeatureCache,
+        private KennelAvailabilityService $availability,
+        private OrderService $orderService,
     ) {}
 
     private function requireBoarding(): void
@@ -62,10 +67,73 @@ class BoardingController extends Controller
 
         $reservations = $query->paginate(25)->withQueryString();
 
+        $dogs = Dog::with('customer:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'customer_id']);
+
+        $kennelUnits = KennelUnit::where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'nightly_rate_cents']);
+
         return Inertia::render('Admin/Boarding/Reservations', [
             'reservations' => $reservations,
             'filters' => $request->only('status', 'from', 'to'),
+            'dogs' => $dogs,
+            'kennelUnits' => $kennelUnits,
         ]);
+    }
+
+    public function storeReservation(Request $request): RedirectResponse
+    {
+        $this->requireBoarding();
+        $tenantId = app('current.tenant.id');
+
+        $validated = $request->validate([
+            'dog_id' => ['required', 'string', 'size:26', 'exists:dogs,id'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'kennel_unit_id' => ['nullable', 'string', 'size:26', 'exists:kennel_units,id'],
+            'nightly_rate_cents' => ['nullable', 'integer', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'ignore_vaccination_check' => ['nullable', 'boolean'],
+        ]);
+
+        $dog = Dog::findOrFail($validated['dog_id']);
+        $startsAt = now()->parse($validated['starts_at']);
+        $endsAt = now()->parse($validated['ends_at']);
+
+        $unit = null;
+        if (! empty($validated['kennel_unit_id'])) {
+            $unit = KennelUnit::findOrFail($validated['kennel_unit_id']);
+            if (! $this->availability->isAvailable($unit, $startsAt, $endsAt)) {
+                return back()->withErrors(['kennel_unit_id' => 'That kennel unit is not available for the selected dates.'])->withInput();
+            }
+        }
+
+        if (empty($validated['ignore_vaccination_check'])) {
+            $violations = $this->compliance->getViolations($dog, $tenantId);
+            if (! empty($violations)) {
+                return back()->withErrors(['dog_id' => 'Dog has incomplete vaccinations: '.implode(', ', $violations)])->withInput();
+            }
+        }
+
+        $nightlyRate = $validated['nightly_rate_cents'] ?? $unit?->nightly_rate_cents;
+
+        $reservation = Reservation::create([
+            'tenant_id' => $tenantId,
+            'dog_id' => $dog->id,
+            'customer_id' => $dog->customer_id,
+            'kennel_unit_id' => $validated['kennel_unit_id'] ?? null,
+            'status' => 'pending',
+            'starts_at' => $startsAt,
+            'ends_at' => $endsAt,
+            'nightly_rate_cents' => $nightlyRate,
+            'notes' => $validated['notes'] ?? null,
+            'created_by' => auth()->id(),
+        ]);
+
+        return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', 'Reservation created.');
     }
 
     public function showReservation(Reservation $reservation): Response

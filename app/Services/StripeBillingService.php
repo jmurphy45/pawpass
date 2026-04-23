@@ -14,12 +14,12 @@ class StripeBillingService
     {
         $params = [
             'description' => $tenant->name,
-            'metadata'    => ['tenant_id' => $tenant->id, 'slug' => $tenant->slug, 'business_name' => $tenant->name],
+            'metadata' => ['tenant_id' => $tenant->id, 'slug' => $tenant->slug, 'business_name' => $tenant->name],
         ];
 
         $owner = $tenant->owner;
         if ($owner) {
-            $params['name']  = $owner->name;
+            $params['name'] = $owner->name;
             $params['email'] = $owner->email;
         }
 
@@ -42,11 +42,11 @@ class StripeBillingService
     private function formatAddress(array $address): array
     {
         return [
-            'line1'       => $address['street'] ?? '',
-            'city'        => $address['city'] ?? '',
-            'state'       => $address['state'] ?? '',
+            'line1' => $address['street'] ?? '',
+            'city' => $address['city'] ?? '',
+            'state' => $address['state'] ?? '',
             'postal_code' => $address['postal_code'] ?? '',
-            'country'     => $address['country'] ?? 'US',
+            'country' => $address['country'] ?? 'US',
         ];
     }
 
@@ -54,7 +54,7 @@ class StripeBillingService
     {
         return $this->client->setupIntents->create([
             'customer' => $customerId,
-            'usage'    => 'off_session',
+            'usage' => 'off_session',
         ]);
     }
 
@@ -70,9 +70,9 @@ class StripeBillingService
     public function createSubscription(Tenant $tenant, string $priceId, string $cycle, ?string $paymentMethodId = null): object
     {
         $params = [
-            'customer'        => $tenant->platform_stripe_customer_id,
-            'items'           => [['price' => $priceId]],
-            'metadata'        => ['tenant_id' => $tenant->id, 'cycle' => $cycle],
+            'customer' => $tenant->platform_stripe_customer_id,
+            'items' => [['price' => $priceId]],
+            'metadata' => ['tenant_id' => $tenant->id, 'cycle' => $cycle],
             'trial_from_plan' => false,
         ];
 
@@ -80,7 +80,7 @@ class StripeBillingService
             $params['default_payment_method'] = $paymentMethodId;
         }
 
-        $params['automatic_tax'] = ['enabled' => Feature::active('tax_platform_subscriptions') && ! empty($tenant->billing_address)];
+        $params['automatic_tax'] = $this->buildAutomaticTax($tenant);
 
         return $this->client->subscriptions->create($params);
     }
@@ -91,7 +91,7 @@ class StripeBillingService
 
         return $this->client->subscriptions->update($tenant->platform_stripe_sub_id, [
             'items' => [[
-                'id'    => $sub->items->data[0]->id,
+                'id' => $sub->items->data[0]->id,
                 'price' => $newPriceId,
             ]],
             'proration_behavior' => 'create_prorations',
@@ -109,7 +109,7 @@ class StripeBillingService
     {
         $invoices = $this->client->invoices->all([
             'customer' => $tenant->platform_stripe_customer_id,
-            'limit'    => 24,
+            'limit' => 24,
         ]);
 
         return $invoices->data;
@@ -118,7 +118,7 @@ class StripeBillingService
     public function createPortalSession(Tenant $tenant, string $returnUrl): string
     {
         $session = $this->client->billingPortal->sessions->create([
-            'customer'   => $tenant->platform_stripe_customer_id,
+            'customer' => $tenant->platform_stripe_customer_id,
             'return_url' => $returnUrl,
         ]);
 
@@ -131,15 +131,29 @@ class StripeBillingService
         string $cycle,
         int $trialDays
     ): object {
-        $taxEnabled = Feature::active('tax_platform_subscriptions') && ! empty($tenant->billing_address);
-
         return $this->client->subscriptions->create([
-            'customer'          => $tenant->platform_stripe_customer_id,
-            'items'             => [['price' => $priceId]],
-            'metadata'          => ['tenant_id' => $tenant->id, 'cycle' => $cycle],
+            'customer' => $tenant->platform_stripe_customer_id,
+            'items' => [['price' => $priceId]],
+            'metadata' => ['tenant_id' => $tenant->id, 'cycle' => $cycle],
             'trial_period_days' => $trialDays,
-            'automatic_tax'     => ['enabled' => $taxEnabled],
+            'automatic_tax' => $this->buildAutomaticTax($tenant),
         ]);
+    }
+
+    private function buildAutomaticTax(Tenant $tenant): array
+    {
+        $enabled = Feature::active('tax_platform_subscriptions') && ! empty($tenant->billing_address);
+
+        $tax = ['enabled' => $enabled];
+
+        if ($enabled && ! empty($tenant->stripe_account_id)) {
+            $tax['liability'] = [
+                'type' => 'connected_account',
+                'account' => $tenant->stripe_account_id,
+            ];
+        }
+
+        return $tax;
     }
 
     public function createPlatformProduct(string $name): string
@@ -152,10 +166,10 @@ class StripeBillingService
     public function createPlatformPrice(string $productId, int $unitAmountCents, string $interval): string
     {
         $price = $this->client->prices->create([
-            'product'     => $productId,
+            'product' => $productId,
             'unit_amount' => $unitAmountCents,
-            'currency'    => 'usd',
-            'recurring'   => ['interval' => $interval],
+            'currency' => 'usd',
+            'recurring' => ['interval' => $interval],
         ]);
 
         return $price->id;
@@ -189,7 +203,7 @@ class StripeBillingService
     {
         return $this->client->subscriptions->all([
             'customer' => $customerId,
-            'limit'    => 10,
+            'limit' => 10,
         ])->data;
     }
 
@@ -213,9 +227,9 @@ class StripeBillingService
         $opts = $idempotencyKey ? ['idempotency_key' => $idempotencyKey] : [];
 
         return (object) $this->client->invoiceItems->create([
-            'customer'    => $customerId,
-            'amount'      => $amountCents,
-            'currency'    => 'usd',
+            'customer' => $customerId,
+            'amount' => $amountCents,
+            'currency' => 'usd',
             'description' => $description,
         ], $opts);
     }
@@ -225,7 +239,7 @@ class StripeBillingService
         $opts = $idempotencyKey ? ['idempotency_key' => $idempotencyKey] : [];
 
         $invoice = $this->client->invoices->create([
-            'customer'     => $customerId,
+            'customer' => $customerId,
             'auto_advance' => false,
         ], $opts);
 

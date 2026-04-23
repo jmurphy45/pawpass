@@ -125,6 +125,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         // Boarding
         Route::middleware('plan:boarding')->group(function () {
             Route::get('/boarding/reservations', [AdminBoardingController::class, 'reservations'])->name('admin.boarding.reservations');
+            Route::post('/boarding/reservations', [AdminBoardingController::class, 'storeReservation'])->name('admin.boarding.reservations.store');
             Route::get('/boarding/reservations/{reservation}', [AdminBoardingController::class, 'showReservation'])->name('admin.boarding.reservations.show');
             Route::patch('/boarding/reservations/{reservation}', [AdminBoardingController::class, 'updateReservation'])->name('admin.boarding.reservations.update');
             Route::post('/boarding/reservations/{reservation}/checkout', [AdminBoardingController::class, 'processCheckout'])->name('admin.boarding.reservations.checkout');
