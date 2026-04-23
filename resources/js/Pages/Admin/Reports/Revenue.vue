@@ -37,19 +37,23 @@
             <tr>
               <th class="px-4 py-3 text-left font-medium text-gray-600">Period</th>
               <th class="px-4 py-3 text-right font-medium text-gray-600">Gross</th>
-              <th class="px-4 py-3 text-right font-medium text-gray-600">Fee</th>
+              <th class="px-4 py-3 text-right font-medium text-gray-600">Platform Fee</th>
+              <th class="px-4 py-3 text-right font-medium text-gray-600">Tax</th>
+              <th class="px-4 py-3 text-right font-medium text-gray-600">Processing Fee</th>
               <th class="px-4 py-3 text-right font-medium text-gray-600">Net</th>
               <th class="px-4 py-3 text-right font-medium text-gray-600">Orders</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-if="rows.length === 0">
-              <td colspan="5" class="px-4 py-6 text-center text-gray-400">No data for selected range.</td>
+              <td colspan="7" class="px-4 py-6 text-center text-gray-400">No data for selected range.</td>
             </tr>
             <tr v-for="row in rows" :key="row.period" class="hover:bg-gray-50">
               <td class="px-4 py-3 text-gray-900">{{ row.period }}</td>
               <td class="px-4 py-3 text-right text-gray-900">${{ fmt(row.gross) }}</td>
               <td class="px-4 py-3 text-right text-red-600">${{ fmt(row.fee) }}</td>
+              <td class="px-4 py-3 text-right text-gray-600">${{ fmt(row.tax_total) }}</td>
+              <td class="px-4 py-3 text-right text-gray-600">${{ fmt(row.processing_fee_total) }}</td>
               <td class="px-4 py-3 text-right text-green-700 font-medium">${{ fmt(row.net) }}</td>
               <td class="px-4 py-3 text-right text-gray-700">{{ row.orders }}</td>
             </tr>
@@ -59,6 +63,8 @@
               <td class="px-4 py-3 text-gray-900">Total</td>
               <td class="px-4 py-3 text-right">${{ fmt(totals.gross) }}</td>
               <td class="px-4 py-3 text-right text-red-600">${{ fmt(totals.fee) }}</td>
+              <td class="px-4 py-3 text-right">${{ fmt(totals.tax_total) }}</td>
+              <td class="px-4 py-3 text-right">${{ fmt(totals.processing_fee_total) }}</td>
               <td class="px-4 py-3 text-right text-green-700">${{ fmt(totals.net) }}</td>
               <td class="px-4 py-3 text-right">{{ totals.orders }}</td>
             </tr>
@@ -79,6 +85,8 @@ interface RevenueRow {
   period: string;
   gross: number;
   fee: number;
+  tax_total: number;
+  processing_fee_total: number;
   net: number;
   orders: number;
 }
@@ -103,10 +111,12 @@ const csvUrl = computed(() =>
 );
 
 const totals = computed(() => ({
-  gross:  props.rows.reduce((s, r) => s + r.gross, 0),
-  fee:    props.rows.reduce((s, r) => s + r.fee, 0),
-  net:    props.rows.reduce((s, r) => s + r.net, 0),
-  orders: props.rows.reduce((s, r) => s + r.orders, 0),
+  gross:                props.rows.reduce((s, r) => s + r.gross, 0),
+  fee:                  props.rows.reduce((s, r) => s + r.fee, 0),
+  tax_total:            props.rows.reduce((s, r) => s + r.tax_total, 0),
+  processing_fee_total: props.rows.reduce((s, r) => s + r.processing_fee_total, 0),
+  net:                  props.rows.reduce((s, r) => s + r.net, 0),
+  orders:               props.rows.reduce((s, r) => s + r.orders, 0),
 }));
 
 function fmt(n: number): string {

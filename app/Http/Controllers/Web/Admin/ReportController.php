@@ -15,8 +15,7 @@ class ReportController extends Controller
     public function __construct(
         private readonly ReportService $reportService,
         private readonly VaccinationComplianceService $complianceService,
-    ) {
-    }
+    ) {}
 
     public function index(): Response
     {
@@ -26,9 +25,9 @@ class ReportController extends Controller
     public function revenue(Request $request): Response
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
-        $to       = $request->input('to', now()->toDateString());
-        $groupBy  = $request->input('group_by', 'month');
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->toDateString());
+        $groupBy = $request->input('group_by', 'month');
 
         $data = $this->reportService->revenue(
             $tenantId,
@@ -38,7 +37,7 @@ class ReportController extends Controller
         );
 
         return Inertia::render('Admin/Reports/Revenue', [
-            'rows'    => $data,
+            'rows' => $data,
             'filters' => compact('from', 'to', 'groupBy'),
         ]);
     }
@@ -46,13 +45,13 @@ class ReportController extends Controller
     public function packages(Request $request): Response
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
-        $to       = $request->input('to', now()->toDateString());
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->toDateString());
 
         $data = $this->reportService->packages($tenantId, $from.' 00:00:00', $to.' 23:59:59');
 
         return Inertia::render('Admin/Reports/Packages', [
-            'rows'    => $data,
+            'rows' => $data,
             'filters' => compact('from', 'to'),
         ]);
     }
@@ -60,13 +59,13 @@ class ReportController extends Controller
     public function credits(Request $request): Response
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
-        $to       = $request->input('to', now()->toDateString());
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->toDateString());
 
         $data = $this->reportService->credits($tenantId, $from.' 00:00:00', $to.' 23:59:59');
 
         return Inertia::render('Admin/Reports/Credits', [
-            'rows'    => $data,
+            'rows' => $data,
             'filters' => compact('from', 'to'),
         ]);
     }
@@ -74,13 +73,13 @@ class ReportController extends Controller
     public function customers(Request $request): Response
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
-        $to       = $request->input('to', now()->toDateString());
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->toDateString());
 
         $data = $this->reportService->customersLtv($tenantId, $from.' 00:00:00', $to.' 23:59:59');
 
         return Inertia::render('Admin/Reports/Customers', [
-            'rows'    => $data,
+            'rows' => $data,
             'filters' => compact('from', 'to'),
         ]);
     }
@@ -88,9 +87,9 @@ class ReportController extends Controller
     public function attendance(Request $request): Response
     {
         $tenantId = app('current.tenant.id');
-        $from     = $request->input('from', now()->subDays(30)->toDateString());
-        $to       = $request->input('to', now()->toDateString());
-        $groupBy  = $request->input('group_by', 'day');
+        $from = $request->input('from', now()->subDays(30)->toDateString());
+        $to = $request->input('to', now()->toDateString());
+        $groupBy = $request->input('group_by', 'day');
 
         $data = $this->reportService->attendance(
             $tenantId,
@@ -100,7 +99,7 @@ class ReportController extends Controller
         );
 
         return Inertia::render('Admin/Reports/Attendance', [
-            'rows'    => $data,
+            'rows' => $data,
             'filters' => compact('from', 'to', 'groupBy'),
         ]);
     }
@@ -108,15 +107,57 @@ class ReportController extends Controller
     public function creditStatus(): Response
     {
         $tenantId = app('current.tenant.id');
-        $data     = $this->reportService->creditStatus($tenantId);
+        $data = $this->reportService->creditStatus($tenantId);
 
         return Inertia::render('Admin/Reports/CreditStatus', ['data' => $data]);
+    }
+
+    public function promotions(Request $request): Response
+    {
+        $tenantId = app('current.tenant.id');
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->toDateString());
+
+        $data = $this->reportService->promotions($tenantId, $from.' 00:00:00', $to.' 23:59:59');
+
+        return Inertia::render('Admin/Reports/Promotions', [
+            'rows' => $data,
+            'filters' => compact('from', 'to'),
+        ]);
+    }
+
+    public function boardingRevenue(Request $request): Response
+    {
+        $tenantId = app('current.tenant.id');
+        $from = $request->input('from', now()->subMonths(12)->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->toDateString());
+        $groupBy = $request->input('group_by', 'month');
+
+        $data = $this->reportService->boardingRevenue(
+            $tenantId,
+            $from.' 00:00:00',
+            $to.' 23:59:59',
+            $groupBy
+        );
+
+        return Inertia::render('Admin/Reports/Boarding', [
+            'rows' => $data,
+            'filters' => compact('from', 'to', 'groupBy'),
+        ]);
+    }
+
+    public function outstandingBalances(): Response
+    {
+        $tenantId = app('current.tenant.id');
+        $data = $this->reportService->outstandingBalances($tenantId);
+
+        return Inertia::render('Admin/Reports/OutstandingBalances', ['rows' => $data]);
     }
 
     public function vaccinations(Request $request): Response
     {
         $tenantId = app('current.tenant.id');
-        $filter   = $request->input('filter'); // null|'non_compliant'|'expiring_soon'|'expiring_urgent'
+        $filter = $request->input('filter'); // null|'non_compliant'|'expiring_soon'|'expiring_urgent'
 
         $dogs = Dog::with(['vaccinations', 'customer'])
             ->whereHas('customer')
@@ -124,15 +165,15 @@ class ReportController extends Controller
 
         $rows = $dogs->map(function (Dog $dog) use ($tenantId) {
             $vaccinationStatus = $this->complianceService->getVaccinationStatus($dog, $tenantId);
-            $isCompliant       = $this->complianceService->isCompliant($dog, $tenantId);
+            $isCompliant = $this->complianceService->isCompliant($dog, $tenantId);
 
             return [
-                'dog_id'        => $dog->id,
-                'dog_name'      => $dog->name,
-                'customer_id'   => $dog->customer->id,
+                'dog_id' => $dog->id,
+                'dog_name' => $dog->name,
+                'customer_id' => $dog->customer->id,
                 'customer_name' => $dog->customer->name,
-                'is_compliant'  => $isCompliant,
-                'vaccinations'  => $vaccinationStatus,
+                'is_compliant' => $isCompliant,
+                'vaccinations' => $vaccinationStatus,
             ];
         });
 
@@ -161,7 +202,7 @@ class ReportController extends Controller
         }
 
         return Inertia::render('Admin/Reports/Vaccinations', [
-            'rows'   => $rows->values(),
+            'rows' => $rows->values(),
             'filter' => $filter,
         ]);
     }

@@ -30,6 +30,14 @@
               <h3 class="font-semibold text-gray-900 text-sm">Package Performance</h3>
               <p class="mt-1 text-xs text-gray-500">Revenue and orders per package.</p>
             </a>
+            <a
+              v-if="isOwner"
+              :href="route('admin.reports.outstanding-balances')"
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Outstanding Balances</h3>
+              <p class="mt-1 text-xs text-gray-500">Customers with unpaid balances from failed charges.</p>
+            </a>
           </template>
           <div v-else class="col-span-full text-sm text-gray-500 italic">
             Upgrade to Starter or higher to access operational reports.
@@ -61,7 +69,7 @@
               class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
             >
               <h3 class="font-semibold text-gray-900 text-sm">Revenue Summary</h3>
-              <p class="mt-1 text-xs text-gray-500">Gross revenue, platform fees, and net payout by period.</p>
+              <p class="mt-1 text-xs text-gray-500">Gross revenue, platform fees, tax, and net payout by period.</p>
             </a>
             <a
               :href="route('admin.reports.credits')"
@@ -76,6 +84,20 @@
             >
               <h3 class="font-semibold text-gray-900 text-sm">Customer Lifetime Value</h3>
               <p class="mt-1 text-xs text-gray-500">Total spend and order count per customer.</p>
+            </a>
+            <a
+              :href="route('admin.reports.promotions')"
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Promotion Redemptions</h3>
+              <p class="mt-1 text-xs text-gray-500">Discount codes used, redemption counts, and total discount given.</p>
+            </a>
+            <a
+              :href="route('admin.reports.boarding')"
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Boarding Revenue</h3>
+              <p class="mt-1 text-xs text-gray-500">Revenue from boarding orders by period.</p>
             </a>
           </template>
           <div v-else-if="!hasFinancialReports" class="col-span-full">

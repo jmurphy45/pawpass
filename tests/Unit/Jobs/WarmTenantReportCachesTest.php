@@ -21,12 +21,12 @@ class WarmTenantReportCachesTest extends TestCase
 
         PlatformPlan::factory()->create(['slug' => 'free', 'features' => [], 'staff_limit' => 1]);
         PlatformPlan::factory()->create([
-            'slug'     => 'starter',
+            'slug' => 'starter',
             'features' => ['basic_reporting'],
             'staff_limit' => 5,
         ]);
         PlatformPlan::factory()->create([
-            'slug'     => 'pro',
+            'slug' => 'pro',
             'features' => ['basic_reporting', 'financial_reports'],
             'staff_limit' => 15,
         ]);
@@ -40,7 +40,7 @@ class WarmTenantReportCachesTest extends TestCase
         $reportService->expects($this->never())->method('revenue');
         $reportService->expects($this->never())->method('packages');
 
-        (new WarmTenantReportCaches())->handle($reportService);
+        (new WarmTenantReportCaches)->handle($reportService);
 
         $this->assertFalse(Cache::has("report:{$tenant->id}:revenue"));
         $this->assertFalse(Cache::has("report:{$tenant->id}:packages"));
@@ -54,7 +54,7 @@ class WarmTenantReportCachesTest extends TestCase
         $reportService->expects($this->once())->method('packages')->willReturn([]);
         $reportService->expects($this->never())->method('revenue');
 
-        (new WarmTenantReportCaches())->handle($reportService);
+        (new WarmTenantReportCaches)->handle($reportService);
 
         $this->assertTrue(Cache::has("report:{$tenant->id}:packages"));
     }
@@ -68,13 +68,17 @@ class WarmTenantReportCachesTest extends TestCase
         $reportService->expects($this->once())->method('revenue')->willReturn([]);
         $reportService->expects($this->once())->method('credits')->willReturn([]);
         $reportService->expects($this->once())->method('customersLtv')->willReturn([]);
+        $reportService->expects($this->once())->method('promotions')->willReturn([]);
+        $reportService->expects($this->once())->method('boardingRevenue')->willReturn([]);
 
-        (new WarmTenantReportCaches())->handle($reportService);
+        (new WarmTenantReportCaches)->handle($reportService);
 
         $this->assertTrue(Cache::has("report:{$tenant->id}:revenue"));
         $this->assertTrue(Cache::has("report:{$tenant->id}:credits"));
         $this->assertTrue(Cache::has("report:{$tenant->id}:customers_ltv"));
         $this->assertTrue(Cache::has("report:{$tenant->id}:packages"));
+        $this->assertTrue(Cache::has("report:{$tenant->id}:promotions"));
+        $this->assertTrue(Cache::has("report:{$tenant->id}:boarding_revenue"));
     }
 
     public function test_deleted_tenant_is_skipped(): void
@@ -85,7 +89,7 @@ class WarmTenantReportCachesTest extends TestCase
         $reportService = $this->createMock(ReportService::class);
         $reportService->expects($this->never())->method('revenue');
 
-        (new WarmTenantReportCaches())->handle($reportService);
+        (new WarmTenantReportCaches)->handle($reportService);
 
         $this->assertFalse(Cache::has("report:{$tenant->id}:revenue"));
     }
