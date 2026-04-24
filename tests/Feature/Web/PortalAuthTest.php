@@ -28,10 +28,10 @@ class PortalAuthTest extends TestCase
 
         $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $this->user = User::factory()->create([
-            'tenant_id'   => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'customer_id' => $customer->id,
-            'role'        => 'customer',
-            'email'       => 'jane@example.com',
+            'role' => 'customer',
+            'email' => 'jane@example.com',
         ]);
         $customer->update(['user_id' => $this->user->id]);
     }
@@ -93,8 +93,10 @@ class PortalAuthTest extends TestCase
             ->andReturn($stripeCustomer);
 
         $response = $this->post('/my/register', [
-            'name'  => 'New User',
+            'name' => 'New User',
             'email' => 'newuser@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
         ]);
 
         $response->assertRedirect('/my/login');
@@ -115,8 +117,10 @@ class PortalAuthTest extends TestCase
             ->andThrow(new \Exception('Stripe error'));
 
         $response = $this->post('/my/register', [
-            'name'  => 'Fail User',
+            'name' => 'Fail User',
             'email' => 'failuser@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
         ]);
 
         $response->assertRedirect('/my/login');

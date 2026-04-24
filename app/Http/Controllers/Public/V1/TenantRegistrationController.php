@@ -16,16 +16,17 @@ class TenantRegistrationController extends Controller
     {
         $validated = $request->validate([
             'business_name' => ['required', 'string', 'max:255'],
-            'slug'          => [
+            'slug' => [
                 'required',
                 'string',
                 'regex:/^[a-z0-9-]+$/',
                 'max:63',
                 Rule::unique('tenants', 'slug')->whereNull('deleted_at'),
             ],
-            'owner_name'    => ['required', 'string', 'max:255'],
-            'email'         => ['required', 'email', Rule::unique('users', 'email')],
-            'plan'          => [
+            'owner_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', Rule::unique('users', 'email')],
+            'password' => ['required', 'string', 'min:8'],
+            'plan' => [
                 'required',
                 'string',
                 Rule::exists('platform_plans', 'slug')
@@ -41,11 +42,11 @@ class TenantRegistrationController extends Controller
 
         return response()->json([
             'data' => [
-                'tenant_id'    => $tenant->id,
-                'slug'         => $tenant->slug,
+                'tenant_id' => $tenant->id,
+                'slug' => $tenant->slug,
                 'trial_ends_at' => $tenant->trial_ends_at?->toIso8601String(),
                 'access_token' => $result['access_token'],
-                'portal_url'   => 'https://'.$tenant->slug.'.'.config('app.domain').'/admin',
+                'portal_url' => 'https://'.$tenant->slug.'.'.config('app.domain').'/admin',
             ],
         ], 201);
     }
