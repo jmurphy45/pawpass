@@ -63,6 +63,7 @@ class SettingsController extends Controller
             'staff' => $staffList,
             'packages' => $packages,
             'can_auto_replenish' => Feature::for($tenant)->active('auto_replenish'),
+            'hasPassword' => (bool) Auth::user()->password,
             'us_states' => $this->regionService->usStates(),
             'ca_provinces' => $this->regionService->forCountry('CA'),
         ]);

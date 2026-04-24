@@ -4,6 +4,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Web\Admin\Auth\AcceptInviteController;
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
 use App\Http\Controllers\Web\Admin\Auth\LogoutController as AdminLogoutController;
+use App\Http\Controllers\Web\Admin\Auth\PasswordLoginController as AdminPasswordLoginController;
 use App\Http\Controllers\Web\Admin\BillingController as AdminBillingController;
 use App\Http\Controllers\Web\Admin\BoardingController as AdminBoardingController;
 use App\Http\Controllers\Web\Admin\BroadcastNotificationController as AdminBroadcastController;
@@ -32,6 +33,7 @@ use App\Http\Controllers\Web\Portal\AccountController;
 use App\Http\Controllers\Web\Portal\AttendanceController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
+use App\Http\Controllers\Web\Portal\Auth\PasswordLoginController;
 use App\Http\Controllers\Web\Portal\Auth\RegisterController;
 use App\Http\Controllers\Web\Portal\Auth\VerifyEmailController;
 use App\Http\Controllers\Web\Portal\AutoReplenishController;
@@ -172,6 +174,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::patch('/settings/business', [AdminSettingsController::class, 'updateBusiness'])->name('admin.settings.business');
         Route::patch('/settings/notifications', [AdminSettingsController::class, 'updateNotifications'])->name('admin.settings.notifications');
         Route::post('/settings/staff/invite', [AdminSettingsController::class, 'inviteStaff'])->name('admin.settings.staff.invite');
+        Route::post('/settings/password', [AdminSettingsController::class, 'updatePassword'])->name('admin.settings.password');
         Route::patch('/settings/staff/{user}/deactivate', [AdminSettingsController::class, 'deactivateStaff'])->name('admin.settings.staff.deactivate');
         Route::patch('/settings/billing-address', [AdminSettingsController::class, 'updateBillingAddress'])->name('admin.settings.billing-address');
         Route::post('/settings/logo', [AdminLogoController::class, 'store'])->name('admin.settings.logo.store');
@@ -304,6 +307,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         // Account
         Route::get('/account', [AccountController::class, 'index'])->name('portal.account');
         Route::patch('/account', [AccountController::class, 'update'])->name('portal.account.update');
+        Route::post('/account/password', [AccountController::class, 'updatePassword'])->name('portal.account.password');
 
         Route::put('/account/notification-prefs', [AccountController::class, 'notificationPrefs'])->name('portal.account.notification-prefs');
     });

@@ -346,6 +346,57 @@
           </AppButton>
         </form>
       </div>
+    <!-- Security / Password -->
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+      <h2 class="text-base font-semibold text-gray-900 mb-1">Security</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        {{ hasPassword ? 'Update your password. You can always sign in via magic link instead.' : 'Set a password so you can sign in with email + password in addition to magic links.' }}
+      </p>
+
+      <div v-if="passwordForm.recentlySuccessful" class="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+        Password updated successfully.
+      </div>
+
+      <form @submit.prevent="submitPassword" class="space-y-4 max-w-sm">
+        <div v-if="hasPassword">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+          <input
+            v-model="passwordForm.current_password"
+            type="password"
+            autocomplete="current-password"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            :class="{ 'border-red-500': passwordForm.errors.current_password }"
+          />
+          <p v-if="passwordForm.errors.current_password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.current_password }}</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ hasPassword ? 'New Password' : 'Password' }}</label>
+          <input
+            v-model="passwordForm.password"
+            type="password"
+            autocomplete="new-password"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            :class="{ 'border-red-500': passwordForm.errors.password }"
+          />
+          <p v-if="passwordForm.errors.password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.password }}</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ hasPassword ? 'Confirm New Password' : 'Confirm Password' }}</label>
+          <input
+            v-model="passwordForm.password_confirmation"
+            type="password"
+            autocomplete="new-password"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <AppButton type="submit" variant="primary" :disabled="passwordForm.processing">
+          {{ hasPassword ? 'Update Password' : 'Set Password' }}
+        </AppButton>
+      </form>
+    </div>
     </div>
   </AdminLayout>
   <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
@@ -372,9 +423,24 @@ const props = defineProps<{
   staff: Array<{ id: string; name: string; email: string; role: string; status: string }>;
   packages: Array<{ id: string; name: string; price: string }>;
   can_auto_replenish: boolean;
+  hasPassword: boolean;
   us_states: StateOption[];
   ca_provinces: StateOption[];
 }>();
+
+// ── Password form ─────────────────────────────────────────────────────────────
+
+const passwordForm = useForm({
+  current_password: '',
+  password: '',
+  password_confirmation: '',
+});
+
+function submitPassword() {
+  passwordForm.post(route('admin.settings.password'), {
+    onSuccess: () => passwordForm.reset(),
+  });
+}
 
 // ── Business form ─────────────────────────────────────────────────────────────
 
