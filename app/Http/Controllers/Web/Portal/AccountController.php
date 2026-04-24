@@ -36,9 +36,33 @@ class AccountController extends Controller
                 'email' => $user->email,
                 'phone' => $user->phone,
             ],
+            'hasPassword' => (bool) $user->password,
             'notifPrefs' => $prefs,
             'criticalTypes' => self::CRITICAL_TYPES,
         ]);
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+
+        $rules = [
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ];
+
+        if ($user->password) {
+            $rules['current_password'] = ['required', 'string'];
+        }
+
+        $request->validate($rules);
+
+        if ($user->password && ! Hash::check($request->current_password, $user->password)) {
+            throw ValidationException::withMessages(['current_password' => ['Current password is incorrect.']]);
+        }
+
+        $user->update(['password' => $request->password]);
+
+        return back()->with('success', 'Password updated successfully.');
     }
 
     public function update(Request $request): RedirectResponse

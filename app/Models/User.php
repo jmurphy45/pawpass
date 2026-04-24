@@ -22,6 +22,8 @@ class User extends Authenticatable
         'name',
         'email',
         'email_verified_at',
+        'password',
+        'remember_token',
         'role',
         'status',
         'phone',
@@ -33,6 +35,8 @@ class User extends Authenticatable
     ];
 
     protected $hidden = [
+        'password',
+        'remember_token',
         'invite_token',
     ];
 
@@ -45,6 +49,7 @@ class User extends Authenticatable
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',
+            'password' => 'hashed',
         ];
     }
 

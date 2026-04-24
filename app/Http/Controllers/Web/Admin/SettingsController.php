@@ -230,6 +230,29 @@ class SettingsController extends Controller
         return back()->with('success', 'User deactivated.');
     }
 
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+
+        $rules = [
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ];
+
+        if ($user->password) {
+            $rules['current_password'] = ['required', 'string'];
+        }
+
+        $request->validate($rules);
+
+        if ($user->password && ! Hash::check($request->current_password, $user->password)) {
+            throw ValidationException::withMessages(['current_password' => ['Current password is incorrect.']]);
+        }
+
+        $user->update(['password' => $request->password]);
+
+        return back()->with('success', 'Password updated successfully.');
+    }
+
     private function requireOwner(): void
     {
         if (auth()->user()?->role !== 'business_owner') {

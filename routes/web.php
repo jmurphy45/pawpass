@@ -83,6 +83,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
     // Guest-only auth routes
     Route::middleware(['guest'])->group(function () {
         Route::get('/login', [AdminLoginController::class, 'show'])->name('admin.login');
+        Route::post('/login', [AdminPasswordLoginController::class, 'store'])->name('admin.password.login');
 
         Route::get('/invite/{token}', [AcceptInviteController::class, 'show'])->name('admin.invite.show');
         Route::post('/invite/{token}', [AcceptInviteController::class, 'store'])->name('admin.invite.store');
@@ -247,6 +248,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
     // Guest-only auth routes
     Route::middleware(['guest'])->group(function () {
         Route::get('/login', [LoginController::class, 'show'])->name('portal.login');
+        Route::post('/login', [PasswordLoginController::class, 'store'])->name('portal.password.login');
 
         Route::get('/register', [RegisterController::class, 'show'])->name('portal.register');
         Route::post('/register', [RegisterController::class, 'store'])->name('portal.register.store');
