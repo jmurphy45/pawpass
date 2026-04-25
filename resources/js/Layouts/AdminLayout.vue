@@ -308,7 +308,7 @@
                     Payments
                   </Link>
                 </li>
-                <li>
+                <li v-if="hasManagePromotions">
                   <Link :href="route('admin.promotions.index')" :class="[isActive('admin.promotions.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
                     <TagIcon class="size-6 shrink-0" aria-hidden="true" />
                     Promotions

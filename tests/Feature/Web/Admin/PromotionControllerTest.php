@@ -148,6 +148,32 @@ class PromotionControllerTest extends TestCase
         $response->assertSessionHasErrors('discount_value');
     }
 
+    public function test_business_plan_owner_can_view_promotions_index(): void
+    {
+        PlatformPlan::factory()->create(['slug' => 'business', 'features' => ['manage_promotions']]);
+        $tenant = Tenant::factory()->create([
+            'slug' => 'promo-business-test',
+            'status' => 'active',
+            'plan' => 'business',
+        ]);
+        URL::forceRootUrl('http://promo-business-test.pawpass.com');
+
+        $owner = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'business_owner',
+        ]);
+        Promotion::factory()->create(['tenant_id' => $tenant->id]);
+
+        $this->actingAs($owner);
+
+        $response = $this->get('/admin/promotions');
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Promotions/Index')
+            ->has('promotions', 1)
+        );
+    }
+
     public function test_create_records_promo_created_event(): void
     {
         $this->actingAs($this->owner);

@@ -141,6 +141,8 @@ class PlatformPlanSeeder extends Seeder
                     'addon_services',
                     'broadcast_notifications',
                     'auto_replenish',
+                    'manage_packages',
+                    'manage_promotions',
                 ],
                 'staff_limit' => 999999,
                 'sms_segment_quota' => 1000,
