@@ -25,7 +25,7 @@ class DashboardController extends Controller
             ->map(fn ($dog) => [
                 'id'             => $dog->id,
                 'name'           => $dog->name,
-                'breed'          => $dog->breed->breed,
+                'breed'          => $dog->breed? $dog->breed->breed : null,
                 'credit_balance' => $dog->credit_balance,
                 'credits_expire_at' => $dog->credits_expire_at?->toIso8601String(),
                 'credit_status'  => match (true) {
