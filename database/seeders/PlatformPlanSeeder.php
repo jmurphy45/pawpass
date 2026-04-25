@@ -6,6 +6,7 @@ use App\Jobs\SyncPlatformPlanToStripe;
 use App\Models\PlatformFeature;
 use App\Models\PlatformPlan;
 use Illuminate\Database\Seeder;
+use Laravel\Pennant\Feature;
 
 class PlatformPlanSeeder extends Seeder
 {
@@ -42,7 +43,6 @@ class PlatformPlanSeeder extends Seeder
                     'advanced_credit_ops',
                     'auto_replenish',
                     'manage_packages',
-                    'manage_promotions',
                 ],
                 'staff_limit' => 5,
                 'sms_segment_quota' => 0,
@@ -105,6 +105,8 @@ class PlatformPlanSeeder extends Seeder
                     'addon_services',
                     'broadcast_notifications',
                     'auto_replenish',
+                    'manage_packages',
+                    'manage_promotions',
                 ],
                 'staff_limit' => 15,
                 'sms_segment_quota' => 500,
@@ -171,5 +173,10 @@ class PlatformPlanSeeder extends Seeder
                 $this->command->info("  → Done: {$model->fresh()->stripe_product_id}");
             }
         }
+
+        // Purge Pennant's cached feature values so plan changes take effect immediately.
+        // Without this, Pennant's database store returns stale values until the cache entry expires.
+        Feature::purge();
+        $this->command->info('Pennant feature cache purged.');
     }
 }
