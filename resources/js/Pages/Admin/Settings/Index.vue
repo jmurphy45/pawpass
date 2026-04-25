@@ -175,6 +175,101 @@
         </form>
       </div>
 
+      <!-- Home Page -->
+      <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-1">Home Page</h2>
+        <p class="text-sm text-gray-500 mb-6">Customize the text shown on your public landing page.</p>
+        <form @submit.prevent="submitHomePage" class="space-y-6">
+
+          <!-- Hero headline -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Hero Headline</label>
+            <input v-model="homePageForm.hero_headline" type="text" maxlength="120"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+            <p class="mt-1 text-xs text-gray-400">Use \n in your text to add a line break on the page.</p>
+            <p v-if="homePageForm.errors.hero_headline" class="mt-1 text-sm text-red-600">{{ homePageForm.errors.hero_headline }}</p>
+          </div>
+
+          <!-- Trust badges -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Trust Badges</label>
+            <p class="text-xs text-gray-400 mb-3">Up to 6 badges shown below your hero. Uncheck to hide.</p>
+            <div class="space-y-2">
+              <div v-for="(badge, i) in homePageForm.trust_badges" :key="i" class="flex items-center gap-3">
+                <input type="checkbox" v-model="badge.enabled"
+                  class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 flex-shrink-0" />
+                <input v-model="badge.text" type="text" maxlength="60" :placeholder="`Badge ${i + 1}`"
+                  :disabled="!badge.enabled"
+                  class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-gray-50 disabled:text-gray-400" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Why section headline -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">"Why Choose Us" Headline</label>
+            <input v-model="homePageForm.why_section_headline" type="text" maxlength="120"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+            <p class="mt-1 text-xs text-gray-400">Use \n to add a line break.</p>
+          </div>
+
+          <!-- Why cards -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Feature Cards</label>
+            <div class="space-y-4">
+              <div v-for="(card, i) in homePageForm.why_cards" :key="i"
+                class="rounded-lg border border-gray-200 p-4 space-y-3">
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" v-model="card.enabled"
+                    class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  <span class="text-sm font-medium text-gray-700">Card {{ i + 1 }}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Icon</label>
+                    <select v-model="card.icon"
+                      class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                      <option value="shield">Shield – Safety</option>
+                      <option value="heart">Heart – Care</option>
+                      <option value="phone">Phone – Booking</option>
+                      <option value="star">Star – Quality</option>
+                      <option value="check">Check – Reliability</option>
+                      <option value="clock">Clock – Hours</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Title</label>
+                    <input v-model="card.title" type="text" maxlength="60"
+                      class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                  <textarea v-model="card.description" rows="2" maxlength="300"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-none" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer CTA -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Footer CTA Headline</label>
+            <input v-model="homePageForm.footer_cta_headline" type="text" maxlength="120"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+            <p class="mt-1 text-xs text-gray-400">Use \n to add a line break.</p>
+          </div>
+
+          <div>
+            <button type="submit"
+              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              :disabled="homePageForm.processing">
+              Save Home Page
+            </button>
+          </div>
+        </form>
+      </div>
+
       <!-- Billing Address -->
       <div class="bg-white rounded-xl border border-gray-200 p-6">
         <h2 class="text-base font-semibold text-gray-900 mb-1">Billing Address</h2>
@@ -452,6 +547,13 @@ const props = defineProps<{
   hasPassword: boolean;
   us_states: StateOption[];
   ca_provinces: StateOption[];
+  home_page: {
+    hero_headline: string;
+    trust_badges: Array<{ text: string | null; enabled: boolean }>;
+    why_section_headline: string;
+    why_cards: Array<{ enabled: boolean; icon: string; title: string; description: string }>;
+    footer_cta_headline: string;
+  };
 }>();
 
 const page = usePage();
@@ -569,6 +671,20 @@ watch(() => billingAddressForm.country, () => {
 
 function submitBillingAddress() {
   billingAddressForm.patch(route('admin.settings.billing-address'));
+}
+
+// ── Home page settings ────────────────────────────────────────────────────────
+
+const homePageForm = useForm({
+  hero_headline:        props.home_page.hero_headline,
+  trust_badges:         props.home_page.trust_badges.map(b => ({ ...b })),
+  why_section_headline: props.home_page.why_section_headline,
+  why_cards:            props.home_page.why_cards.map(c => ({ ...c })),
+  footer_cta_headline:  props.home_page.footer_cta_headline,
+});
+
+function submitHomePage() {
+  homePageForm.patch(route('admin.settings.home-page'));
 }
 
 // ── Notification settings ─────────────────────────────────────────────────────

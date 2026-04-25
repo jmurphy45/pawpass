@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Package;
 use App\Models\Tenant;
+use App\Models\TenantSettings;
 use App\Models\User;
 use App\Services\NotificationService;
 use App\Services\RegionService;
@@ -41,6 +42,15 @@ class SettingsController extends Controller
 
         $packages = Package::where('type', 'one_time')->get(['id', 'name', 'price']);
 
+        $tenantSettings = TenantSettings::firstOrCreate(
+            ['tenant_id' => $tenantId],
+            ['meta' => []]
+        );
+        $homePage = array_replace_recursive(
+            TenantSettings::homePageDefaults(),
+            $tenantSettings->meta['home_page'] ?? []
+        );
+
         return Inertia::render('Admin/Settings/Index', [
             'business' => [
                 'name' => $tenant->name,
@@ -65,11 +75,43 @@ class SettingsController extends Controller
             'notificationSettings' => $notificationSettings,
             'staff' => $staffList,
             'packages' => $packages,
+            'home_page' => $homePage,
             'can_auto_replenish' => Feature::for($tenant)->active('auto_replenish'),
             'hasPassword' => (bool) Auth::user()->password,
             'us_states' => $this->regionService->usStates(),
             'ca_provinces' => $this->regionService->forCountry('CA'),
         ]);
+    }
+
+    public function updateHomePage(Request $request): RedirectResponse
+    {
+        $this->requireOwner();
+
+        $validated = $request->validate([
+            'hero_headline' => ['required', 'string', 'max:120'],
+            'trust_badges' => ['required', 'array', 'size:6'],
+            'trust_badges.*.text' => ['present', 'nullable', 'string', 'max:60'],
+            'trust_badges.*.enabled' => ['required', 'boolean'],
+            'why_section_headline' => ['required', 'string', 'max:120'],
+            'why_cards' => ['required', 'array', 'size:3'],
+            'why_cards.*.enabled' => ['required', 'boolean'],
+            'why_cards.*.icon' => ['required', 'string', 'in:shield,heart,phone,star,check,clock'],
+            'why_cards.*.title' => ['required', 'string', 'max:60'],
+            'why_cards.*.description' => ['required', 'string', 'max:300'],
+            'footer_cta_headline' => ['required', 'string', 'max:120'],
+        ]);
+
+        $tenantId = app('current.tenant.id');
+        $settings = TenantSettings::firstOrCreate(
+            ['tenant_id' => $tenantId],
+            ['meta' => []]
+        );
+
+        $meta = $settings->meta ?? [];
+        $meta['home_page'] = $validated;
+        $settings->update(['meta' => $meta]);
+
+        return back()->with('success', 'Home page settings updated.');
     }
 
     public function updateBusiness(Request $request): RedirectResponse

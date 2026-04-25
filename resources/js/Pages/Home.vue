@@ -75,7 +75,9 @@
         <!-- Headline -->
         <h1 class="tenant-hero-item tenant-serif text-white leading-[1.02] tracking-tight"
           style="font-size: clamp(2.8rem, 7vw, 5.5rem); font-weight: 700; max-width: 800px;">
-          Your dog's home<br>away from home.
+          <template v-for="(line, i) in (home_page?.hero_headline ?? 'Your dog\'s home away from home.').split('\\n')" :key="i">
+            <br v-if="i > 0">{{ line }}
+          </template>
         </h1>
 
         <!-- Business name as subheading -->
@@ -112,11 +114,11 @@
     <!-- ── Trust strip ── -->
     <div style="background: #faf6f1; border-bottom: 1px solid #e8e0d8;" class="px-6 py-5">
       <div class="mx-auto max-w-6xl flex flex-wrap items-center justify-center gap-x-10 gap-y-3">
-        <span v-for="trust in ['Licensed & Insured', 'Loving Care', 'Locally Owned', 'Open 7 Days a Week']"
-          :key="trust"
+        <span v-for="badge in (home_page?.trust_badges ?? []).filter(b => b.enabled && b.text)"
+          :key="badge.text!"
           class="flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-[0.16em] text-stone-400">
           <span class="h-0.5 w-4 rounded-full flex-shrink-0" :style="{ backgroundColor: tenant.primary_color }"></span>
-          {{ trust }}
+          {{ badge.text }}
         </span>
       </div>
     </div>
@@ -282,44 +284,25 @@
       <div class="mx-auto max-w-6xl">
         <div class="text-center mb-16">
           <span class="block text-[10px] font-bold uppercase tracking-[0.2em] mb-3" :style="{ color: tenant.primary_color }">Why {{ tenant.name }}</span>
-          <h2 class="tenant-serif text-4xl md:text-5xl font-bold text-stone-900">The difference is<br>in the care.</h2>
+          <h2 class="tenant-serif text-4xl md:text-5xl font-bold text-stone-900">
+            <template v-for="(line, i) in (home_page?.why_section_headline ?? 'The difference is\nin the care.').split('\\n')" :key="i">
+              <br v-if="i > 0">{{ line }}
+            </template>
+          </h2>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
-          <div class="flex flex-col items-start">
+          <div v-for="card in (home_page?.why_cards ?? []).filter(c => c.enabled)" :key="card.title"
+            class="flex flex-col items-start">
             <div class="w-12 h-12 rounded-2xl mb-6 flex items-center justify-center flex-shrink-0"
               :style="{ backgroundColor: `${tenant.primary_color}15` }">
               <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
                 :style="{ color: tenant.primary_color }">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" :d="ICON_PATHS[card.icon] ?? ICON_PATHS.shield" />
               </svg>
             </div>
-            <h3 class="tenant-serif text-xl font-bold text-stone-900 mb-3">Safe &amp; Supervised</h3>
-            <p class="text-sm text-stone-500 leading-relaxed">Every dog is supervised by trained, caring staff throughout the entire day. Safety is always our first priority.</p>
-          </div>
-
-          <div class="flex flex-col items-start">
-            <div class="w-12 h-12 rounded-2xl mb-6 flex items-center justify-center flex-shrink-0"
-              :style="{ backgroundColor: `${tenant.primary_color}15` }">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
-                :style="{ color: tenant.primary_color }">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-              </svg>
-            </div>
-            <h3 class="tenant-serif text-xl font-bold text-stone-900 mb-3">Enriching Playtime</h3>
-            <p class="text-sm text-stone-500 leading-relaxed">Dogs are social creatures. Structured play, walks, and enrichment activities keep tails wagging all day long.</p>
-          </div>
-
-          <div class="flex flex-col items-start">
-            <div class="w-12 h-12 rounded-2xl mb-6 flex items-center justify-center flex-shrink-0"
-              :style="{ backgroundColor: `${tenant.primary_color}15` }">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
-                :style="{ color: tenant.primary_color }">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-              </svg>
-            </div>
-            <h3 class="tenant-serif text-xl font-bold text-stone-900 mb-3">Easy Online Booking</h3>
-            <p class="text-sm text-stone-500 leading-relaxed">Manage your dog's schedule, purchase credits, and track visit history — all from your phone or computer.</p>
+            <h3 class="tenant-serif text-xl font-bold text-stone-900 mb-3">{{ card.title }}</h3>
+            <p class="text-sm text-stone-500 leading-relaxed">{{ card.description }}</p>
           </div>
         </div>
       </div>
@@ -335,7 +318,9 @@
       </div>
       <div class="relative mx-auto max-w-2xl">
         <h2 class="tenant-serif text-4xl md:text-5xl font-bold text-white leading-tight mb-6">
-          Ready to join<br>the pack?
+          <template v-for="(line, i) in (home_page?.footer_cta_headline ?? 'Ready to join the pack?').split('\\n')" :key="i">
+            <br v-if="i > 0">{{ line }}
+          </template>
         </h2>
         <p class="text-base text-white/40 mb-10 max-w-md mx-auto">Create your account today and give your dog the care they deserve.</p>
         <div class="flex flex-wrap gap-4 justify-center">
@@ -954,12 +939,42 @@ interface KennelUnitData {
   capacity: number
 }
 
+interface TrustBadge {
+  text: string | null
+  enabled: boolean
+}
+
+interface WhyCard {
+  enabled: boolean
+  icon: string
+  title: string
+  description: string
+}
+
+interface HomePageSettings {
+  hero_headline: string
+  trust_badges: TrustBadge[]
+  why_section_headline: string
+  why_cards: WhyCard[]
+  footer_cta_headline: string
+}
+
+const ICON_PATHS: Record<string, string> = {
+  shield: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+  heart:  'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+  phone:  'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
+  star:   'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z',
+  check:  'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z',
+  clock:  'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+}
+
 const props = defineProps<{
   plans: Plan[]
   show_pricing_calculator: boolean
   tenant: TenantData | null
   packages: PackageData[]
   kennel_units?: KennelUnitData[]
+  home_page?: HomePageSettings
   headTitle?: string
   headDescription?: string
 }>()

@@ -400,4 +400,126 @@ class SettingsControllerTest extends TestCase
 
         $response->assertSessionHasErrors(['auto_charge_at_zero_package_id']);
     }
+
+    // ── Home page settings ──────────────────────────────────────────────────
+
+    private function validHomePagePayload(array $overrides = []): array
+    {
+        $defaults = \App\Models\TenantSettings::homePageDefaults();
+
+        return array_merge([
+            'hero_headline' => $defaults['hero_headline'],
+            'trust_badges' => $defaults['trust_badges'],
+            'why_section_headline' => $defaults['why_section_headline'],
+            'why_cards' => $defaults['why_cards'],
+            'footer_cta_headline' => $defaults['footer_cta_headline'],
+        ], $overrides);
+    }
+
+    public function test_settings_index_passes_home_page_to_inertia(): void
+    {
+        $this->actingAs($this->owner);
+
+        $this->get('/admin/settings')
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Settings/Index')
+                ->has('home_page')
+                ->where('home_page.hero_headline', "Your dog's home away from home.")
+            );
+    }
+
+    public function test_owner_can_update_home_page_settings(): void
+    {
+        $this->actingAs($this->owner);
+
+        $payload = $this->validHomePagePayload(['hero_headline' => 'Woof woof welcome!']);
+
+        $this->patch('/admin/settings/home-page', $payload)
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $meta = \App\Models\TenantSettings::allTenants()
+            ->where('tenant_id', $this->tenant->id)
+            ->value('meta');
+
+        $this->assertEquals('Woof woof welcome!', $meta['home_page']['hero_headline']);
+    }
+
+    public function test_staff_cannot_update_home_page_settings(): void
+    {
+        $staff = User::factory()->staff()->create([
+            'tenant_id' => $this->tenant->id,
+            'status' => 'active',
+        ]);
+        $this->actingAs($staff);
+
+        $this->patch('/admin/settings/home-page', $this->validHomePagePayload())
+            ->assertStatus(403);
+    }
+
+    public function test_home_page_update_validates_badge_count(): void
+    {
+        $this->actingAs($this->owner);
+
+        $payload = $this->validHomePagePayload([
+            'trust_badges' => array_slice(\App\Models\TenantSettings::homePageDefaults()['trust_badges'], 0, 5),
+        ]);
+
+        $this->patch('/admin/settings/home-page', $payload)
+            ->assertSessionHasErrors(['trust_badges']);
+    }
+
+    public function test_home_page_update_validates_icon_allowlist(): void
+    {
+        $this->actingAs($this->owner);
+
+        $cards = \App\Models\TenantSettings::homePageDefaults()['why_cards'];
+        $cards[0]['icon'] = 'trash';
+        $payload = $this->validHomePagePayload(['why_cards' => $cards]);
+
+        $this->patch('/admin/settings/home-page', $payload)
+            ->assertSessionHasErrors(['why_cards.0.icon']);
+    }
+
+    public function test_home_page_update_validates_hero_max_length(): void
+    {
+        $this->actingAs($this->owner);
+
+        $payload = $this->validHomePagePayload(['hero_headline' => str_repeat('a', 121)]);
+
+        $this->patch('/admin/settings/home-page', $payload)
+            ->assertSessionHasErrors(['hero_headline']);
+    }
+
+    public function test_home_page_update_creates_settings_row_if_none_exists(): void
+    {
+        $this->actingAs($this->owner);
+
+        $this->assertDatabaseMissing('tenant_settings', ['tenant_id' => $this->tenant->id]);
+
+        $this->patch('/admin/settings/home-page', $this->validHomePagePayload())
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('tenant_settings', ['tenant_id' => $this->tenant->id]);
+    }
+
+    public function test_home_page_update_preserves_other_meta_keys(): void
+    {
+        $this->actingAs($this->owner);
+
+        \App\Models\TenantSettings::create([
+            'tenant_id' => $this->tenant->id,
+            'meta' => ['other_key' => 'preserved'],
+        ]);
+
+        $this->patch('/admin/settings/home-page', $this->validHomePagePayload())
+            ->assertRedirect();
+
+        $meta = \App\Models\TenantSettings::allTenants()
+            ->where('tenant_id', $this->tenant->id)
+            ->value('meta');
+
+        $this->assertEquals('preserved', $meta['other_key']);
+        $this->assertArrayHasKey('home_page', $meta);
+    }
 }

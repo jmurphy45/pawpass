@@ -177,6 +177,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::post('/settings/password', [AdminSettingsController::class, 'updatePassword'])->name('admin.settings.password');
         Route::patch('/settings/staff/{user}/deactivate', [AdminSettingsController::class, 'deactivateStaff'])->name('admin.settings.staff.deactivate');
         Route::patch('/settings/billing-address', [AdminSettingsController::class, 'updateBillingAddress'])->name('admin.settings.billing-address');
+        Route::patch('/settings/home-page', [AdminSettingsController::class, 'updateHomePage'])->name('admin.settings.home-page');
         Route::post('/settings/logo', [AdminLogoController::class, 'store'])->name('admin.settings.logo.store');
         Route::delete('/settings/logo', [AdminLogoController::class, 'destroy'])->name('admin.settings.logo.destroy');
 
