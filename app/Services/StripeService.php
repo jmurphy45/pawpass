@@ -23,6 +23,7 @@ class StripeService
         ?string $setupFutureUsage = null,
         bool $automaticTax = false,
         ?string $captureMethod = null,
+        ?string $taxCalculationId = null,
     ): object {
         $payload = [
             'amount' => $amountCents,
@@ -51,7 +52,9 @@ class StripeService
         if ($setupFutureUsage) {
             $payload['setup_future_usage'] = $setupFutureUsage;
         }
-        if ($automaticTax) {
+        if ($taxCalculationId) {
+            $payload['automatic_tax'] = ['enabled' => true, 'calculation' => $taxCalculationId];
+        } elseif ($automaticTax) {
             $payload['automatic_tax'] = ['enabled' => true];
         }
         if ($captureMethod) {
@@ -104,10 +107,14 @@ class StripeService
         int $amountCents,
         string $stripeAccountId,
         ?int $applicationFeeCents = null,
+        ?string $taxCalculationId = null,
     ): object {
         $params = ['amount' => $amountCents];
         if ($applicationFeeCents !== null) {
             $params['application_fee_amount'] = $applicationFeeCents;
+        }
+        if ($taxCalculationId) {
+            $params['automatic_tax'] = ['enabled' => true, 'calculation' => $taxCalculationId];
         }
 
         return $this->client->paymentIntents->update($piId, $params, ['stripe_account' => $stripeAccountId]);

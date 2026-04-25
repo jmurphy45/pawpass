@@ -127,7 +127,11 @@ class StripeWebhookController extends Controller
         }
 
         $taxCalcId = $pi->metadata->tax_calculation_id ?? null;
-        if ($taxCalcId && $tenant?->stripe_account_id) {
+        $autoTaxCalc = $pi->automatic_tax?->calculation ?? null;
+
+        // Stripe auto-creates the tax transaction when automatic_tax.calculation is set on the PI.
+        // Only create manually for older PIs that used the metadata-only approach.
+        if ($taxCalcId && ! $autoTaxCalc && $tenant?->stripe_account_id) {
             $this->stripe->createTaxTransaction($taxCalcId, $order->id, $tenant->stripe_account_id);
         }
 

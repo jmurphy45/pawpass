@@ -163,6 +163,7 @@ class OrderController extends Controller
                 $metadata,
                 $stripeCustomerId,
                 paymentMethodTypes: ['card', 'us_bank_account'],
+                taxCalculationId: $taxCalcId,
             );
         } catch (\Stripe\Exception\ApiErrorException $e) {
             $order->transitionTo(OrderStatus::Canceled);

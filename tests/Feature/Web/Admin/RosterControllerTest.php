@@ -531,7 +531,7 @@ class RosterControllerTest extends TestCase
             ->andReturn((object) ['id' => 'pi_auth', 'status' => 'requires_confirmation']);
         $stripe->shouldReceive('updatePaymentIntentAmount')
             ->once()
-            ->with('pi_auth', 3662, 'acct_test', Mockery::any())
+            ->with('pi_auth', 3662, 'acct_test', Mockery::any(), Mockery::any())
             ->andReturn((object) ['id' => 'pi_auth']);
         $stripe->shouldReceive('confirmPaymentIntent')
             ->once()
@@ -607,7 +607,7 @@ class RosterControllerTest extends TestCase
             ->andReturn((object) ['tax_amount_exclusive' => 135, 'id' => 'txrc_addon']);
         $stripe->shouldReceive('createPaymentIntent')
             ->once()
-            ->with(1635, Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any())
+            ->with(1635, Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any())
             ->andReturn((object) ['id' => 'pi_tax', 'client_secret' => 'secret']);
         $this->app->instance(StripeService::class, $stripe);
 

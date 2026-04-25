@@ -144,16 +144,7 @@ class StripeBillingService
     {
         $enabled = Feature::active('tax_platform_subscriptions') && ! empty($tenant->billing_address);
 
-        $tax = ['enabled' => $enabled];
-
-        if ($enabled && ! empty($tenant->stripe_account_id)) {
-            $tax['liability'] = [
-                'type' => 'connected_account',
-                'account' => $tenant->stripe_account_id,
-            ];
-        }
-
-        return $tax;
+        return ['enabled' => $enabled];
     }
 
     public function createPlatformProduct(string $name): string

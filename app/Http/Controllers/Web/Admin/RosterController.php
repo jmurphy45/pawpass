@@ -355,6 +355,7 @@ class RosterController extends Controller
                     $customer->stripe_payment_method_id,
                     [],
                     null,
+                    taxCalculationId: $order->stripe_tax_calc_id,
                 );
 
                 $order->payments()->create([
@@ -456,6 +457,7 @@ class RosterController extends Controller
                     $customer?->stripe_payment_method_id,
                     [],
                     null,
+                    taxCalculationId: $taxCalcId ?: null,
                 );
 
                 $sortOffset = $authorizedOrder->lineItems()->count();
@@ -536,6 +538,7 @@ class RosterController extends Controller
                 $newTotalCents,
                 $tenant->stripe_account_id,
                 $newFeeCents,
+                $taxCalcId ?: null,
             );
 
             $this->stripe->confirmPaymentIntent($authorizedPayment->stripe_pi_id, $tenant->stripe_account_id);
