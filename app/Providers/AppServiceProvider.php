@@ -72,6 +72,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(OrderService::class);
         $this->app->bind(KennelAvailabilityService::class);
         $this->app->bind(VaccinationComplianceService::class);
+
+        $this->app->singleton(WebPushChannel::class, function () {
+            return new WebPushChannel(new \Minishlink\WebPush\WebPush([
+                'VAPID' => [
+                    'subject' => config('webpush.vapid.subject'),
+                    'publicKey' => config('webpush.vapid.public_key'),
+                    'privateKey' => config('webpush.vapid.private_key'),
+                ],
+            ]));
+        });
     }
 
     public function boot(): void
@@ -83,6 +93,8 @@ class AppServiceProvider extends ServiceProvider
             $app->make(TwilioService::class),
             $app->make(SmsUsageService::class),
         ));
+
+        Notification::extend('webpush', fn () => app(WebPushChannel::class));
 
         Event::listen(NotificationSent::class, [LogNotificationSent::class, 'handleSent']);
         Event::listen(NotificationFailed::class, [LogNotificationSent::class, 'handleFailed']);

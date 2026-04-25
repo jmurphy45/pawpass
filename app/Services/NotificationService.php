@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Jobs\DispatchGroupedAlertJob;
 use App\Models\NotificationPending;
+use App\Models\PushSubscription;
 use App\Models\User;
 use App\Notifications\PawPassNotification;
 use Illuminate\Support\Facades\DB;
@@ -99,6 +100,20 @@ class NotificationService
 
             if (! $disabled) {
                 $channels[] = $laravelChannel;
+            }
+        }
+
+        $hasPushSubscriptions = PushSubscription::where('user_id', $userId)->exists();
+        if ($hasPushSubscriptions) {
+            $pushDisabled = DB::table('user_notification_preferences')
+                ->where('user_id', $userId)
+                ->where('type', $type)
+                ->where('channel', 'webpush')
+                ->where('is_enabled', false)
+                ->exists();
+
+            if (! $pushDisabled) {
+                $channels[] = 'webpush';
             }
         }
 

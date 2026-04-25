@@ -396,6 +396,31 @@
           {{ hasPassword ? 'Update Password' : 'Set Password' }}
         </AppButton>
       </form>
+
+      <!-- Browser Push Notifications -->
+      <div class="border-t border-gray-200 pt-6">
+        <h3 class="text-base font-semibold text-gray-900 mb-1">Browser Notifications</h3>
+        <p class="text-sm text-gray-500 mb-4">Receive push alerts on this device even when the dashboard is closed.</p>
+        <div v-if="!push.isSupported.value" class="text-sm text-gray-500">
+          Not supported in this browser.
+        </div>
+        <div v-else-if="push.permission.value === 'denied'" class="text-sm text-gray-500">
+          Notifications are blocked. Update your browser permissions to enable them.
+        </div>
+        <div v-else class="flex items-center gap-3">
+          <AppButton
+            v-if="!push.isSubscribed.value"
+            variant="primary"
+            :disabled="!vapidPublicKey"
+            @click="push.subscribe(vapidPublicKey!, 'admin').then(() => push.checkSubscription())"
+          >Enable Browser Notifications</AppButton>
+          <AppButton
+            v-else
+            variant="secondary"
+            @click="push.unsubscribe('admin').then(() => push.checkSubscription())"
+          >Disable Browser Notifications</AppButton>
+        </div>
+      </div>
     </div>
     </div>
   </AdminLayout>
@@ -403,9 +428,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
+import { usePushNotifications } from '@/composables/usePushNotifications';
 
 type StateOption = { value: string; label: string };
 
@@ -427,6 +453,11 @@ const props = defineProps<{
   us_states: StateOption[];
   ca_provinces: StateOption[];
 }>();
+
+const page = usePage();
+const vapidPublicKey = computed(() => (page.props.vapidPublicKey as string | null) ?? null);
+const push = usePushNotifications();
+onMounted(() => push.checkSubscription());
 
 // ── Password form ─────────────────────────────────────────────────────────────
 

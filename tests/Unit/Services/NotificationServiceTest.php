@@ -132,6 +132,71 @@ class NotificationServiceTest extends TestCase
         );
     }
 
+    public function test_webpush_channel_added_when_user_has_push_subscription(): void
+    {
+        Notification::fake();
+
+        \App\Models\PushSubscription::create([
+            'user_id' => $this->user->id,
+            'tenant_id' => $this->tenant->id,
+            'endpoint' => 'https://push.example.com/sub1',
+            'p256dh' => 'key1',
+            'auth_token' => 'auth1',
+        ]);
+
+        $this->service->dispatch('dog.birthday', $this->tenant->id, $this->user->id);
+
+        Notification::assertSentTo(
+            $this->user,
+            PawPassNotification::class,
+            fn (PawPassNotification $n) => in_array('webpush', $n->via($this->user), true),
+        );
+    }
+
+    public function test_webpush_not_added_without_push_subscriptions(): void
+    {
+        Notification::fake();
+
+        $this->service->dispatch('dog.birthday', $this->tenant->id, $this->user->id);
+
+        Notification::assertSentTo(
+            $this->user,
+            PawPassNotification::class,
+            fn (PawPassNotification $n) => ! in_array('webpush', $n->via($this->user), true),
+        );
+    }
+
+    public function test_webpush_channel_skipped_when_user_preference_disabled(): void
+    {
+        Notification::fake();
+
+        \App\Models\PushSubscription::create([
+            'user_id' => $this->user->id,
+            'tenant_id' => $this->tenant->id,
+            'endpoint' => 'https://push.example.com/sub1',
+            'p256dh' => 'key1',
+            'auth_token' => 'auth1',
+        ]);
+
+        DB::table('user_notification_preferences')->insert([
+            'user_id' => $this->user->id,
+            'tenant_id' => $this->tenant->id,
+            'type' => 'dog.birthday',
+            'channel' => 'webpush',
+            'is_enabled' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->service->dispatch('dog.birthday', $this->tenant->id, $this->user->id);
+
+        Notification::assertSentTo(
+            $this->user,
+            PawPassNotification::class,
+            fn (PawPassNotification $n) => ! in_array('webpush', $n->via($this->user), true),
+        );
+    }
+
     public function test_enqueue_grouped_creates_pending_and_dispatches_grouped_job(): void
     {
         Bus::fake();

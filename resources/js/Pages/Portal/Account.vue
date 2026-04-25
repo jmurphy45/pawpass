@@ -112,14 +112,52 @@
           >{{ prefsForm.processing ? 'Saving…' : 'Save Preferences' }}</AppButton>
         </div>
       </AppCard>
+
+      <!-- Browser push notifications -->
+      <AppCard class="overflow-hidden">
+        <div class="ac-section-head">
+          <div class="ac-section-icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3" />
+            </svg>
+          </div>
+          <span class="ac-section-title">Browser Notifications</span>
+        </div>
+        <div class="p-5">
+          <div v-if="!push.isSupported.value" class="text-sm text-text-muted">
+            Browser notifications are not supported in this browser.
+          </div>
+          <div v-else-if="push.permission.value === 'denied'" class="text-sm text-text-muted">
+            Browser notifications are blocked. Please update your browser permissions to enable them.
+          </div>
+          <div v-else class="flex items-center justify-between gap-4">
+            <div>
+              <p class="text-sm font-medium text-text-body">Push notifications</p>
+              <p class="text-xs text-text-muted mt-0.5">Receive alerts even when the app is closed.</p>
+            </div>
+            <button
+              v-if="!push.isSubscribed.value"
+              class="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
+              :disabled="!vapidPublicKey"
+              @click="push.subscribe(vapidPublicKey!, 'portal').then(() => push.checkSubscription())"
+            >Enable</button>
+            <button
+              v-else
+              class="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-body hover:bg-surface-subtle"
+              @click="push.unsubscribe('portal').then(() => push.checkSubscription())"
+            >Disable</button>
+          </div>
+        </div>
+      </AppCard>
     </div>
   </PortalLayout>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
+import { usePushNotifications } from '@/composables/usePushNotifications';
 
 interface Profile { name: string; email: string; phone: string | null; }
 interface NotifPref { type: string; channel: string; is_enabled: boolean; }
@@ -128,7 +166,11 @@ const props = defineProps<{
   profile: Profile;
   notifPrefs: NotifPref[];
   criticalTypes: string[];
+  vapidPublicKey?: string | null;
 }>();
+
+const push = usePushNotifications();
+onMounted(() => push.checkSubscription());
 
 // Profile form
 const profileForm = useForm({

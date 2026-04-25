@@ -116,6 +116,9 @@ Route::prefix('portal/v1')
             Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
             Route::patch('notifications/{id}/read', [NotificationController::class, 'markRead']);
 
+            Route::post('push-subscriptions', [\App\Http\Controllers\Portal\V1\PushSubscriptionController::class, 'store']);
+            Route::delete('push-subscriptions', [\App\Http\Controllers\Portal\V1\PushSubscriptionController::class, 'destroy']);
+
             Route::middleware('plan:boarding')->group(function () {
                 Route::get('kennel-units/available', [PortalKennelUnitController::class, 'available']);
 
@@ -177,6 +180,9 @@ Route::prefix('admin/v1')
 
         Route::post('notifications/broadcast', [BroadcastNotificationController::class, 'store'])
             ->middleware('plan:broadcast_notifications');
+
+        Route::post('push-subscriptions', [\App\Http\Controllers\Admin\V1\PushSubscriptionController::class, 'store']);
+        Route::delete('push-subscriptions', [\App\Http\Controllers\Admin\V1\PushSubscriptionController::class, 'destroy']);
 
         // Kennel units (read ungated; write: owner + boarding plan)
         Route::get('kennel-units', [KennelUnitController::class, 'index']);

@@ -1,3 +1,23 @@
+# Phase 18: Web Push Notifications — COMPLETE
+
+## Summary
+- `minishlink/web-push` installed; VAPID config in `config/webpush.php`
+- Migration: `push_subscriptions` table + `webpush` added to `notif_channel` enum
+- `PushSubscription` model; `PushPayload` DTO (`app/DTOs/PushPayload.php`)
+- `WebPushChannel` sends to all user subscriptions, auto-deletes expired (410) endpoints
+- `PawPassNotification::toWebPush()` returns typed `PushPayload` with `actionUrl` per type
+- `NotificationService::resolveChannels()` adds `webpush` when user has subscriptions
+- Portal + Admin push-subscription API endpoints (`POST`/`DELETE push-subscriptions`)
+- `vapidPublicKey` shared via `HandleInertiaRequests`
+- `public/sw.js` service worker handles push events and notification click
+- `usePushNotifications` composable (register SW, subscribe, unsubscribe)
+- Portal `Account.vue` — Browser Notifications toggle section
+- `AdminLayout.vue` — notification bell with unread badge (mobile top bar + desktop footer)
+- Admin `Settings/Index.vue` — push enable/disable section
+- 1357 tests pass; build succeeds
+
+---
+
 # Task: Daycare Leaderboard + SEO Enhancement
 
 ## Goal

@@ -389,6 +389,12 @@
                   <p class="text-sm/6 font-semibold text-white truncate">{{ auth.user?.name }}</p>
                   <p class="text-xs text-indigo-200 truncate">{{ auth.user?.role?.replace('_', ' ') }}</p>
                 </div>
+                <Link :href="route('admin.notifications.broadcast')" class="relative p-1 text-indigo-200 hover:text-white shrink-0">
+                  <BellIcon class="size-5" aria-hidden="true" />
+                  <span v-if="unreadCount > 0" class="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {{ unreadCount > 9 ? '9+' : unreadCount }}
+                  </span>
+                </Link>
                 <form @submit.prevent="logout">
                   <button type="submit" class="text-xs text-indigo-200 hover:text-red-400 transition-colors">
                     Sign out
@@ -408,6 +414,12 @@
         <Bars3Icon class="size-6" aria-hidden="true" />
       </button>
       <div class="flex-1 text-sm/6 font-semibold text-white">{{ tenant?.name ?? 'PawPass' }}</div>
+      <Link :href="route('admin.notifications.broadcast')" class="relative p-1 text-indigo-200 hover:text-white">
+        <BellIcon class="size-6" aria-hidden="true" />
+        <span v-if="unreadCount > 0" class="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+          {{ unreadCount > 9 ? '9+' : unreadCount }}
+        </span>
+      </Link>
       <div class="size-8 rounded-full flex items-center justify-center text-white font-semibold text-sm bg-indigo-600">
         {{ userInitial }}
       </div>
@@ -435,6 +447,7 @@ import { Dialog, DialogPanel, TransitionRoot, TransitionChild } from '@headlessu
 import {
   ArchiveBoxIcon,
   Bars3Icon,
+  BellIcon,
   ChartBarIcon,
   Cog6ToothIcon,
   CreditCardIcon,
@@ -460,6 +473,7 @@ const page = usePage<PageProps>();
 const tenant = computed(() => page.props.tenant);
 const auth = computed(() => page.props.auth);
 const flash = computed(() => page.props.flash ?? { success: null, error: null });
+const unreadCount = computed(() => (page.props.unreadCount as number) ?? 0);
 const userInitial = computed(() => auth.value.user?.name?.[0]?.toUpperCase() ?? '?');
 
 const sidebarOpen = ref(false);

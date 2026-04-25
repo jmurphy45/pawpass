@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\DTOs\PushPayload;
 use App\Models\Tenant;
 use App\Services\PlanFeatureCache;
 use Illuminate\Bus\Queueable;
@@ -95,6 +96,35 @@ class PawPassNotification extends Notification implements ShouldQueue
         [, $body] = $this->buildMessage();
 
         return $body;
+    }
+
+    public function toWebPush(): PushPayload
+    {
+        [$title, $body] = $this->buildMessage();
+
+        $actionUrl = match ($this->type) {
+            'payment.confirmed', 'payment.refunded' => '/orders',
+            'subscription.renewed', 'subscription.cancelled', 'subscription.payment_failed' => '/account',
+            'credits.low', 'credits.empty', 'auto_replenish.succeeded', 'auto_replenish.failed' => '/packages',
+            'vaccinations.expiring_soon', 'vaccinations.expiring_urgent' => '/dogs',
+            'attendance.stale_checkins' => $this->data['checkout_url'] ?? null,
+            'trial.expiring_soon' => $this->data['billing_url'] ?? null,
+            default => null,
+        };
+
+        $icon = null;
+        if ($this->tenantId) {
+            $tenant = Tenant::find($this->tenantId);
+            $icon = $tenant?->logo_url;
+        }
+
+        return new PushPayload(
+            title: $title,
+            body: $body,
+            type: $this->type,
+            actionUrl: $actionUrl,
+            icon: $icon,
+        );
     }
 
     private function buildVaccinationSoonMessage(): array

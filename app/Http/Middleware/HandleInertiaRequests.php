@@ -72,6 +72,7 @@ class HandleInertiaRequests extends Middleware
 
                 return $user ? $user->notifications()->whereNull('read_at')->count() : 0;
             },
+            'vapidPublicKey' => config('webpush.vapid.public_key') ?: null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
