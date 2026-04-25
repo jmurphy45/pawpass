@@ -86,7 +86,7 @@ class PlatformPlanSeeder extends Seeder
                 'name' => 'Founders',
                 'description' => 'Limited early-adopter plan. 0% platform fee on your first $10,000/mo in sales.',
                 'monthly_price_cents' => 4900,
-                'annual_price_cents' => 0,
+                'annual_price_cents' => 4900 *12,
                 'features' => [
                     'add_customers',
                     'add_dogs',
