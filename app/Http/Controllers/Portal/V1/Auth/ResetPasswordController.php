@@ -20,7 +20,8 @@ class ResetPasswordController extends Controller
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('tenant_id', app('current.tenant.id'))
+            ->where('email', $request->email)->first();
 
         $row = $user
             ? DB::table('password_reset_tokens')->where('email', $user->email)->first()

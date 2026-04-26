@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class InviteStaffRequest extends FormRequest
 {
@@ -15,7 +16,11 @@ class InviteStaffRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email'],
+            'email' => [
+                'required',
+                'email',
+                Rule::unique('users', 'email')->where('tenant_id', app('current.tenant.id')),
+            ],
         ];
     }
 }

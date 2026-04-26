@@ -51,6 +51,11 @@ class OnboardingController extends Controller
             'return_url' => ['required', 'url'],
         ]);
 
+        $appUrl = config('app.url');
+        if (! str_starts_with($validated['refresh_url'], $appUrl) || ! str_starts_with($validated['return_url'], $appUrl)) {
+            return response()->json(['message' => 'URLs must be on this application.'], 422);
+        }
+
         $link = $this->stripe->createAccountLink(
             $tenant->stripe_account_id,
             $validated['refresh_url'],

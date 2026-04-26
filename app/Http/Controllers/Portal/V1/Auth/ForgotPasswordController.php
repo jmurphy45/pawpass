@@ -19,7 +19,8 @@ class ForgotPasswordController extends Controller
         $message = 'If that email is registered, a reset link has been sent.';
 
         $tenantId = app('current.tenant.id');
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('tenant_id', $tenantId)
+            ->where('email', $request->email)->first();
 
         if ($user) {
             $token = Str::random(64);

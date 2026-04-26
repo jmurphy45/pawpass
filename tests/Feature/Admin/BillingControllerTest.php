@@ -30,30 +30,30 @@ class BillingControllerTest extends TestCase
         // Seed plans so DB-based validation passes
         foreach (['starter', 'pro', 'business'] as $i => $slug) {
             PlatformPlan::factory()->create([
-                'slug'                    => $slug,
-                'is_active'               => true,
-                'sort_order'              => $i + 1,
+                'slug' => $slug,
+                'is_active' => true,
+                'sort_order' => $i + 1,
                 'stripe_monthly_price_id' => 'price_'.$slug.'_monthly',
-                'stripe_annual_price_id'  => 'price_'.$slug.'_annual',
+                'stripe_annual_price_id' => 'price_'.$slug.'_annual',
             ]);
         }
 
         $this->tenant = Tenant::factory()->create([
-            'slug'   => 'billingtest',
+            'slug' => 'billingtest',
             'status' => 'active',
-            'plan'   => 'starter',
+            'plan' => 'starter',
         ]);
 
         URL::forceRootUrl('http://billingtest.pawpass.com');
 
         $this->owner = User::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'role'      => 'business_owner',
+            'role' => 'business_owner',
         ]);
 
         $this->staff = User::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'role'      => 'staff',
+            'role' => 'staff',
         ]);
     }
 
@@ -70,8 +70,8 @@ class BillingControllerTest extends TestCase
     public function test_show_returns_plan_data(): void
     {
         $this->tenant->update([
-            'plan'                    => 'pro',
-            'plan_billing_cycle'      => 'monthly',
+            'plan' => 'pro',
+            'plan_billing_cycle' => 'monthly',
             'plan_cancel_at_period_end' => false,
         ]);
 
@@ -103,7 +103,7 @@ class BillingControllerTest extends TestCase
             $mock->shouldReceive('createSubscription')
                 ->once()
                 ->andReturn((object) [
-                    'id'                 => 'sub_billing_123',
+                    'id' => 'sub_billing_123',
                     'current_period_end' => now()->addMonth()->timestamp,
                 ]);
         });
@@ -112,7 +112,7 @@ class BillingControllerTest extends TestCase
 
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/billing/subscribe', [
-                'plan'  => 'starter',
+                'plan' => 'starter',
                 'cycle' => 'monthly',
             ]);
 
@@ -137,14 +137,14 @@ class BillingControllerTest extends TestCase
             $mock->shouldReceive('createSubscription')
                 ->once()
                 ->andReturn((object) [
-                    'id'                 => 'sub_new_123',
+                    'id' => 'sub_new_123',
                     'current_period_end' => now()->addMonth()->timestamp,
                 ]);
         });
 
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/billing/subscribe', [
-                'plan'  => 'pro',
+                'plan' => 'pro',
                 'cycle' => 'annual',
             ]);
 
@@ -155,7 +155,7 @@ class BillingControllerTest extends TestCase
     {
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/billing/subscribe', [
-                'plan'  => 'invalid_plan',
+                'plan' => 'invalid_plan',
                 'cycle' => 'monthly',
             ]);
 
@@ -166,7 +166,7 @@ class BillingControllerTest extends TestCase
     {
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/billing/subscribe', [
-                'plan'  => 'starter',
+                'plan' => 'starter',
                 'cycle' => 'quarterly',
             ]);
 
@@ -177,7 +177,7 @@ class BillingControllerTest extends TestCase
     {
         $this->tenant->update([
             'platform_stripe_sub_id' => 'sub_existing',
-            'plan'                   => 'starter',
+            'plan' => 'starter',
         ]);
 
         $this->mock(StripeBillingService::class, function (MockInterface $mock) {
@@ -188,7 +188,7 @@ class BillingControllerTest extends TestCase
 
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/billing/upgrade', [
-                'plan'  => 'pro',
+                'plan' => 'pro',
                 'cycle' => 'monthly',
             ]);
 
@@ -201,7 +201,7 @@ class BillingControllerTest extends TestCase
     public function test_cancel_sets_cancel_at_period_end(): void
     {
         $this->tenant->update([
-            'platform_stripe_sub_id'    => 'sub_to_cancel',
+            'platform_stripe_sub_id' => 'sub_to_cancel',
             'plan_cancel_at_period_end' => false,
         ]);
 
@@ -270,14 +270,14 @@ class BillingControllerTest extends TestCase
                     return $priceId === 'price_pro_from_db_xyz';
                 })
                 ->andReturn((object) [
-                    'id'                 => 'sub_pro_db_123',
+                    'id' => 'sub_pro_db_123',
                     'current_period_end' => now()->addMonth()->timestamp,
                 ]);
         });
 
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/billing/subscribe', [
-                'plan'  => 'pro',
+                'plan' => 'pro',
                 'cycle' => 'monthly',
             ]);
 
@@ -288,7 +288,7 @@ class BillingControllerTest extends TestCase
     {
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/billing/subscribe', [
-                'plan'  => 'nonexistent-plan',
+                'plan' => 'nonexistent-plan',
                 'cycle' => 'monthly',
             ]);
 
@@ -307,7 +307,7 @@ class BillingControllerTest extends TestCase
 
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/billing/subscribe', [
-                'plan'  => 'starter',
+                'plan' => 'starter',
                 'cycle' => 'monthly',
             ]);
 
@@ -325,7 +325,7 @@ class BillingControllerTest extends TestCase
 
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/billing/upgrade', [
-                'plan'  => 'pro',
+                'plan' => 'pro',
                 'cycle' => 'monthly',
             ]);
 
@@ -371,5 +371,33 @@ class BillingControllerTest extends TestCase
             ->getJson('/api/admin/v1/billing/portal-url');
 
         $response->assertStatus(502)->assertJsonPath('message', 'Stripe down');
+    }
+
+    public function test_portal_url_rejects_external_return_url(): void
+    {
+        $this->tenant->update(['platform_stripe_customer_id' => 'cus_portal']);
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->getJson('/api/admin/v1/billing/portal-url?return_url=https://evil.com/steal');
+
+        $response->assertStatus(422);
+    }
+
+    public function test_portal_url_accepts_same_origin_return_url(): void
+    {
+        $this->tenant->update(['platform_stripe_customer_id' => 'cus_portal']);
+
+        $this->mock(StripeBillingService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('createPortalSession')
+                ->once()
+                ->andReturn('https://billing.stripe.com/session/abc');
+        });
+
+        $appUrl = config('app.url');
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->getJson('/api/admin/v1/billing/portal-url?return_url='.urlencode($appUrl.'/admin/billing'));
+
+        $response->assertStatus(200);
     }
 }

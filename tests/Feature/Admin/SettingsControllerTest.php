@@ -313,7 +313,7 @@ class SettingsControllerTest extends TestCase
 
     public function test_invite_staff_rejects_duplicate_email(): void
     {
-        User::factory()->create(['email' => 'duplicate@example.com']);
+        User::factory()->create(['tenant_id' => $this->tenant->id, 'email' => 'duplicate@example.com']);
 
         $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/settings/staff/invite', [

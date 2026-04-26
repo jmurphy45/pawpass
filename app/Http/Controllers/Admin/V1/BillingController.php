@@ -21,13 +21,13 @@ class BillingController extends Controller
 
         return response()->json([
             'data' => [
-                'plan'                    => $tenant->plan,
-                'status'                  => $tenant->status,
-                'trial_ends_at'           => $tenant->trial_ends_at?->toIso8601String(),
+                'plan' => $tenant->plan,
+                'status' => $tenant->status,
+                'trial_ends_at' => $tenant->trial_ends_at?->toIso8601String(),
                 'plan_current_period_end' => $tenant->plan_current_period_end?->toIso8601String(),
-                'plan_past_due_since'     => $tenant->plan_past_due_since?->toIso8601String(),
+                'plan_past_due_since' => $tenant->plan_past_due_since?->toIso8601String(),
                 'plan_cancel_at_period_end' => $tenant->plan_cancel_at_period_end,
-                'plan_billing_cycle'      => $tenant->plan_billing_cycle,
+                'plan_billing_cycle' => $tenant->plan_billing_cycle,
             ],
         ]);
     }
@@ -35,14 +35,14 @@ class BillingController extends Controller
     public function subscribe(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'plan'                         => ['required', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
-            'cycle'                        => ['required', 'string', 'in:monthly,annual'],
-            'billing_address'              => ['nullable', 'array'],
-            'billing_address.street'       => ['nullable', 'string'],
-            'billing_address.city'         => ['nullable', 'string'],
-            'billing_address.state'        => ['nullable', 'string', 'max:2'],
-            'billing_address.postal_code'  => ['nullable', 'string', 'max:20'],
-            'billing_address.country'      => ['nullable', 'string', 'in:US,CA'],
+            'plan' => ['required', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
+            'cycle' => ['required', 'string', 'in:monthly,annual'],
+            'billing_address' => ['nullable', 'array'],
+            'billing_address.street' => ['nullable', 'string'],
+            'billing_address.city' => ['nullable', 'string'],
+            'billing_address.state' => ['nullable', 'string', 'max:2'],
+            'billing_address.postal_code' => ['nullable', 'string', 'max:20'],
+            'billing_address.country' => ['nullable', 'string', 'in:US,CA'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
@@ -64,7 +64,7 @@ class BillingController extends Controller
                 );
             }
 
-            $plan    = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
+            $plan = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
             $priceId = $validated['cycle'] === 'annual'
                 ? $plan->stripe_annual_price_id
                 : $plan->stripe_monthly_price_id;
@@ -75,17 +75,17 @@ class BillingController extends Controller
         }
 
         $tenant->update([
-            'plan'                    => $validated['plan'],
-            'plan_billing_cycle'      => $validated['cycle'],
-            'platform_stripe_sub_id'  => $stripeSub->id,
-            'status'                  => 'active',
+            'plan' => $validated['plan'],
+            'plan_billing_cycle' => $validated['cycle'],
+            'platform_stripe_sub_id' => $stripeSub->id,
+            'status' => 'active',
             'plan_current_period_end' => \Carbon\Carbon::createFromTimestamp($stripeSub->current_period_end),
         ]);
 
         PlatformSubscriptionEvent::create([
-            'tenant_id'  => $tenant->id,
+            'tenant_id' => $tenant->id,
             'event_type' => 'subscribed',
-            'payload'    => ['plan' => $validated['plan'], 'cycle' => $validated['cycle']],
+            'payload' => ['plan' => $validated['plan'], 'cycle' => $validated['cycle']],
         ]);
 
         return response()->json(['data' => ['status' => 'subscribed', 'plan' => $validated['plan']]], 201);
@@ -94,13 +94,13 @@ class BillingController extends Controller
     public function upgrade(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'plan'  => ['required', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
+            'plan' => ['required', Rule::exists('platform_plans', 'slug')->where('is_active', true)],
             'cycle' => ['required', 'string', 'in:monthly,annual'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));
 
-        $plan    = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
+        $plan = PlatformPlan::where('slug', $validated['plan'])->where('is_active', true)->firstOrFail();
         $priceId = $validated['cycle'] === 'annual'
             ? $plan->stripe_annual_price_id
             : $plan->stripe_monthly_price_id;
@@ -112,14 +112,14 @@ class BillingController extends Controller
         }
 
         $tenant->update([
-            'plan'               => $validated['plan'],
+            'plan' => $validated['plan'],
             'plan_billing_cycle' => $validated['cycle'],
         ]);
 
         PlatformSubscriptionEvent::create([
-            'tenant_id'  => $tenant->id,
+            'tenant_id' => $tenant->id,
             'event_type' => 'plan_changed',
-            'payload'    => ['plan' => $validated['plan'], 'cycle' => $validated['cycle']],
+            'payload' => ['plan' => $validated['plan'], 'cycle' => $validated['cycle']],
         ]);
 
         return response()->json(['data' => ['plan' => $validated['plan']]]);
@@ -138,9 +138,9 @@ class BillingController extends Controller
         $tenant->update(['plan_cancel_at_period_end' => true]);
 
         PlatformSubscriptionEvent::create([
-            'tenant_id'  => $tenant->id,
+            'tenant_id' => $tenant->id,
             'event_type' => 'cancellation_scheduled',
-            'payload'    => [],
+            'payload' => [],
         ]);
 
         return response()->json(['data' => ['plan_cancel_at_period_end' => true]]);
@@ -164,6 +164,10 @@ class BillingController extends Controller
         $tenant = Tenant::find(app('current.tenant.id'));
 
         $returnUrl = $request->query('return_url', config('app.url'));
+
+        if (! str_starts_with($returnUrl, config('app.url'))) {
+            return response()->json(['message' => 'Invalid return_url.'], 422);
+        }
 
         try {
             $url = $this->billing->createPortalSession($tenant, $returnUrl);

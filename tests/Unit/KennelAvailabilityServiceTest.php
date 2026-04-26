@@ -39,7 +39,7 @@ class KennelAvailabilityServiceTest extends TestCase
         Reservation::factory()->withUnit($unit)->confirmed()->create([
             'tenant_id' => $unit->tenant_id,
             'starts_at' => now()->addDays(1),
-            'ends_at'   => now()->addDays(4),
+            'ends_at' => now()->addDays(4),
         ]);
 
         $result = $this->service->isAvailable(
@@ -57,7 +57,7 @@ class KennelAvailabilityServiceTest extends TestCase
         Reservation::factory()->withUnit($unit)->cancelled()->create([
             'tenant_id' => $unit->tenant_id,
             'starts_at' => now()->addDays(1),
-            'ends_at'   => now()->addDays(4),
+            'ends_at' => now()->addDays(4),
         ]);
 
         $result = $this->service->isAvailable(
@@ -75,7 +75,7 @@ class KennelAvailabilityServiceTest extends TestCase
         $reservation = Reservation::factory()->withUnit($unit)->confirmed()->create([
             'tenant_id' => $unit->tenant_id,
             'starts_at' => now()->addDays(1),
-            'ends_at'   => now()->addDays(4),
+            'ends_at' => now()->addDays(4),
         ]);
 
         // Same dates as the existing reservation — would normally conflict
@@ -95,7 +95,7 @@ class KennelAvailabilityServiceTest extends TestCase
         Reservation::factory()->withUnit($unit)->confirmed()->create([
             'tenant_id' => $unit->tenant_id,
             'starts_at' => now()->addDays(1),
-            'ends_at'   => now()->addDays(3),
+            'ends_at' => now()->addDays(3),
         ]);
 
         // Starts exactly when the existing one ends
@@ -108,6 +108,48 @@ class KennelAvailabilityServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
+    public function test_early_checked_out_reservation_releases_availability_after_actual_checkout(): void
+    {
+        $unit = KennelUnit::factory()->create();
+        Reservation::factory()->withUnit($unit)->create([
+            'tenant_id' => $unit->tenant_id,
+            'status' => 'checked_out',
+            'starts_at' => now()->addDays(1),
+            'ends_at' => now()->addDays(5),
+            'actual_checkout_at' => now()->addDays(3),
+        ]);
+
+        // Days 4–5 should be free — dog already left on day 3
+        $result = $this->service->isAvailable(
+            $unit,
+            now()->addDays(4),
+            now()->addDays(5),
+        );
+
+        $this->assertTrue($result);
+    }
+
+    public function test_early_checked_out_reservation_still_blocks_overlapping_dates(): void
+    {
+        $unit = KennelUnit::factory()->create();
+        Reservation::factory()->withUnit($unit)->create([
+            'tenant_id' => $unit->tenant_id,
+            'status' => 'checked_out',
+            'starts_at' => now()->addDays(1),
+            'ends_at' => now()->addDays(5),
+            'actual_checkout_at' => now()->addDays(3),
+        ]);
+
+        // Days 2–4 overlap with days 1–3 of the existing stay
+        $result = $this->service->isAvailable(
+            $unit,
+            now()->addDays(2),
+            now()->addDays(4),
+        );
+
+        $this->assertFalse($result);
+    }
+
     public function test_available_units_returns_only_unblocked_active_units(): void
     {
         $unit1 = KennelUnit::factory()->create();
@@ -118,7 +160,7 @@ class KennelAvailabilityServiceTest extends TestCase
         Reservation::factory()->withUnit($unit1)->confirmed()->create([
             'tenant_id' => $unit1->tenant_id,
             'starts_at' => now()->addDays(1),
-            'ends_at'   => now()->addDays(4),
+            'ends_at' => now()->addDays(4),
         ]);
 
         $available = $this->service->availableUnits(

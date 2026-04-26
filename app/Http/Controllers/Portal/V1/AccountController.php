@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AccountController extends Controller
 {
@@ -19,13 +20,20 @@ class AccountController extends Controller
 
     public function update(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         $validated = $request->validate([
             'name' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'email'],
-            'phone' => ['nullable', 'string'],
+            'email' => [
+                'nullable',
+                'email',
+                Rule::unique('users', 'email')
+                    ->where('tenant_id', app('current.tenant.id'))
+                    ->ignore($user->id),
+            ],
+            'phone' => ['nullable', 'string', 'max:30'],
         ]);
 
-        $user = $request->user();
         $user->update(array_filter($validated, fn ($v) => $v !== null));
 
         if (isset($validated['name']) && $user->customer) {

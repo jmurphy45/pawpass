@@ -26,7 +26,7 @@ class KennelAvailabilityService
         $query = $unit->reservations()
             ->where('status', '!=', 'cancelled')
             ->where('starts_at', '<', $endsAt)
-            ->where('ends_at', '>', $startsAt);
+            ->whereRaw('COALESCE(actual_checkout_at, ends_at) > ?', [$startsAt]);
 
         if ($excludeReservationId) {
             $query->where('id', '!=', $excludeReservationId);
@@ -47,7 +47,7 @@ class KennelAvailabilityService
             ->whereDoesntHave('reservations', function ($q) use ($startsAt, $endsAt) {
                 $q->where('status', '!=', 'cancelled')
                     ->where('starts_at', '<', $endsAt)
-                    ->where('ends_at', '>', $startsAt);
+                    ->whereRaw('COALESCE(actual_checkout_at, ends_at) > ?', [$startsAt]);
             })
             ->orderBy('sort_order')
             ->get();

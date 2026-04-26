@@ -103,11 +103,11 @@ class OnboardingControllerTest extends TestCase
     {
         $this->tenant->update([
             'billing_address' => [
-                'street'      => '123 Main St',
-                'city'        => 'Springfield',
-                'state'       => 'IL',
+                'street' => '123 Main St',
+                'city' => 'Springfield',
+                'state' => 'IL',
                 'postal_code' => '62701',
-                'country'     => 'US',
+                'country' => 'US',
             ],
         ]);
 
@@ -118,7 +118,7 @@ class OnboardingControllerTest extends TestCase
                     $this->owner->email,
                     $this->tenant->name,
                     \Mockery::on(fn ($addr) => $addr['street'] === '123 Main St' && $addr['city'] === 'Springfield'),
-                    "https://onboarding.pawpass.com",
+                    'https://onboarding.pawpass.com',
                     $this->owner->name,
                 )
                 ->andReturn((object) ['id' => 'acct_prefilled']);
@@ -143,10 +143,12 @@ class OnboardingControllerTest extends TestCase
                 ->andReturn((object) ['url' => 'https://connect.stripe.com/onboard/test']);
         });
 
+        $appUrl = config('app.url');
+
         $response = $this->withHeaders($this->ownerHeaders())
             ->postJson('/api/admin/v1/onboarding/account-link', [
-                'refresh_url' => 'https://example.com/refresh',
-                'return_url' => 'https://example.com/return',
+                'refresh_url' => $appUrl.'/admin/connect/refresh',
+                'return_url' => $appUrl.'/admin/connect/return',
             ]);
 
         $response->assertStatus(200)
@@ -178,14 +180,29 @@ class OnboardingControllerTest extends TestCase
             ->assertJsonValidationErrors(['refresh_url', 'return_url']);
     }
 
+    public function test_account_link_rejects_external_urls(): void
+    {
+        $this->tenant->update(['stripe_account_id' => 'acct_linked']);
+
+        $response = $this->withHeaders($this->ownerHeaders())
+            ->postJson('/api/admin/v1/onboarding/account-link', [
+                'refresh_url' => 'https://evil.com/refresh',
+                'return_url' => 'https://evil.com/return',
+            ]);
+
+        $response->assertStatus(422);
+    }
+
     public function test_staff_cannot_create_account_link(): void
     {
         $this->tenant->update(['stripe_account_id' => 'acct_linked']);
 
+        $appUrl = config('app.url');
+
         $response = $this->withHeaders($this->staffHeaders())
             ->postJson('/api/admin/v1/onboarding/account-link', [
-                'refresh_url' => 'https://example.com/refresh',
-                'return_url' => 'https://example.com/return',
+                'refresh_url' => $appUrl.'/admin/connect/refresh',
+                'return_url' => $appUrl.'/admin/connect/return',
             ]);
 
         $response->assertStatus(403);

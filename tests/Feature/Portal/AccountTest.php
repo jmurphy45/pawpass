@@ -81,6 +81,35 @@ class AccountTest extends TestCase
             ->assertJsonPath('data.email', 'new@example.com');
     }
 
+    public function test_update_email_rejects_duplicate_on_same_tenant(): void
+    {
+        User::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'email' => 'taken@example.com',
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->patchJson('/api/portal/v1/account', ['email' => 'taken@example.com']);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_update_email_allows_same_email_on_different_tenant(): void
+    {
+        $otherTenant = Tenant::factory()->create(['slug' => 'othertenant2', 'status' => 'active']);
+        User::factory()->create([
+            'tenant_id' => $otherTenant->id,
+            'email' => 'shared@example.com',
+        ]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->patchJson('/api/portal/v1/account', ['email' => 'shared@example.com']);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.email', 'shared@example.com');
+    }
+
     public function test_update_with_no_fields_returns_current_data(): void
     {
         $response = $this->withHeaders($this->authHeaders())
