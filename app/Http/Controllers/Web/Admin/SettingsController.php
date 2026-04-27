@@ -294,7 +294,7 @@ class SettingsController extends Controller
             throw ValidationException::withMessages(['current_password' => ['Current password is incorrect.']]);
         }
 
-        $user->update(['password' => $request->password]);
+        $user->update(['password' => Hash::make($request->password)]);
 
         return back()->with('success', 'Password updated successfully.');
     }

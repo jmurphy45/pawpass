@@ -66,7 +66,7 @@ class RegisterController extends Controller
                 'customer_id' => $customer->id,
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => $validated['password'],
+                'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
                 'phone' => $validated['phone'] ?? null,
                 'role' => 'customer',
                 'status' => 'pending_verification',

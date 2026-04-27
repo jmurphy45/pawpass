@@ -62,7 +62,7 @@ class TenantRegistrationService
                 'tenant_id' => $tenant->id,
                 'name' => $validated['owner_name'],
                 'email' => $validated['email'],
-                'password' => $validated['password'],
+                'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
                 'role' => 'business_owner',
                 'status' => 'active',
                 'email_verify_token' => $token,

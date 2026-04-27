@@ -53,7 +53,7 @@ class RegisterController extends Controller
                 'customer_id' => $customer->id,
                 'name' => $request->name,
                 'email' => $request->email,
-                'password' => $request->password,
+                'password' => \Illuminate\Support\Facades\Hash::make($request->password),
                 'role' => 'customer',
                 'status' => 'pending_verification',
                 'email_verify_token' => $token,
@@ -77,7 +77,7 @@ class RegisterController extends Controller
             } catch (\Throwable $e) {
                 Log::warning('Portal API registration Stripe sync failed', [
                     'user_id' => $user->id,
-                    'error'   => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
