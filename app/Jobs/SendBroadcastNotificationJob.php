@@ -24,7 +24,17 @@ class SendBroadcastNotificationJob implements ShouldQueue
         $this->onQueue('notifications');
     }
 
-    public int $tries = 1;
+    public int $tries = 5;
+
+    public function backoff(): array
+    {
+        return [60, 300, 900, 3600];
+    }
+
+    public function failed(\Throwable $e): void
+    {
+        Log::error('SendBroadcastNotificationJob permanently failed', ['error' => $e->getMessage()]);
+    }
 
     public function handle(): void
     {

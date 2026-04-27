@@ -175,11 +175,10 @@
         <a
           v-for="link in reservations.links"
           :key="link.label"
-          v-html="link.label"
           :href="link.url ?? '#'"
           class="px-3 py-1 rounded border"
           :class="link.active ? 'bg-primary text-white border-primary' : 'border-border text-text-muted hover:bg-surface-subtle'"
-        />
+        >{{ link.label.replace('&laquo;', '«').replace('&raquo;', '»') }}</a>
       </div>
     </div>
   </AdminLayout>

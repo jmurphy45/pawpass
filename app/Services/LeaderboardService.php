@@ -16,32 +16,25 @@ class LeaderboardService
         $tenantIds = $tenants->pluck('id');
         $today = now()->toDateString();
 
-        $todayTotals = Attendance::allTenants()
+        $stats = Attendance::allTenants()
             ->whereIn('tenant_id', $tenantIds)
             ->whereDate('checked_in_at', $today)
-            ->selectRaw('tenant_id, count(*) as total')
+            ->selectRaw('tenant_id, count(*) as today_total, sum(case when checked_out_at is null then 1 else 0 end) as currently_in')
             ->groupBy('tenant_id')
-            ->pluck('total', 'tenant_id');
-
-        $currentlyIn = Attendance::allTenants()
-            ->whereIn('tenant_id', $tenantIds)
-            ->whereDate('checked_in_at', $today)
-            ->whereNull('checked_out_at')
-            ->selectRaw('tenant_id, count(*) as total')
-            ->groupBy('tenant_id')
-            ->pluck('total', 'tenant_id');
+            ->get()
+            ->keyBy('tenant_id');
 
         return $tenants
             ->map(fn ($tenant) => [
-                'id'            => $tenant->id,
-                'name'          => $tenant->name,
-                'slug'          => $tenant->slug,
-                'logo_url'      => $tenant->logo_url,
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'slug' => $tenant->slug,
+                'logo_url' => $tenant->logo_url,
                 'business_type' => $tenant->business_type ?? 'daycare',
-                'city'          => $tenant->business_city,
-                'state'         => $tenant->business_state,
-                'today_total'   => (int) ($todayTotals[$tenant->id] ?? 0),
-                'currently_in'  => (int) ($currentlyIn[$tenant->id] ?? 0),
+                'city' => $tenant->business_city,
+                'state' => $tenant->business_state,
+                'today_total' => (int) ($stats[$tenant->id]->today_total ?? 0),
+                'currently_in' => (int) ($stats[$tenant->id]->currently_in ?? 0),
             ])
             ->sortByDesc('today_total')
             ->values();

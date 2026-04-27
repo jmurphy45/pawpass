@@ -13,14 +13,20 @@ use Inertia\Response;
 class BoardingSearchController extends Controller
 {
     private const ACTIVE_STATUSES = ['active', 'trialing', 'free_tier', 'past_due'];
-    private const BOARDING_TYPES  = ['kennel', 'hybrid'];
+
+    private const BOARDING_TYPES = ['kennel', 'hybrid'];
 
     public function index(Request $request, ?string $state = null, ?string $city = null): Response
     {
-        $cityDisplay  = $city  ? ucwords(str_replace('-', ' ', $city))  : $request->input('city', '');
+        $request->validate([
+            'checkin' => 'nullable|date_format:Y-m-d|after_or_equal:today',
+            'checkout' => 'nullable|date_format:Y-m-d|after:checkin',
+        ]);
+
+        $cityDisplay = $city ? ucwords(str_replace('-', ' ', $city)) : $request->input('city', '');
         $stateDisplay = $state ? strtoupper($state) : strtoupper($request->input('state', ''));
-        $checkin      = $request->input('checkin', '');
-        $checkout     = $request->input('checkout', '');
+        $checkin = $request->input('checkin', '');
+        $checkout = $request->input('checkout', '');
 
         $query = Tenant::query()
             ->where('is_publicly_listed', true)
@@ -45,7 +51,7 @@ class BoardingSearchController extends Controller
         $availableUnitCounts = null;
         if ($checkin && $checkout) {
             $startsAt = Carbon::parse($checkin);
-            $endsAt   = Carbon::parse($checkout);
+            $endsAt = Carbon::parse($checkout);
 
             $availableUnitCounts = KennelUnit::allTenants()
                 ->whereIn('tenant_id', $tenants->pluck('id'))
@@ -62,16 +68,16 @@ class BoardingSearchController extends Controller
 
         $results = $tenants->map(function (Tenant $t) use ($availableUnitCounts) {
             $item = [
-                'name'            => $t->name,
-                'slug'            => $t->slug,
-                'logo_url'        => $t->logo_url,
-                'business_type'   => $t->business_type ?? 'kennel',
-                'city'            => $t->business_city,
-                'state'           => $t->business_state,
-                'zip'             => $t->business_zip,
-                'phone'           => $t->business_phone,
-                'description'     => $t->business_description,
-                'address'         => $t->business_address,
+                'name' => $t->name,
+                'slug' => $t->slug,
+                'logo_url' => $t->logo_url,
+                'business_type' => $t->business_type ?? 'kennel',
+                'city' => $t->business_city,
+                'state' => $t->business_state,
+                'zip' => $t->business_zip,
+                'phone' => $t->business_phone,
+                'description' => $t->business_description,
+                'address' => $t->business_address,
             ];
 
             if ($availableUnitCounts !== null) {
@@ -82,21 +88,21 @@ class BoardingSearchController extends Controller
         })->values()->all();
 
         if ($cityDisplay && $stateDisplay) {
-            $headTitle       = "Dog Boarding in {$cityDisplay}, {$stateDisplay} | PawPass";
+            $headTitle = "Dog Boarding in {$cityDisplay}, {$stateDisplay} | PawPass";
             $headDescription = "Find available dog boarding kennels in {$cityDisplay}, {$stateDisplay}. "
-                . "Check availability by date and book online through PawPass.";
+                .'Check availability by date and book online through PawPass.';
         } else {
-            $headTitle       = 'Find Dog Boarding Near You | PawPass';
+            $headTitle = 'Find Dog Boarding Near You | PawPass';
             $headDescription = 'Search dog boarding kennels and hybrid daycare-boarding facilities across the US. Check availability by date and book online.';
         }
 
         return Inertia::render('FindBoarding', [
-            'results'         => $results,
-            'city'            => $cityDisplay,
-            'state'           => $stateDisplay,
-            'checkin'         => $checkin,
-            'checkout'        => $checkout,
-            'headTitle'       => $headTitle,
+            'results' => $results,
+            'city' => $cityDisplay,
+            'state' => $stateDisplay,
+            'checkin' => $checkin,
+            'checkout' => $checkout,
+            'headTitle' => $headTitle,
             'headDescription' => $headDescription,
         ]);
     }

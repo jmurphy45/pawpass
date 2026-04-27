@@ -4,7 +4,7 @@
     <meta name="description" :content="headDescription" />
     <meta property="og:title" :content="headTitle" />
     <meta property="og:description" :content="headDescription" />
-    <component v-if="boardingSchema" is="script" type="application/ld+json" v-html="boardingSchema" />
+    <!-- JSON-LD injected via onMounted to avoid v-html on script tags -->
   </Head>
 
   <div class="min-h-screen" style="background: #faf9f6; font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;">
@@ -172,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 
 const appDomain = import.meta.env.VITE_APP_DOMAIN ?? 'pawpass.com';
@@ -289,5 +289,13 @@ const boardingSchema = computed(() => {
     'numberOfItems': items.length,
     'itemListElement': items,
   });
+});
+
+onMounted(() => {
+  if (!boardingSchema.value) return;
+  const el = document.createElement('script');
+  el.type = 'application/ld+json';
+  el.textContent = boardingSchema.value;
+  document.head.appendChild(el);
 });
 </script>

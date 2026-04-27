@@ -185,16 +185,16 @@ class BoardingController extends Controller
         $reservation->load('addons.addonType');
         $addonsTotal = $reservation->addons->sum(fn ($a) => $a->unit_price_cents * $a->quantity);
 
+        $tenant = Tenant::find($reservation->tenant_id);
+
         // Get or create the boarding order for this reservation
-        $order = $reservation->order ?? $this->createBoardingOrder($reservation);
+        $order = $reservation->order ?? $this->createBoardingOrder($reservation, $tenant);
 
         // Deposit already paid (tracked in order_payments)
         $depositPayment = $order->payments()->whereIn('status', ['paid', 'authorized'])->where('type', PaymentType::Deposit->value)->first();
         $depositPaidCents = $depositPayment?->amount_cents ?? 0;
 
         $subtotalCents = $nightsTotal + $addonsTotal;
-
-        $tenant = Tenant::find($reservation->tenant_id);
 
         [$taxAmountCents, $taxCalcId] = $tenant
             ? $this->orderService->resolveTax($subtotalCents, $tenant, 'boarding_checkout')
@@ -291,8 +291,10 @@ class BoardingController extends Controller
         return redirect()->route('admin.boarding.reservations.show', $reservation)->with('success', $message);
     }
 
-    private function createBoardingOrder(Reservation $reservation): Order
+    private function createBoardingOrder(Reservation $reservation, ?Tenant $tenant = null): Order
     {
+        $tenant ??= Tenant::find($reservation->tenant_id);
+
         return Order::create([
             'tenant_id' => $reservation->tenant_id,
             'customer_id' => $reservation->customer_id,
@@ -303,7 +305,7 @@ class BoardingController extends Controller
             'subtotal_cents' => 0,
             'tax_amount_cents' => 0,
             'total_amount' => '0.00',
-            'platform_fee_pct' => Tenant::find($reservation->tenant_id)?->effectivePlatformFeePct() ?? 5.0,
+            'platform_fee_pct' => $tenant?->effectivePlatformFeePct() ?? 5.0,
             'platform_fee_amount_cents' => 0,
         ]);
     }

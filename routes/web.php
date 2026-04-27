@@ -62,13 +62,14 @@ Route::prefix('auth/magic-link')->group(function () {
 Route::get('/find-a-daycare', [DaycareDirectoryController::class, 'index'])->name('daycare.directory');
 Route::get('/find-a-daycare/{state}/{city}', [DaycareDirectoryController::class, 'index'])->name('daycare.directory.city');
 
-// Public leaderboard
-Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
-Route::get('/leaderboard/{state}/{city}', [LeaderboardController::class, 'city'])->name('leaderboard.city');
+// Public leaderboard + boarding search (rate-limited to prevent scraping / DoS)
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
+    Route::get('/leaderboard/{state}/{city}', [LeaderboardController::class, 'city'])->name('leaderboard.city');
 
-// Boarding availability search
-Route::get('/find-boarding', [BoardingSearchController::class, 'index'])->name('boarding.search');
-Route::get('/find-boarding/{state}/{city}', [BoardingSearchController::class, 'index'])->name('boarding.search.city');
+    Route::get('/find-boarding', [BoardingSearchController::class, 'index'])->name('boarding.search');
+    Route::get('/find-boarding/{state}/{city}', [BoardingSearchController::class, 'index'])->name('boarding.search.city');
+});
 
 // Tenant self-registration (no tenant middleware — this creates a new tenant)
 Route::get('/register', [TenantRegistrationController::class, 'create'])->name('tenant.register');

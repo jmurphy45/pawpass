@@ -484,6 +484,7 @@ const occupancyMap = computed<Record<string, Record<string, Reservation>>>(() =>
   for (const unit of props.units) {
     map[unit.id] = {};
     for (const res of unit.reservations) {
+      if (!res.starts_at || !res.ends_at) continue;
       let cur = parseISO(res.starts_at.slice(0, 10));
       const end = parseISO(res.ends_at.slice(0, 10));
       while (cur < end) {
