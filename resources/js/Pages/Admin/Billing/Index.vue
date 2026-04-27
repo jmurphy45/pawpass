@@ -31,22 +31,28 @@
       </div>
 
       <!-- Plan selection -->
-      <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-900">Choose a Plan</h2>
+      <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900">Choose a Plan</h2>
+            <p class="text-sm text-gray-500 mt-0.5">All plans include a 21-day free trial</p>
+          </div>
 
-          <!-- Billing cycle toggle -->
-          <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <!-- Billing cycle toggle — pill style -->
+          <div class="flex items-center gap-1 bg-gray-100 rounded-full p-1">
             <button
               @click="cycle = 'monthly'"
-              class="px-3 py-1.5 text-sm rounded-md transition-colors"
-              :class="cycle === 'monthly' ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'"
+              class="px-4 py-1.5 text-sm rounded-full transition-all duration-200 font-medium"
+              :class="cycle === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
             >Monthly</button>
             <button
               @click="cycle = 'annual'"
-              class="px-3 py-1.5 text-sm rounded-md transition-colors"
-              :class="cycle === 'annual' ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'"
-            >Annual</button>
+              class="px-4 py-1.5 text-sm rounded-full transition-all duration-200 font-medium flex items-center gap-1.5"
+              :class="cycle === 'annual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+            >
+              Annual
+              <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">Save 20%</span>
+            </button>
           </div>
         </div>
 
@@ -55,62 +61,118 @@
           <div
             v-for="plan in plans"
             :key="plan.slug"
-            class="rounded-xl border-2 p-5 flex flex-col gap-4 transition-colors"
-            :class="plan.slug === billing.plan ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'"
+            class="rounded-2xl flex flex-col overflow-hidden transition-shadow"
+            :class="[
+              plan.slug === popularPlanSlug
+                ? 'shadow-xl ring-2 ring-slate-800'
+                : plan.slug === billing.plan
+                  ? 'shadow-md ring-2 ring-indigo-500'
+                  : 'shadow-sm border border-gray-200'
+            ]"
           >
-            <div>
-              <p class="font-semibold text-gray-900">{{ plan.name }}</p>
-              <p class="text-sm text-gray-500 mt-0.5">{{ plan.description }}</p>
+            <!-- Popular plan dark header band -->
+            <div v-if="plan.slug === popularPlanSlug" class="bg-slate-800 px-5 pt-5 pb-4">
+              <div class="flex items-center justify-between mb-2">
+                <p class="font-semibold text-white text-base">{{ plan.name }}</p>
+                <span class="text-xs font-bold text-slate-800 bg-amber-400 px-2.5 py-1 rounded-full uppercase tracking-wide">
+                  Most Popular
+                </span>
+              </div>
+              <p class="text-sm text-slate-400">{{ plan.description }}</p>
             </div>
 
-            <div class="text-2xl font-bold text-gray-900">
-              ${{ Math.floor((cycle === 'annual' ? plan.annual_price_cents : plan.monthly_price_cents) / 100) }}<span class="text-base font-normal text-gray-500">/mo</span>
+            <!-- Card body -->
+            <div class="p-5 flex flex-col gap-4 flex-1 bg-white">
+              <!-- Name + desc (non-popular plans only) -->
+              <div v-if="plan.slug !== popularPlanSlug">
+                <p class="font-semibold text-gray-900">{{ plan.name }}</p>
+                <p class="text-sm text-gray-500 mt-0.5">{{ plan.description }}</p>
+              </div>
+
+              <!-- Price -->
+              <div>
+                <div class="flex items-baseline gap-1">
+                  <span class="text-3xl font-bold text-gray-900 tabular-nums">
+                    ${{ Math.floor((cycle === 'annual' ? plan.annual_price_cents : plan.monthly_price_cents) / 100) }}
+                  </span>
+                  <span class="text-sm text-gray-400">/mo</span>
+                </div>
+                <div class="mt-1 h-5">
+                  <template v-if="cycle === 'annual'">
+                    <span v-if="annualSavingsPct(plan) > 0" class="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      Save {{ annualSavingsPct(plan) }}% vs monthly
+                    </span>
+                    <span v-else class="text-xs text-gray-400">billed annually</span>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Feature list -->
+              <ul class="space-y-2 flex-1">
+                <li v-for="feature in plan.features" :key="feature" class="flex items-start gap-2.5">
+                  <span class="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <svg class="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 10 10" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2 5l2 2 4-4"/>
+                    </svg>
+                  </span>
+                  <span class="text-sm text-gray-600 leading-snug">{{ feature }}</span>
+                </li>
+              </ul>
+
+              <!-- Platform fee -->
+              <p class="text-xs text-gray-400 pt-2 border-t border-gray-100">
+                2.9% + 30¢ + {{ plan.platform_fee_pct }}% platform fee per transaction
+              </p>
+
+              <!-- Current plan (trialing) -->
+              <button
+                v-if="plan.slug === billing.plan && billing.status === 'trialing'"
+                disabled
+                class="w-full text-sm py-2.5 rounded-xl bg-gray-100 text-gray-400 cursor-not-allowed font-medium border border-gray-200"
+              >Current Plan (Trial)</button>
+
+              <!-- Current plan (active) -->
+              <button
+                v-else-if="plan.slug === billing.plan && billing.status === 'active'"
+                disabled
+                class="w-full text-sm py-2.5 rounded-xl bg-gray-100 text-gray-400 cursor-not-allowed font-medium border border-gray-200"
+              >Current Plan</button>
+
+              <!-- Subscribe (trialing or free_tier) -->
+              <button
+                v-else-if="billing.status === 'trialing' || billing.status === 'free_tier'"
+                @click="openSubscribeFlow(plan.slug)"
+                :disabled="cardModal.processing"
+                class="w-full text-sm py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50"
+                :class="plan.slug === popularPlanSlug
+                  ? 'bg-slate-800 text-white hover:bg-slate-900'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'"
+              >Subscribe</button>
+
+              <!-- Upgrade (active or past_due, higher tier) -->
+              <button
+                v-else-if="(billing.status === 'active' || billing.status === 'past_due') && plan.sort_order > currentPlanOrder"
+                @click="submitUpgrade(plan.slug)"
+                :disabled="upgradeForm.processing"
+                class="w-full text-sm py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50"
+                :class="plan.slug === popularPlanSlug
+                  ? 'bg-slate-800 text-white hover:bg-slate-900'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'"
+              >Upgrade</button>
+
+              <!-- Downgrade (active or past_due, lower tier) -->
+              <button
+                v-else-if="billing.status === 'active' || billing.status === 'past_due'"
+                @click="submitUpgrade(plan.slug)"
+                :disabled="upgradeForm.processing"
+                class="w-full text-sm py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+              >Downgrade</button>
             </div>
-            <p class="text-xs text-gray-400">2.9% + 30¢ + {{ plan.platform_fee_pct }}% platform fee per transaction</p>
-
-            <ul class="space-y-1.5 flex-1">
-              <li v-for="feature in plan.features" :key="feature" class="flex items-start gap-2 text-sm text-gray-700">
-                <svg class="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                {{ feature }}
-              </li>
-            </ul>
-
-            <!-- Current plan (trialing) -->
-            <button
-              v-if="plan.slug === billing.plan && billing.status === 'trialing'"
-              disabled
-              class="w-full text-sm py-2 rounded-lg bg-indigo-100 text-indigo-400 cursor-not-allowed font-medium"
-            >Current Plan (Trial)</button>
-
-            <!-- Current plan (active) -->
-            <button
-              v-else-if="plan.slug === billing.plan && billing.status === 'active'"
-              disabled
-              class="w-full text-sm py-2 rounded-lg bg-indigo-100 text-indigo-400 cursor-not-allowed font-medium"
-            >Current Plan</button>
-
-            <!-- Subscribe (trialing or free_tier) -->
-            <button
-              v-else-if="billing.status === 'trialing' || billing.status === 'free_tier'"
-              @click="openSubscribeFlow(plan.slug)"
-              :disabled="cardModal.processing"
-              class="w-full text-sm py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 font-medium transition-colors"
-            >Subscribe</button>
-
-            <!-- Upgrade / Downgrade (active or past_due) -->
-            <button
-              v-else-if="billing.status === 'active' || billing.status === 'past_due'"
-              @click="submitUpgrade(plan.slug)"
-              :disabled="upgradeForm.processing"
-              class="w-full text-sm py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 font-medium transition-colors"
-            >{{ plan.sort_order > currentPlanOrder ? 'Upgrade' : 'Downgrade' }}</button>
           </div>
         </div>
 
         <!-- Cancel / cancellation notice -->
-        <div class="pt-2">
+        <div class="pt-1">
           <p v-if="billing.plan_cancel_at_period_end" class="text-sm text-amber-700">
             Cancellation scheduled at period end.
           </p>
@@ -286,6 +348,17 @@ const currentPlanOrder = computed(() => {
   const current = props.plans.find((p) => p.slug === props.billing.plan);
   return current?.sort_order ?? 0;
 });
+
+const popularPlanSlug = computed(() => {
+  const sorted = [...props.plans].sort((a, b) => a.sort_order - b.sort_order);
+  return sorted[Math.floor(sorted.length / 2)]?.slug ?? null;
+});
+
+function annualSavingsPct(plan: Plan): number {
+  const monthlyCost = plan.monthly_price_cents * 12;
+  if (!monthlyCost) return 0;
+  return Math.round((1 - plan.annual_price_cents / monthlyCost) * 100);
+}
 
 // ── Card modal state ─────────────────────────────────────────────────────────
 
