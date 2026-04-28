@@ -58,6 +58,7 @@ class DashboardController extends Controller
             ->map(fn ($c) => [
                 'id' => $c->id,
                 'name' => $c->name,
+                'email' => $c->email,
                 'outstanding_balance_cents' => $c->outstanding_balance_cents,
                 'has_payment_method' => $c->stripe_payment_method_id !== null && $c->stripe_customer_id !== null,
                 'charge_pending_at' => $c->charge_pending_at?->toIso8601String(),

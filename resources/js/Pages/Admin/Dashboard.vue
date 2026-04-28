@@ -122,6 +122,7 @@
           >
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-text-body truncate">{{ customer.name }}</p>
+              <p v-if="customer.email" class="text-xs text-text-muted truncate">{{ customer.email }}</p>
             </div>
             <span class="text-sm font-semibold text-red-600 mr-3">{{ formatCurrency(customer.outstanding_balance_cents) }}</span>
             <div class="shrink-0 w-20 text-right">
@@ -146,12 +147,12 @@
       </AppCard>
     </div>
   </AdminLayout>
+  <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
-import axios from 'axios';
+import { Link, usePage, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import type { PageProps } from '@/types';
 
@@ -166,6 +167,7 @@ interface OnboardingStep {
 interface OutstandingCustomer {
   id: string;
   name: string;
+  email: string | null;
   outstanding_balance_cents: number;
   has_payment_method: boolean;
   charge_pending_at: string | null;
@@ -205,15 +207,24 @@ function formatCurrency(cents: number): string {
 
 const charging = ref<Record<string, boolean>>({});
 
-async function chargeCustomer(customer: OutstandingCustomer) {
-  charging.value[customer.id] = true;
-  try {
-    await axios.post(`/api/admin/v1/customers/${customer.id}/charge-balance`);
-    customer.charge_pending_at = new Date().toISOString();
-  } catch (e: any) {
-    alert(e.response?.data?.message ?? 'Failed to initiate charge.');
-  } finally {
-    charging.value[customer.id] = false;
-  }
+const confirmModal = ref<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>
+  ({ open: false, title: '', message: '', onConfirm: null });
+
+function handleConfirm() { confirmModal.value.onConfirm?.(); confirmModal.value.open = false; }
+function handleCancel() { confirmModal.value.open = false; }
+
+function chargeCustomer(customer: OutstandingCustomer) {
+  const label = customer.email ? `${customer.name} (${customer.email})` : customer.name;
+  confirmModal.value = {
+    open: true,
+    title: 'Charge Outstanding Balance',
+    message: `Charge ${formatCurrency(customer.outstanding_balance_cents)} to ${label}?`,
+    onConfirm: () => {
+      charging.value[customer.id] = true;
+      router.post(route('admin.customers.charge-balance', customer.id), {}, {
+        onFinish: () => { charging.value[customer.id] = false; },
+      });
+    },
+  };
 }
 </script>
