@@ -59,7 +59,7 @@
         <!-- Plan cards -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div
-            v-for="plan in plans"
+            v-for="plan in visiblePlans"
             :key="plan.slug"
             class="rounded-2xl flex flex-col overflow-hidden transition-shadow"
             :class="[
@@ -349,8 +349,16 @@ const currentPlanOrder = computed(() => {
   return current?.sort_order ?? 0;
 });
 
+const visiblePlans = computed(() =>
+  props.plans.filter((p) => {
+    if (p.slug === 'free') return false;
+    if (p.slug === 'founders') return props.billing.plan === 'founders';
+    return true;
+  }),
+);
+
 const popularPlanSlug = computed(() => {
-  const sorted = [...props.plans].sort((a, b) => a.sort_order - b.sort_order);
+  const sorted = [...visiblePlans.value].sort((a, b) => a.sort_order - b.sort_order);
   return sorted[Math.floor(sorted.length / 2)]?.slug ?? null;
 });
 
