@@ -99,6 +99,13 @@
               <h3 class="font-semibold text-gray-900 text-sm">Boarding Revenue</h3>
               <p class="mt-1 text-xs text-gray-500">Revenue from boarding orders by period.</p>
             </a>
+            <a
+              :href="route('admin.reports.customer-intelligence')"
+              class="block rounded-lg border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow"
+            >
+              <h3 class="font-semibold text-gray-900 text-sm">Customer Intelligence</h3>
+              <p class="mt-1 text-xs text-gray-500">Churn risk, price sensitivity, and package fit insights.</p>
+            </a>
           </template>
           <div v-else-if="!hasFinancialReports" class="col-span-full">
             <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">

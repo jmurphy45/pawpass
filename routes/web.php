@@ -194,6 +194,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
             Route::get('/reports/revenue', [AdminReportController::class, 'revenue'])->middleware('plan:financial_reports')->name('admin.reports.revenue');
             Route::get('/reports/promotions', [AdminReportController::class, 'promotions'])->middleware('plan:financial_reports')->name('admin.reports.promotions');
             Route::get('/reports/boarding', [AdminReportController::class, 'boardingRevenue'])->middleware('plan:financial_reports')->name('admin.reports.boarding');
+            Route::get('/reports/customer-intelligence', \App\Http\Controllers\Web\Admin\CustomerIntelligenceController::class)->middleware('plan:financial_reports')->name('admin.reports.customer-intelligence');
             Route::get('/reports/outstanding-balances', [AdminReportController::class, 'outstandingBalances'])->name('admin.reports.outstanding-balances');
         });
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\V1\BreedController as AdminBreedController;
 use App\Http\Controllers\Admin\V1\BroadcastNotificationController;
 use App\Http\Controllers\Admin\V1\CreditController;
 use App\Http\Controllers\Admin\V1\CustomerController;
+use App\Http\Controllers\Admin\V1\CustomerIntelligenceController;
 use App\Http\Controllers\Admin\V1\DogController as AdminDogController;
 use App\Http\Controllers\Admin\V1\DogVaccinationController;
 use App\Http\Controllers\Admin\V1\KennelUnitController;
@@ -261,6 +262,7 @@ Route::prefix('admin/v1')
             Route::get('reports/customers/ltv', [AdminReportController::class, 'customersLtv']);
             Route::get('reports/promotions', [AdminReportController::class, 'promotions']);
             Route::get('reports/boarding', [AdminReportController::class, 'boardingRevenue']);
+            Route::get('reports/customer-intelligence', CustomerIntelligenceController::class);
         });
 
         // Reports — Owner + basic_reporting (real-time)
