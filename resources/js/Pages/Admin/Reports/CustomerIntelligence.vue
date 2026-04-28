@@ -1,11 +1,9 @@
 <template>
   <AdminLayout>
     <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">Customer Intelligence</h1>
-          <p class="mt-1 text-sm text-gray-500">Identify at-risk customers, price-sensitive buyers, and package mismatches.</p>
-        </div>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Customer Intelligence</h1>
+        <p class="mt-1 text-sm text-gray-500">Identify at-risk customers, price-sensitive buyers, and package mismatches.</p>
       </div>
 
       <!-- Tabs -->
@@ -50,7 +48,6 @@
                   <th class="px-4 py-3 text-right font-medium text-gray-600">Prior 30d</th>
                   <th class="px-4 py-3 text-center font-medium text-gray-600">Trend</th>
                   <th class="px-4 py-3 text-center font-medium text-gray-600">Risk</th>
-                  <th class="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
@@ -74,21 +71,9 @@
                         row.risk_level === 'red'
                           ? 'bg-red-100 text-red-700'
                           : 'bg-yellow-100 text-yellow-700',
-                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold capitalize',
+                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
                       ]"
                     >{{ row.risk_level === 'red' ? 'High Risk' : 'At Risk' }}</span>
-                  </td>
-                  <td class="px-4 py-3 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      <a
-                        :href="route('admin.customers.show', { customer: row.customer_id })"
-                        class="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
-                      >View</a>
-                      <a
-                        :href="route('admin.promotions.create') + '?customer_id=' + row.customer_id"
-                        class="text-emerald-600 hover:text-emerald-800 text-xs font-medium"
-                      >Create Promo</a>
-                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -113,7 +98,6 @@
                   <th class="px-4 py-3 text-right font-medium text-gray-600">Promo %</th>
                   <th class="px-4 py-3 text-right font-medium text-gray-600">Avg Discount</th>
                   <th class="px-4 py-3 text-center font-medium text-gray-600">Never Full Price</th>
-                  <th class="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
@@ -131,18 +115,6 @@
                   <td class="px-4 py-3 text-center">
                     <span v-if="row.never_paid_full" class="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">Yes</span>
                     <span v-else class="text-gray-400 text-xs">No</span>
-                  </td>
-                  <td class="px-4 py-3 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      <a
-                        :href="route('admin.customers.show', { customer: row.customer_id })"
-                        class="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
-                      >View</a>
-                      <a
-                        :href="route('admin.promotions.create') + '?customer_id=' + row.customer_id"
-                        class="text-emerald-600 hover:text-emerald-800 text-xs font-medium"
-                      >Create Promo</a>
-                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -167,7 +139,6 @@
                   <th class="px-4 py-3 text-left font-medium text-gray-600">Current Package</th>
                   <th class="px-4 py-3 text-left font-medium text-gray-600">Suggested Package</th>
                   <th class="px-4 py-3 text-right font-medium text-gray-600">Price</th>
-                  <th class="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
@@ -183,18 +154,6 @@
                     <span class="ml-1 text-xs text-gray-400">({{ row.suggested_credit_count }} credits)</span>
                   </td>
                   <td class="px-4 py-3 text-right text-gray-700">${{ fmtPrice(row.suggested_price) }}</td>
-                  <td class="px-4 py-3 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      <a
-                        :href="route('admin.customers.show', { customer: row.customer_id })"
-                        class="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
-                      >View</a>
-                      <a
-                        :href="route('admin.promotions.create') + '?customer_id=' + row.customer_id + '&package_id=' + row.suggested_package_id"
-                        class="text-emerald-600 hover:text-emerald-800 text-xs font-medium"
-                      >Create Promo</a>
-                    </div>
-                  </td>
                 </tr>
               </tbody>
             </table>
