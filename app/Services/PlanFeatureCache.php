@@ -75,4 +75,11 @@ class PlanFeatureCache
 
         return $cap !== null ? (int) $cap : null;
     }
+
+    public function monthlyFeeCapCents(string $planSlug): ?int
+    {
+        $cap = $this->plan($planSlug)?->monthly_fee_cap_cents;
+
+        return $cap !== null ? (int) $cap : null;
+    }
 }

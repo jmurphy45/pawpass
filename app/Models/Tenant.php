@@ -182,4 +182,25 @@ class Tenant extends Model
 
         return ($mtdCents + $amountCents) < $capCents ? 0.0 : (float) $this->platform_fee_pct;
     }
+
+    public function effectivePlatformFeeCents(int $amountCents): int
+    {
+        $feePct = $this->effectivePlatformFeePct($amountCents);
+        $rawFeeCents = (int) round($amountCents * $feePct / 100);
+
+        $feeCap = app(PlanFeatureCache::class)->monthlyFeeCapCents($this->plan ?? 'free');
+
+        if ($feeCap === null) {
+            return $rawFeeCents;
+        }
+
+        $mtdFeeCents = (int) Order::where('tenant_id', $this->id)
+            ->where('status', 'paid')
+            ->where('created_at', '>=', now()->startOfMonth())
+            ->sum(DB::raw('COALESCE(platform_fee_amount_cents, ROUND(total_amount * platform_fee_pct))'));
+
+        $remainingCap = max(0, $feeCap - $mtdFeeCents);
+
+        return min($rawFeeCents, $remainingCap);
+    }
 }

@@ -88,9 +88,8 @@ class OrderController extends Controller
         }
 
         $discountedSubtotal = $subtotalCents - $promoDiscountCents;
-        $effectiveFeePct = $tenant->effectivePlatformFeePct($discountedSubtotal);
         // Platform fee is on subtotal only — tax is a pass-through for the daycare
-        $applicationFeeCents = (int) round($discountedSubtotal * $effectiveFeePct / 100);
+        $applicationFeeCents = $tenant->effectivePlatformFeeCents($discountedSubtotal);
 
         $taxAmountCents = 0;
         $taxCalcId = null;

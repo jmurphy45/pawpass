@@ -54,7 +54,7 @@ class TenantRegistrationService
                 'plan_billing_cycle' => $validated['billing_cycle'],
                 'trial_started_at' => now(),
                 'trial_ends_at' => now()->addDays($trialDays),
-                'platform_fee_pct' => $plan->default_platform_fee_pct ?? 5.0,
+                'platform_fee_pct' => $plan->default_platform_fee_pct ?? $plan->platform_fee_pct ?? 0.0,
                 'billing_address' => $validated['billing_address'] ?? null,
             ]);
 
