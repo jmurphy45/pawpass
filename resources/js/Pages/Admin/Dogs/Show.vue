@@ -105,16 +105,41 @@
       </div>
 
       <h2 class="text-lg font-semibold text-gray-900">Credit History</h2>
-      <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-        <div v-for="entry in ledger" :key="entry.id" class="px-5 py-3 flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-900">{{ entry.type }}</p>
-            <p class="text-xs text-gray-500">{{ entry.note }}</p>
-          </div>
-          <span class="text-sm" :class="entry.amount >= 0 ? 'text-green-600' : 'text-red-600'">
-            {{ entry.amount >= 0 ? '+' : '' }}{{ entry.amount }}
-          </span>
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div v-if="ledger.length === 0" class="px-5 py-4 text-sm text-gray-500">
+          No credit transactions yet.
         </div>
+        <table v-else class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-5 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
+              <th class="px-5 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Type</th>
+              <th class="px-5 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Amount</th>
+              <th class="px-5 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Balance</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="entry in ledger" :key="entry.id" class="hover:bg-gray-50/50">
+              <td class="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">{{ formatDateTime(entry.created_at) }}</td>
+              <td class="px-5 py-3">
+                <div class="flex items-start gap-1.5">
+                  <span class="mt-px">{{ typeIcon[entry.type] ?? '•' }}</span>
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-900">{{ typeLabel[entry.type] ?? entry.type }}</p>
+                    <p v-if="entry.package_name" class="text-xs text-gray-400">{{ entry.package_name }}</p>
+                    <p v-if="entry.note" class="text-xs text-gray-400">{{ entry.note }}</p>
+                    <p v-if="entry.performed_by" class="text-xs text-gray-400">By {{ entry.performed_by }}</p>
+                    <p v-if="entry.expires_at" class="text-xs text-amber-600">Expires {{ formatDate(entry.expires_at) }}</p>
+                  </div>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-right font-medium whitespace-nowrap" :class="entry.amount >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ entry.amount >= 0 ? '+' : '' }}{{ entry.amount }}
+              </td>
+              <td class="px-5 py-3 text-right text-sm text-gray-700 whitespace-nowrap tabular-nums">{{ entry.balance_after }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Notes & Comments -->
@@ -173,7 +198,18 @@ interface Comment {
 
 const props = defineProps<{
   dog: { id: string; name: string; breed: string | null; dob: string | null; sex: string | null; credit_balance: number; vet_name: string | null; vet_phone: string | null; customer_id: string; customer_name: string | null; status: 'active' | 'inactive' | 'suspended' };
-  ledger: Array<{ id: string; type: string; amount: number; balance_after: number; note: string | null; created_at: string }>;
+  ledger: Array<{
+    id: string;
+    type: string;
+    amount: number;
+    balance_after: number;
+    note: string | null;
+    created_at: string;
+    expires_at: string | null;
+    order_id: string | null;
+    package_name: string | null;
+    performed_by: string | null;
+  }>;
   attendance: Array<{ id: string; checked_in_at: string; checked_out_at: string | null }>;
   vaccinations: Vaccination[];
   comments: Comment[];
@@ -184,9 +220,43 @@ const form = ref({ vaccine_name: '', administered_at: '', expires_at: '', admini
 const submitting = ref(false);
 const errors = ref<Record<string, string>>({});
 
+const typeLabel: Record<string, string> = {
+  purchase: 'Purchase',
+  subscription: 'Subscription',
+  deduction: 'Day Care',
+  refund: 'Refund',
+  goodwill: 'Goodwill',
+  correction_add: 'Correction (+)',
+  correction_remove: 'Correction (−)',
+  expiry_removal: 'Expired',
+  transfer_in: 'Transfer In',
+  transfer_out: 'Transfer Out',
+};
+
+const typeIcon: Record<string, string> = {
+  purchase: '💳',
+  subscription: '🔄',
+  deduction: '🐾',
+  refund: '↩️',
+  goodwill: '🎁',
+  correction_add: '✚',
+  correction_remove: '✖',
+  expiry_removal: '⏳',
+  transfer_in: '⬇️',
+  transfer_out: '⬆️',
+};
+
 function formatDate(iso: string) {
   const tz = page.props.tenant?.timezone ?? 'UTC';
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: tz });
+}
+
+function formatDateTime(iso: string) {
+  const tz = page.props.tenant?.timezone ?? 'UTC';
+  return new Date(iso).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZone: tz,
+  });
 }
 
 function submitVaccination() {

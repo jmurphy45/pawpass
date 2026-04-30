@@ -100,14 +100,23 @@ class DogController extends Controller
     {
         $dog->load('breed');
 
-        $ledger = $dog->creditLedger()->orderByDesc('created_at')->limit(20)->get()->map(fn ($entry) => [
-            'id' => $entry->id,
-            'type' => $entry->type,
-            'amount' => $entry->delta,
-            'balance_after' => $entry->balance_after,
-            'note' => $entry->note,
-            'created_at' => $entry->created_at->toIso8601String(),
-        ]);
+        $ledger = $dog->creditLedger()
+            ->with(['order.package', 'createdBy'])
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(fn ($entry) => [
+                'id' => $entry->id,
+                'type' => $entry->type,
+                'amount' => $entry->delta,
+                'balance_after' => $entry->balance_after,
+                'note' => $entry->note,
+                'created_at' => $entry->created_at->toIso8601String(),
+                'expires_at' => $entry->expires_at?->toIso8601String(),
+                'order_id' => $entry->order_id,
+                'package_name' => $entry->order?->package?->name,
+                'performed_by' => $entry->createdBy?->name,
+            ]);
 
         $attendance = $dog->attendances()->orderByDesc('checked_in_at')->limit(20)->get()->map(fn ($a) => [
             'id' => $a->id,
