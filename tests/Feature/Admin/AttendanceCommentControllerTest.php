@@ -35,12 +35,12 @@ class AttendanceCommentControllerTest extends TestCase
         URL::forceRootUrl('http://comments-test.pawpass.com');
 
         $this->staff = User::factory()->create(['tenant_id' => $this->tenant->id, 'role' => 'staff']);
-        $customer    = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
-        $dog         = Dog::factory()->forCustomer($customer)->create();
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create();
 
         $this->attendance = Attendance::create([
-            'tenant_id'     => $this->tenant->id,
-            'dog_id'        => $dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $dog->id,
             'checked_in_by' => $this->staff->id,
             'checked_in_at' => now(),
         ]);
@@ -54,11 +54,11 @@ class AttendanceCommentControllerTest extends TestCase
     public function test_staff_can_list_comments_for_attendance(): void
     {
         AttendanceComment::create([
-            'tenant_id'     => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'attendance_id' => $this->attendance->id,
-            'created_by'    => $this->staff->id,
-            'body'          => 'Max was playful today.',
-            'is_public'     => false,
+            'created_by' => $this->staff->id,
+            'body' => 'Max was playful today.',
+            'is_public' => false,
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
@@ -84,8 +84,8 @@ class AttendanceCommentControllerTest extends TestCase
 
         $this->assertDatabaseHas('attendance_comments', [
             'attendance_id' => $this->attendance->id,
-            'created_by'    => $this->staff->id,
-            'body'          => 'Scratch on left paw, owner notified.',
+            'created_by' => $this->staff->id,
+            'body' => 'Scratch on left paw, owner notified.',
         ]);
     }
 
@@ -112,10 +112,10 @@ class AttendanceCommentControllerTest extends TestCase
     public function test_author_can_delete_their_own_comment(): void
     {
         $comment = AttendanceComment::create([
-            'tenant_id'     => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'attendance_id' => $this->attendance->id,
-            'created_by'    => $this->staff->id,
-            'body'          => 'My note.',
+            'created_by' => $this->staff->id,
+            'body' => 'My note.',
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
@@ -130,10 +130,10 @@ class AttendanceCommentControllerTest extends TestCase
         $owner = User::factory()->create(['tenant_id' => $this->tenant->id, 'role' => 'business_owner']);
 
         $comment = AttendanceComment::create([
-            'tenant_id'     => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'attendance_id' => $this->attendance->id,
-            'created_by'    => $this->staff->id,
-            'body'          => 'Staff note.',
+            'created_by' => $this->staff->id,
+            'body' => 'Staff note.',
         ]);
 
         $response = $this->withHeaders($this->authHeaders($owner))
@@ -148,10 +148,10 @@ class AttendanceCommentControllerTest extends TestCase
         $otherStaff = User::factory()->create(['tenant_id' => $this->tenant->id, 'role' => 'staff']);
 
         $comment = AttendanceComment::create([
-            'tenant_id'     => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'attendance_id' => $this->attendance->id,
-            'created_by'    => $otherStaff->id,
-            'body'          => 'Other staff note.',
+            'created_by' => $otherStaff->id,
+            'body' => 'Other staff note.',
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
@@ -163,13 +163,12 @@ class AttendanceCommentControllerTest extends TestCase
 
     public function test_cross_tenant_attendance_returns_404(): void
     {
-        $otherPlan   = PlatformPlan::factory()->create(['slug' => 'other-plan', 'features' => []]);
-        $otherTenant = Tenant::factory()->create(['slug' => 'other-tenant', 'status' => 'active', 'plan' => 'other-plan']);
+        $otherTenant = Tenant::factory()->create(['slug' => 'other-tenant', 'status' => 'active', 'plan' => 'starter']);
         $otherCustomer = Customer::factory()->create(['tenant_id' => $otherTenant->id]);
-        $otherDog      = Dog::factory()->forCustomer($otherCustomer)->create();
+        $otherDog = Dog::factory()->forCustomer($otherCustomer)->create();
         $otherAttendance = Attendance::create([
-            'tenant_id'     => $otherTenant->id,
-            'dog_id'        => $otherDog->id,
+            'tenant_id' => $otherTenant->id,
+            'dog_id' => $otherDog->id,
             'checked_in_by' => $this->staff->id,
             'checked_in_at' => now(),
         ]);
@@ -183,10 +182,10 @@ class AttendanceCommentControllerTest extends TestCase
     public function test_roster_index_includes_comment_count(): void
     {
         AttendanceComment::create([
-            'tenant_id'     => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'attendance_id' => $this->attendance->id,
-            'created_by'    => $this->staff->id,
-            'body'          => 'A note.',
+            'created_by' => $this->staff->id,
+            'body' => 'A note.',
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
