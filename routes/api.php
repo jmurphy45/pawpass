@@ -290,6 +290,17 @@ Route::prefix('admin/v1')
             Route::post('onboarding/connect', [OnboardingController::class, 'createAccount']);
             Route::post('onboarding/account-link', [OnboardingController::class, 'createAccountLink']);
         });
+
+        // PIMS Integrations — owner-only, plan-gated
+        Route::middleware('plan:pims_integration')->group(function () {
+            Route::get('pims-integrations/providers', [PimsIntegrationController::class, 'providers']);
+            Route::get('pims-integrations', [PimsIntegrationController::class, 'index']);
+            Route::post('pims-integrations', [PimsIntegrationController::class, 'store']);
+            Route::patch('pims-integrations/{pimsIntegration}', [PimsIntegrationController::class, 'update']);
+            Route::delete('pims-integrations/{pimsIntegration}', [PimsIntegrationController::class, 'destroy']);
+            Route::post('pims-integrations/{pimsIntegration}/test-connection', [PimsIntegrationController::class, 'testConnection']);
+            Route::get('pims-integrations/{pimsIntegration}/sync-logs', [PimsIntegrationController::class, 'syncLogs']);
+        });
     });
 
 /*

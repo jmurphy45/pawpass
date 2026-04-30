@@ -32,6 +32,10 @@ class Dog extends Model
         'auto_replenish_enabled',
         'auto_replenish_package_id',
         'status',
+        'pims_patient_id',
+        'pims_provider',
+        'pims_synced_at',
+        'microchip_number',
     ];
 
     protected function casts(): array
@@ -44,6 +48,7 @@ class Dog extends Model
             'credits_alert_sent_at' => 'immutable_datetime',
             'auto_replenish_enabled' => 'boolean',
             'status' => DogStatus::class,
+            'pims_synced_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
             'deleted_at' => 'immutable_datetime',

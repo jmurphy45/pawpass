@@ -73,6 +73,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(KennelAvailabilityService::class);
         $this->app->bind(VaccinationComplianceService::class);
 
+        $this->app->singleton(PimsAdapterRegistry::class, function () {
+            $registry = new PimsAdapterRegistry;
+            $registry->register(new EzyVetAdapter);
+            $registry->register(new VetspireAdapter);
+
+            return $registry;
+        });
+
         $this->app->singleton(WebPushChannel::class, function () {
             return new WebPushChannel(new \Minishlink\WebPush\WebPush([
                 'VAPID' => [

@@ -12,6 +12,7 @@ use App\Services\NotificationService;
 use App\Services\StripeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -28,11 +29,48 @@ class RegisterController extends Controller
     {
         $tenantId = app('current.tenant.id');
 
-        $emailExists = User::where('tenant_id', $tenantId)
+        // Check for any existing customer record (PIMS-synced or staff-created) with this email.
+        $existingCustomer = Customer::where('tenant_id', $tenantId)
+            ->where('email', $request->email)
+            ->first();
+
+        if ($existingCustomer) {
+            // Account already has a login — direct them to sign in.
+            if ($existingCustomer->user_id) {
+                throw ValidationException::withMessages([
+                    'email' => ['An account already exists for this email. Please log in.'],
+                ]);
+            }
+
+            // PIMS-synced or staff-created customer without a login yet — create user and link.
+            $user = DB::transaction(function () use ($request, $tenantId, $existingCustomer) {
+                $user = User::create([
+                    'tenant_id' => $tenantId,
+                    'customer_id' => $existingCustomer->id,
+                    'name' => $existingCustomer->name,
+                    'email' => $existingCustomer->email,
+                    'password' => Hash::make($request->password),
+                    'role' => 'customer',
+                    'status' => 'active',
+                    'email_verified_at' => now(),
+                ]);
+
+                $existingCustomer->update(['user_id' => $user->id]);
+
+                return $user;
+            });
+
+            return response()->json([
+                'data' => ['message' => 'Account activated. You can now log in.'],
+            ], 200);
+        }
+
+        // Standard path — no existing customer record.
+        $emailTaken = User::where('tenant_id', $tenantId)
             ->where('email', $request->email)
             ->exists();
 
-        if ($emailExists) {
+        if ($emailTaken) {
             throw ValidationException::withMessages([
                 'email' => ['The email has already been taken.'],
             ]);
@@ -53,7 +91,7 @@ class RegisterController extends Controller
                 'customer_id' => $customer->id,
                 'name' => $request->name,
                 'email' => $request->email,
-                'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+                'password' => Hash::make($request->password),
                 'role' => 'customer',
                 'status' => 'pending_verification',
                 'email_verify_token' => $token,

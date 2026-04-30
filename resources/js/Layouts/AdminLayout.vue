@@ -169,6 +169,12 @@
                             Services
                           </Link>
                         </li>
+                        <li v-if="hasPimsIntegration">
+                          <Link :href="route('admin.integrations.index')" :class="[isActive('admin.integrations.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <ArrowPathIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Integrations
+                          </Link>
+                        </li>
                         <li v-if="hasVaccinationManagement">
                           <Link :href="route('admin.vaccination-requirements.index')" :class="[isActive('admin.vaccination-requirements.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
                             <ShieldCheckIcon class="size-6 shrink-0" aria-hidden="true" />
@@ -352,6 +358,12 @@
                     Services
                   </Link>
                 </li>
+                <li v-if="hasPimsIntegration">
+                  <Link :href="route('admin.integrations.index')" :class="[isActive('admin.integrations.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <ArrowPathIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Integrations
+                  </Link>
+                </li>
                 <li>
                   <Link :href="route('admin.vaccination-requirements.index')" :class="[isActive('admin.vaccination-requirements.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
                     <ShieldCheckIcon class="size-6 shrink-0" aria-hidden="true" />
@@ -452,6 +464,7 @@ import {
   Cog6ToothIcon,
   CreditCardIcon,
   CurrencyDollarIcon,
+  ArrowPathIcon,
   HomeIcon,
   HomeModernIcon,
   ListBulletIcon,
@@ -489,6 +502,7 @@ const hasBroadcast = computed(() => hasFeature('broadcast_notifications'));
 const hasManagePackages = computed(() => hasFeature('manage_packages'));
 const hasManagePromotions = computed(() => hasFeature('manage_promotions'));
 const hasVaccinationManagement = computed(() => hasFeature('vaccination_management'));
+const hasPimsIntegration = computed(() => isOwner.value && hasFeature('pims_integration'));
 
 const dismissedFlash = ref<Record<string, boolean>>({});
 function dismissFlash(key: string) { dismissedFlash.value[key] = true; }

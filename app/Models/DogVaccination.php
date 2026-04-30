@@ -23,17 +23,20 @@ class DogVaccination extends Model
         'notes',
         'warning_sent_at',
         'urgent_sent_at',
+        'pims_record_id',
+        'pims_provider',
+        'source',
     ];
 
     protected function casts(): array
     {
         return [
             'administered_at' => 'date',
-            'expires_at'      => 'date',
+            'expires_at' => 'date',
             'warning_sent_at' => 'immutable_datetime',
-            'urgent_sent_at'  => 'immutable_datetime',
-            'created_at'      => 'immutable_datetime',
-            'updated_at'      => 'immutable_datetime',
+            'urgent_sent_at' => 'immutable_datetime',
+            'created_at' => 'immutable_datetime',
+            'updated_at' => 'immutable_datetime',
         ];
     }
 
@@ -42,7 +45,7 @@ class DogVaccination extends Model
         static::saving(function (DogVaccination $vaccination) {
             if ($vaccination->exists && $vaccination->isDirty('expires_at')) {
                 $vaccination->warning_sent_at = null;
-                $vaccination->urgent_sent_at  = null;
+                $vaccination->urgent_sent_at = null;
             }
         });
     }

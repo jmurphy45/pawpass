@@ -245,6 +245,9 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/tax', [AdminTaxController::class, 'index'])->name('admin.tax.index');
         Route::get('/tax/account-session', [AdminTaxController::class, 'accountSession'])->name('admin.tax.account-session');
         Route::post('/tax/toggle-collection', [AdminTaxController::class, 'toggleCollection'])->name('admin.tax.toggle-collection');
+
+        // PIMS Integrations (owner-only enforced in controller)
+        Route::middleware('plan:pims_integration')->get('/integrations', [AdminIntegrationsController::class, 'index'])->name('admin.integrations.index');
     });
 });
 

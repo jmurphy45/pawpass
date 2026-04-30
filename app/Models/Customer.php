@@ -27,6 +27,9 @@ class Customer extends Model
         'stripe_pm_brand',
         'outstanding_balance_cents',
         'charge_pending_at',
+        'pims_client_id',
+        'pims_provider',
+        'pims_synced_at',
     ];
 
     protected function casts(): array
@@ -37,6 +40,7 @@ class Customer extends Model
             'deleted_at' => 'immutable_datetime',
             'outstanding_balance_cents' => 'integer',
             'charge_pending_at' => 'immutable_datetime',
+            'pims_synced_at' => 'immutable_datetime',
         ];
     }
 

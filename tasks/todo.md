@@ -173,3 +173,158 @@ search indexing for queries like "doggy daycare Memphis" and "boarding Memphis A
 - Boarding search links out to tenant subdomains for actual booking — a centralized booking flow would be a natural next step
 - Cache keys for leaderboard use `leaderboard:all` and `leaderboard:{state}:{city}` — consider cache invalidation on check-in/check-out events if real-time accuracy matters more than DB load
 - Schema.org `DaycareOrNursery` type was considered for dog daycares but Google treats animal services best as `LocalBusiness` — revisit if a more specific animal-services type emerges
+
+---
+
+# Phase 19: PIMS Integration — Adapter Framework & Schema
+
+## Context
+Tenants want client and patient data to sync automatically from vet PIMS (Practice Information Management Systems) so customer accounts exist before the customer registers. Vaccination records follow the same path. Self-registration still works but must guard against creating duplicates for already-synced accounts.
+
+**Targets:** ezyVet (REST/OAuth2) and Vetspire (GraphQL/OAuth2) as first two adapters.  
+**Architecture:** provider-agnostic adapter contract so adding a new PIMS = implement one interface + register it.  
+**Plan gate:** `pims_integration` feature, professional plan or higher.
+
+---
+
+## Step 1 — Adapter Contract & DTOs
+
+- [ ] Create `app/Contracts/PimsAdapterInterface.php`
+  - Methods: `providerKey()`, `providerLabel()`, `authenticate()`, `testConnection()`, `fetchClients()`, `fetchPatients()`, `fetchVaccinations()`
+  - Verification: interface file exists, no syntax errors (`php -l`)
+
+- [ ] Create `app/DataTransferObjects/Pims/PimsClient.php`, `PimsPatient.php`, `PimsVaccination.php`
+  - PHP 8.2 readonly classes, no framework dependency
+  - Verification: can be instantiated in a unit test with expected fields
+
+- [ ] Create `app/Services/Pims/PimsAdapterRegistry.php`
+  - `register()`, `for()` (throws on unknown key), `providers()`
+  - Verification: unit test resolves registered adapters, throws for unknown key
+
+---
+
+## Step 2 — Concrete Adapters (stubs — no live HTTP)
+
+- [ ] Create `app/Services/Pims/EzyVetAdapter.php`
+  - Implements interface; `authenticate()` and all `fetch*()` methods throw `NotImplementedException` stub
+  - Species filter: `GET /animal?species_id={dog_species_id}` documented in code
+  - Verification: `$registry->for('ezyvet')` resolves; `providerKey()` returns `'ezyvet'`
+
+- [ ] Create `app/Services/Pims/VetspireAdapter.php`
+  - Same stub pattern; GraphQL species filter `species: "Canine"` documented
+  - Verification: `$registry->for('vetspire')` resolves; `providerKey()` returns `'vetspire'`
+
+- [ ] Register both adapters as singleton in `AppServiceProvider::register()`
+  - Verification: `app(PimsAdapterRegistry::class)->providers()` returns both in tinker
+
+---
+
+## Step 3 — Schema Migrations
+
+- [ ] `database/migrations/XXXX_create_pims_integrations_table.php`
+  - Columns: id (ULID), tenant_id, provider, api_base_url (null), credentials (encrypted text), status (CHECK), last_full_sync_at, last_delta_sync_at, sync_cursor, sync_error, timestamps
+  - UNIQUE(tenant_id, provider)
+  - Verification: migration runs; `\Schema::hasTable('pims_integrations')` true
+
+- [ ] `database/migrations/XXXX_create_pims_sync_logs_table.php`
+  - Columns: id (bigserial), tenant_id, provider, started_at, finished_at, status (CHECK), clients_processed, patients_processed, vaccinations_processed, error_detail
+  - No updated_at (append-only)
+  - Verification: migration runs; table exists
+
+- [ ] `database/migrations/XXXX_add_pims_fields_to_customers.php`
+  - Add: pims_client_id (text null), pims_provider (text null), pims_synced_at (timestamptz null)
+  - Partial unique index: `(tenant_id, pims_provider, pims_client_id) WHERE pims_client_id IS NOT NULL`
+  - Verification: columns exist on customers table
+
+- [ ] `database/migrations/XXXX_add_pims_fields_to_dogs.php`
+  - Add: pims_patient_id (text null), pims_provider (text null), pims_synced_at (timestamptz null), microchip_number (text null)
+  - Partial unique index on (tenant_id, pims_provider, pims_patient_id)
+  - Verification: columns exist on dogs table
+
+- [ ] `database/migrations/XXXX_add_pims_fields_to_dog_vaccinations.php`
+  - Add: pims_record_id (text null), pims_provider (text null), source (text NOT NULL DEFAULT 'manual', CHECK IN ('manual','pims'))
+  - Partial unique index on (dog_id, pims_provider, pims_record_id)
+  - Verification: columns exist; existing rows have source='manual'
+
+---
+
+## Step 4 — Models & Factories
+
+- [ ] Create `app/Models/PimsIntegration.php`
+  - BelongsToTenant, HasUlid; `credentials` cast as `'encrypted:array'`
+  - Fillable: provider, api_base_url, credentials, status, sync_cursor, sync_error, last_full_sync_at, last_delta_sync_at
+  - Verification: factory creates valid row; credentials round-trip encrypts/decrypts
+
+- [ ] Create `app/Models/PimsSyncLog.php`
+  - No BelongsToTenant scope; `$incrementing = true`; `public const UPDATED_AT = null`
+  - Verification: can insert via `DB::table('pims_sync_logs')->insert()`
+
+- [ ] Create `database/factories/PimsIntegrationFactory.php`
+  - Verification: `PimsIntegration::factory()->create()` works in tests
+
+- [ ] Update `$fillable` on Customer, Dog, DogVaccination models for new PIMS fields
+  - Update factories to include nullable PIMS fields
+  - Verification: all 913+ existing tests still pass
+
+---
+
+## Step 5 — Admin API (CRUD + test-connection)
+
+- [ ] Create `app/Http/Controllers/Admin/V1/PimsIntegrationController.php`
+  - `index`, `providers`, `store`, `update`, `destroy`, `testConnection`, `syncLogs`
+  - Owner-only: `abort(403)` for non-owner roles
+  - Verification: feature test covers 403 for staff role, 403 for wrong plan, 200 for owner
+
+- [ ] Register routes in `routes/api.php` under `admin/v1` with `->middleware('plan:pims_integration')`
+  - Verification: `php artisan route:list | grep pims`
+
+- [ ] Add `pims_integration` to platform plan feature list (whichever config/service defines plan features)
+  - Verification: professional plan allows; hobby plan denied
+
+---
+
+## Step 6 — Self-Registration Guard
+
+- [ ] Modify `app/Http/Controllers/Portal/V1/Auth/RegisterController.php`
+  - Before creating Customer/User: look up customers by (tenant_id, email)
+  - If found + pims_client_id set + no user_id → create User, link customer.user_id, return success
+  - If found + pims_client_id set + user_id present → return 422 "Account already exists, please log in"
+  - If found + no pims_client_id (manual staff record) → create User, link customer.user_id
+  - If not found → existing creation path unchanged
+  - Verification: feature tests cover all four branches
+
+---
+
+## Step 7 — Dashboard UI (Integrations Page)
+
+- [ ] Create `app/Http/Controllers/Web/Admin/IntegrationsController.php`
+  - Inertia controller; shares `providers` (from registry) and `integrations` (tenant's rows) as props
+  - Owner-only (abort 403 for staff)
+  - Verification: returns Inertia response with correct props shape
+
+- [ ] Register route: `GET /admin/integrations` → `IntegrationsController@index` (owner-only, plan:pims_integration)
+  - Verification: route exists in route list
+
+- [ ] Create `resources/js/Pages/Admin/Integrations/Index.vue`
+  - Provider cards grid (from `providers` prop) with Connect button
+  - Connected integrations table with status badge, last sync time, actions
+  - Sync log side drawer (paginated via API call)
+  - Verification: page renders without console errors; owner sees cards; staff sees 403
+
+- [ ] Add "Integrations" link to AdminLayout.vue (owner-only, same pattern as existing owner-only links)
+  - Verification: link visible for business_owner, hidden for staff
+
+---
+
+## Verification (Full Suite)
+
+```bash
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail artisan test
+npm run build
+```
+
+- All migrations run without error on fresh DB
+- All 913+ existing tests pass (zero regressions)
+- New feature tests pass (CRUD, plan gate, registration guard, 403s)
+- Build succeeds with no TypeScript errors
