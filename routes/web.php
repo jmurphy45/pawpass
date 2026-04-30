@@ -150,6 +150,8 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::post('/roster/checkout', [AdminRosterController::class, 'checkout'])->name('admin.roster.checkout');
         Route::post('/roster/attendances/{attendance}/addons', [AdminRosterController::class, 'storeAttendanceAddon'])->name('admin.roster.attendance-addons.store');
         Route::delete('/roster/attendances/{attendance}/addons/{addon}', [AdminRosterController::class, 'destroyAttendanceAddon'])->name('admin.roster.attendance-addons.destroy');
+        Route::post('/roster/attendances/{attendance}/comments', [AdminRosterController::class, 'storeAttendanceComment'])->name('admin.roster.attendance-comments.store');
+        Route::delete('/roster/attendances/{attendance}/comments/{comment}', [AdminRosterController::class, 'destroyAttendanceComment'])->name('admin.roster.attendance-comments.destroy');
 
         // Credits
         Route::post('/dogs/{dog}/credits/goodwill', [AdminCreditController::class, 'goodwill'])->name('admin.credits.goodwill');
