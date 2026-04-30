@@ -95,6 +95,11 @@ class Dog extends Model
         return $this->hasMany(DogVaccination::class);
     }
 
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(Reservation::class);
+    }
+
     public function autoReplenishConfigured(): bool
     {
         return $this->auto_replenish_enabled && ! empty($this->auto_replenish_package_id);

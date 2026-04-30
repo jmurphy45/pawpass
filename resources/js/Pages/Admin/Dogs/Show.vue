@@ -116,6 +116,31 @@
           </span>
         </div>
       </div>
+
+      <!-- Notes & Comments -->
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Notes &amp; Comments</h2>
+        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+          <div v-if="comments.length === 0" class="px-5 py-4 text-sm text-gray-500">
+            No notes or comments on file.
+          </div>
+          <div v-for="comment in comments" :key="comment.id" class="px-5 py-3 flex items-start gap-3">
+            <span
+              class="mt-0.5 shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
+              :class="{
+                'bg-green-100 text-green-700': comment.type === 'daycare',
+                'bg-blue-100 text-blue-700': comment.type === 'boarding',
+              }"
+            >{{ comment.type === 'daycare' ? 'Day Care' : 'Boarding' }}</span>
+            <div class="min-w-0">
+              <p class="text-sm text-gray-900">{{ comment.body }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">
+                {{ formatDate(comment.date) }}<template v-if="comment.author"> · {{ comment.author }}</template>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </AdminLayout>
   <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
@@ -137,11 +162,21 @@ interface Vaccination {
   is_valid: boolean;
 }
 
+interface Comment {
+  id: string | number;
+  type: 'daycare' | 'boarding';
+  body: string;
+  author: string | null;
+  date: string;
+  created_at: string;
+}
+
 const props = defineProps<{
   dog: { id: string; name: string; breed: string | null; dob: string | null; sex: string | null; credit_balance: number; vet_name: string | null; vet_phone: string | null; customer_id: string; customer_name: string | null; status: 'active' | 'inactive' | 'suspended' };
   ledger: Array<{ id: string; type: string; amount: number; balance_after: number; note: string | null; created_at: string }>;
   attendance: Array<{ id: string; checked_in_at: string; checked_out_at: string | null }>;
   vaccinations: Vaccination[];
+  comments: Comment[];
 }>();
 
 const page = usePage<PageProps>();

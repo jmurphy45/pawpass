@@ -125,6 +125,33 @@ class DogController extends Controller
             'is_valid' => $v->isValid(),
         ]);
 
+        $daycareComments = \App\Models\AttendanceComment::whereHas(
+            'attendance', fn ($q) => $q->where('dog_id', $dog->id)
+        )->with(['createdBy', 'attendance'])->get()->map(fn ($c) => [
+            'id' => $c->id,
+            'type' => 'daycare',
+            'body' => $c->body,
+            'author' => $c->createdBy?->name,
+            'date' => $c->attendance->checked_in_at->toDateString(),
+            'created_at' => $c->created_at->toIso8601String(),
+        ]);
+
+        $boardingComments = \App\Models\BoardingReportCard::whereHas(
+            'reservation', fn ($q) => $q->where('dog_id', $dog->id)
+        )->with('createdBy')->get()->map(fn ($c) => [
+            'id' => $c->id,
+            'type' => 'boarding',
+            'body' => $c->notes,
+            'author' => $c->createdBy?->name,
+            'date' => $c->report_date->toDateString(),
+            'created_at' => $c->created_at->toIso8601String(),
+        ]);
+
+        $comments = $daycareComments->concat($boardingComments)
+            ->sortByDesc('created_at')
+            ->values()
+            ->take(50);
+
         return Inertia::render('Admin/Dogs/Show', [
             'dog' => [
                 'id' => $dog->id,
@@ -143,6 +170,7 @@ class DogController extends Controller
             'ledger' => $ledger,
             'attendance' => $attendance,
             'vaccinations' => $vaccinations,
+            'comments' => $comments,
         ]);
     }
 
