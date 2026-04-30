@@ -35,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
         // Default binding — resolved by TenantMiddleware on web/API routes.
         // Tests override this with app()->instance('current.tenant.id', $id).
         $this->app->bind('current.tenant.id', fn () => null);
+        $this->app->bind('current.tenant', fn () => null);
 
         $this->app->singleton(StripeService::class, function () {
             return new StripeService(new StripeClient(config('services.stripe.secret')));

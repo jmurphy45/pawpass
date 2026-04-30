@@ -328,3 +328,43 @@ npm run build
 - All 913+ existing tests pass (zero regressions)
 - New feature tests pass (CRUD, plan gate, registration guard, 403s)
 - Build succeeds with no TypeScript errors
+
+---
+
+# Task: Timezone-Aware Unlimited Pass Expiry
+
+## Part 1 — Bind `current.tenant` model
+
+- [ ] Add `app()->instance('current.tenant', $tenant)` to `TenantMiddleware`
+  - Verification: tenant model accessible via `app('current.tenant')` in services
+- [ ] Add null default `$this->app->bind('current.tenant', fn () => null)` to `AppServiceProvider`
+  - Verification: no error when `current.tenant` resolved outside tenant context
+
+## Part 2 — Fix unlimited pass expiry
+
+- [ ] Update `DogCreditService::issueUnlimitedPass()` to use tenant timezone
+  - Verification: failing test for `test_issue_unlimited_pass_sets_only_unlimited_pass_expires_at`
+- [ ] Add tests for timezone-aware expiry in `DogCreditServiceTest`
+  - Verification: new test passes with correct UTC value
+- [ ] Bind `current.tenant` in `StripeWebhookController` before `issueUnlimitedPass` calls
+  - Verification: existing webhook tests pass
+
+## Part 3 — Timezone at registration
+
+- [ ] Add `timezones` prop + `timezone` validation to `TenantRegistrationController`
+- [ ] Write `timezone` in `TenantRegistrationService::register()`
+- [ ] Add timezone `<select>` to `Registration/Create.vue` step 2
+  - Verification: registration form submits timezone; tenant has correct timezone after signup
+
+## Part 4 — Timezone dropdown in settings
+
+- [ ] Add `timezones` prop to `SettingsController::show()`
+- [ ] Replace text input with `<select>` in `Settings/Index.vue`
+  - Verification: settings page shows dropdown with correct options
+
+## Part 5 — Tenant timezone in Inertia + frontend display
+
+- [ ] Add `timezone` to `tenant` prop in `HandleInertiaRequests`
+- [ ] Add `timezone: string` to `Tenant` interface in `types/index.d.ts`
+- [ ] Update `formatDate` in 4 Vue pages to use `timeZone: tenant.timezone`
+  - Verification: `npm run build` passes; displayed dates respect tenant timezone

@@ -46,7 +46,8 @@ class DogCreditService
             $durationDays = $order->package->duration_days ?? 30;
             $credits = now()->daysInMonth;
             $newBalance = $dog->credit_balance + $credits;
-            $expiresAt = now()->addDays($durationDays);
+            $tz = app('current.tenant')?->timezone ?? 'UTC';
+            $expiresAt = now($tz)->startOfDay()->addDays($durationDays)->utc();
 
             CreditLedger::create([
                 'tenant_id' => $dog->tenant_id,

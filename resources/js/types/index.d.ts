@@ -10,6 +10,7 @@ export interface Tenant {
     primary_color: string;
     logo_url: string | null;
     business_type: 'daycare' | 'kennel' | 'hybrid';
+    timezone: string;
 }
 
 export interface AuthUser {

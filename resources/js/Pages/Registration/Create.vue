@@ -123,13 +123,24 @@
             <p class="mt-1 text-xs text-gray-400">{{ form.slug ? form.slug + '.' + appDomain : 'yourname.' + appDomain }}</p>
             <p v-if="errors.slug" class="mt-1 text-xs text-red-600">{{ errors.slug }}</p>
           </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+            <select
+              v-model="form.timezone"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option v-for="tz in timezones" :key="tz.id" :value="tz.id">{{ tz.name }}</option>
+            </select>
+            <p v-if="errors.timezone" class="mt-1 text-xs text-red-600">{{ errors.timezone }}</p>
+          </div>
         </div>
 
         <div class="flex justify-between mt-8">
           <button class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900" @click="step = 1">Back</button>
           <button
             class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold disabled:opacity-40"
-            :disabled="!form.business_name || !form.slug"
+            :disabled="!form.business_name || !form.slug || !form.timezone"
             @click="step = 3"
           >
             Continue
@@ -298,6 +309,7 @@ const props = defineProps<{
   trialDays: number
   us_states: StateOption[]
   ca_provinces: StateOption[]
+  timezones: Array<{ id: string; name: string }>
 }>()
 
 const step = ref(1)
@@ -309,6 +321,7 @@ const errors = reactive<Record<string, string>>({})
 const form = reactive({
   business_name: '',
   slug: '',
+  timezone: 'America/Chicago',
   owner_name: '',
   email: '',
   billing_street: '',
@@ -344,6 +357,7 @@ function submit() {
   router.post('/register', {
     business_name: form.business_name,
     slug: form.slug,
+    timezone: form.timezone,
     owner_name: form.owner_name,
     email: form.email,
     plan: selectedPlan.value,
@@ -362,8 +376,10 @@ function submit() {
       // If billing errors, stay on step 4; account errors go back to step 3
       const hasBillingError = Object.keys(errs).some(k => k.startsWith('billing_address'))
       const hasAccountError = Object.keys(errs).some(k => ['owner_name', 'email'].includes(k))
+      const hasBusinessError = Object.keys(errs).some(k => ['business_name', 'slug', 'timezone'].includes(k))
       if (hasBillingError) step.value = 4
       else if (hasAccountError) step.value = 3
+      else if (hasBusinessError) step.value = 2
     },
     onFinish: () => {
       submitting.value = false

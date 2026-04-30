@@ -273,9 +273,10 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { loadStripe } from '@stripe/stripe-js';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import type { PageProps } from '@/types';
 
 interface Dog {
   id: string;
@@ -326,6 +327,8 @@ const props = defineProps<{
   dogs: Dog[];
   orders: Order[];
 }>();
+
+const page = usePage<PageProps>();
 
 const showChargeModal = ref(false);
 const chargeLoading = ref(false);
@@ -429,7 +432,8 @@ function requestPaymentUpdate() {
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const tz = page.props.tenant?.timezone ?? 'UTC';
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: tz });
 }
 
 function formatMoney(amount: number): string {

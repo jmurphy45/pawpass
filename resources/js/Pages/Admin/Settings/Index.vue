@@ -14,7 +14,9 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
-            <input v-model="businessForm.timezone" type="text" placeholder="America/Chicago" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+            <select v-model="businessForm.timezone" class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm bg-white">
+              <option v-for="tz in timezones" :key="tz.id" :value="tz.id">{{ tz.name }}</option>
+            </select>
             <p v-if="businessForm.errors.timezone" class="mt-1 text-sm text-red-600">{{ businessForm.errors.timezone }}</p>
           </div>
           <div>
@@ -26,6 +28,12 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Low Credit Threshold</label>
             <input v-model.number="businessForm.low_credit_threshold" type="number" min="0" class="w-40 rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
             <p v-if="businessForm.errors.low_credit_threshold" class="mt-1 text-sm text-red-600">{{ businessForm.errors.low_credit_threshold }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Daily Dog Limit <span class="font-normal text-gray-400">(optional)</span></label>
+            <input v-model.number="businessForm.daily_dog_limit" type="number" min="1" max="9999" placeholder="No limit" class="w-40 rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+            <p class="mt-1 text-xs text-gray-500">Maximum number of dogs allowed per day. Leave blank for no limit.</p>
+            <p v-if="businessForm.errors.daily_dog_limit" class="mt-1 text-sm text-red-600">{{ businessForm.errors.daily_dog_limit }}</p>
           </div>
           <div class="flex items-center gap-3">
             <input id="checkin_block" v-model="businessForm.checkin_block_at_zero" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
@@ -537,7 +545,7 @@ const props = defineProps<{
     business_type: string; auto_charge_at_zero_package_id: string | null;
     business_address: string | null; business_city: string | null; business_state: string | null;
     business_zip: string | null; business_phone: string | null; business_description: string | null;
-    is_publicly_listed: boolean; auto_checkout_stale: boolean;
+    is_publicly_listed: boolean; auto_checkout_stale: boolean; daily_dog_limit: number | null;
   };
   billing_address: { street?: string; city?: string; state?: string; postal_code?: string; country?: string };
   notificationSettings: Array<{ type: string; is_enabled: boolean }>;
@@ -547,6 +555,7 @@ const props = defineProps<{
   hasPassword: boolean;
   us_states: StateOption[];
   ca_provinces: StateOption[];
+  timezones: Array<{ id: string; name: string }>;
   home_page: {
     hero_headline: string;
     trust_badges: Array<{ text: string | null; enabled: boolean }>;
@@ -587,6 +596,7 @@ const businessForm = useForm({
   business_type:                  props.business.business_type,
   auto_charge_at_zero_package_id: props.business.auto_charge_at_zero_package_id ?? '',
   auto_checkout_stale: props.business.auto_checkout_stale,
+  daily_dog_limit: props.business.daily_dog_limit ?? null,
 });
 
 function submitBusiness() {

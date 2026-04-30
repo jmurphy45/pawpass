@@ -27,34 +27,35 @@ class FoundersSlotEnforcementTest extends TestCase
     private function createFoundersPlan(int $limit = 25): PlatformPlan
     {
         return PlatformPlan::factory()->create([
-            'slug'                    => 'founders',
-            'name'                    => 'Founders',
-            'is_active'               => true,
-            'sort_order'              => 0,
+            'slug' => 'founders',
+            'name' => 'Founders',
+            'is_active' => true,
+            'sort_order' => 0,
             'stripe_monthly_price_id' => 'price_founders_monthly',
-            'tenant_limit'            => $limit,
-            'monthly_gmv_cap_cents'   => 1_000_000,
-            'default_platform_fee_pct'=> 2.00,
+            'tenant_limit' => $limit,
+            'monthly_gmv_cap_cents' => 1_000_000,
+            'default_platform_fee_pct' => 2.00,
         ]);
     }
 
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
-            'business_name'         => 'Happy Paws Daycare',
-            'slug'                  => 'happy-paws',
-            'owner_name'            => 'Jane Smith',
-            'email'                 => 'jane@happypaws.com',
-            'password'              => 'password123',
+            'business_name' => 'Happy Paws Daycare',
+            'slug' => 'happy-paws',
+            'timezone' => 'America/Chicago',
+            'owner_name' => 'Jane Smith',
+            'email' => 'jane@happypaws.com',
+            'password' => 'password123',
             'password_confirmation' => 'password123',
-            'plan'                  => 'founders',
-            'billing_cycle'         => 'monthly',
-            'billing_address'       => [
-                'street'      => '123 Main St',
-                'city'        => 'Portland',
-                'state'       => 'OR',
+            'plan' => 'founders',
+            'billing_cycle' => 'monthly',
+            'billing_address' => [
+                'street' => '123 Main St',
+                'city' => 'Portland',
+                'state' => 'OR',
                 'postal_code' => '97201',
-                'country'     => 'US',
+                'country' => 'US',
             ],
         ], $overrides);
     }
@@ -141,11 +142,11 @@ class FoundersSlotEnforcementTest extends TestCase
     public function test_unlimited_plans_never_block_registration(): void
     {
         PlatformPlan::factory()->create([
-            'slug'                    => 'starter',
-            'name'                    => 'Starter',
-            'is_active'               => true,
+            'slug' => 'starter',
+            'name' => 'Starter',
+            'is_active' => true,
             'stripe_monthly_price_id' => 'price_starter_monthly',
-            'tenant_limit'            => null,
+            'tenant_limit' => null,
         ]);
 
         // Create many tenants — should not matter

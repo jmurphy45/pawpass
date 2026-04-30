@@ -20,6 +20,7 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Pennant\Feature;
+use Squire\Models\Timezone;
 
 class SettingsController extends Controller
 {
@@ -70,6 +71,7 @@ class SettingsController extends Controller
                 'business_description' => $tenant->business_description,
                 'is_publicly_listed' => (bool) $tenant->is_publicly_listed,
                 'auto_checkout_stale' => (bool) $tenant->auto_checkout_stale,
+                'daily_dog_limit' => $tenant->daily_dog_limit,
             ],
             'billing_address' => $tenant->billing_address ?? [],
             'notificationSettings' => $notificationSettings,
@@ -80,6 +82,7 @@ class SettingsController extends Controller
             'hasPassword' => (bool) Auth::user()->password,
             'us_states' => $this->regionService->usStates(),
             'ca_provinces' => $this->regionService->forCountry('CA'),
+            'timezones' => Timezone::all(['id', 'name'])->sortBy('name')->values(),
         ]);
     }
 
@@ -135,6 +138,7 @@ class SettingsController extends Controller
             'business_description' => ['sometimes', 'nullable', 'string', 'max:280'],
             'is_publicly_listed' => ['sometimes', 'boolean'],
             'auto_checkout_stale' => ['sometimes', 'boolean'],
+            'daily_dog_limit' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:9999'],
         ]);
 
         $tenant = Tenant::find(app('current.tenant.id'));

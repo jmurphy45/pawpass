@@ -56,6 +56,7 @@ class TenantRegistrationService
                 'trial_ends_at' => now()->addDays($trialDays),
                 'platform_fee_pct' => $plan->default_platform_fee_pct ?? $plan->platform_fee_pct ?? 0.0,
                 'billing_address' => $validated['billing_address'] ?? null,
+                'timezone' => $validated['timezone'] ?? 'America/Chicago',
             ]);
 
             $user = User::create([

@@ -51,6 +51,7 @@ class Tenant extends Model
         'is_publicly_listed',
         'auto_checkout_stale',
         'billing_pm_attached_at',
+        'daily_dog_limit',
     ];
 
     protected $hidden = [
@@ -62,6 +63,7 @@ class Tenant extends Model
         return [
             'platform_fee_pct' => 'decimal:2',
             'low_credit_threshold' => 'integer',
+            'daily_dog_limit' => 'integer',
             'checkin_block_at_zero' => 'boolean',
             'stripe_onboarded_at' => 'immutable_datetime',
             'trial_started_at' => 'datetime',

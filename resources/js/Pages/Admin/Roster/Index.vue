@@ -10,6 +10,25 @@
         <AppBadge color="gray" class="self-start sm:self-auto">{{ todayLabel }}</AppBadge>
       </div>
 
+      <!-- Capacity bar -->
+      <div v-if="props.daily_dog_limit" class="bg-white rounded-xl border border-gray-200 px-5 py-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-medium text-text-body">Capacity — {{ props.today_dog_count }} of {{ props.daily_dog_limit }} dogs today</span>
+          <AppBadge v-if="capacityPct >= 100" color="red">At capacity</AppBadge>
+        </div>
+        <div class="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+          <div
+            class="h-full rounded-full transition-all duration-300"
+            :class="{
+              'bg-green-500': capacityPct < 80,
+              'bg-yellow-400': capacityPct >= 80 && capacityPct < 100,
+              'bg-red-500': capacityPct >= 100,
+            }"
+            :style="{ width: Math.min(capacityPct, 100) + '%' }"
+          />
+        </div>
+      </div>
+
       <!-- Search + Tab Filters -->
       <div class="flex flex-col sm:flex-row gap-3">
         <div class="flex-1">
@@ -291,7 +310,11 @@ interface RosterDog {
 const props = defineProps<{
   roster: RosterDog[];
   addonTypes: AddonType[];
+  daily_dog_limit: number | null;
+  today_dog_count: number;
 }>();
+
+const capacityPct = computed(() => props.daily_dog_limit ? Math.round((props.today_dog_count / props.daily_dog_limit) * 100) : 0);
 
 const searchQuery = ref('');
 const activeTab = ref<'all' | 'checked_in' | 'not_in' | 'done'>('all');
@@ -328,7 +351,7 @@ const clockTimer = setInterval(() => { now.value = new Date(); }, 60_000);
 onUnmounted(() => clearInterval(clockTimer));
 
 // Auto-refresh roster every 60 seconds
-usePoll(60_000, { only: ['roster', 'addonTypes'] });
+usePoll(60_000, { only: ['roster', 'addonTypes', 'today_dog_count'] });
 
 const tabs = [
   { value: 'all', label: 'All' },

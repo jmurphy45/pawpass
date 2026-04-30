@@ -87,6 +87,8 @@ class RosterController extends Controller
             ];
         });
 
+        $todayDogCount = $roster->filter(fn ($d) => $d['attendance_state'] !== 'not_in')->count();
+
         $addonTypes = AddonType::where('is_active', true)
             ->whereIn('context', ['daycare', 'both'])
             ->orderBy('sort_order')
@@ -96,6 +98,8 @@ class RosterController extends Controller
         return Inertia::render('Admin/Roster/Index', [
             'roster' => $roster,
             'addonTypes' => $addonTypes,
+            'daily_dog_limit' => $tenant?->daily_dog_limit,
+            'today_dog_count' => $todayDogCount,
         ]);
     }
 

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Squire\Models\Timezone;
 
 class TenantRegistrationController extends Controller
 {
@@ -56,6 +57,7 @@ class TenantRegistrationController extends Controller
             'trialDays' => (int) PlatformConfig::get('trial_days', 21),
             'us_states' => $this->regionService->usStates(),
             'ca_provinces' => $this->regionService->forCountry('CA'),
+            'timezones' => Timezone::all(['id', 'name'])->sortBy('name')->values(),
         ]);
     }
 
@@ -92,6 +94,7 @@ class TenantRegistrationController extends Controller
             ]),
             'billing_address.postal_code' => ['required', 'string', 'max:20'],
             'billing_address.country' => ['required', 'string', 'size:2'],
+            'timezone' => ['required', 'string', 'timezone'],
         ]);
 
         try {

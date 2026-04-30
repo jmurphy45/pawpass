@@ -82,6 +82,9 @@ class StripeWebhookController extends Controller
             return response()->json(['data' => 'ok']);
         }
 
+        $tenant = \App\Models\Tenant::find($order->tenant_id);
+        app()->instance('current.tenant', $tenant);
+
         DB::transaction(function () use ($order, $payment) {
             // Re-read with a lock so concurrent confirm + webhook calls don't both issue credits
             $order = Order::lockForUpdate()->find($order->id);
@@ -107,8 +110,6 @@ class StripeWebhookController extends Controller
                 }
             }
         });
-
-        $tenant = \App\Models\Tenant::find($order->tenant_id);
 
         $platformFeeCents = (int) ($pi->application_fee_amount ?? 0);
         if ($platformFeeCents > 0) {
@@ -183,6 +184,9 @@ class StripeWebhookController extends Controller
                 if ($order->type !== OrderType::Daycare) {
                     return;
                 }
+
+                $tenant = \App\Models\Tenant::find($order->tenant_id);
+                app()->instance('current.tenant', $tenant);
 
                 $order->load(['orderDogs.dog', 'package']);
                 foreach ($order->orderDogs as $orderDog) {

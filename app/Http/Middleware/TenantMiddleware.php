@@ -33,6 +33,7 @@ class TenantMiddleware
         }
 
         app()->instance('current.tenant.id', $tenant->id);
+        app()->instance('current.tenant', $tenant);
 
         return $next($request);
     }

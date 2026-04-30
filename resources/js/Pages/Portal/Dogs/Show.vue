@@ -402,7 +402,8 @@ const page = usePage<PageProps>();
 const accentColor = computed(() => page.props.tenant?.primary_color ?? '#4f46e5');
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const tz = page.props.tenant?.timezone ?? 'UTC';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: tz });
 }
 
 function isExpiringSoon(iso: string): boolean {

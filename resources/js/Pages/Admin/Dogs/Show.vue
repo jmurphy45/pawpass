@@ -124,7 +124,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import type { PageProps } from '@/types';
 
 interface Vaccination {
   id: string;
@@ -143,12 +144,14 @@ const props = defineProps<{
   vaccinations: Vaccination[];
 }>();
 
+const page = usePage<PageProps>();
 const form = ref({ vaccine_name: '', administered_at: '', expires_at: '', administered_by: '', notes: '' });
 const submitting = ref(false);
 const errors = ref<Record<string, string>>({});
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const tz = page.props.tenant?.timezone ?? 'UTC';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: tz });
 }
 
 function submitVaccination() {

@@ -31,7 +31,14 @@ class DogCreditServiceTest extends TestCase
         parent::setUp();
         $this->service = new DogCreditService;
         app()->forgetInstance('current.tenant.id');
+        app()->forgetInstance('current.tenant');
         $this->mock(NotificationService::class)->shouldIgnoreMissing();
+    }
+
+    protected function tearDown(): void
+    {
+        app()->forgetInstance('current.tenant');
+        parent::tearDown();
     }
 
     private function makeDog(int $credits = 0, ?Customer $customer = null): Dog
@@ -81,6 +88,7 @@ class DogCreditServiceTest extends TestCase
     {
         $dog = $this->makeDog(0);
         $order = $this->makeUnlimitedOrder($dog, 30);
+        app()->instance('current.tenant', \App\Models\Tenant::find($dog->tenant_id));
 
         $this->service->issueUnlimitedPass($order, $dog);
 
@@ -93,18 +101,37 @@ class DogCreditServiceTest extends TestCase
     {
         $dog = $this->makeDog(0);
         $order = $this->makeUnlimitedOrder($dog, 30);
+        $tenant = \App\Models\Tenant::find($dog->tenant_id);
+        app()->instance('current.tenant', $tenant);
 
         $this->service->issueUnlimitedPass($order, $dog);
 
         $fresh = $dog->fresh();
+        $expected = now($tenant->timezone ?? 'UTC')->startOfDay()->addDays(30)->utc();
         $this->assertNull($fresh->credits_expire_at);
-        $this->assertEqualsWithDelta(now()->addDays(30)->timestamp, $fresh->unlimited_pass_expires_at->timestamp, 5);
+        $this->assertEqualsWithDelta($expected->timestamp, $fresh->unlimited_pass_expires_at->timestamp, 5);
+    }
+
+    public function test_issue_unlimited_pass_expires_at_start_of_day_in_tenant_timezone(): void
+    {
+        $dog = $this->makeDog(0);
+        \App\Models\Tenant::where('id', $dog->tenant_id)->update(['timezone' => 'America/New_York']);
+        $tenant = \App\Models\Tenant::find($dog->tenant_id);
+        app()->instance('current.tenant', $tenant);
+        $order = $this->makeUnlimitedOrder($dog, 2);
+
+        $this->service->issueUnlimitedPass($order, $dog);
+
+        $fresh = $dog->fresh();
+        $expected = now('America/New_York')->startOfDay()->addDays(2)->utc();
+        $this->assertEqualsWithDelta($expected->timestamp, $fresh->unlimited_pass_expires_at->timestamp, 5);
     }
 
     public function test_issue_unlimited_pass_creates_purchase_ledger_entry_with_days_in_month_delta(): void
     {
         $dog = $this->makeDog(5);
         $order = $this->makeUnlimitedOrder($dog, 30);
+        app()->instance('current.tenant', \App\Models\Tenant::find($dog->tenant_id));
 
         $this->service->issueUnlimitedPass($order, $dog);
 

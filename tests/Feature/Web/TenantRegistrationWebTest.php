@@ -22,12 +22,12 @@ class TenantRegistrationWebTest extends TestCase
         $this->setUpJwt();
 
         PlatformPlan::factory()->create([
-            'slug'                    => 'starter',
-            'name'                    => 'Starter',
-            'is_active'               => true,
-            'sort_order'              => 1,
+            'slug' => 'starter',
+            'name' => 'Starter',
+            'is_active' => true,
+            'sort_order' => 1,
             'stripe_monthly_price_id' => 'price_starter_monthly',
-            'stripe_annual_price_id'  => 'price_starter_annual',
+            'stripe_annual_price_id' => 'price_starter_annual',
         ]);
 
         PlatformConfig::create(['key' => 'trial_days', 'value' => '21', 'updated_at' => now()]);
@@ -36,20 +36,21 @@ class TenantRegistrationWebTest extends TestCase
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
-            'business_name'         => 'Happy Paws Daycare',
-            'slug'                  => 'happy-paws',
-            'owner_name'            => 'Jane Smith',
-            'email'                 => 'jane@happypaws.com',
-            'password'              => 'password123',
+            'business_name' => 'Happy Paws Daycare',
+            'slug' => 'happy-paws',
+            'timezone' => 'America/Chicago',
+            'owner_name' => 'Jane Smith',
+            'email' => 'jane@happypaws.com',
+            'password' => 'password123',
             'password_confirmation' => 'password123',
-            'plan'                  => 'starter',
-            'billing_cycle'         => 'monthly',
-            'billing_address'       => [
-                'street'      => '123 Main St',
-                'city'        => 'Portland',
-                'state'       => 'OR',
+            'plan' => 'starter',
+            'billing_cycle' => 'monthly',
+            'billing_address' => [
+                'street' => '123 Main St',
+                'city' => 'Portland',
+                'state' => 'OR',
                 'postal_code' => '97201',
-                'country'     => 'US',
+                'country' => 'US',
             ],
         ], $overrides);
     }
@@ -96,8 +97,8 @@ class TenantRegistrationWebTest extends TestCase
     public function test_web_registration_requires_active_synced_plan(): void
     {
         PlatformPlan::factory()->create([
-            'slug'                    => 'unsynced',
-            'is_active'               => true,
+            'slug' => 'unsynced',
+            'is_active' => true,
             'stripe_monthly_price_id' => null,
         ]);
 
