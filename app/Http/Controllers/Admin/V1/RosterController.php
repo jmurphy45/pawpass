@@ -37,7 +37,9 @@ class RosterController extends Controller
         $startOfToday = now($tenant?->timezone ?? 'UTC')->startOfDay()->utc();
 
         $dogs = Dog::with(['attendances' => function ($q) use ($startOfToday) {
-            $q->where('checked_in_at', '>=', $startOfToday)->orderByDesc('checked_in_at');
+            $q->where('checked_in_at', '>=', $startOfToday)
+                ->orderByDesc('checked_in_at')
+                ->withCount('comments');
         }])->get();
 
         $data = $dogs->map(function (Dog $dog) use ($threshold) {
@@ -65,6 +67,8 @@ class RosterController extends Controller
                 'credit_balance' => $dog->credit_balance,
                 'credit_status' => $creditStatus,
                 'attendance_state' => $attendanceState,
+                'attendance_id' => $todayAttendance?->id,
+                'comment_count' => $todayAttendance?->comments_count ?? 0,
             ];
         });
 

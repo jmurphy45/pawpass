@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\V1\AddonTypeController;
 use App\Http\Controllers\Admin\V1\AttendanceAddonController;
+use App\Http\Controllers\Admin\V1\AttendanceCommentController;
 use App\Http\Controllers\Admin\V1\BillingController;
 use App\Http\Controllers\Admin\V1\BoardingReportCardController;
 use App\Http\Controllers\Admin\V1\BreedController as AdminBreedController;
@@ -211,6 +212,11 @@ Route::prefix('admin/v1')
 
             Route::get('occupancy', [OccupancyController::class, 'index']);
         });
+
+        // Attendance Comments (no plan gate — available to all staff)
+        Route::get('attendances/{attendance}/comments', [AttendanceCommentController::class, 'index']);
+        Route::post('attendances/{attendance}/comments', [AttendanceCommentController::class, 'store']);
+        Route::delete('attendances/{attendance}/comments/{comment}', [AttendanceCommentController::class, 'destroy']);
 
         // Add-on Services (plan:addon_services required)
         Route::middleware('plan:addon_services')->group(function () {

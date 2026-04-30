@@ -72,4 +72,9 @@ class Attendance extends Model
     {
         return $this->hasMany(AttendanceAddon::class);
     }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(AttendanceComment::class);
+    }
 }

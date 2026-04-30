@@ -11,6 +11,7 @@ use App\Jobs\CancelPaymentIntentJob;
 use App\Models\AddonType;
 use App\Models\Attendance;
 use App\Models\AttendanceAddon;
+use App\Models\AttendanceComment;
 use App\Models\Dog;
 use App\Models\Order;
 use App\Models\Tenant;
@@ -46,7 +47,7 @@ class RosterController extends Controller
         $dogs = Dog::with(['attendances' => function ($q) use ($startOfToday) {
             $q->where('checked_in_at', '>=', $startOfToday)
                 ->orderByDesc('checked_in_at')
-                ->with('addons.addonType');
+                ->with('addons.addonType', 'comments.createdBy');
         }, 'customer'])->where('status', 'active')->get();
 
         $roster = $dogs->map(function (Dog $dog) use ($threshold) {
@@ -73,6 +74,19 @@ class RosterController extends Controller
                 ])->values()
                 : collect();
 
+            $attendanceComments = $todayAttendance
+                ? $todayAttendance->comments->map(fn ($c) => [
+                    'id'         => $c->id,
+                    'body'       => $c->body,
+                    'is_public'  => $c->is_public,
+                    'created_at' => $c->created_at?->toIso8601String(),
+                    'created_by' => [
+                        'id'   => $c->createdBy?->id,
+                        'name' => $c->createdBy?->name,
+                    ],
+                ])->values()
+                : collect();
+
             return [
                 'id' => $dog->id,
                 'name' => $dog->name,
@@ -84,6 +98,7 @@ class RosterController extends Controller
                 'checked_in_at' => $todayAttendance?->checked_in_at?->toIso8601String(),
                 'unlimited_pass_active' => (bool) $dog->unlimited_pass_expires_at?->isFuture(),
                 'attendance_addons' => $attendanceAddons,
+                'attendance_comments' => $attendanceComments,
             ];
         });
 
@@ -234,6 +249,38 @@ class RosterController extends Controller
         $addon->delete();
 
         return back()->with('success', 'Add-on removed.');
+    }
+
+    public function storeAttendanceComment(Request $request, Attendance $attendance): RedirectResponse
+    {
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $attendance->comments()->create([
+            'tenant_id'  => app('current.tenant.id'),
+            'created_by' => auth()->id(),
+            'body'       => $validated['body'],
+            'is_public'  => false,
+        ]);
+
+        return back()->with('success', 'Comment added.');
+    }
+
+    public function destroyAttendanceComment(Attendance $attendance, AttendanceComment $comment): RedirectResponse
+    {
+        if ($comment->attendance_id !== $attendance->id) {
+            abort(404);
+        }
+
+        $user = auth()->user();
+        if ($comment->created_by !== $user->id && $user->role !== 'business_owner') {
+            abort(403);
+        }
+
+        $comment->delete();
+
+        return back()->with('success', 'Comment removed.');
     }
 
     public function checkoutStale(Request $request, AttendancePaymentService $payments): Response
