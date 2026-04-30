@@ -32,6 +32,7 @@ class PlatformFeatureSeeder extends Seeder
             ['slug' => 'auto_replenish',            'name' => 'Auto-Replenish at Check-in',   'description' => 'Automatically charge saved cards when a dog checks in with zero credits.', 'is_marketing' => true, 'sort_order' => 200],
             ['slug' => 'manage_packages',           'name' => 'Manage Packages',              'description' => 'Create, edit, and archive packages.',                                     'is_marketing' => true, 'sort_order' => 55],
             ['slug' => 'manage_promotions',         'name' => 'Manage Promotions',            'description' => 'Create and manage promotional discount codes.',                           'is_marketing' => true, 'sort_order' => 57],
+            ['slug' => 'pims_integration',          'name' => 'PIMS Integration',             'description' => 'Connect a Practice Information Management System to auto-sync clients, patients, and vaccination records.', 'is_marketing' => true, 'sort_order' => 90],
         ];
 
         foreach ($features as $feature) {

@@ -13,6 +13,7 @@ use App\Http\Controllers\Web\Admin\CustomerController as AdminCustomerController
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\DogController as AdminDogController;
 use App\Http\Controllers\Web\Admin\HelpController as AdminHelpController;
+use App\Http\Controllers\Web\Admin\IntegrationsController as AdminIntegrationsController;
 use App\Http\Controllers\Web\Admin\LogoController as AdminLogoController;
 use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptController;
 use App\Http\Controllers\Web\Admin\PackageController as AdminPackageController;
