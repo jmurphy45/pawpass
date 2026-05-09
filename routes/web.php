@@ -14,6 +14,8 @@ use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardControll
 use App\Http\Controllers\Web\Admin\DogController as AdminDogController;
 use App\Http\Controllers\Web\Admin\HelpController as AdminHelpController;
 use App\Http\Controllers\Web\Admin\IntegrationsController as AdminIntegrationsController;
+use App\Http\Controllers\Web\Admin\InvoicePdfController as AdminInvoicePdfController;
+use App\Http\Controllers\Web\Admin\InvoiceWebController as AdminInvoiceWebController;
 use App\Http\Controllers\Web\Admin\LogoController as AdminLogoController;
 use App\Http\Controllers\Web\Admin\OrderReceiptController as AdminOrderReceiptController;
 use App\Http\Controllers\Web\Admin\PackageController as AdminPackageController;
@@ -42,6 +44,7 @@ use App\Http\Controllers\Web\Portal\BoardingController as PortalBoardingControll
 use App\Http\Controllers\Web\Portal\DashboardController;
 use App\Http\Controllers\Web\Portal\DogController;
 use App\Http\Controllers\Web\Portal\HistoryController;
+use App\Http\Controllers\Web\Portal\InvoicePdfController as PortalInvoicePdfController;
 use App\Http\Controllers\Web\Portal\NotificationController;
 use App\Http\Controllers\Web\Portal\OrderReceiptController;
 use App\Http\Controllers\Web\Portal\PurchaseController;
@@ -102,6 +105,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
         // Customers
+        Route::get('/customers/search', [AdminCustomerController::class, 'search'])->name('admin.customers.search');
         Route::get('/customers', [AdminCustomerController::class, 'index'])->name('admin.customers.index');
         Route::middleware('plan:add_customers')->group(function () {
             Route::get('/customers/create', [AdminCustomerController::class, 'create'])->name('admin.customers.create');
@@ -172,6 +176,11 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
         Route::post('/payments/{order}/refund', [AdminPaymentController::class, 'refund'])->name('admin.payments.refund');
         Route::get('/orders/{order}/receipt', AdminOrderReceiptController::class)->name('admin.orders.receipt');
+        Route::get('/orders/{order}/invoice.pdf', AdminInvoicePdfController::class)->name('admin.orders.invoice');
+
+        // Invoices
+        Route::get('/invoices/create', [AdminInvoiceWebController::class, 'create'])->name('admin.invoices.create');
+        Route::post('/invoices', [AdminInvoiceWebController::class, 'store'])->name('admin.invoices.store');
 
         // Settings (business_owner only enforced in controller)
         Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings.index');
@@ -297,6 +306,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         // History / Orders
         Route::get('/history', [HistoryController::class, 'index'])->name('portal.history');
         Route::get('/orders/{order}/receipt', OrderReceiptController::class)->name('portal.orders.receipt');
+        Route::get('/orders/{order}/invoice.pdf', PortalInvoicePdfController::class)->name('portal.orders.invoice');
 
         // Attendance
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('portal.attendance');

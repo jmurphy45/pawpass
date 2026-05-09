@@ -73,6 +73,13 @@ class HandleInertiaRequests extends Middleware
 
                 return $user ? $user->notifications()->whereNull('read_at')->count() : 0;
             },
+            'apiToken' => function () {
+                $user = Auth::guard('web')->user();
+
+                return $user && in_array($user->role, ['staff', 'business_owner'])
+                    ? app(\App\Auth\JwtService::class)->issue($user)
+                    : null;
+            },
             'vapidPublicKey' => config('webpush.vapid.public_key') ?: null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

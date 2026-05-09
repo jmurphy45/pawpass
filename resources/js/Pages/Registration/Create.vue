@@ -174,13 +174,34 @@
             />
             <p v-if="errors.email" class="mt-1 text-xs text-red-600">{{ errors.email }}</p>
           </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input
+              v-model="form.password"
+              type="password"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Min. 8 characters"
+            />
+            <p v-if="errors.password" class="mt-1 text-xs text-red-600">{{ errors.password }}</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+            <input
+              v-model="form.password_confirmation"
+              type="password"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Re-enter your password"
+            />
+          </div>
         </div>
 
         <div class="flex justify-between mt-8">
           <button class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900" @click="step = 2">Back</button>
           <button
             class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold disabled:opacity-40"
-            :disabled="!form.owner_name || !form.email"
+            :disabled="!form.owner_name || !form.email || !form.password || !form.password_confirmation"
             @click="step = 4"
           >
             Continue
@@ -324,6 +345,8 @@ const form = reactive({
   timezone: 'America/Chicago',
   owner_name: '',
   email: '',
+  password: '',
+  password_confirmation: '',
   billing_street: '',
   billing_city: '',
   billing_state: '',
@@ -360,6 +383,8 @@ function submit() {
     timezone: form.timezone,
     owner_name: form.owner_name,
     email: form.email,
+    password: form.password,
+    password_confirmation: form.password_confirmation,
     plan: selectedPlan.value,
     billing_cycle: billingCycle.value,
     billing_address: {
@@ -375,7 +400,7 @@ function submit() {
       submitting.value = false
       // If billing errors, stay on step 4; account errors go back to step 3
       const hasBillingError = Object.keys(errs).some(k => k.startsWith('billing_address'))
-      const hasAccountError = Object.keys(errs).some(k => ['owner_name', 'email'].includes(k))
+      const hasAccountError = Object.keys(errs).some(k => ['owner_name', 'email', 'password'].includes(k))
       const hasBusinessError = Object.keys(errs).some(k => ['business_name', 'slug', 'timezone'].includes(k))
       if (hasBillingError) step.value = 4
       else if (hasAccountError) step.value = 3

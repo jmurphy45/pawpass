@@ -52,6 +52,8 @@ class Tenant extends Model
         'auto_checkout_stale',
         'billing_pm_attached_at',
         'daily_dog_limit',
+        'last_invoice_seq',
+        'last_invoice_year',
     ];
 
     protected $hidden = [

@@ -12,7 +12,9 @@ use App\Http\Controllers\Admin\V1\CustomerController;
 use App\Http\Controllers\Admin\V1\CustomerIntelligenceController;
 use App\Http\Controllers\Admin\V1\DogController as AdminDogController;
 use App\Http\Controllers\Admin\V1\DogVaccinationController;
+use App\Http\Controllers\Admin\V1\InvoiceController;
 use App\Http\Controllers\Admin\V1\KennelUnitController;
+use App\Http\Controllers\Admin\V1\ManualPaymentController;
 use App\Http\Controllers\Admin\V1\OccupancyController;
 use App\Http\Controllers\Admin\V1\OnboardingController;
 use App\Http\Controllers\Admin\V1\PackageController as AdminPackageController;
@@ -179,6 +181,9 @@ Route::prefix('admin/v1')
 
         Route::get('payments', [PaymentController::class, 'index']);
         Route::post('payments/{order}/refund', [PaymentController::class, 'refund']);
+        Route::post('invoices', [InvoiceController::class, 'store']);
+        Route::post('orders/{order}/send-invoice', [InvoiceController::class, 'send']);
+        Route::post('orders/{order}/payments', [ManualPaymentController::class, 'store']);
 
         Route::post('notifications/broadcast', [BroadcastNotificationController::class, 'store'])
             ->middleware('plan:broadcast_notifications');

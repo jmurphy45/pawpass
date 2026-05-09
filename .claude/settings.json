@@ -10,17 +10,6 @@
                     }
                 ]
             }
-        ],
-        "Stop": [
-            {
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "./vendor/bin/sail npm run build",
-                        "timeout": 360
-                    }
-                ]
-            }
         ]
     }
 }

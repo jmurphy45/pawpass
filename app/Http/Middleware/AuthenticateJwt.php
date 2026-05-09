@@ -19,6 +19,13 @@ class AuthenticateJwt
         $token = $this->extractToken($request);
 
         if (! $token) {
+            if ($user = Auth::guard('web')->user()) {
+                Auth::setUser($user);
+                $request->setUserResolver(fn () => $user);
+
+                return $next($request);
+            }
+
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 

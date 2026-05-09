@@ -33,6 +33,9 @@ class Order extends Model
         'idempotency_key',
         'promotion_id',
         'cancellable_at',
+        'invoice_number',
+        'sent_at',
+        'due_date',
     ];
 
     protected function casts(): array
@@ -47,6 +50,8 @@ class Order extends Model
             'subtotal_cents' => 'integer',
             'tax_amount_cents' => 'integer',
             'cancellable_at' => 'immutable_datetime',
+            'sent_at' => 'immutable_datetime',
+            'due_date' => 'date',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
         ];

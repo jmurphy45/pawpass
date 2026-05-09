@@ -8,6 +8,15 @@
           <h1 class="text-2xl font-bold text-gray-900">Invoices</h1>
           <p class="text-sm text-gray-500 mt-0.5">All transactions processed through PawPass</p>
         </div>
+        <Link
+          :href="route('admin.invoices.create')"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:bg-indigo-800 transition-colors shadow-sm"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          New Invoice
+        </Link>
       </div>
 
       <!-- Stats bar -->
@@ -43,6 +52,61 @@
         >
           {{ tab.label }}
         </button>
+      </div>
+
+      <!-- Pending Invoices -->
+      <div v-if="pendingInvoices.length && !currentStatus" class="bg-white rounded-xl border border-amber-200 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 bg-amber-50 border-b border-amber-100">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
+            </svg>
+            <span class="text-sm font-semibold text-amber-700">{{ pendingInvoices.length }} Pending Invoice{{ pendingInvoices.length !== 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-gray-100">
+            <tr
+              v-for="invoice in pendingInvoices"
+              :key="invoice.id"
+              class="hover:bg-amber-50/40 transition-colors cursor-pointer"
+              @click="openDrawer(invoice)"
+            >
+              <td class="px-5 py-3.5">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{{ invoice.short_ref }}</span>
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium border border-amber-200">invoice</span>
+                </div>
+              </td>
+              <td class="px-5 py-3.5">
+                <div class="flex items-center gap-2.5">
+                  <div
+                    class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                    :style="{ background: avatarColor(invoice.customer_name ?? '') }"
+                  >{{ initials(invoice.customer_name ?? '') }}</div>
+                  <span class="font-medium text-gray-900 truncate max-w-[140px]">{{ invoice.customer_name ?? '—' }}</span>
+                </div>
+              </td>
+              <td class="px-5 py-3.5 text-gray-600 hidden sm:table-cell max-w-[180px] truncate">
+                {{ invoice.invoice_number ?? invoice.description }}
+              </td>
+              <td class="px-5 py-3.5 hidden md:table-cell">
+                <p v-if="invoice.due_date" class="text-sm text-amber-700 font-medium">Due {{ formatDate(invoice.due_date) }}</p>
+                <p v-else class="text-sm text-gray-400">No due date</p>
+                <p class="text-xs text-gray-400 mt-0.5">Created {{ relativeTime(invoice.created_at) }}</p>
+              </td>
+              <td class="px-5 py-3.5 text-right">
+                <span class="font-bold text-gray-900">{{ formatAmount(invoice.amount_cents) }}</span>
+              </td>
+              <td class="px-5 py-3.5">
+                <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
+                  <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                  {{ invoice.sent_at ? 'sent' : 'draft' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Table -->
@@ -275,18 +339,83 @@
             </div>
 
             <!-- Drawer footer actions -->
-            <div class="border-t border-gray-100 px-6 py-4 flex items-center gap-3">
-              <a
-                v-if="drawerPayment.status === 'paid' && drawerPayment.stripe_pi_id"
-                :href="route('admin.orders.receipt', { order: drawerPayment.order_id })"
-                target="_blank"
-                class="flex-1 text-center px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >View Receipt ↗</a>
-              <button
-                v-if="drawerPayment.status === 'paid' || drawerPayment.status === 'partially_refunded'"
-                @click="openRefundModal(drawerPayment)"
-                class="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
-              >Issue Refund</button>
+            <div class="border-t border-gray-100 px-6 py-4 space-y-3">
+
+              <!-- Record cash/check payment form -->
+              <div v-if="showRecordPayment" class="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Record Payment</p>
+                <div class="flex gap-2">
+                  <div class="relative flex-1">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
+                    <input
+                      v-model="recordAmount"
+                      type="number" step="0.01" min="0.01" placeholder="0.00"
+                      class="w-full pl-6 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <select
+                    v-model="recordMethod"
+                    class="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="check">Check</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="flex gap-2">
+                  <button @click="showRecordPayment = false" class="flex-1 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">Cancel</button>
+                  <button
+                    @click="submitRecordPayment"
+                    :disabled="recordingPayment || !recordAmount"
+                    class="flex-1 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-40 transition-colors"
+                  >{{ recordingPayment ? 'Saving…' : 'Record Payment' }}</button>
+                </div>
+                <p v-if="recordPaymentError" class="text-xs text-red-600">{{ recordPaymentError }}</p>
+              </div>
+
+              <!-- Action buttons row -->
+              <div class="flex items-center gap-2 flex-wrap">
+                <a
+                  :href="route('admin.orders.invoice', { order: drawerPayment.order_id })"
+                  target="_blank"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                  PDF
+                </a>
+                <button
+                  v-if="!drawerPayment.sent_at"
+                  @click="sendInvoice(drawerPayment)"
+                  :disabled="sendingInvoice"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-40 transition-colors"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
+                  {{ sendingInvoice ? 'Sending…' : 'Send Invoice' }}
+                </button>
+                <span v-else class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-xs font-medium text-emerald-700">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                  Sent
+                </span>
+                <button
+                  v-if="['pending','authorized'].includes(drawerPayment.status)"
+                  @click="showRecordPayment = !showRecordPayment"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" /></svg>
+                  Record Payment
+                </button>
+                <a
+                  v-if="drawerPayment.status === 'paid' && drawerPayment.stripe_pi_id"
+                  :href="route('admin.orders.receipt', { order: drawerPayment.order_id })"
+                  target="_blank"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >Receipt ↗</a>
+                <button
+                  v-if="drawerPayment.status === 'paid' || drawerPayment.status === 'partially_refunded'"
+                  @click="openRefundModal(drawerPayment)"
+                  class="ml-auto px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+                >Issue Refund</button>
+              </div>
             </div>
           </div>
         </div>
@@ -456,13 +585,23 @@
         </div>
       </Transition>
     </Teleport>
+
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { Link, useForm, router } from '@inertiajs/vue3';
+import { Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+
+function apiHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const token = (usePage().props as { apiToken?: string | null }).apiToken;
+  return {
+    'X-Requested-With': 'XMLHttpRequest',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+}
 
 type LineItem = {
   id: string;
@@ -491,6 +630,9 @@ type Payment = {
   refunded_at: string | null;
   dogs: string[];
   line_items: LineItem[];
+  invoice_number: string | null;
+  sent_at: string | null;
+  due_date: string | null;
 };
 
 type PaginatedPayments = {
@@ -507,10 +649,12 @@ type Stats = {
   total_refunded_cents: number;
   authorized_count: number;
   paid_count: number;
+  pending_invoice_count: number;
 };
 
 const props = defineProps<{
   payments: PaginatedPayments;
+  pendingInvoices: Payment[];
   filters: { status: string };
   stats: Stats;
 }>();
@@ -650,6 +794,61 @@ function confirmRefund() {
     },
   });
 }
+
+// ── Send Invoice ──
+const sendingInvoice = ref(false);
+
+async function sendInvoice(payment: Payment) {
+  if (sendingInvoice.value) return;
+  sendingInvoice.value = true;
+  try {
+    const res = await fetch(`/api/admin/v1/orders/${payment.order_id}/send-invoice`, {
+      method: 'POST',
+      headers: apiHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'same-origin',
+    });
+    if (res.ok) {
+      const json = await res.json();
+      payment.sent_at = json.data.sent_at;
+      payment.invoice_number = json.data.invoice_number;
+    }
+  } finally {
+    sendingInvoice.value = false;
+  }
+}
+
+// ── Record manual payment ──
+const showRecordPayment = ref(false);
+const recordAmount = ref('');
+const recordMethod = ref<'cash' | 'check' | 'other'>('cash');
+const recordingPayment = ref(false);
+const recordPaymentError = ref('');
+
+async function submitRecordPayment() {
+  if (!drawerPayment.value || recordingPayment.value) return;
+  recordingPayment.value = true;
+  recordPaymentError.value = '';
+  try {
+    const res = await fetch(`/api/admin/v1/orders/${drawerPayment.value.order_id}/payments`, {
+      method: 'POST',
+      headers: apiHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'same-origin',
+      body: JSON.stringify({ amount: recordAmount.value, method: recordMethod.value }),
+    });
+    const json = await res.json();
+    if (res.ok) {
+      drawerPayment.value.status = json.data.order.status;
+      showRecordPayment.value = false;
+      recordAmount.value = '';
+      router.reload({ only: ['payments', 'stats'] });
+    } else {
+      recordPaymentError.value = json.message ?? 'Payment could not be recorded.';
+    }
+  } finally {
+    recordingPayment.value = false;
+  }
+}
+
 </script>
 
 <style scoped>

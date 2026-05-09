@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\MagicLinkService;
 use App\Services\NotificationService;
 use App\Services\StripeService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -340,6 +341,25 @@ class CustomerController extends Controller
         }
 
         return back()->with('success', 'Card saved successfully.');
+    }
+
+    public function search(Request $request): JsonResponse
+    {
+        $search = $request->validate(['search' => ['nullable', 'string', 'max:100']])['search'] ?? null;
+
+        $query = Customer::query()->select('id', 'name', 'email');
+
+        if ($search) {
+            $term = '%'.strtolower($search).'%';
+            $query->where(function ($q) use ($term) {
+                $q->whereRaw('LOWER(name) LIKE ?', [$term])
+                    ->orWhereRaw('LOWER(email) LIKE ?', [$term]);
+            });
+        }
+
+        return response()->json([
+            'data' => $query->limit(20)->get()->values(),
+        ]);
     }
 
     private function authorizeOwnerOrStaff(): void
