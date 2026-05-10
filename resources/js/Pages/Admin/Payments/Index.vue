@@ -74,7 +74,7 @@
             >
               <td class="px-5 py-3.5">
                 <div class="flex items-center gap-2">
-                  <span class="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{{ invoice.short_ref }}</span>
+                  <span class="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{{ invoice.invoice_number ?? invoice.short_ref }}</span>
                   <span class="text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium border border-amber-200">invoice</span>
                 </div>
               </td>
@@ -153,7 +153,7 @@
               <!-- Order ref -->
               <td class="px-5 py-3.5">
                 <div class="flex items-center gap-2">
-                  <span class="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{{ payment.short_ref }}</span>
+                  <span class="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{{ payment.invoice_number ?? payment.short_ref }}</span>
                   <span
                     v-if="payment.type === 'boarding'"
                     class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium"
@@ -233,7 +233,7 @@
             <!-- Drawer header -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div class="flex items-center gap-3">
-                <span class="font-mono text-sm font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded">{{ drawerPayment.short_ref }}</span>
+                <span class="font-mono text-sm font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded">{{ drawerPayment.invoice_number ?? drawerPayment.short_ref }}</span>
                 <span v-if="drawerPayment.type === 'boarding'" class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600 font-semibold">boarding</span>
                 <span
                   class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
