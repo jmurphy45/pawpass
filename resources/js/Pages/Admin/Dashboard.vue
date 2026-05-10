@@ -120,10 +120,10 @@
             :key="customer.id"
             class="flex items-center border-b border-border-warm px-5 py-3 last:border-b-0 transition-colors hover:bg-surface"
           >
-            <div class="flex-1 min-w-0">
+            <Link :href="route('admin.customers.show', customer.id)" class="flex-1 min-w-0 hover:underline">
               <p class="text-sm font-medium text-text-body truncate">{{ customer.name }}</p>
               <p v-if="customer.email" class="text-xs text-text-muted truncate">{{ customer.email }}</p>
-            </div>
+            </Link>
             <span class="text-sm font-semibold text-red-600 mr-3">{{ formatCurrency(customer.outstanding_balance_cents) }}</span>
             <div class="shrink-0 w-20 text-right">
               <AppBadge v-if="customer.charge_pending_at" color="yellow">Pending</AppBadge>
