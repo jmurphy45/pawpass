@@ -7,20 +7,8 @@ Loaded when editing PHP files under `app/`. See root `CLAUDE.md` for commands an
 - `current.tenant.id` bound in `AppServiceProvider`; defaults to `null` for platform routes
 - `BelongsToTenant` trait: auto-sets `tenant_id` on `creating`, applies `TenantScope` (WHERE tenant_id = ?) when binding is non-null
 - Escape hatch: `Dog::allTenants()->get()` — static method on the trait
-- **SubstituteBindings runs AFTER tenant middleware** — `bindings` alias is added last in every route group; never flip the order
-
-### Test setup pattern
-```php
-app()->instance('current.tenant.id', $tenant->id);
-// ...
-app()->forgetInstance('current.tenant.id'); // in tearDown
-```
-
-### Cross-tenant factory isolation
-`Dog::factory()->create()` auto-assigns to `current.tenant.id` if set. For cross-tenant test records always pass explicit `tenant_id`:
-```php
-Dog::factory()->create(['tenant_id' => $otherTenant->id, 'customer_id' => $otherCustomer->id]);
-```
+- **SubstituteBindings runs AFTER tenant middleware** — see `app/Http/Controllers/CLAUDE.md`
+- Test setup and cross-tenant factory isolation → see `tests/CLAUDE.md`
 
 ## Credit Ledger
 
@@ -51,22 +39,6 @@ Ledger entry types: `purchase`, `subscription`, `deduction`, `refund`, `goodwill
 - **Platform billing** (tenant subscriptions): `StripeBillingService` uses `STRIPE_BILLING_SECRET` — never mix with `StripeService`
 - Webhook endpoints: `platform.pawpass.com/webhooks/*` with HMAC signature verification
 
-## API Conventions
-
-All responses use `{ "data": ..., "meta": ... }` envelopes.
-
-| Namespace | Prefix | Rate |
-|---|---|---|
-| Customer portal | `/api/portal/v1/*` | 60 req/min |
-| Staff/owner | `/api/admin/v1/*` | 60 req/min |
-| Platform admin | `/api/platform/v1/*` | 120 req/min |
-
-Auth: RS256 JWT — 15-min access tokens + 30-day opaque refresh. JWT payload: `sub`, `tenant_id`, `role`, `iat`, `exp`.
-
-`Idempotency-Key` (UUID/ULID) **required** on:
-- `POST /api/portal/v1/orders`
-- `POST /api/admin/v1/dogs/{id}/credits/*`
-
 ## Notification System
 
 `NotificationService::dispatch()` → queues `SendNotificationJob` on `notifications` queue.
@@ -78,17 +50,3 @@ Channels: email (Resend), SMS (Twilio), in-app (database — always on), webpush
 - Critical types (`payment.confirmed`, `credits.empty`, auth events) always fire regardless of tenant settings
 - `customer.user_id` can be null — always null-guard before calling `NotificationService`
 
-## Scheduled Jobs
-
-| Job | Schedule |
-|---|---|
-| `WarmTenantReportCaches` | 2 AM per-tenant timezone |
-| `WarmPlatformReportCaches` | 3 AM UTC |
-| `ExpireSubscriptionCredits` | 1 AM UTC |
-| `PruneOldNotifications` | 4 AM UTC |
-| `PruneRawWebhooks` | 4 AM UTC (7-day retention) |
-| `PruneDispatchedPending` | 4 AM UTC |
-
-## Key Singletons (AppServiceProvider)
-
-`JwtService`, `StripeService`, `TwilioService`, `NotificationService`, `PlanGate` (bound, not singleton — re-resolves per request).

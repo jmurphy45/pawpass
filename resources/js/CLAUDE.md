@@ -45,12 +45,4 @@ Core interfaces in `resources/js/types/index.d.ts`: `Tenant`, `AuthUser`, `Dog`,
 
 ## Page Conventions
 
-```
-Pages/Admin/{Feature}/Index.vue     → /admin/{feature}
-Pages/Admin/{Feature}/Show.vue      → /admin/{feature}/{id}
-Pages/Portal/{Feature}.vue          → /my/{feature}
-Pages/Registration/Create.vue       → /register
-Pages/Home.vue, Leaderboard.vue     → public pages
-```
-
-Page components are auto-resolved by Inertia — name them to match the controller's `Inertia::render()` argument.
+See `resources/js/Pages/CLAUDE.md` for naming conventions, `PageProps` interface pattern, and routing.
