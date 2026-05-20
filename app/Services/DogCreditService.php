@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\InsufficientCreditsException;
 use App\Jobs\ProcessAutoReplenishJob;
+use App\Models\Appointment;
 use App\Models\Attendance;
 use App\Models\CreditLedger;
 use App\Models\Dog;
@@ -365,6 +366,62 @@ class DogCreditService
                 'credit_balance' => $newBalance,
                 'unlimited_pass_expires_at' => null,
             ]);
+        });
+    }
+
+    public function holdForDaycareBooking(Dog $dog, Appointment $appointment): CreditLedger
+    {
+        if ($dog->credit_balance <= 0) {
+            throw new InsufficientCreditsException("Dog {$dog->id} has no credits to hold.");
+        }
+
+        return DB::transaction(function () use ($dog) {
+            $locked = Dog::lockForUpdate()->find($dog->id);
+
+            if ($locked->credit_balance <= 0) {
+                throw new InsufficientCreditsException("Dog {$dog->id} has no credits to hold.");
+            }
+
+            $newBalance = $locked->credit_balance - 1;
+
+            $entry = CreditLedger::create([
+                'tenant_id' => $locked->tenant_id,
+                'dog_id' => $locked->id,
+                'type' => 'daycare_hold',
+                'delta' => -1,
+                'balance_after' => $newBalance,
+            ]);
+
+            $locked->decrement('credit_balance', 1);
+
+            return $entry;
+        });
+    }
+
+    public function releaseDaycareHold(Dog $dog, Appointment $appointment): void
+    {
+        DB::transaction(function () use ($dog, $appointment) {
+            $detail = $appointment->daycareBookingDetail;
+
+            if (! $detail?->credit_hold_ledger_id) {
+                return;
+            }
+
+            $locked = Dog::lockForUpdate()->find($dog->id);
+            $newBalance = $locked->credit_balance + 1;
+
+            CreditLedger::create([
+                'tenant_id' => $locked->tenant_id,
+                'dog_id' => $locked->id,
+                'type' => 'daycare_hold_release',
+                'delta' => 1,
+                'balance_after' => $newBalance,
+                'parent_ledger_id' => $detail->credit_hold_ledger_id,
+            ]);
+
+            $locked->increment('credit_balance', 1);
+
+            $detail->update(['credit_hold_ledger_id' => null]);
         });
     }
 }

@@ -7,8 +7,8 @@ use App\Models\Dog;
 use App\Models\KennelUnit;
 use App\Models\Order;
 use App\Models\OrderPayment;
-use App\Models\Reservation;
 use App\Models\PlatformPlan;
+use App\Models\Reservation;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VaccinationRequirement;
@@ -39,18 +39,18 @@ class ReservationControllerTest extends TestCase
         PlatformPlan::factory()->create(['slug' => 'pro', 'features' => ['boarding']]);
 
         $this->tenant = Tenant::factory()->create([
-            'slug'          => 'kenneltest',
-            'status'        => 'active',
-            'plan'          => 'pro',
+            'slug' => 'kenneltest',
+            'status' => 'active',
+            'plan' => 'pro',
             'business_type' => 'kennel',
         ]);
         URL::forceRootUrl('http://kenneltest.pawpass.com');
 
         $this->customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $this->user = User::factory()->create([
-            'tenant_id'   => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'customer_id' => $this->customer->id,
-            'role'        => 'customer',
+            'role' => 'customer',
         ]);
         $this->customer->update(['user_id' => $this->user->id]);
 
@@ -69,20 +69,20 @@ class ReservationControllerTest extends TestCase
     public function test_customer_can_list_their_reservations(): void
     {
         Reservation::factory()->count(2)->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $this->dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         // Reservation for a different customer on the same tenant — should not appear
         $otherCustomer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $otherDog = Dog::factory()->forCustomer($otherCustomer)->create();
         Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $otherDog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $otherDog->id,
             'customer_id' => $otherCustomer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
@@ -95,17 +95,17 @@ class ReservationControllerTest extends TestCase
     public function test_index_filters_by_status(): void
     {
         Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $this->dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'created_by'  => $this->user->id,
-            'status'      => 'pending',
+            'created_by' => $this->user->id,
+            'status' => 'pending',
         ]);
         Reservation::factory()->confirmed()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $this->dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
@@ -128,10 +128,10 @@ class ReservationControllerTest extends TestCase
     public function test_customer_can_view_their_own_reservation(): void
     {
         $reservation = Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $this->dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         $response = $this->withHeaders($this->authHeaders())
@@ -146,10 +146,10 @@ class ReservationControllerTest extends TestCase
         $otherCustomer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $otherDog = Dog::factory()->forCustomer($otherCustomer)->create();
         $reservation = Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $otherDog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $otherDog->id,
             'customer_id' => $otherCustomer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         $this->withHeaders($this->authHeaders())
@@ -167,10 +167,10 @@ class ReservationControllerTest extends TestCase
 
         $response = $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/reservations', [
-                'dog_id'         => $this->dog->id,
+                'dog_id' => $this->dog->id,
                 'kennel_unit_id' => $unit->id,
-                'starts_at'      => now()->addDay()->toDateString(),
-                'ends_at'        => now()->addDays(3)->toDateString(),
+                'starts_at' => now()->addDay()->toDateString(),
+                'ends_at' => now()->addDays(3)->toDateString(),
             ]);
 
         $response->assertStatus(201)
@@ -179,9 +179,9 @@ class ReservationControllerTest extends TestCase
             ->assertJsonPath('data.nightly_rate_cents', 6000);
 
         $this->assertDatabaseHas('reservations', [
-            'dog_id'      => $this->dog->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'status'      => 'pending',
+            'status' => 'pending',
         ]);
     }
 
@@ -192,9 +192,9 @@ class ReservationControllerTest extends TestCase
 
         $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/reservations', [
-                'dog_id'    => $otherDog->id,
+                'dog_id' => $otherDog->id,
                 'starts_at' => now()->addDay()->toDateString(),
-                'ends_at'   => now()->addDays(3)->toDateString(),
+                'ends_at' => now()->addDays(3)->toDateString(),
             ])
             ->assertStatus(403);
     }
@@ -205,19 +205,19 @@ class ReservationControllerTest extends TestCase
 
         // Existing conflicting reservation
         Reservation::factory()->create([
-            'tenant_id'      => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'kennel_unit_id' => $unit->id,
-            'starts_at'      => now()->addDay(),
-            'ends_at'        => now()->addDays(4),
-            'created_by'     => $this->user->id,
+            'starts_at' => now()->addDay(),
+            'ends_at' => now()->addDays(4),
+            'created_by' => $this->user->id,
         ]);
 
         $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/reservations', [
-                'dog_id'         => $this->dog->id,
+                'dog_id' => $this->dog->id,
                 'kennel_unit_id' => $unit->id,
-                'starts_at'      => now()->addDays(2)->toDateString(),
-                'ends_at'        => now()->addDays(5)->toDateString(),
+                'starts_at' => now()->addDays(2)->toDateString(),
+                'ends_at' => now()->addDays(5)->toDateString(),
             ])
             ->assertStatus(409)
             ->assertJsonPath('error', 'UNIT_NOT_AVAILABLE');
@@ -226,16 +226,16 @@ class ReservationControllerTest extends TestCase
     public function test_create_returns_422_when_vaccination_incomplete(): void
     {
         VaccinationRequirement::factory()->create([
-            'tenant_id'    => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'vaccine_name' => 'Rabies',
         ]);
         // dog has no vaccinations
 
         $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/reservations', [
-                'dog_id'    => $this->dog->id,
+                'dog_id' => $this->dog->id,
                 'starts_at' => now()->addDay()->toDateString(),
-                'ends_at'   => now()->addDays(3)->toDateString(),
+                'ends_at' => now()->addDays(3)->toDateString(),
             ])
             ->assertStatus(422)
             ->assertJsonPath('error', 'DOG_VACCINATION_INCOMPLETE');
@@ -248,11 +248,11 @@ class ReservationControllerTest extends TestCase
     public function test_customer_can_cancel_a_pending_reservation(): void
     {
         $reservation = Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $this->dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'created_by'  => $this->user->id,
-            'status'      => 'pending',
+            'created_by' => $this->user->id,
+            'status' => 'pending',
         ]);
 
         $this->withHeaders($this->authHeaders())
@@ -261,7 +261,7 @@ class ReservationControllerTest extends TestCase
             ->assertJsonPath('data.status', 'cancelled');
 
         $this->assertDatabaseHas('reservations', [
-            'id'     => $reservation->id,
+            'id' => $reservation->id,
             'status' => 'cancelled',
         ]);
     }
@@ -269,10 +269,10 @@ class ReservationControllerTest extends TestCase
     public function test_customer_cannot_cancel_a_confirmed_reservation(): void
     {
         $reservation = Reservation::factory()->confirmed()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $this->dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         $this->withHeaders($this->authHeaders())
@@ -286,10 +286,10 @@ class ReservationControllerTest extends TestCase
         $otherCustomer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $otherDog = Dog::factory()->forCustomer($otherCustomer)->create();
         $reservation = Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $otherDog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $otherDog->id,
             'customer_id' => $otherCustomer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         $this->withHeaders($this->authHeaders())
@@ -316,10 +316,10 @@ class ReservationControllerTest extends TestCase
 
         $response = $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/reservations', [
-                'dog_id'               => $this->dog->id,
-                'kennel_unit_id'       => $unit->id,
-                'starts_at'            => now()->addDay()->toDateString(),
-                'ends_at'              => now()->addDays(3)->toDateString(),
+                'dog_id' => $this->dog->id,
+                'kennel_unit_id' => $unit->id,
+                'starts_at' => now()->addDay()->toDateString(),
+                'ends_at' => now()->addDays(3)->toDateString(),
                 'deposit_amount_cents' => 5000,
             ]);
 
@@ -329,7 +329,7 @@ class ReservationControllerTest extends TestCase
         $this->assertDatabaseHas('order_payments', [
             'stripe_pi_id' => 'pi_hold1',
             'amount_cents' => 5000,
-            'type'         => 'deposit',
+            'type' => 'deposit',
         ]);
     }
 
@@ -343,9 +343,9 @@ class ReservationControllerTest extends TestCase
 
         $response = $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/reservations', [
-                'dog_id'    => $this->dog->id,
+                'dog_id' => $this->dog->id,
                 'starts_at' => now()->addDay()->toDateString(),
-                'ends_at'   => now()->addDays(3)->toDateString(),
+                'ends_at' => now()->addDays(3)->toDateString(),
             ]);
 
         $response->assertStatus(201)
@@ -355,25 +355,25 @@ class ReservationControllerTest extends TestCase
     public function test_cancel_with_stripe_pi_releases_hold(): void
     {
         $reservation = Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $this->dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'created_by'  => $this->user->id,
-            'status'      => 'pending',
+            'created_by' => $this->user->id,
+            'status' => 'pending',
         ]);
 
         $order = Order::factory()->create([
-            'tenant_id'      => $this->tenant->id,
-            'customer_id'    => $this->customer->id,
-            'package_id'     => null,
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'package_id' => null,
             'reservation_id' => $reservation->id,
-            'type'           => 'boarding',
-            'status'         => 'pending',
+            'type' => 'boarding',
+            'status' => 'pending',
         ]);
 
         $payment = OrderPayment::factory()->forOrder($order)->deposit()->create([
             'stripe_pi_id' => 'pi_hold2',
-            'status'       => 'pending',
+            'status' => 'pending',
             'amount_cents' => 5000,
         ]);
 
@@ -391,7 +391,7 @@ class ReservationControllerTest extends TestCase
             ->assertJsonPath('data.status', 'cancelled');
 
         $this->assertDatabaseHas('reservations', [
-            'id'     => $reservation->id,
+            'id' => $reservation->id,
             'status' => 'cancelled',
         ]);
         $this->assertDatabaseHas('order_payments', ['id' => $payment->id, 'status' => 'canceled']);
@@ -409,9 +409,9 @@ class ReservationControllerTest extends TestCase
 
         $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/reservations', [
-                'dog_id'               => $this->dog->id,
-                'starts_at'            => '2026-07-01',
-                'ends_at'              => '2026-07-05',
+                'dog_id' => $this->dog->id,
+                'starts_at' => '2026-07-01',
+                'ends_at' => '2026-07-05',
                 'deposit_amount_cents' => 5000,
             ])
             ->assertStatus(500);
@@ -424,9 +424,9 @@ class ReservationControllerTest extends TestCase
     {
         $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/reservations', [
-                'dog_id'    => $this->dog->id,
+                'dog_id' => $this->dog->id,
                 'starts_at' => '2026-06-10',
-                'ends_at'   => '2026-06-10',
+                'ends_at' => '2026-06-10',
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ends_at');
@@ -436,12 +436,43 @@ class ReservationControllerTest extends TestCase
     {
         $this->withHeaders($this->authHeaders())
             ->postJson('/api/portal/v1/reservations', [
-                'dog_id'    => $this->dog->id,
+                'dog_id' => $this->dog->id,
                 'starts_at' => '2026-06-10',
-                'ends_at'   => '2026-06-09',
+                'ends_at' => '2026-06-09',
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ends_at');
     }
 
+    public function test_store_dual_writes_appointment_row(): void
+    {
+        $unit = KennelUnit::factory()->create(['tenant_id' => $this->tenant->id, 'nightly_rate_cents' => 5000]);
+
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/portal/v1/reservations', [
+                'dog_id' => $this->dog->id,
+                'kennel_unit_id' => $unit->id,
+                'starts_at' => now()->addDay()->toDateString(),
+                'ends_at' => now()->addDays(3)->toDateString(),
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('appointments', [
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'service_type' => 'boarding',
+            'status' => 'pending',
+        ]);
+
+        $appointment = \App\Models\Appointment::where('dog_id', $this->dog->id)
+            ->where('service_type', 'boarding')
+            ->first();
+
+        $this->assertNotNull($appointment);
+        $this->assertDatabaseHas('reservations', [
+            'id' => $response->json('data.id'),
+            'appointment_id' => $appointment->id,
+        ]);
+    }
 }

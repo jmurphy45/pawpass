@@ -248,7 +248,7 @@ class StripeWebhookController extends Controller
         if ($reservation && $reservation->status === 'pending') {
             $payment->transitionTo(PaymentStatus::Authorized);
             $payment->order->transitionTo(OrderStatus::Authorized);
-            $reservation->update(['status' => 'confirmed']);
+            $reservation->transitionTo('confirmed');
         }
 
         return response()->json(['data' => 'ok']);

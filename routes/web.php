@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Web\Admin\AppointmentController as AdminAppointmentController;
 use App\Http\Controllers\Web\Admin\Auth\AcceptInviteController;
 use App\Http\Controllers\Web\Admin\Auth\LoginController as AdminLoginController;
 use App\Http\Controllers\Web\Admin\Auth\LogoutController as AdminLogoutController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Web\Admin\CreditController as AdminCreditController;
 use App\Http\Controllers\Web\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\DogController as AdminDogController;
+use App\Http\Controllers\Web\Admin\GroomingAppointmentController as AdminGroomingAppointmentController;
 use App\Http\Controllers\Web\Admin\HelpController as AdminHelpController;
 use App\Http\Controllers\Web\Admin\IntegrationsController as AdminIntegrationsController;
 use App\Http\Controllers\Web\Admin\InvoicePdfController as AdminInvoicePdfController;
@@ -28,6 +30,7 @@ use App\Http\Controllers\Web\Admin\SettingsController as AdminSettingsController
 use App\Http\Controllers\Web\Admin\TaxController as AdminTaxController;
 use App\Http\Controllers\Web\Admin\VaccinationRequirementController as AdminVaccinationRequirementController;
 use App\Http\Controllers\Web\Admin\VerifyEmailController as AdminVerifyEmailController;
+use App\Http\Controllers\Web\Admin\VetAppointmentController as AdminVetAppointmentController;
 use App\Http\Controllers\Web\Auth\MagicLinkController;
 use App\Http\Controllers\Web\BoardingSearchController;
 use App\Http\Controllers\Web\DaycareDirectoryController;
@@ -146,6 +149,30 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
             Route::post('/boarding/units', [AdminBoardingController::class, 'storeKennelUnit'])->name('admin.boarding.units.store');
             Route::patch('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'updateKennelUnit'])->name('admin.boarding.units.update');
             Route::delete('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'destroyKennelUnit'])->name('admin.boarding.units.destroy');
+        });
+
+        // Vet Appointments
+        Route::middleware('plan:vet_appointments')->group(function () {
+            Route::get('/vet/appointments', [AdminVetAppointmentController::class, 'index'])->name('admin.vet.appointments.index');
+            Route::post('/vet/appointments', [AdminVetAppointmentController::class, 'store'])->name('admin.vet.appointments.store');
+            Route::get('/vet/appointments/{appointment}', [AdminVetAppointmentController::class, 'show'])->name('admin.vet.appointments.show');
+            Route::patch('/vet/appointments/{appointment}', [AdminVetAppointmentController::class, 'update'])->name('admin.vet.appointments.update');
+            Route::post('/vet/appointments/{appointment}/confirm', [AdminVetAppointmentController::class, 'confirm'])->name('admin.vet.appointments.confirm');
+            Route::post('/vet/appointments/{appointment}/cancel', [AdminVetAppointmentController::class, 'cancel'])->name('admin.vet.appointments.cancel');
+        });
+
+        // Appointments (unified cross-service view)
+        Route::get('/appointments', [AdminAppointmentController::class, 'index'])->name('admin.appointments.index');
+        Route::get('/appointments/calendar', [AdminAppointmentController::class, 'calendar'])->name('admin.appointments.calendar');
+
+        // Grooming Appointments
+        Route::middleware('plan:grooming_appointments')->group(function () {
+            Route::get('/grooming/appointments', [AdminGroomingAppointmentController::class, 'index'])->name('admin.grooming.appointments.index');
+            Route::post('/grooming/appointments', [AdminGroomingAppointmentController::class, 'store'])->name('admin.grooming.appointments.store');
+            Route::get('/grooming/appointments/{appointment}', [AdminGroomingAppointmentController::class, 'show'])->name('admin.grooming.appointments.show');
+            Route::patch('/grooming/appointments/{appointment}', [AdminGroomingAppointmentController::class, 'update'])->name('admin.grooming.appointments.update');
+            Route::post('/grooming/appointments/{appointment}/confirm', [AdminGroomingAppointmentController::class, 'confirm'])->name('admin.grooming.appointments.confirm');
+            Route::post('/grooming/appointments/{appointment}/cancel', [AdminGroomingAppointmentController::class, 'cancel'])->name('admin.grooming.appointments.cancel');
         });
 
         // Roster

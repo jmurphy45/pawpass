@@ -33,6 +33,9 @@ class PlatformFeatureSeeder extends Seeder
             ['slug' => 'manage_packages',           'name' => 'Manage Packages',              'description' => 'Create, edit, and archive packages.',                                     'is_marketing' => true, 'sort_order' => 55],
             ['slug' => 'manage_promotions',         'name' => 'Manage Promotions',            'description' => 'Create and manage promotional discount codes.',                           'is_marketing' => true, 'sort_order' => 57],
             ['slug' => 'pims_integration',          'name' => 'PIMS Integration',             'description' => 'Connect a Practice Information Management System to auto-sync clients, patients, and vaccination records.', 'is_marketing' => true, 'sort_order' => 90],
+            ['slug' => 'grooming_appointments',     'name' => 'Grooming Appointments',        'description' => 'Schedule and manage grooming appointments.',                                                                  'is_marketing' => true, 'sort_order' => 210],
+            ['slug' => 'vet_appointments',          'name' => 'Vet Appointments',             'description' => 'Schedule and manage veterinary appointments.',                                                                 'is_marketing' => true, 'sort_order' => 220],
+            ['slug' => 'daycare_booking',           'name' => 'Daycare Booking',              'description' => 'Manage daycare capacity windows and bookings.',                                                                'is_marketing' => true, 'sort_order' => 230],
         ];
 
         foreach ($features as $feature) {

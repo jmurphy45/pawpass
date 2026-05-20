@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Webhooks;
 
+use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Order;
@@ -29,7 +30,7 @@ class StripeDepositWebhookTest extends TestCase
     private function makeEvent(string $type, array $objectData, string $eventId = 'evt_deposit_test'): object
     {
         return (object) [
-            'id'   => $eventId,
+            'id' => $eventId,
             'type' => $type,
             'data' => (object) [
                 'object' => (object) $objectData,
@@ -49,32 +50,32 @@ class StripeDepositWebhookTest extends TestCase
         $dog = Dog::factory()->forCustomer($customer)->create();
 
         $reservation = Reservation::factory()->create([
-            'tenant_id'   => $tenant->id,
-            'dog_id'      => $dog->id,
+            'tenant_id' => $tenant->id,
+            'dog_id' => $dog->id,
             'customer_id' => $customer->id,
-            'created_by'  => User::factory()->create(['tenant_id' => $tenant->id])->id,
-            'status'      => 'pending',
+            'created_by' => User::factory()->create(['tenant_id' => $tenant->id])->id,
+            'status' => 'pending',
         ]);
 
         // Create boarding order + deposit payment
         $order = Order::factory()->create([
-            'tenant_id'      => $tenant->id,
-            'customer_id'    => $customer->id,
-            'package_id'     => null,
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => null,
             'reservation_id' => $reservation->id,
-            'type'           => 'boarding',
-            'status'         => 'pending',
+            'type' => 'boarding',
+            'status' => 'pending',
         ]);
 
         OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_hold_webhook',
-            'type'         => 'deposit',
-            'status'       => 'pending',
+            'type' => 'deposit',
+            'status' => 'pending',
             'amount_cents' => 5000,
         ]);
 
         $event = $this->makeEvent('payment_intent.amount_capturable_updated', [
-            'id'       => 'pi_hold_webhook',
+            'id' => 'pi_hold_webhook',
             'metadata' => (object) ['reservation_id' => $reservation->id],
         ]);
 
@@ -89,13 +90,64 @@ class StripeDepositWebhookTest extends TestCase
     public function test_amount_capturable_updated_ignores_unknown_pi(): void
     {
         $event = $this->makeEvent('payment_intent.amount_capturable_updated', [
-            'id'       => 'pi_unknown',
+            'id' => 'pi_unknown',
             'metadata' => (object) [],
         ]);
 
         $this->mockStripeVerify($event);
 
         $this->postWebhook()->assertStatus(200);
+    }
+
+    public function test_amount_capturable_updated_also_confirms_linked_appointment(): void
+    {
+        $tenant = Tenant::factory()->create(['status' => 'active', 'business_type' => 'kennel']);
+        $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create();
+
+        $appointment = Appointment::factory()->pending()->create([
+            'tenant_id' => $tenant->id,
+            'dog_id' => $dog->id,
+            'customer_id' => $customer->id,
+            'service_type' => 'boarding',
+        ]);
+
+        $reservation = Reservation::factory()->create([
+            'tenant_id' => $tenant->id,
+            'dog_id' => $dog->id,
+            'customer_id' => $customer->id,
+            'created_by' => User::factory()->create(['tenant_id' => $tenant->id])->id,
+            'status' => 'pending',
+            'appointment_id' => $appointment->id,
+        ]);
+
+        $order = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => null,
+            'reservation_id' => $reservation->id,
+            'type' => 'boarding',
+            'status' => 'pending',
+        ]);
+
+        OrderPayment::factory()->forOrder($order)->create([
+            'stripe_pi_id' => 'pi_hold_appt_sync',
+            'type' => 'deposit',
+            'status' => 'pending',
+            'amount_cents' => 5000,
+        ]);
+
+        $event = $this->makeEvent('payment_intent.amount_capturable_updated', [
+            'id' => 'pi_hold_appt_sync',
+            'metadata' => (object) ['reservation_id' => $reservation->id],
+        ], 'evt_appt_sync');
+
+        $this->mockStripeVerify($event);
+
+        $this->postWebhook()->assertStatus(200);
+
+        $this->assertEquals('confirmed', Reservation::find($reservation->id)->status);
+        $this->assertEquals('confirmed', Appointment::find($appointment->id)->status);
     }
 
     public function test_amount_capturable_updated_skips_already_confirmed_reservation(): void
@@ -105,31 +157,31 @@ class StripeDepositWebhookTest extends TestCase
         $dog = Dog::factory()->forCustomer($customer)->create();
 
         $reservation = Reservation::factory()->confirmed()->create([
-            'tenant_id'   => $tenant->id,
-            'dog_id'      => $dog->id,
+            'tenant_id' => $tenant->id,
+            'dog_id' => $dog->id,
             'customer_id' => $customer->id,
-            'created_by'  => User::factory()->create(['tenant_id' => $tenant->id])->id,
+            'created_by' => User::factory()->create(['tenant_id' => $tenant->id])->id,
         ]);
 
         // Create boarding order + deposit payment (already authorized)
         $order = Order::factory()->create([
-            'tenant_id'      => $tenant->id,
-            'customer_id'    => $customer->id,
-            'package_id'     => null,
+            'tenant_id' => $tenant->id,
+            'customer_id' => $customer->id,
+            'package_id' => null,
             'reservation_id' => $reservation->id,
-            'type'           => 'boarding',
-            'status'         => 'pending',
+            'type' => 'boarding',
+            'status' => 'pending',
         ]);
 
         OrderPayment::factory()->forOrder($order)->create([
             'stripe_pi_id' => 'pi_hold_already_confirmed',
-            'type'         => 'deposit',
-            'status'       => 'authorized',
+            'type' => 'deposit',
+            'status' => 'authorized',
             'amount_cents' => 5000,
         ]);
 
         $event = $this->makeEvent('payment_intent.amount_capturable_updated', [
-            'id'       => 'pi_hold_already_confirmed',
+            'id' => 'pi_hold_already_confirmed',
             'metadata' => (object) ['reservation_id' => $reservation->id],
         ]);
 

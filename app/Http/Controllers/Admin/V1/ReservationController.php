@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreReservationRequest;
 use App\Http\Requests\Admin\UpdateReservationRequest;
 use App\Http\Resources\ReservationResource;
+use App\Models\Appointment;
 use App\Models\Dog;
 use App\Models\KennelUnit;
 use App\Models\Reservation;
@@ -20,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\DB;
 
 class ReservationController extends Controller
 {
@@ -73,7 +75,7 @@ class ReservationController extends Controller
             $violations = $this->vaccination->getViolations($dog, $tenantId);
             if (! empty($violations)) {
                 return response()->json([
-                    'error'      => 'DOG_VACCINATION_INCOMPLETE',
+                    'error' => 'DOG_VACCINATION_INCOMPLETE',
                     'violations' => $violations,
                 ], 422);
             }
@@ -83,18 +85,32 @@ class ReservationController extends Controller
             ? $request->nightly_rate_cents
             : $unit?->nightly_rate_cents;
 
-        $reservation = Reservation::create([
-            'tenant_id'          => $tenantId,
-            'dog_id'             => $dog->id,
-            'customer_id'        => $dog->customer_id,
-            'kennel_unit_id'     => $request->kennel_unit_id,
-            'status'             => 'pending',
-            'starts_at'          => $startsAt,
-            'ends_at'            => $endsAt,
-            'nightly_rate_cents' => $nightlyRate,
-            'notes'              => $request->notes,
-            'created_by'         => auth()->id(),
-        ]);
+        $reservation = DB::transaction(function () use ($tenantId, $dog, $request, $startsAt, $endsAt, $nightlyRate) {
+            $appointment = Appointment::create([
+                'tenant_id' => $tenantId,
+                'dog_id' => $dog->id,
+                'customer_id' => $dog->customer_id,
+                'service_type' => 'boarding',
+                'status' => 'pending',
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt,
+                'notes' => $request->notes,
+            ]);
+
+            return Reservation::create([
+                'tenant_id' => $tenantId,
+                'dog_id' => $dog->id,
+                'customer_id' => $dog->customer_id,
+                'kennel_unit_id' => $request->kennel_unit_id,
+                'appointment_id' => $appointment->id,
+                'status' => 'pending',
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt,
+                'nightly_rate_cents' => $nightlyRate,
+                'notes' => $request->notes,
+                'created_by' => auth()->id(),
+            ]);
+        });
 
         return new ReservationResource($reservation);
     }
@@ -145,7 +161,7 @@ class ReservationController extends Controller
             ->first();
 
         if ($depositPayment?->stripe_pi_id) {
-            $tenant          = Tenant::find($reservation->tenant_id);
+            $tenant = Tenant::find($reservation->tenant_id);
             $stripeAccountId = $tenant?->stripe_account_id;
 
             if ($stripeAccountId) {

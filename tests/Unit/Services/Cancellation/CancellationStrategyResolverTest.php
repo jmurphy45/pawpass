@@ -8,6 +8,8 @@ use App\Services\Cancellation\CancellationStrategyResolver;
 use App\Services\Cancellation\Strategies\AttendanceAddonCancellationStrategy;
 use App\Services\Cancellation\Strategies\BoardingCancellationStrategy;
 use App\Services\Cancellation\Strategies\DaycareCancellationStrategy;
+use App\Services\Cancellation\Strategies\GroomingCancellationStrategy;
+use App\Services\Cancellation\Strategies\VetCancellationStrategy;
 use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -23,7 +25,8 @@ class CancellationStrategyResolverTest extends TestCase
     {
         parent::setUp();
         $this->resolver = new CancellationStrategyResolver(
-            $this->mock(StripeService::class)->shouldIgnoreMissing()
+            $this->mock(StripeService::class)->shouldIgnoreMissing(),
+            $this->mock(\App\Services\DogCreditService::class)->shouldIgnoreMissing()
         );
     }
 
@@ -39,7 +42,7 @@ class CancellationStrategyResolverTest extends TestCase
     public function test_resolves_attendance_addon_strategy_for_daycare_order_with_attendance_id(): void
     {
         $order = Order::factory()->make([
-            'type'          => OrderType::Daycare,
+            'type' => OrderType::Daycare,
             'attendance_id' => (string) Str::ulid(),
         ]);
 
@@ -51,7 +54,7 @@ class CancellationStrategyResolverTest extends TestCase
     public function test_resolves_daycare_strategy_for_standard_daycare_order(): void
     {
         $order = Order::factory()->make([
-            'type'          => OrderType::Daycare,
+            'type' => OrderType::Daycare,
             'attendance_id' => null,
         ]);
 
@@ -60,11 +63,29 @@ class CancellationStrategyResolverTest extends TestCase
         $this->assertInstanceOf(DaycareCancellationStrategy::class, $strategy);
     }
 
+    public function test_resolves_vet_strategy_for_vet_order(): void
+    {
+        $order = Order::factory()->make(['type' => OrderType::Vet]);
+
+        $strategy = $this->resolver->resolve($order);
+
+        $this->assertInstanceOf(VetCancellationStrategy::class, $strategy);
+    }
+
+    public function test_resolves_grooming_strategy_for_grooming_order(): void
+    {
+        $order = Order::factory()->make(['type' => OrderType::Grooming]);
+
+        $strategy = $this->resolver->resolve($order);
+
+        $this->assertInstanceOf(GroomingCancellationStrategy::class, $strategy);
+    }
+
     public function test_throws_for_unsupported_order(): void
     {
         // Simulate an order with null type (should never happen in production, but
         // ensures the resolver throws rather than silently proceeding)
-        $order = new Order();
+        $order = new Order;
         $order->type = null;
         $order->attendance_id = null;
 

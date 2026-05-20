@@ -88,6 +88,24 @@
                             Roster
                           </Link>
                         </li>
+                        <li v-if="hasVetAppts">
+                          <Link :href="route('admin.vet.appointments.index')" :class="[isActive('admin.vet.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <ClipboardDocumentListIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Vet
+                          </Link>
+                        </li>
+                        <li v-if="hasGroomingAppts">
+                          <Link :href="route('admin.grooming.appointments.index')" :class="[isActive('admin.grooming.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <SparklesIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Grooming
+                          </Link>
+                        </li>
+                        <li v-if="hasVetAppts || hasGroomingAppts || hasDaycareBooking">
+                          <Link :href="route('admin.appointments.index')" :class="[isActive('admin.appointments.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <CalendarIcon class="size-6 shrink-0" aria-hidden="true" />
+                            Appointments
+                          </Link>
+                        </li>
                         <li v-if="hasBoarding">
                           <Link :href="route('admin.boarding.reservations')" :class="[isActive('admin.boarding.reservations*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
                             <HomeModernIcon class="size-6 shrink-0" aria-hidden="true" />
@@ -277,6 +295,24 @@
                     Roster
                   </Link>
                 </li>
+                <li v-if="hasVetAppts">
+                  <Link :href="route('admin.vet.appointments.index')" :class="[isActive('admin.vet.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <ClipboardDocumentListIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Vet
+                  </Link>
+                </li>
+                <li v-if="hasGroomingAppts">
+                  <Link :href="route('admin.grooming.appointments.index')" :class="[isActive('admin.grooming.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <SparklesIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Grooming
+                  </Link>
+                </li>
+                <li v-if="hasVetAppts || hasGroomingAppts || hasDaycareBooking">
+                  <Link :href="route('admin.appointments.index')" :class="[isActive('admin.appointments.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <CalendarIcon class="size-6 shrink-0" aria-hidden="true" />
+                    Appointments
+                  </Link>
+                </li>
                 <li v-if="hasBoarding">
                   <Link :href="route('admin.boarding.reservations')" :class="[isActive('admin.boarding.reservations*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
                     <HomeModernIcon class="size-6 shrink-0" aria-hidden="true" />
@@ -460,11 +496,13 @@ import {
   ArchiveBoxIcon,
   Bars3Icon,
   BellIcon,
+  CalendarIcon,
   ChartBarIcon,
   Cog6ToothIcon,
   CreditCardIcon,
   CurrencyDollarIcon,
   ArrowPathIcon,
+  ClipboardDocumentListIcon,
   HomeIcon,
   HomeModernIcon,
   ListBulletIcon,
@@ -502,6 +540,9 @@ const hasBroadcast = computed(() => hasFeature('broadcast_notifications'));
 const hasManagePackages = computed(() => hasFeature('manage_packages'));
 const hasManagePromotions = computed(() => hasFeature('manage_promotions'));
 const hasVaccinationManagement = computed(() => hasFeature('vaccination_management'));
+const hasGroomingAppts = computed(() => hasFeature('grooming_appointments'));
+const hasVetAppts = computed(() => hasFeature('vet_appointments'));
+const hasDaycareBooking = computed(() => hasFeature('daycare_booking'));
 const hasPimsIntegration = computed(() => isOwner.value && hasFeature('pims_integration'));
 
 const dismissedFlash = ref<Record<string, boolean>>({});

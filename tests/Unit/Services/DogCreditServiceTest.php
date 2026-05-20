@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Exceptions\InsufficientCreditsException;
 use App\Jobs\ProcessAutoReplenishJob;
+use App\Models\Appointment;
 use App\Models\Attendance;
 use App\Models\CreditLedger;
 use App\Models\Customer;
@@ -847,5 +848,135 @@ class DogCreditServiceTest extends TestCase
             'dog_id' => $dog->id,
             'credits_issued' => $expectedCredits,
         ]);
+    }
+
+    // -----------------------------------------------------------
+    // holdForDaycareBooking / releaseDaycareHold
+    // -----------------------------------------------------------
+
+    public function test_hold_for_daycare_booking_creates_daycare_hold_entry(): void
+    {
+        $dog = $this->makeDog(3);
+        app()->instance('current.tenant.id', $dog->tenant_id);
+
+        $appointment = Appointment::factory()->pending()->create([
+            'tenant_id' => $dog->tenant_id,
+            'dog_id' => $dog->id,
+            'customer_id' => $dog->customer_id,
+            'service_type' => 'daycare_booking',
+        ]);
+
+        $entry = $this->service->holdForDaycareBooking($dog, $appointment);
+
+        $this->assertSame('daycare_hold', $entry->type);
+        $this->assertSame(-1, $entry->delta);
+        $this->assertSame(2, $entry->balance_after);
+    }
+
+    public function test_hold_for_daycare_booking_decrements_credit_balance(): void
+    {
+        $dog = $this->makeDog(5);
+        app()->instance('current.tenant.id', $dog->tenant_id);
+
+        $appointment = Appointment::factory()->pending()->create([
+            'tenant_id' => $dog->tenant_id,
+            'dog_id' => $dog->id,
+            'customer_id' => $dog->customer_id,
+            'service_type' => 'daycare_booking',
+        ]);
+
+        $this->service->holdForDaycareBooking($dog, $appointment);
+
+        $this->assertSame(4, $dog->fresh()->credit_balance);
+    }
+
+    public function test_hold_for_daycare_booking_throws_when_no_credits(): void
+    {
+        $this->expectException(InsufficientCreditsException::class);
+
+        $dog = $this->makeDog(0);
+        app()->instance('current.tenant.id', $dog->tenant_id);
+
+        $appointment = Appointment::factory()->pending()->create([
+            'tenant_id' => $dog->tenant_id,
+            'dog_id' => $dog->id,
+            'customer_id' => $dog->customer_id,
+            'service_type' => 'daycare_booking',
+        ]);
+
+        $this->service->holdForDaycareBooking($dog, $appointment);
+    }
+
+    public function test_release_daycare_hold_restores_credit_balance(): void
+    {
+        $dog = $this->makeDog(3);
+        app()->instance('current.tenant.id', $dog->tenant_id);
+
+        $appointment = Appointment::factory()->pending()->create([
+            'tenant_id' => $dog->tenant_id,
+            'dog_id' => $dog->id,
+            'customer_id' => $dog->customer_id,
+            'service_type' => 'daycare_booking',
+        ]);
+
+        $holdEntry = $this->service->holdForDaycareBooking($dog, $appointment);
+        $this->assertSame(2, $dog->fresh()->credit_balance);
+
+        \App\Models\DaycareBookingDetail::create([
+            'tenant_id' => $dog->tenant_id,
+            'appointment_id' => $appointment->id,
+            'credit_hold_ledger_id' => $holdEntry->id,
+        ]);
+
+        $this->service->releaseDaycareHold($dog->fresh(), $appointment->fresh());
+
+        $this->assertSame(3, $dog->fresh()->credit_balance);
+    }
+
+    public function test_release_daycare_hold_creates_hold_release_entry(): void
+    {
+        $dog = $this->makeDog(3);
+        app()->instance('current.tenant.id', $dog->tenant_id);
+
+        $appointment = Appointment::factory()->pending()->create([
+            'tenant_id' => $dog->tenant_id,
+            'dog_id' => $dog->id,
+            'customer_id' => $dog->customer_id,
+            'service_type' => 'daycare_booking',
+        ]);
+
+        $holdEntry = $this->service->holdForDaycareBooking($dog, $appointment);
+
+        \App\Models\DaycareBookingDetail::create([
+            'tenant_id' => $dog->tenant_id,
+            'appointment_id' => $appointment->id,
+            'credit_hold_ledger_id' => $holdEntry->id,
+        ]);
+
+        $this->service->releaseDaycareHold($dog->fresh(), $appointment->fresh());
+
+        $release = CreditLedger::allTenants()->where('type', 'daycare_hold_release')->first();
+        $this->assertNotNull($release);
+        $this->assertSame(1, $release->delta);
+        $this->assertSame($holdEntry->id, $release->parent_ledger_id);
+    }
+
+    public function test_release_daycare_hold_is_noop_when_no_detail(): void
+    {
+        $dog = $this->makeDog(3);
+        app()->instance('current.tenant.id', $dog->tenant_id);
+
+        $appointment = Appointment::factory()->pending()->create([
+            'tenant_id' => $dog->tenant_id,
+            'dog_id' => $dog->id,
+            'customer_id' => $dog->customer_id,
+            'service_type' => 'daycare_booking',
+        ]);
+
+        // No DaycareBookingDetail created — should be a no-op
+        $this->service->releaseDaycareHold($dog, $appointment);
+
+        $this->assertSame(3, $dog->fresh()->credit_balance);
+        $this->assertDatabaseMissing('credit_ledger', ['type' => 'daycare_hold_release']);
     }
 }

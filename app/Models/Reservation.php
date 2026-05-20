@@ -19,6 +19,7 @@ class Reservation extends Model
         'dog_id',
         'customer_id',
         'kennel_unit_id',
+        'appointment_id',
         'status',
         'starts_at',
         'ends_at',
@@ -37,22 +38,22 @@ class Reservation extends Model
     protected function casts(): array
     {
         return [
-            'starts_at'          => 'immutable_datetime',
-            'ends_at'            => 'immutable_datetime',
+            'starts_at' => 'immutable_datetime',
+            'ends_at' => 'immutable_datetime',
             'nightly_rate_cents' => 'integer',
             'actual_checkout_at' => 'immutable_datetime',
-            'cancelled_at'       => 'immutable_datetime',
-            'created_at'         => 'immutable_datetime',
-            'updated_at'         => 'immutable_datetime',
+            'cancelled_at' => 'immutable_datetime',
+            'created_at' => 'immutable_datetime',
+            'updated_at' => 'immutable_datetime',
         ];
     }
 
     private const TRANSITIONS = [
-        'pending'     => ['confirmed', 'cancelled'],
-        'confirmed'   => ['checked_in', 'cancelled'],
-        'checked_in'  => ['checked_out'],
+        'pending' => ['confirmed', 'cancelled'],
+        'confirmed' => ['checked_in', 'cancelled'],
+        'checked_in' => ['checked_out'],
         'checked_out' => [],
-        'cancelled'   => [],
+        'cancelled' => [],
     ];
 
     public function allowedTransitions(): array
@@ -79,6 +80,20 @@ class Reservation extends Model
         }
 
         $this->update($data);
+
+        $this->appointment?->transitionTo($this->mapToAppointmentStatus($status));
+    }
+
+    private function mapToAppointmentStatus(string $status): string
+    {
+        return match ($status) {
+            'pending' => 'pending',
+            'confirmed' => 'confirmed',
+            'checked_in' => 'checked_in',
+            'checked_out' => 'checked_out',
+            'cancelled' => 'cancelled',
+            default => $status,
+        };
     }
 
     public function scopeActive(Builder $query): Builder
@@ -134,5 +149,10 @@ class Reservation extends Model
     public function order(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(Order::class);
+    }
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
     }
 }

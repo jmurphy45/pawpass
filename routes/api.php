@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\V1\AddonTypeController;
+use App\Http\Controllers\Admin\V1\AppointmentController;
 use App\Http\Controllers\Admin\V1\AttendanceAddonController;
 use App\Http\Controllers\Admin\V1\AttendanceCommentController;
 use App\Http\Controllers\Admin\V1\BillingController;
@@ -10,8 +11,11 @@ use App\Http\Controllers\Admin\V1\BroadcastNotificationController;
 use App\Http\Controllers\Admin\V1\CreditController;
 use App\Http\Controllers\Admin\V1\CustomerController;
 use App\Http\Controllers\Admin\V1\CustomerIntelligenceController;
+use App\Http\Controllers\Admin\V1\DaycareBookingController;
+use App\Http\Controllers\Admin\V1\DaycareCapacityWindowController;
 use App\Http\Controllers\Admin\V1\DogController as AdminDogController;
 use App\Http\Controllers\Admin\V1\DogVaccinationController;
+use App\Http\Controllers\Admin\V1\GroomingAppointmentController;
 use App\Http\Controllers\Admin\V1\InvoiceController;
 use App\Http\Controllers\Admin\V1\KennelUnitController;
 use App\Http\Controllers\Admin\V1\ManualPaymentController;
@@ -25,6 +29,7 @@ use App\Http\Controllers\Admin\V1\ReservationController;
 use App\Http\Controllers\Admin\V1\RosterController;
 use App\Http\Controllers\Admin\V1\SettingsController;
 use App\Http\Controllers\Admin\V1\VaccinationRequirementController;
+use App\Http\Controllers\Admin\V1\VetAppointmentController;
 use App\Http\Controllers\Platform\V1\AuditLogController;
 use App\Http\Controllers\Platform\V1\NotificationController as PlatformNotificationController;
 use App\Http\Controllers\Platform\V1\PlatformFeatureController;
@@ -301,6 +306,47 @@ Route::prefix('admin/v1')
             Route::post('onboarding/connect', [OnboardingController::class, 'createAccount']);
             Route::post('onboarding/account-link', [OnboardingController::class, 'createAccountLink']);
         });
+
+        // Vet Appointments
+        Route::middleware('plan:vet_appointments')->group(function () {
+            Route::get('vet-appointments', [VetAppointmentController::class, 'index'])->name('vet-appointments.index');
+            Route::post('vet-appointments', [VetAppointmentController::class, 'store'])->name('vet-appointments.store');
+            Route::get('vet-appointments/{appointment}', [VetAppointmentController::class, 'show'])->name('vet-appointments.show');
+            Route::patch('vet-appointments/{appointment}', [VetAppointmentController::class, 'update'])->name('vet-appointments.update');
+            Route::delete('vet-appointments/{appointment}', [VetAppointmentController::class, 'destroy'])->name('vet-appointments.destroy');
+            Route::post('vet-appointments/{appointment}/confirm', [VetAppointmentController::class, 'confirm'])->name('vet-appointments.confirm');
+            Route::post('vet-appointments/{appointment}/cancel', [VetAppointmentController::class, 'cancel'])->name('vet-appointments.cancel');
+        });
+
+        // Grooming Appointments
+        Route::middleware('plan:grooming_appointments')->group(function () {
+            Route::get('grooming-appointments', [GroomingAppointmentController::class, 'index'])->name('grooming-appointments.index');
+            Route::post('grooming-appointments', [GroomingAppointmentController::class, 'store'])->name('grooming-appointments.store');
+            Route::get('grooming-appointments/{appointment}', [GroomingAppointmentController::class, 'show'])->name('grooming-appointments.show');
+            Route::patch('grooming-appointments/{appointment}', [GroomingAppointmentController::class, 'update'])->name('grooming-appointments.update');
+            Route::delete('grooming-appointments/{appointment}', [GroomingAppointmentController::class, 'destroy'])->name('grooming-appointments.destroy');
+            Route::post('grooming-appointments/{appointment}/confirm', [GroomingAppointmentController::class, 'confirm'])->name('grooming-appointments.confirm');
+            Route::post('grooming-appointments/{appointment}/cancel', [GroomingAppointmentController::class, 'cancel'])->name('grooming-appointments.cancel');
+        });
+
+        // Daycare Bookings & Capacity
+        Route::middleware('plan:daycare_booking')->group(function () {
+            Route::get('daycare-bookings', [DaycareBookingController::class, 'index'])->name('daycare-bookings.index');
+            Route::post('daycare-bookings', [DaycareBookingController::class, 'store'])->name('daycare-bookings.store');
+            Route::get('daycare-bookings/{appointment}', [DaycareBookingController::class, 'show'])->name('daycare-bookings.show');
+            Route::delete('daycare-bookings/{appointment}', [DaycareBookingController::class, 'destroy'])->name('daycare-bookings.destroy');
+            Route::post('daycare-bookings/{appointment}/confirm', [DaycareBookingController::class, 'confirm'])->name('daycare-bookings.confirm');
+            Route::post('daycare-bookings/{appointment}/cancel', [DaycareBookingController::class, 'cancel'])->name('daycare-bookings.cancel');
+
+            Route::get('daycare-capacity-windows', [DaycareCapacityWindowController::class, 'index'])->name('daycare-capacity-windows.index');
+            Route::post('daycare-capacity-windows', [DaycareCapacityWindowController::class, 'store'])->name('daycare-capacity-windows.store');
+            Route::get('daycare-capacity-windows/{daycareCapacityWindow}', [DaycareCapacityWindowController::class, 'show'])->name('daycare-capacity-windows.show');
+            Route::patch('daycare-capacity-windows/{daycareCapacityWindow}', [DaycareCapacityWindowController::class, 'update'])->name('daycare-capacity-windows.update');
+            Route::delete('daycare-capacity-windows/{daycareCapacityWindow}', [DaycareCapacityWindowController::class, 'destroy'])->name('daycare-capacity-windows.destroy');
+        });
+
+        Route::get('appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+        Route::get('dogs/{dog}/schedule', [AppointmentController::class, 'schedule'])->name('dogs.schedule');
 
         // PIMS Integrations — owner-only, plan-gated
         Route::middleware('plan:pims_integration')->group(function () {

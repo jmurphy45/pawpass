@@ -9,6 +9,7 @@ use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\StoreReservationRequest;
 use App\Http\Resources\ReservationResource;
+use App\Models\Appointment;
 use App\Models\Dog;
 use App\Models\KennelUnit;
 use App\Models\Order;
@@ -94,11 +95,23 @@ class ReservationController extends Controller
         $reservation = DB::transaction(function () use (
             $tenantId, $dog, $customerId, $request, $unit, $startsAt, $endsAt, &$clientSecret
         ) {
+            $appointment = Appointment::create([
+                'tenant_id' => $tenantId,
+                'dog_id' => $dog->id,
+                'customer_id' => $customerId,
+                'service_type' => 'boarding',
+                'status' => 'pending',
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt,
+                'notes' => $request->notes,
+            ]);
+
             $res = Reservation::create([
                 'tenant_id' => $tenantId,
                 'dog_id' => $dog->id,
                 'customer_id' => $customerId,
                 'kennel_unit_id' => $request->kennel_unit_id,
+                'appointment_id' => $appointment->id,
                 'status' => 'pending',
                 'starts_at' => $startsAt,
                 'ends_at' => $endsAt,

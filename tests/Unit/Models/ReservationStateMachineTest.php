@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Models;
 
+use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Reservation;
@@ -24,15 +25,15 @@ class ReservationStateMachineTest extends TestCase
         app()->instance('current.tenant.id', $tenant->id);
 
         $customer = Customer::factory()->create(['tenant_id' => $tenant->id]);
-        $dog      = Dog::factory()->forCustomer($customer)->create();
-        $user     = User::factory()->create(['tenant_id' => $tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create();
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
 
         $this->reservation = Reservation::factory()->create([
-            'tenant_id'   => $tenant->id,
-            'dog_id'      => $dog->id,
+            'tenant_id' => $tenant->id,
+            'dog_id' => $dog->id,
             'customer_id' => $customer->id,
-            'created_by'  => $user->id,
-            'status'      => 'pending',
+            'created_by' => $user->id,
+            'status' => 'pending',
         ]);
     }
 
@@ -141,5 +142,36 @@ class ReservationStateMachineTest extends TestCase
         $this->assertEquals('cancelled', $fresh->status);
         $this->assertNotNull($fresh->cancelled_at);
         $this->assertNull($fresh->cancelled_by);
+    }
+
+    // -------------------------------------------------------------------------
+    // Appointment sync (Phase 4)
+    // -------------------------------------------------------------------------
+
+    public function test_transition_syncs_linked_appointment(): void
+    {
+        $appointment = Appointment::factory()->pending()->create([
+            'tenant_id' => $this->reservation->tenant_id,
+            'dog_id' => $this->reservation->dog_id,
+            'customer_id' => $this->reservation->customer_id,
+            'service_type' => 'boarding',
+        ]);
+
+        $this->reservation->update(['appointment_id' => $appointment->id]);
+        $this->reservation->refresh();
+
+        $this->reservation->transitionTo('confirmed');
+
+        $this->assertEquals('confirmed', $appointment->fresh()->status);
+    }
+
+    public function test_transition_is_noop_for_appointment_when_none_linked(): void
+    {
+        $this->assertNull($this->reservation->appointment_id);
+
+        // Should not throw even though there is no linked appointment
+        $this->reservation->transitionTo('confirmed');
+
+        $this->assertEquals('confirmed', $this->reservation->fresh()->status);
     }
 }

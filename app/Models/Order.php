@@ -36,6 +36,7 @@ class Order extends Model
         'invoice_number',
         'sent_at',
         'due_date',
+        'appointment_id',
     ];
 
     protected function casts(): array
@@ -127,6 +128,11 @@ class Order extends Model
     public function attendance(): BelongsTo
     {
         return $this->belongsTo(Attendance::class);
+    }
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
     }
 
     public function promotion(): BelongsTo
