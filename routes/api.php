@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\V1\OccupancyController;
 use App\Http\Controllers\Admin\V1\OnboardingController;
 use App\Http\Controllers\Admin\V1\PackageController as AdminPackageController;
 use App\Http\Controllers\Admin\V1\PaymentController;
+use App\Http\Controllers\Admin\V1\PimsIntegrationController;
 use App\Http\Controllers\Admin\V1\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\V1\ReservationAddonController;
 use App\Http\Controllers\Admin\V1\ReservationController;

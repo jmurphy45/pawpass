@@ -11,6 +11,12 @@
         {{ flash.error }}
       </div>
 
+      <!-- Past due payment warning -->
+      <div v-if="billing.status === 'past_due'" class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-red-800 text-sm flex items-center justify-between gap-4">
+        <span>Your last payment failed. Please update your payment method to keep your plan active.</span>
+        <button @click="openUpdatePaymentModal" class="text-sm font-medium text-red-800 underline hover:text-red-900 whitespace-nowrap">Update card</button>
+      </div>
+
       <!-- Platform subscription card -->
       <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
         <div class="flex items-center justify-between">
@@ -23,7 +29,7 @@
             'bg-amber-100 text-amber-700': billing.status === 'trialing',
             'bg-red-100 text-red-700': billing.status === 'past_due',
             'bg-gray-100 text-gray-600': billing.status === 'free_tier',
-          }">{{ billing.status === 'free_tier' ? 'Free' : billing.status }}</span>
+          }">{{ billing.status === 'free_tier' ? 'Free' : billing.status === 'past_due' ? 'Past Due' : billing.status }}</span>
         </div>
         <div v-if="billing.trial_ends_at" class="text-sm text-gray-600">
           Trial ends: {{ billing.trial_ends_at }}
@@ -131,9 +137,9 @@
                 class="w-full text-sm py-2.5 rounded-xl bg-gray-100 text-gray-400 cursor-not-allowed font-medium border border-gray-200"
               >Current Plan (Trial)</button>
 
-              <!-- Current plan (active) -->
+              <!-- Current plan (active or past_due) -->
               <button
-                v-else-if="plan.slug === billing.plan && billing.status === 'active'"
+                v-else-if="plan.slug === billing.plan && (billing.status === 'active' || billing.status === 'past_due')"
                 disabled
                 class="w-full text-sm py-2.5 rounded-xl bg-gray-100 text-gray-400 cursor-not-allowed font-medium border border-gray-200"
               >Current Plan</button>
