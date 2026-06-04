@@ -16,12 +16,12 @@
           leave="ease-in duration-150" leave-from="opacity-100 scale-100" leave-to="opacity-0 scale-95"
         >
           <DialogPanel class="mx-auto max-w-3xl transform divide-y divide-white/10 overflow-hidden rounded-xl bg-gray-900 shadow-2xl ring-1 ring-white/10 transition-all">
-            <Combobox v-slot="{ activeOption }" @update:modelValue="onSelect">
+            <Combobox v-slot="{ activeOption }" nullable @update:modelValue="onSelect">
               <!-- Search input -->
               <div class="grid grid-cols-1">
                 <ComboboxInput
                   ref="inputRef"
-                  :display-value="() => query"
+                  :display-value="() => query.value"
                   class="col-start-1 row-start-1 h-12 w-full bg-transparent pl-11 pr-4 text-base text-white outline-none placeholder:text-gray-500 sm:text-sm"
                   placeholder="Search customers and dogs…"
                   @change="onInputChange"
@@ -37,8 +37,6 @@
                 v-if="hasResults || loading"
                 class="flex transform-gpu divide-x divide-white/10"
                 as="div"
-                static
-                hold
               >
                 <!-- List panel -->
                 <div :class="['max-h-96 min-w-0 flex-auto scroll-py-4 overflow-y-auto px-6 py-4', activeOption && 'sm:h-96']">
