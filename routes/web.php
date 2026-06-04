@@ -107,6 +107,9 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
 
         Route::get('/', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
+        // Command palette unified search
+        Route::get('/search', \App\Http\Controllers\Web\Admin\SearchController::class)->name('admin.search');
+
         // Customers
         Route::get('/customers/search', [AdminCustomerController::class, 'search'])->name('admin.customers.search');
         Route::get('/customers', [AdminCustomerController::class, 'index'])->name('admin.customers.index');

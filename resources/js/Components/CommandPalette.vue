@@ -256,20 +256,18 @@ async function doSearch(q: string) {
   const { signal } = abortController;
   const params = new URLSearchParams({ search: q });
   try {
-    const [custRes, dogRes] = await Promise.all([
-      fetch(`/admin/customers/search?${params}`, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-        signal,
-      }),
-      fetch(`/admin/dogs/search?${params}`, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-        signal,
-      }),
-    ]);
-    const [custData, dogData] = await Promise.all([custRes.json(), dogRes.json()]);
+    const res = await fetch(`/admin/search?${params}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+      signal,
+    });
+    if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) {
+      results.value = { customers: [], dogs: [] };
+      return;
+    }
+    const data = await res.json();
     results.value = {
-      customers: custData.data ?? [],
-      dogs: dogData.data ?? [],
+      customers: data.customers ?? [],
+      dogs: data.dogs ?? [],
     };
   } catch (err) {
     if ((err as Error)?.name !== 'AbortError') {
