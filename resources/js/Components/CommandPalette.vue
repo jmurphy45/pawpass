@@ -21,6 +21,7 @@
               <div class="grid grid-cols-1">
                 <ComboboxInput
                   ref="inputRef"
+                  :display-value="() => query"
                   class="col-start-1 row-start-1 h-12 w-full bg-transparent pl-11 pr-4 text-base text-white outline-none placeholder:text-gray-500 sm:text-sm"
                   placeholder="Search customers and dogs…"
                   @change="onInputChange"
@@ -33,7 +34,7 @@
 
               <!-- Results -->
               <ComboboxOptions
-                v-show="hasResults || loading"
+                v-if="hasResults || loading"
                 class="flex transform-gpu divide-x divide-white/10"
                 as="div"
                 static
@@ -224,14 +225,18 @@ const query = ref('');
 const loading = ref(false);
 const results = ref<{ customers: CustomerResult[]; dogs: DogResult[] }>({ customers: [], dogs: [] });
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let abortController: AbortController | null = null;
 
 const hasResults = computed(() => results.value.customers.length > 0 || results.value.dogs.length > 0);
 
 watch(() => props.open, (val) => {
   if (val) setTimeout(() => (inputRef.value?.$el ?? (inputRef.value as unknown as HTMLInputElement))?.focus(), 50);
   if (!val) {
+    abortController?.abort();
+    abortController = null;
     results.value = { customers: [], dogs: [] };
     query.value = '';
+    loading.value = false;
   }
 });
 
@@ -248,21 +253,32 @@ function onInputChange(e: Event) {
 }
 
 async function doSearch(q: string) {
+  if (abortController) abortController.abort();
+  abortController = new AbortController();
+  const { signal } = abortController;
   const params = new URLSearchParams({ search: q });
   try {
     const [custRes, dogRes] = await Promise.all([
-      fetch(`/admin/customers/search?${params}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
-      fetch(`/admin/dogs/search?${params}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+      fetch(`/admin/customers/search?${params}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+        signal,
+      }),
+      fetch(`/admin/dogs/search?${params}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+        signal,
+      }),
     ]);
     const [custData, dogData] = await Promise.all([custRes.json(), dogRes.json()]);
     results.value = {
       customers: custData.data ?? [],
       dogs: dogData.data ?? [],
     };
-  } catch {
-    results.value = { customers: [], dogs: [] };
+  } catch (err) {
+    if ((err as Error)?.name !== 'AbortError') {
+      results.value = { customers: [], dogs: [] };
+    }
   } finally {
-    loading.value = false;
+    if (!signal.aborted) loading.value = false;
   }
 }
 
@@ -296,5 +312,6 @@ onMounted(() => window.addEventListener('keydown', onKeydown));
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown);
   if (debounceTimer) clearTimeout(debounceTimer);
+  abortController?.abort();
 });
 </script>
