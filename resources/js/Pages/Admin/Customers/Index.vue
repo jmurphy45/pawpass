@@ -94,13 +94,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from 'vue';
+import { computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AppButton from '@/Components/AppButton.vue';
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
 import { useFeatures } from '@/composables/useFeatures';
+import { useCommandPalette } from '@/composables/useCommandPalette';
 
 const { hasFeature } = useFeatures();
 const hasAddCustomers = computed(() => hasFeature('add_customers'));
@@ -130,7 +131,7 @@ const props = defineProps<{
   filters: { search: string };
 }>();
 
-const openPalette = inject<() => void>('openPalette', () => {});
+const { openPalette } = useCommandPalette();
 
 function formatMoney(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
