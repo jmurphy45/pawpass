@@ -24,7 +24,6 @@
                   class="col-start-1 row-start-1 h-12 w-full bg-transparent pl-11 pr-4 text-base text-white outline-none placeholder:text-gray-500 sm:text-sm"
                   placeholder="Search customers and dogs…"
                   @change="onInputChange"
-                  @blur.prevent
                 />
                 <MagnifyingGlassIcon
                   class="pointer-events-none col-start-1 row-start-1 ml-4 size-5 self-center text-gray-500"
@@ -34,7 +33,7 @@
 
               <!-- Results -->
               <ComboboxOptions
-                v-if="hasResults || loading"
+                v-show="hasResults || loading"
                 class="flex transform-gpu divide-x divide-white/10"
                 as="div"
                 static
@@ -186,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import { ChevronRightIcon, UsersIcon } from '@heroicons/vue/24/outline';
@@ -229,7 +228,7 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const hasResults = computed(() => results.value.customers.length > 0 || results.value.dogs.length > 0);
 
 watch(() => props.open, (val) => {
-  if (val) nextTick(() => (inputRef.value?.$el ?? (inputRef.value as unknown as HTMLInputElement))?.focus());
+  if (val) setTimeout(() => (inputRef.value?.$el ?? (inputRef.value as unknown as HTMLInputElement))?.focus(), 50);
   if (!val) {
     results.value = { customers: [], dogs: [] };
     query.value = '';
