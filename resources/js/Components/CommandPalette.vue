@@ -178,7 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import { ChevronRightIcon, UsersIcon } from '@heroicons/vue/24/outline';
@@ -230,7 +230,9 @@ const activeItem = computed<SearchResult | null>(() =>
 );
 
 watch(() => props.open, (val) => {
-  if (val) setTimeout(() => inputRef.value?.focus(), 50);
+  if (val) {
+    nextTick(() => inputRef.value?.focus());
+  }
   if (!val) {
     abortController?.abort();
     abortController = null;
