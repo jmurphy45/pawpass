@@ -268,6 +268,17 @@
           >{{ tenantPlan === 'trialing' ? 'Trial' : 'Free' }}</span>
         </div>
 
+        <!-- Search trigger -->
+        <button
+          type="button"
+          class="flex items-center gap-2 w-full rounded-md bg-white/5 px-3 py-2 text-sm text-indigo-300 hover:bg-white/10 hover:text-white transition-colors"
+          @click="paletteOpen = true"
+        >
+          <MagnifyingGlassIcon class="size-4 shrink-0" aria-hidden="true" />
+          <span class="flex-1 text-left">Search…</span>
+          <kbd class="text-xs text-indigo-400 font-sans">⌘K</kbd>
+        </button>
+
         <nav class="flex flex-1 flex-col">
           <ul role="list" class="flex flex-1 flex-col gap-y-7">
             <!-- Dashboard -->
@@ -462,6 +473,10 @@
         <Bars3Icon class="size-6" aria-hidden="true" />
       </button>
       <div class="flex-1 text-sm/6 font-semibold text-white">{{ tenant?.name ?? 'PawPass' }}</div>
+      <button type="button" class="-m-1 p-1 text-indigo-200 hover:text-white" @click="paletteOpen = true">
+        <span class="sr-only">Search</span>
+        <MagnifyingGlassIcon class="size-5" aria-hidden="true" />
+      </button>
       <Link :href="route('admin.notifications.broadcast')" class="relative p-1 text-indigo-200 hover:text-white">
         <BellIcon class="size-6" aria-hidden="true" />
         <span v-if="unreadCount > 0" class="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
@@ -472,6 +487,9 @@
         {{ userInitial }}
       </div>
     </div>
+
+    <!-- Command palette -->
+    <CommandPalette v-model:open="paletteOpen" />
 
     <!-- Main content -->
     <main class="py-10 lg:pl-72">
@@ -489,13 +507,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, provide } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { Dialog, DialogPanel, TransitionRoot, TransitionChild } from '@headlessui/vue';
+import CommandPalette from '@/Components/CommandPalette.vue';
 import {
   ArchiveBoxIcon,
   Bars3Icon,
   BellIcon,
+  MagnifyingGlassIcon,
   CalendarIcon,
   ChartBarIcon,
   Cog6ToothIcon,
@@ -528,6 +548,9 @@ const unreadCount = computed(() => (page.props.unreadCount as number) ?? 0);
 const userInitial = computed(() => auth.value.user?.name?.[0]?.toUpperCase() ?? '?');
 
 const sidebarOpen = ref(false);
+const paletteOpen = ref(false);
+
+provide('openPalette', () => { paletteOpen.value = true; });
 
 const isOwner = computed(() => auth.value.user?.role === 'business_owner');
 const tenantPlan = computed(() => page.props.tenantPlan);

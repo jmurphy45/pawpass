@@ -12,11 +12,19 @@
       <!-- Filters -->
       <div class="flex flex-col sm:flex-row gap-3">
         <div class="flex-1">
-          <AppInput
-            v-model="searchQuery"
-            placeholder="Search by name…"
-            @input="onSearchInput"
-          />
+          <button
+            type="button"
+            class="flex items-center gap-2 w-full rounded-lg border border-border-warm bg-surface px-3 py-2 text-sm text-text-muted hover:border-indigo-300 hover:text-text-body transition-colors text-left"
+            @click="openPalette()"
+          >
+            <MagnifyingGlassIcon class="size-4 shrink-0" aria-hidden="true" />
+            Search dogs by name…
+            <kbd class="ml-auto text-xs hidden sm:block">⌘K</kbd>
+          </button>
+          <div v-if="props.filters.search" class="flex items-center gap-2 text-sm mt-1">
+            <span class="text-text-muted">Filtered: "{{ props.filters.search }}"</span>
+            <button class="text-indigo-600 hover:text-indigo-800 text-xs underline" @click="navigate()">Clear</button>
+          </div>
         </div>
         <div class="flex gap-1 flex-wrap">
           <button
@@ -101,15 +109,16 @@
         </div>
       </AppCard>
     </div>
+
   </AdminLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, inject } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import AppInput from '@/Components/AppInput.vue';
+import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
 import { useFeatures } from '@/composables/useFeatures';
 
 const { hasFeature } = useFeatures();
@@ -145,21 +154,14 @@ const statusTabs = [
   { value: 'inactive', label: 'Inactive' },
 ];
 
-const searchQuery = ref(props.filters.search);
+const openPalette = inject<() => void>('openPalette', () => {});
 const currentStatus = ref(props.filters.status);
-let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function navigate(page?: number) {
   const params: Record<string, string | number> = {};
-  if (searchQuery.value) params.search = searchQuery.value;
   if (currentStatus.value) params.status = currentStatus.value;
   if (page && page > 1) params.page = page;
   router.get(route('admin.dogs.index'), params, { preserveState: true, replace: true });
-}
-
-function onSearchInput() {
-  if (searchTimeout) clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => navigate(), 350);
 }
 
 function setStatus(status: string) {

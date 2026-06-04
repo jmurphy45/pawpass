@@ -50,6 +50,16 @@ class RegisterController extends Controller
             ]);
         }
 
+        if (! empty($validated['phone'])) {
+            $isSuspended = Customer::where('tenant_id', $tenantId)
+                ->where('phone', $validated['phone'])
+                ->whereHas('user', fn ($q) => $q->where('status', 'suspended'))
+                ->exists();
+            if ($isSuspended) {
+                throw ValidationException::withMessages(['phone' => ['Please contact us to restore your account access.']]);
+            }
+        }
+
         $token = Str::random(64);
         $customer = null;
 

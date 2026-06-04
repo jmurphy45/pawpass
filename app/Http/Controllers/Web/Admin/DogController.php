@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\DogVaccination;
 use App\Models\Package;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,7 +26,11 @@ class DogController extends Controller
         $status = $request->query('status');
 
         if ($search) {
-            $query->where('name', 'like', "%{$search}%");
+            $term = '%'.strtolower($search).'%';
+            $query->where(function ($q) use ($term) {
+                $q->whereRaw('LOWER(dogs.name) LIKE ?', [$term])
+                    ->orWhereHas('customer', fn ($c) => $c->whereRaw('LOWER(customers.name) LIKE ?', [$term]));
+            });
         }
 
         if ($status && in_array($status, array_column(DogStatus::cases(), 'value'))) {
@@ -258,6 +263,33 @@ class DogController extends Controller
 
         return redirect()->route('admin.dogs.show', $dog)
             ->with('success', 'Vaccination record added.');
+    }
+
+    public function search(Request $request): JsonResponse
+    {
+        $search = $request->validate(['search' => ['nullable', 'string', 'max:100']])['search'] ?? null;
+
+        $query = Dog::query()
+            ->join('customers', 'dogs.customer_id', '=', 'customers.id')
+            ->whereNull('customers.deleted_at')
+            ->select('dogs.id', 'dogs.name', 'customers.name as customer_name', 'dogs.breed_id', 'dogs.credit_balance');
+
+        if ($search) {
+            $term = '%'.strtolower($search).'%';
+            $query->where(function ($q) use ($term) {
+                $q->whereRaw('LOWER(dogs.name) LIKE ?', [$term])
+                    ->orWhereRaw('LOWER(customers.name) LIKE ?', [$term]);
+            });
+        }
+
+        $results = $query->limit(10)->get()->map(fn ($dog) => [
+            'id' => $dog->id,
+            'name' => $dog->name,
+            'customer_name' => $dog->customer_name,
+            'credit_balance' => $dog->credit_balance,
+        ]);
+
+        return response()->json(['data' => $results]);
     }
 
     public function destroyVaccination(Dog $dog, DogVaccination $vaccination): RedirectResponse

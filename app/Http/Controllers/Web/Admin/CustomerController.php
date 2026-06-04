@@ -37,9 +37,11 @@ class CustomerController extends Controller
         $search = $request->validate(['search' => ['nullable', 'string', 'max:100']])['search'] ?? null;
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+            $term = '%'.strtolower($search).'%';
+            $query->where(function ($q) use ($term) {
+                $q->whereRaw('LOWER(name) LIKE ?', [$term])
+                    ->orWhereRaw('LOWER(email) LIKE ?', [$term])
+                    ->orWhereRaw('LOWER(phone) LIKE ?', [$term]);
             });
         }
 
@@ -153,7 +155,7 @@ class CustomerController extends Controller
     public function show(Customer $customer): Response
     {
         $customer->loadCount('orders')->loadSum(['orders as orders_sum_total_amount' => fn ($q) => $q->whereIn('status', ['paid', 'partially_refunded'])], 'total_amount');
-        $customer->load(['dogs' => fn ($q) => $q->withTrashed()->with('breed'), 'orders.package']);
+        $customer->load(['dogs' => fn ($q) => $q->withTrashed()->with('breed'), 'orders.package', 'user']);
 
         $dogs = $customer->dogs->map(function ($dog) {
             $lastAttendance = $dog->attendances()->latest('checked_in_at')->value('checked_in_at');
@@ -195,6 +197,7 @@ class CustomerController extends Controller
                 'phone' => $customer->phone,
                 'notes' => $customer->notes,
                 'has_portal' => $customer->user_id !== null,
+                'portal_status' => $customer->user?->status,
                 'stripe_pm_last4' => $customer->stripe_pm_last4,
                 'stripe_pm_brand' => $customer->stripe_pm_brand,
                 'outstanding_balance_cents' => $customer->outstanding_balance_cents ?? 0,
@@ -343,22 +346,48 @@ class CustomerController extends Controller
         return back()->with('success', 'Card saved successfully.');
     }
 
+    public function suspendPortalAccess(Customer $customer): RedirectResponse
+    {
+        if (auth()->user()->role !== 'business_owner') {
+            abort(403);
+        }
+
+        abort_if($customer->user === null, 422, 'Customer has no portal account.');
+        $customer->user->update(['status' => 'suspended']);
+
+        return back()->with('success', 'Portal access suspended.');
+    }
+
+    public function restorePortalAccess(Customer $customer): RedirectResponse
+    {
+        if (auth()->user()->role !== 'business_owner') {
+            abort(403);
+        }
+
+        abort_if($customer->user === null, 422, 'Customer has no portal account.');
+        $status = $customer->user->email_verified_at ? 'active' : 'pending_verification';
+        $customer->user->update(['status' => $status]);
+
+        return back()->with('success', 'Portal access restored.');
+    }
+
     public function search(Request $request): JsonResponse
     {
         $search = $request->validate(['search' => ['nullable', 'string', 'max:100']])['search'] ?? null;
 
-        $query = Customer::query()->select('id', 'name', 'email');
+        $query = Customer::query()->select('id', 'name', 'email', 'phone');
 
         if ($search) {
             $term = '%'.strtolower($search).'%';
             $query->where(function ($q) use ($term) {
                 $q->whereRaw('LOWER(name) LIKE ?', [$term])
-                    ->orWhereRaw('LOWER(email) LIKE ?', [$term]);
+                    ->orWhereRaw('LOWER(email) LIKE ?', [$term])
+                    ->orWhereRaw('LOWER(phone) LIKE ?', [$term]);
             });
         }
 
         return response()->json([
-            'data' => $query->limit(20)->get()->values(),
+            'data' => $query->limit(10)->get()->values(),
         ]);
     }
 

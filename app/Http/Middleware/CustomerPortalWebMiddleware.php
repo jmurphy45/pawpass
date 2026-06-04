@@ -22,6 +22,12 @@ class CustomerPortalWebMiddleware
             return redirect()->route('portal.login');
         }
 
+        if ($user->status !== 'active') {
+            Auth::guard('web')->logout();
+
+            return redirect()->route('portal.login')->with('error', 'Your account access has been suspended. Please contact us for assistance.');
+        }
+
         return $next($request);
     }
 }

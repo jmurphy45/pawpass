@@ -61,17 +61,19 @@ class CreateInvoiceControllerTest extends TestCase
 
     public function test_creates_invoice_with_due_date(): void
     {
+        $dueDate = now()->addDays(30)->toDateString();
+
         $response = $this->withHeaders($this->auth())
             ->postJson('/api/admin/v1/invoices', [
                 'customer_id' => $this->customer->id,
-                'due_date' => '2026-05-31',
+                'due_date' => $dueDate,
                 'line_items' => [
                     ['description' => 'Daycare pack', 'quantity' => 1, 'unit_price_cents' => 10000],
                 ],
             ]);
 
         $response->assertCreated();
-        $response->assertJsonPath('data.due_date', '2026-05-31');
+        $response->assertJsonPath('data.due_date', $dueDate);
     }
 
     public function test_defaults_due_date_to_30_days_from_now(): void

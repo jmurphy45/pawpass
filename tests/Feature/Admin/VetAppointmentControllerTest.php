@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\BookableResource;
 use App\Models\Customer;
 use App\Models\Dog;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\VetAppointmentDetail;
@@ -30,6 +31,8 @@ class VetAppointmentControllerTest extends TestCase
     {
         parent::setUp();
         $this->setUpJwt();
+
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['vet_appointments']]);
 
         $this->tenant = Tenant::factory()->create(['slug' => 'vet-test', 'status' => 'active', 'plan' => 'starter']);
         URL::forceRootUrl('http://vet-test.pawpass.com');

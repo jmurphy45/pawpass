@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\DaycareBookingDetail;
 use App\Models\Dog;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,6 +30,8 @@ class DaycareBookingControllerTest extends TestCase
     {
         parent::setUp();
         $this->setUpJwt();
+
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['daycare_booking']]);
 
         $this->tenant = Tenant::factory()->create([
             'slug' => 'dcb-test',

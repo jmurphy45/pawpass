@@ -119,8 +119,11 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::post('/customers/{customer}/charge-balance', [AdminCustomerController::class, 'chargeBalance'])->name('admin.customers.charge-balance');
         Route::post('/customers/{customer}/setup-payment-method', [AdminCustomerController::class, 'setupPaymentMethod'])->name('admin.customers.setup-payment-method');
         Route::post('/customers/{customer}/confirm-payment-method', [AdminCustomerController::class, 'confirmPaymentMethod'])->name('admin.customers.confirm-payment-method');
+        Route::post('/customers/{customer}/suspend-portal', [AdminCustomerController::class, 'suspendPortalAccess'])->name('admin.customers.suspend-portal');
+        Route::post('/customers/{customer}/restore-portal', [AdminCustomerController::class, 'restorePortalAccess'])->name('admin.customers.restore-portal');
 
         // Dogs
+        Route::get('/dogs/search', [AdminDogController::class, 'search'])->name('admin.dogs.search');
         Route::get('/dogs', [AdminDogController::class, 'index'])->name('admin.dogs.index');
         Route::middleware('plan:add_dogs')->group(function () {
             Route::get('/dogs/create', [AdminDogController::class, 'create'])->name('admin.dogs.create');

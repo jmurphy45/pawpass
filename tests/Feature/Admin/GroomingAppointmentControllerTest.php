@@ -7,6 +7,7 @@ use App\Models\BookableResource;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\GroomingAppointmentDetail;
+use App\Models\PlatformPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,6 +31,8 @@ class GroomingAppointmentControllerTest extends TestCase
     {
         parent::setUp();
         $this->setUpJwt();
+
+        PlatformPlan::factory()->create(['slug' => 'starter', 'features' => ['grooming_appointments']]);
 
         $this->tenant = Tenant::factory()->create(['slug' => 'groom-test', 'status' => 'active', 'plan' => 'starter']);
         URL::forceRootUrl('http://groom-test.pawpass.com');

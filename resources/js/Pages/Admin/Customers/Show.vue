@@ -43,7 +43,25 @@
           </div>
           <div>
             <p class="text-xs text-text-muted">Portal Access</p>
-            <p class="text-sm text-text-body">{{ customer.has_portal ? 'Yes' : 'No' }}</p>
+            <div class="flex items-center gap-2 mt-0.5">
+              <p class="text-sm text-text-body">
+                <span v-if="!customer.has_portal">No</span>
+                <span v-else-if="customer.portal_status === 'suspended'" class="text-red-600 font-medium">Suspended</span>
+                <span v-else>Active</span>
+              </p>
+              <button
+                v-if="customer.is_owner && customer.has_portal && customer.portal_status !== 'suspended'"
+                :disabled="portalToggleLoading"
+                class="text-xs text-red-600 hover:text-red-800 underline disabled:opacity-50"
+                @click="suspendPortal"
+              >Suspend</button>
+              <button
+                v-else-if="customer.is_owner && customer.has_portal && customer.portal_status === 'suspended'"
+                :disabled="portalToggleLoading"
+                class="text-xs text-green-700 hover:text-green-900 underline disabled:opacity-50"
+                @click="restorePortal"
+              >Restore</button>
+            </div>
           </div>
           <div>
             <p class="text-xs text-text-muted">Phone</p>
@@ -311,6 +329,7 @@ const props = defineProps<{
     phone: string | null;
     notes: string | null;
     has_portal: boolean;
+    portal_status: string | null;
     has_stripe_customer: boolean;
     is_owner: boolean;
     stripe_pm_last4: string | null;
@@ -334,6 +353,7 @@ const showChargeModal = ref(false);
 const chargeLoading = ref(false);
 const notifyLoading = ref(false);
 const notifySent = ref(false);
+const portalToggleLoading = ref(false);
 
 const cardFormOpen = ref(false);
 const cardLoading = ref(false);
@@ -419,6 +439,20 @@ function chargeOutstandingBalance() {
   chargeLoading.value = true;
   router.post(route('admin.customers.charge-balance', props.customer.id), {}, {
     onFinish: () => { chargeLoading.value = false; },
+  });
+}
+
+function suspendPortal() {
+  portalToggleLoading.value = true;
+  router.post(route('admin.customers.suspend-portal', props.customer.id), {}, {
+    onFinish: () => { portalToggleLoading.value = false; },
+  });
+}
+
+function restorePortal() {
+  portalToggleLoading.value = true;
+  router.post(route('admin.customers.restore-portal', props.customer.id), {}, {
+    onFinish: () => { portalToggleLoading.value = false; },
   });
 }
 

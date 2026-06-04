@@ -23,6 +23,10 @@ class CustomerPortalMiddleware extends TenantMiddleware
                 return response()->json(['message' => 'Forbidden.'], 403);
             }
 
+            if ($user->status !== 'active') {
+                return response()->json(['message' => 'Account suspended.'], 403);
+            }
+
             return $next($req);
         });
 

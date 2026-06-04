@@ -10,11 +10,20 @@
       </div>
 
       <!-- Search -->
-      <AppInput
-        v-model="searchQuery"
-        placeholder="Search by name or email…"
-        @input="onSearchInput"
-      />
+      <button
+        type="button"
+        class="flex items-center gap-2 w-full rounded-lg border border-border-warm bg-surface px-3 py-2 text-sm text-text-muted hover:border-indigo-300 hover:text-text-body transition-colors text-left"
+        @click="openPalette()"
+      >
+        <MagnifyingGlassIcon class="size-4 shrink-0" aria-hidden="true" />
+        Search customers by name, email, phone…
+        <kbd class="ml-auto text-xs hidden sm:block">⌘K</kbd>
+      </button>
+
+      <div v-if="props.filters.search" class="flex items-center gap-2 text-sm">
+        <span class="text-text-muted">Filtered: "{{ props.filters.search }}"</span>
+        <button class="text-indigo-600 hover:text-indigo-800 text-xs underline" @click="clearSearch">Clear</button>
+      </div>
 
       <AppCard class="overflow-hidden">
         <div v-if="customers.data.length === 0" class="px-5 py-8 text-center text-sm text-text-muted">
@@ -85,12 +94,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed, inject } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import AppInput from '@/Components/AppInput.vue';
 import AppButton from '@/Components/AppButton.vue';
+import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
 import { useFeatures } from '@/composables/useFeatures';
 
 const { hasFeature } = useFeatures();
@@ -121,26 +130,17 @@ const props = defineProps<{
   filters: { search: string };
 }>();
 
-const searchQuery = ref(props.filters.search);
+const openPalette = inject<() => void>('openPalette', () => {});
 
 function formatMoney(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 }
-let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
-function navigate(page?: number) {
-  const params: Record<string, string | number> = {};
-  if (searchQuery.value) params.search = searchQuery.value;
-  if (page && page > 1) params.page = page;
-  router.get(route('admin.customers.index'), params, { preserveState: true, replace: true });
-}
-
-function onSearchInput() {
-  if (searchTimeout) clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => navigate(), 350);
+function clearSearch() {
+  router.get(route('admin.customers.index'), {}, { preserveState: true, replace: true });
 }
 
 function goToPage(page: number) {
-  navigate(page);
+  router.get(route('admin.customers.index'), page > 1 ? { page } : {}, { preserveState: true, replace: true });
 }
 </script>
