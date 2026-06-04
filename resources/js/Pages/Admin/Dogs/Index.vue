@@ -114,12 +114,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject } from 'vue';
+import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
 import { useFeatures } from '@/composables/useFeatures';
+import { useCommandPalette } from '@/composables/useCommandPalette';
 
 const { hasFeature } = useFeatures();
 const hasAddDogs = computed(() => hasFeature('add_dogs'));
@@ -154,7 +155,7 @@ const statusTabs = [
   { value: 'inactive', label: 'Inactive' },
 ];
 
-const openPalette = inject<() => void>('openPalette', () => {});
+const { openPalette } = useCommandPalette();
 const currentStatus = ref(props.filters.status);
 
 function navigate(page?: number) {

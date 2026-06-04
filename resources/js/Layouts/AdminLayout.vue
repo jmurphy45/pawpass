@@ -507,10 +507,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, provide } from 'vue';
+import { ref, computed } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { Dialog, DialogPanel, TransitionRoot, TransitionChild } from '@headlessui/vue';
 import CommandPalette from '@/Components/CommandPalette.vue';
+import { useCommandPalette } from '@/composables/useCommandPalette';
 import {
   ArchiveBoxIcon,
   Bars3Icon,
@@ -548,9 +549,7 @@ const unreadCount = computed(() => (page.props.unreadCount as number) ?? 0);
 const userInitial = computed(() => auth.value.user?.name?.[0]?.toUpperCase() ?? '?');
 
 const sidebarOpen = ref(false);
-const paletteOpen = ref(false);
-
-provide('openPalette', () => { paletteOpen.value = true; });
+const { paletteOpen } = useCommandPalette();
 
 const isOwner = computed(() => auth.value.user?.role === 'business_owner');
 const tenantPlan = computed(() => page.props.tenantPlan);
