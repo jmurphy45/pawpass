@@ -33,7 +33,7 @@ class QrRedirectTest extends TestCase
         ]);
 
         $this->get('/go/1234567890123456')
-            ->assertRedirect('https://testco.pawpass.com/my');
+            ->assertRedirect('https://testco.'.config('app.domain').'/my');
     }
 
     public function test_active_qr_with_absolute_target_redirects_directly(): void
@@ -97,6 +97,6 @@ class QrRedirectTest extends TestCase
         $this->tenant->update(['slug' => 'newslug']);
 
         $this->get('/go/3333333333333333')
-            ->assertRedirect('https://newslug.pawpass.com/my');
+            ->assertRedirect('https://newslug.'.config('app.domain').'/my');
     }
 }
