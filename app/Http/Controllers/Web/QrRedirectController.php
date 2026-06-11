@@ -21,7 +21,7 @@ class QrRedirectController extends Controller
 
         $dest = str_starts_with($qr->target_url, 'http')
             ? $qr->target_url
-            : "https://{$qr->tenant->slug}.pawpass.com{$qr->target_url}";
+            : 'https://'.$qr->tenant->slug.'.'.config('app.domain').$qr->target_url;
 
         return redirect($dest, 302);
     }

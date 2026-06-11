@@ -43,8 +43,8 @@ class QrCodeServiceTest extends TestCase
         $token = '1234567890123456789';
         $url = $this->service->stableUrl($token);
 
+        $this->assertStringStartsWith('https://'.config('app.domain').'/go/', $url);
         $this->assertStringContainsString('/go/'.$token, $url);
-        $this->assertStringStartsWith('http', $url);
     }
 
     public function test_two_tokens_are_unique(): void
