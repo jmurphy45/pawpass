@@ -45,6 +45,11 @@ class QrCodeControllerTest extends TestCase
         parent::tearDown();
     }
 
+    private function portalQr(): QrCode
+    {
+        return QrCode::where('tenant_id', $this->tenant->id)->where('key', 'portal')->firstOrFail();
+    }
+
     public function test_index_renders_inertia_page(): void
     {
         $this->actingAs($this->staff);
@@ -54,32 +59,13 @@ class QrCodeControllerTest extends TestCase
             ->assertInertia(fn ($p) => $p->component('Admin/QrCodes/Index'));
     }
 
-    public function test_index_auto_creates_portal_qr_when_none_exist(): void
+    public function test_index_lists_existing_qr_codes(): void
     {
         $this->actingAs($this->staff);
 
-        $this->assertDatabaseCount('qr_codes', 0);
-
-        $this->get('/admin/qr-codes')->assertOk();
-
-        $this->assertDatabaseHas('qr_codes', [
-            'tenant_id' => $this->tenant->id,
-            'key' => 'portal',
-            'target_url' => '/my',
-        ]);
-    }
-
-    public function test_index_does_not_duplicate_portal_qr(): void
-    {
-        QrCode::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'key' => 'portal',
-        ]);
-
-        $this->actingAs($this->staff);
-        $this->get('/admin/qr-codes')->assertOk();
-
-        $this->assertDatabaseCount('qr_codes', 1);
+        $this->get('/admin/qr-codes')
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p->has('qrCodes', 1));
     }
 
     public function test_store_creates_qr_code_for_owner(): void
@@ -111,11 +97,7 @@ class QrCodeControllerTest extends TestCase
 
     public function test_update_changes_target_url_for_owner(): void
     {
-        $qr = QrCode::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'key' => 'portal',
-            'target_url' => '/my',
-        ]);
+        $qr = $this->portalQr();
 
         $this->actingAs($this->owner);
 
@@ -131,10 +113,7 @@ class QrCodeControllerTest extends TestCase
 
     public function test_update_is_forbidden_for_staff(): void
     {
-        $qr = QrCode::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'key' => 'portal',
-        ]);
+        $qr = $this->portalQr();
 
         $this->actingAs($this->staff);
 
@@ -145,11 +124,7 @@ class QrCodeControllerTest extends TestCase
 
     public function test_destroy_deactivates_qr_code(): void
     {
-        $qr = QrCode::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'key' => 'portal',
-            'is_active' => true,
-        ]);
+        $qr = $this->portalQr();
 
         $this->actingAs($this->owner);
 
@@ -164,10 +139,7 @@ class QrCodeControllerTest extends TestCase
 
     public function test_image_returns_svg_data_uri(): void
     {
-        $qr = QrCode::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'key' => 'portal',
-        ]);
+        $qr = $this->portalQr();
 
         $this->actingAs($this->staff);
 
@@ -181,10 +153,7 @@ class QrCodeControllerTest extends TestCase
 
     public function test_download_returns_png_response(): void
     {
-        $qr = QrCode::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'key' => 'portal',
-        ]);
+        $qr = $this->portalQr();
 
         $this->actingAs($this->staff);
 
@@ -196,10 +165,7 @@ class QrCodeControllerTest extends TestCase
     public function test_cross_tenant_qr_returns_404(): void
     {
         $otherTenant = Tenant::factory()->create(['slug' => 'other', 'status' => 'active']);
-        $qr = QrCode::factory()->create([
-            'tenant_id' => $otherTenant->id,
-            'key' => 'portal',
-        ]);
+        $qr = QrCode::allTenants()->where('tenant_id', $otherTenant->id)->where('key', 'portal')->firstOrFail();
 
         $this->actingAs($this->staff);
 

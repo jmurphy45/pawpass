@@ -21,22 +21,7 @@ class QrCodeController extends Controller
 
     public function index(): Response
     {
-        $tenantId = app('current.tenant.id');
-
-        $qrCodes = QrCode::all();
-
-        if ($qrCodes->isEmpty()) {
-            QrCode::create([
-                'tenant_id' => $tenantId,
-                'token' => $this->qrCodeService->generateToken(),
-                'key' => 'portal',
-                'target_url' => '/my',
-                'label' => 'Customer Portal',
-            ]);
-            $qrCodes = QrCode::all();
-        }
-
-        $qrCodes = $qrCodes->map(fn (QrCode $qr) => [
+        $qrCodes = QrCode::all()->map(fn (QrCode $qr) => [
             'id' => $qr->id,
             'key' => $qr->key,
             'label' => $qr->label,

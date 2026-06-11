@@ -47,15 +47,16 @@ class QrCodeEmailTest extends TestCase
         parent::tearDown();
     }
 
+    private function portalQr(): QrCode
+    {
+        return QrCode::where('tenant_id', $this->tenant->id)->where('key', 'portal')->firstOrFail();
+    }
+
     public function test_owner_can_email_qr_code_to_themselves(): void
     {
         Mail::fake();
 
-        $qr = QrCode::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'key' => 'portal',
-            'label' => 'Customer Portal',
-        ]);
+        $qr = $this->portalQr();
 
         $this->actingAs($this->owner)
             ->postJson("/admin/qr-codes/{$qr->id}/email")
@@ -69,10 +70,7 @@ class QrCodeEmailTest extends TestCase
     {
         Mail::fake();
 
-        $qr = QrCode::factory()->create([
-            'tenant_id' => $this->tenant->id,
-            'key' => 'portal',
-        ]);
+        $qr = $this->portalQr();
 
         $this->actingAs($this->staff)
             ->postJson("/admin/qr-codes/{$qr->id}/email")
@@ -86,10 +84,7 @@ class QrCodeEmailTest extends TestCase
         Mail::fake();
 
         $otherTenant = Tenant::factory()->create(['slug' => 'other', 'status' => 'active']);
-        $qr = QrCode::factory()->create([
-            'tenant_id' => $otherTenant->id,
-            'key' => 'portal',
-        ]);
+        $qr = QrCode::allTenants()->where('tenant_id', $otherTenant->id)->where('key', 'portal')->firstOrFail();
 
         $this->actingAs($this->owner)
             ->postJson("/admin/qr-codes/{$qr->id}/email")

@@ -24,10 +24,10 @@ class QrRedirectTest extends TestCase
 
     public function test_active_qr_with_relative_target_redirects_to_tenant_subdomain(): void
     {
-        $qr = QrCode::factory()->create([
+        QrCode::factory()->create([
             'tenant_id' => $this->tenant->id,
             'token' => '1234567890123456',
-            'key' => 'portal',
+            'key' => 'checkin',
             'target_url' => '/my',
             'is_active' => true,
         ]);
@@ -55,7 +55,7 @@ class QrRedirectTest extends TestCase
         $qr = QrCode::factory()->create([
             'tenant_id' => $this->tenant->id,
             'token' => '1111111111111111',
-            'key' => 'portal',
+            'key' => 'checkin',
             'target_url' => '/my',
             'is_active' => true,
             'scan_count' => 5,
@@ -71,7 +71,7 @@ class QrRedirectTest extends TestCase
         QrCode::factory()->create([
             'tenant_id' => $this->tenant->id,
             'token' => '2222222222222222',
-            'key' => 'portal',
+            'key' => 'checkin',
             'target_url' => '/my',
             'is_active' => false,
         ]);
@@ -86,10 +86,10 @@ class QrRedirectTest extends TestCase
 
     public function test_slug_change_resolves_to_new_slug(): void
     {
-        $qr = QrCode::factory()->create([
+        QrCode::factory()->create([
             'tenant_id' => $this->tenant->id,
             'token' => '3333333333333333',
-            'key' => 'portal',
+            'key' => 'checkin',
             'target_url' => '/my',
             'is_active' => true,
         ]);

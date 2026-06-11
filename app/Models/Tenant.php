@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\ProvisionPortalQrCode;
 use App\Models\Concerns\HasUlid;
 use App\Services\PlanFeatureCache;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,6 +15,13 @@ use Illuminate\Support\Facades\DB;
 class Tenant extends Model
 {
     use HasFactory, HasUlid, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::created(function (Tenant $tenant): void {
+            ProvisionPortalQrCode::dispatch($tenant->id);
+        });
+    }
 
     protected $fillable = [
         'name',
