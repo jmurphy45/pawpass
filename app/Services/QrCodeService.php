@@ -37,6 +37,6 @@ class QrCodeService
 
     public function stableUrl(string $token): string
     {
-        return url('/go/'.$token);
+        return 'https://'.config('app.domain').'/go/'.$token;
     }
 }
