@@ -27,16 +27,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->group('api', []);
 
         $middleware->alias([
-            'auth.jwt'            => \App\Http\Middleware\AuthenticateJwt::class,
-            'role'                => \App\Http\Middleware\RequireRole::class,
-            'tenant'              => \App\Http\Middleware\TenantMiddleware::class,
-            'customer.portal'     => \App\Http\Middleware\CustomerPortalMiddleware::class,
+            'auth.jwt' => \App\Http\Middleware\AuthenticateJwt::class,
+            'role' => \App\Http\Middleware\RequireRole::class,
+            'tenant' => \App\Http\Middleware\TenantMiddleware::class,
+            'customer.portal' => \App\Http\Middleware\CustomerPortalMiddleware::class,
             'customer.portal.web' => \App\Http\Middleware\CustomerPortalWebMiddleware::class,
-            'staff.portal.web'    => \App\Http\Middleware\StaffPortalWebMiddleware::class,
-            'idempotency'         => \App\Http\Middleware\RequireIdempotencyKey::class,
-            'plan'                => \App\Http\Middleware\RequirePlanFeature::class,
-            'stripe.onboarded'   => \App\Http\Middleware\RequireStripeOnboarding::class,
-            'bindings'            => \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            'staff.portal.web' => \App\Http\Middleware\StaffPortalWebMiddleware::class,
+            'idempotency' => \App\Http\Middleware\RequireIdempotencyKey::class,
+            'plan' => \App\Http\Middleware\RequirePlanFeature::class,
+            'stripe.onboarded' => \App\Http\Middleware\RequireStripeOnboarding::class,
+            'bindings' => \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
 
         $middleware->redirectGuestsTo(function (Request $request) {
@@ -71,6 +71,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->job(new \App\Jobs\WarmTenantReportCaches)->dailyAt('02:00');
         $schedule->job(new \App\Jobs\WarmPlatformReportCaches)->dailyAt('03:00');
         $schedule->job(new \App\Jobs\SendTrialExpirationWarnings)->dailyAt('09:00');
+        $schedule->job(new \App\Jobs\SendTrialDripEmails)->dailyAt('09:15');
         $schedule->job(new \App\Jobs\ExpireTrials)->dailyAt('01:30');
         $schedule->job(new \App\Jobs\SendUpgradeNudges)->dailyAt('09:00');
         $schedule->job(new \App\Jobs\ProcessDunning)->dailyAt('02:00');

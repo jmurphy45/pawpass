@@ -78,38 +78,33 @@
             </div>
           </div>
 
-          <!-- Target URL (editable for owner) -->
-          <div v-if="editingId === qr.id && isOwner">
-            <label class="block text-xs font-medium text-gray-500 mb-1">Redirect Target</label>
-            <input v-model="editTarget" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <div class="flex gap-2 mt-2">
-              <button
-                class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
-                :disabled="updateForm.processing"
-                @click="saveEdit(qr)"
-              >Save</button>
-              <button
-                class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                @click="editingId = null"
-              >Cancel</button>
-            </div>
-          </div>
-          <div v-else>
+          <!-- Target URL (read-only) -->
+          <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">Redirects to</label>
             <p class="text-sm text-gray-700 truncate font-mono">{{ qr.target_url }}</p>
           </div>
 
           <!-- QR image -->
           <div>
-            <div v-if="qrImages[qr.id]" class="flex items-end gap-3">
+            <div v-if="qrImages[qr.id]" class="flex flex-wrap items-end gap-2">
               <img :src="qrImages[qr.id]" alt="QR code" class="w-32 h-32 border border-gray-200 rounded-lg" />
-              <a
-                :href="route('admin.qr-codes.download', { qrCode: qr.id })"
-                download
-                class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Download PNG
-              </a>
+              <div class="flex flex-col gap-2">
+                <a
+                  :href="route('admin.qr-codes.download', { qrCode: qr.id })"
+                  download
+                  class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Download PNG
+                </a>
+                <button
+                  v-if="isOwner"
+                  :disabled="emailingId === qr.id"
+                  class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                  @click="emailQr(qr)"
+                >
+                  {{ emailSentId === qr.id ? 'Sent!' : emailingId === qr.id ? 'Sending…' : 'Email to me' }}
+                </button>
+              </div>
             </div>
             <button
               v-else
@@ -125,10 +120,6 @@
           <div class="flex items-center justify-between pt-2 border-t border-gray-100">
             <p class="text-xs text-gray-500">{{ qr.scan_count }} scan{{ qr.scan_count !== 1 ? 's' : '' }}</p>
             <div v-if="isOwner" class="flex gap-2">
-              <button
-                class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                @click="startEdit(qr)"
-              >Edit</button>
               <button
                 v-if="qr.is_active"
                 class="text-xs text-red-500 hover:text-red-700 font-medium"
@@ -170,9 +161,9 @@ const qrCodes = ref<QrCodeItem[]>(props.qrCodes);
 const isOwner = (usePage().props.auth as any)?.user?.role === 'business_owner';
 
 const showCreateForm = ref(false);
-const editingId = ref<string | null>(null);
-const editTarget = ref('');
 const loadingId = ref<string | null>(null);
+const emailingId = ref<string | null>(null);
+const emailSentId = ref<string | null>(null);
 const copiedId = ref<string | null>(null);
 const qrImages = ref<Record<string, string>>({});
 
@@ -182,28 +173,12 @@ const createForm = useForm({
   target_url: '',
 });
 
-const updateForm = useForm({
-  target_url: '',
-});
-
 function submitCreate() {
   createForm.post(route('admin.qr-codes.store'), {
     onSuccess: () => {
       createForm.reset();
       showCreateForm.value = false;
     },
-  });
-}
-
-function startEdit(qr: QrCodeItem) {
-  editingId.value = qr.id;
-  editTarget.value = qr.target_url;
-}
-
-function saveEdit(qr: QrCodeItem) {
-  updateForm.target_url = editTarget.value;
-  updateForm.patch(route('admin.qr-codes.update', { qrCode: qr.id }), {
-    onSuccess: () => { editingId.value = null; },
   });
 }
 
@@ -219,6 +194,20 @@ async function loadQr(qr: QrCodeItem) {
     qrImages.value[qr.id] = json.data.svg;
   } finally {
     loadingId.value = null;
+  }
+}
+
+async function emailQr(qr: QrCodeItem) {
+  emailingId.value = qr.id;
+  try {
+    await fetch(route('admin.qr-codes.email', { qrCode: qr.id }), {
+      method: 'POST',
+      headers: { 'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '' },
+    });
+    emailSentId.value = qr.id;
+    setTimeout(() => { emailSentId.value = null; }, 3000);
+  } finally {
+    emailingId.value = null;
   }
 }
 

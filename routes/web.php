@@ -226,6 +226,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::delete('/qr-codes/{qrCode}', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'destroy'])->name('admin.qr-codes.destroy');
         Route::get('/qr-codes/{qrCode}/image', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'image'])->name('admin.qr-codes.image');
         Route::get('/qr-codes/{qrCode}/download', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'download'])->name('admin.qr-codes.download');
+        Route::post('/qr-codes/{qrCode}/email', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'email'])->name('admin.qr-codes.email');
 
         // Settings (business_owner only enforced in controller)
         Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings.index');

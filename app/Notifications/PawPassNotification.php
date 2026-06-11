@@ -77,6 +77,22 @@ class PawPassNotification extends Notification implements ShouldQueue
             $message->action('Upgrade Now', $this->data['billing_url']);
         }
 
+        if ($this->type === 'onboarding.stripe_nudge' && isset($this->data['billing_url'])) {
+            $message->action('Connect Stripe', $this->data['billing_url']);
+        }
+
+        if ($this->type === 'onboarding.first_customer_nudge' && isset($this->data['customer_url'])) {
+            $message->action('Add First Customer', $this->data['customer_url']);
+        }
+
+        if ($this->type === 'onboarding.first_checkin_nudge' && isset($this->data['roster_url'])) {
+            $message->action('Go to Roster', $this->data['roster_url']);
+        }
+
+        if ($this->type === 'onboarding.halfway_upgrade' && isset($this->data['billing_url'])) {
+            $message->action('See Your Plan', $this->data['billing_url']);
+        }
+
         if ($notifiable && $notifiable->tenant_id) {
             $tenant = Tenant::find($notifiable->tenant_id);
             if ($tenant) {
@@ -199,6 +215,22 @@ class PawPassNotification extends Notification implements ShouldQueue
             'attendance.stale_checkins' => $this->buildStaleCheckinsMessage(),
             'payment.update_requested' => ['Action Required: Update Your Payment Method', 'Your account has an outstanding balance. Please update your payment method in the portal to resolve it.'],
             'trial.expiring_soon' => $this->buildTrialExpiringMessage(),
+            'onboarding.stripe_nudge' => [
+                'Ready to accept payments?',
+                'Your PawPass trial is running but payments are not yet enabled. Connect Stripe to start accepting credit cards from your customers.',
+            ],
+            'onboarding.first_customer_nudge' => [
+                'Add your first customer',
+                'You\'re set up — now it\'s time to add your first customer. It only takes a minute and unlocks check-ins, packages, and billing.',
+            ],
+            'onboarding.first_checkin_nudge' => [
+                'Walk through your first check-in',
+                'Your customers are in the system. Head to the Roster to check a dog in and see how the daily workflow feels.',
+            ],
+            'onboarding.halfway_upgrade' => [
+                'Halfway through your trial',
+                'You\'ve made great progress in your first 10 days. Upgrade before your trial ends to keep all your data and continue accepting bookings without interruption.',
+            ],
             default => [$this->type, $this->type],
         };
     }

@@ -13,20 +13,23 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class CustomerWelcomeMail extends Mailable
+class QrCodeMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public function __construct(
         public readonly User $user,
         public readonly Tenant $tenant,
-        public readonly string $rawToken,
+        public readonly QrCode $qrCode,
+        private readonly QrCodeService $qrCodeService,
     ) {}
 
     public function envelope(): Envelope
     {
+        $label = $this->qrCode->label ?? $this->qrCode->key;
+
         return new Envelope(
-            subject: 'Welcome to '.$this->tenant->name.' — access your portal',
+            subject: 'Your '.$label.' QR Code — '.$this->tenant->name,
         );
     }
 
@@ -34,31 +37,20 @@ class CustomerWelcomeMail extends Mailable
     {
         $hasWhiteLabel = app(PlanFeatureCache::class)->hasFeature($this->tenant->plan, 'white_label');
 
-        $portalQr = QrCode::where('tenant_id', $this->tenant->id)->where('key', 'portal')->first();
-        $qrCid = null;
-        $qrStableUrl = null;
-
-        $qrDataUri = null;
-        $qrStableUrl = null;
-
-        if ($portalQr) {
-            $qrService = app(QrCodeService::class);
-            $stableUrl = $qrService->stableUrl($portalQr->token);
-            $qrDataUri = 'data:image/png;base64,'.base64_encode($qrService->png($stableUrl, 200));
-            $qrStableUrl = $stableUrl;
-        }
+        $stableUrl = $this->qrCodeService->stableUrl($this->qrCode->token);
+        $qrDataUri = 'data:image/png;base64,'.base64_encode($this->qrCodeService->png($stableUrl, 300));
 
         return new Content(
-            view: 'emails.customer-welcome',
-            text: 'emails.customer-welcome-text',
+            view: 'emails.qr-code',
+            text: 'emails.qr-code-text',
             with: [
-                'loginUrl' => route('magic-link.verify', ['token' => $this->rawToken]),
                 'userName' => $this->user->name,
                 'tenantName' => $this->tenant->name,
+                'label' => $this->qrCode->label ?? $this->qrCode->key,
+                'stableUrl' => $stableUrl,
+                'qrDataUri' => $qrDataUri,
                 'logoUrl' => $hasWhiteLabel ? $this->tenant->logo_url : null,
                 'primaryColor' => $hasWhiteLabel ? ($this->tenant->primary_color ?? config('pawpass.brand_color')) : config('pawpass.brand_color'),
-                'qrDataUri' => $qrDataUri,
-                'qrStableUrl' => $qrStableUrl,
             ],
         );
     }

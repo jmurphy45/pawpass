@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\QrCodeMail;
 use App\Models\QrCode;
+use App\Models\Tenant;
 use App\Services\QrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -117,6 +120,18 @@ class QrCodeController extends Controller
             $filename,
             ['Content-Type' => 'image/png'],
         );
+    }
+
+    public function email(QrCode $qrCode): JsonResponse
+    {
+        $this->requireOwner();
+
+        $user = auth()->user();
+        $tenant = Tenant::find(app('current.tenant.id'));
+
+        Mail::to($user)->send(new QrCodeMail($user, $tenant, $qrCode, $this->qrCodeService));
+
+        return response()->json(['message' => 'Email sent.']);
     }
 
     private function requireOwner(): void

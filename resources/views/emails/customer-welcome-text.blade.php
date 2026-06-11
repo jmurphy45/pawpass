@@ -9,3 +9,7 @@ Click the link below to sign in (expires in 72 hours):
 {{ $loginUrl }}
 
 After signing in, you can request a new sign-in link from the portal login page at any time.
+
+@if(!empty($qrStableUrl))
+You can also scan the QR code attached to this email or visit: {{ $qrStableUrl }}
+@endif
