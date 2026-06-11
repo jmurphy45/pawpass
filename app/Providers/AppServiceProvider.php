@@ -78,6 +78,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(OrderService::class);
         $this->app->bind(KennelAvailabilityService::class);
         $this->app->bind(VaccinationComplianceService::class);
+        $this->app->bind(\App\Services\QrCodeService::class);
+        $this->app->bind(\Godruoyi\Snowflake\Snowflake::class);
 
         $this->app->singleton(PimsAdapterRegistry::class, function () {
             $registry = new PimsAdapterRegistry;

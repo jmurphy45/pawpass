@@ -52,10 +52,14 @@ use App\Http\Controllers\Web\Portal\NotificationController;
 use App\Http\Controllers\Web\Portal\OrderReceiptController;
 use App\Http\Controllers\Web\Portal\PurchaseController;
 use App\Http\Controllers\Web\Portal\SubscriptionController;
+use App\Http\Controllers\Web\QrRedirectController;
 use App\Http\Controllers\Web\TenantRegistrationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+
+// QR code stable redirect — token-based, slug-change-proof
+Route::get('/go/{token}', [QrRedirectController::class, 'redirect'])->name('qr.redirect');
 
 // Magic-link passwordless authentication (no tenant scope — works for any portal)
 Route::prefix('auth/magic-link')->group(function () {
@@ -214,6 +218,14 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         // Invoices
         Route::get('/invoices/create', [AdminInvoiceWebController::class, 'create'])->name('admin.invoices.create');
         Route::post('/invoices', [AdminInvoiceWebController::class, 'store'])->name('admin.invoices.store');
+
+        // QR Codes
+        Route::get('/qr-codes', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'index'])->name('admin.qr-codes.index');
+        Route::post('/qr-codes', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'store'])->name('admin.qr-codes.store');
+        Route::patch('/qr-codes/{qrCode}', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'update'])->name('admin.qr-codes.update');
+        Route::delete('/qr-codes/{qrCode}', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'destroy'])->name('admin.qr-codes.destroy');
+        Route::get('/qr-codes/{qrCode}/image', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'image'])->name('admin.qr-codes.image');
+        Route::get('/qr-codes/{qrCode}/download', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'download'])->name('admin.qr-codes.download');
 
         // Settings (business_owner only enforced in controller)
         Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings.index');

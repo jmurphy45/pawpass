@@ -200,6 +200,12 @@
                           </Link>
                         </li>
                         <li>
+                          <Link :href="route('admin.qr-codes.index')" :class="[isActive('admin.qr-codes.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <QrCodeIcon class="size-6 shrink-0" aria-hidden="true" />
+                            QR Codes
+                          </Link>
+                        </li>
+                        <li>
                           <Link :href="route('admin.settings.index')" :class="[isActive('admin.settings.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
                             <Cog6ToothIcon class="size-6 shrink-0" aria-hidden="true" />
                             Settings
@@ -418,6 +424,12 @@
                   </Link>
                 </li>
                 <li>
+                  <Link :href="route('admin.qr-codes.index')" :class="[isActive('admin.qr-codes.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <QrCodeIcon class="size-6 shrink-0" aria-hidden="true" />
+                    QR Codes
+                  </Link>
+                </li>
+                <li>
                   <Link :href="route('admin.settings.index')" :class="[isActive('admin.settings.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
                     <Cog6ToothIcon class="size-6 shrink-0" aria-hidden="true" />
                     Settings
@@ -528,6 +540,7 @@ import {
   HomeModernIcon,
   ListBulletIcon,
   MegaphoneIcon,
+  QrCodeIcon,
   ShieldCheckIcon,
   SparklesIcon,
   Squares2X2Icon,

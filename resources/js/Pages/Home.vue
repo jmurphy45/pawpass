@@ -451,15 +451,15 @@
             <!-- Social proof badge -->
             <div class="hero-item mb-8 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5">
               <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
-              <span class="text-xs font-semibold tracking-wide text-amber-400 uppercase">Join 500+ daycares</span>
+              <span class="text-xs font-semibold tracking-wide text-amber-400 uppercase">Trusted by daycare owners nationwide</span>
             </div>
 
             <h1 class="hero-item text-5xl font-extrabold leading-[1.05] tracking-tight text-white md:text-6xl lg:text-7xl">
-              The all-in-one platform for doggy daycare businesses.
+              Run your daycare without the paperwork.
             </h1>
 
             <p class="hero-item mt-6 text-lg leading-relaxed text-white/60 max-w-lg">
-              Manage check-ins, credits, and Stripe payments — all from one dashboard. Start your 21-day free trial.
+              Check dogs in with one tap. Credits track themselves. Payments go straight to your bank. Try free for 21 days.
             </p>
 
             <div class="hero-item mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
@@ -560,7 +560,7 @@
     <!-- ===== LOGO BAR ===== -->
     <section style="background-color: #faf9f6;" class="border-b border-gray-200 px-6 py-12">
       <div class="mx-auto max-w-7xl text-center">
-        <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-8">Trusted by daycares across the country</p>
+        <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-8">Doggy daycares across the country run on PawPass</p>
         <div class="flex flex-wrap items-center justify-center gap-4">
           <span v-for="biz in trustedBusinesses" :key="biz" class="rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-600 shadow-sm">
             {{ biz }}
@@ -573,8 +573,8 @@
     <section class="bg-white px-6 py-24">
       <div class="mx-auto max-w-7xl">
         <div class="text-center mb-16">
-          <h2 class="text-4xl font-extrabold tracking-tight text-gray-900 md:text-5xl">Up and running in minutes</h2>
-          <p class="mt-4 text-lg text-gray-500 max-w-xl mx-auto">No complicated setup. No dev team needed. Just sign up and go.</p>
+          <h2 class="text-4xl font-extrabold tracking-tight text-gray-900 md:text-5xl">From signup to first check-in in under an hour</h2>
+          <p class="mt-4 text-lg text-gray-500 max-w-xl mx-auto">No spreadsheets to migrate. No IT department required. You handle the dogs — we handle the software.</p>
         </div>
         <div class="grid gap-8 md:grid-cols-3">
           <div v-for="step in howItWorks" :key="step.number" class="relative flex flex-col">
@@ -600,10 +600,10 @@
           <div>
             <span class="inline-block rounded-full bg-indigo-100 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-indigo-700 mb-5">Attendance</span>
             <h2 class="text-4xl font-extrabold tracking-tight text-gray-900 md:text-5xl leading-[1.1]">
-              Effortless check-ins and attendance tracking.
+              Know exactly who's here — all day, every day.
             </h2>
             <p class="mt-6 text-lg text-gray-600 leading-relaxed">
-              One-click roster for daily check-ins. Credits deduct automatically after each visit so your balance stays perfectly accurate — no manual entry, no errors.
+              One tap per dog at drop-off. Credits subtract automatically with each visit, so you always know who's running low — without opening a single spreadsheet.
             </p>
             <ul class="mt-8 space-y-3">
               <li v-for="item in checkInFeatures" :key="item" class="flex items-start gap-3 text-gray-700">
@@ -669,10 +669,10 @@
           <div class="order-1 md:order-2">
             <span class="inline-block rounded-full bg-amber-100 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-700 mb-5">Payments</span>
             <h2 class="text-4xl font-extrabold tracking-tight text-gray-900 md:text-5xl leading-[1.1]">
-              Payments that just work.
+              Get paid without chasing anyone.
             </h2>
             <p class="mt-6 text-lg text-gray-600 leading-relaxed">
-              Sell day packs or subscriptions. Stripe Connect routes payouts directly to your bank account. Automatic invoicing — zero manual billing.
+              Customers buy day packs or monthly passes right from their portal. Stripe handles the transaction — you see the money in your bank account, no invoicing required.
             </p>
             <ul class="mt-8 space-y-3">
               <li v-for="item in paymentFeatures" :key="item" class="flex items-start gap-3 text-gray-700">
@@ -706,8 +706,8 @@
     <section class="bg-white px-6 py-24">
       <div class="mx-auto max-w-7xl">
         <div class="text-center mb-16">
-          <h2 class="text-4xl font-extrabold tracking-tight text-gray-900 md:text-5xl">Loved by daycare owners</h2>
-          <p class="mt-4 text-lg text-gray-500">Real stories from real businesses.</p>
+          <h2 class="text-4xl font-extrabold tracking-tight text-gray-900 md:text-5xl">What daycare owners say</h2>
+          <p class="mt-4 text-lg text-gray-500">From folks who were using spreadsheets before.</p>
         </div>
         <div class="grid gap-8 md:grid-cols-3">
           <div
@@ -824,9 +824,9 @@
       <div class="absolute inset-0 opacity-10" style="background: radial-gradient(circle at center, #4f46e5 0%, transparent 65%); filter: blur(60px);"></div>
       <div class="relative mx-auto max-w-3xl">
         <h2 class="text-5xl font-extrabold tracking-tight text-white md:text-6xl leading-tight">
-          Ready to transform your daycare?
+          Your dogs deserve better than a spreadsheet.
         </h2>
-        <p class="mt-6 text-xl text-white/50">Join hundreds of doggy daycares already using PawPass.</p>
+        <p class="mt-6 text-xl text-white/50">Join hundreds of daycares that traded their clipboards for something better. Your first 21 days are on us.</p>
         <a
           href="/register"
           class="mt-10 inline-block rounded-xl bg-indigo-600 px-12 py-4 text-lg font-bold text-white shadow-xl hover:bg-indigo-500 transition-all hover:shadow-indigo-500/30 hover:shadow-2xl"
@@ -1111,17 +1111,17 @@ const howItWorks = [
   {
     number: 1,
     title: 'Create your account',
-    description: 'Sign up in minutes. Add your business details, customers, and their dogs to get your roster ready.',
+    description: 'Sign up and add your customers and their dogs. Your roster is ready before the end of your coffee.',
   },
   {
     number: 2,
     title: 'Set up packages',
-    description: 'Create day packs or monthly subscriptions. Connect Stripe in one click for instant bank payouts.',
+    description: 'Build day packs or monthly subscriptions. Connect Stripe in one click — payouts land directly in your bank account.',
   },
   {
     number: 3,
     title: 'Start checking in',
-    description: 'Use the live roster to check dogs in and out. Credits deduct automatically — no manual tracking.',
+    description: 'Tap to check dogs in each morning. Credits deduct automatically so you never have to count them again.',
   },
 ]
 
@@ -1157,28 +1157,28 @@ const paymentMockPackages = [
 const featureCards = [
   {
     title: 'Customer Portal',
-    description: 'Dog owners manage their own profiles, purchases, and visit history. Zero extra work for your staff.',
+    description: 'Customers log in, buy passes, and check their credits — without calling you. Your staff saves hours every week.',
     iconBg: '#eef2ff',
     iconColor: '#4f46e5',
     iconPath: '<path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>',
   },
   {
     title: 'Smart Notifications',
-    description: 'Automated SMS and email alerts for low credits, payment confirmations, and subscription renewals.',
+    description: "Owners get a heads-up when credits run low, so you never deal with awkward 'you owe me' conversations at pick-up.",
     iconBg: '#fef3c7',
     iconColor: '#d97706',
     iconPath: '<path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>',
   },
   {
     title: 'Financial Reports',
-    description: 'Revenue dashboards, attendance analytics, and per-dog credit reports. Always know your business.',
+    description: 'See revenue, attendance, and credit balances at a glance. Know which packages sell, which dogs attend most, and where you\'re growing.',
     iconBg: '#f0fdf4',
     iconColor: '#059669',
     iconPath: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>',
   },
   {
     title: 'Multi-Dog Support',
-    description: 'One customer account for multiple dogs. Credits, history, and check-ins tracked perfectly per dog.',
+    description: 'Families with multiple dogs are no problem. Each pup has its own check-in history and credit balance, all under one account.',
     iconBg: '#fdf4ff',
     iconColor: '#9333ea',
     iconPath: '<path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>',
@@ -1188,21 +1188,21 @@ const featureCards = [
 // ── Testimonials ─────────────────────────────────────────────
 const testimonials = [
   {
-    quote: 'PawPass replaced three separate tools for us. Our staff figured it out in an afternoon.',
+    quote: 'We were tracking credits in a Google Sheet. PawPass replaced that plus two other tools — and our staff learned it in an afternoon.',
     name: 'Sarah M.',
     business: 'Paws & Play Portland',
     initials: 'SM',
     avatarBg: '#4f46e5',
   },
   {
-    quote: 'The credit system is genius. No more manual spreadsheets tracking who has days left.',
+    quote: 'I used to text owners when their credits were getting low. Now PawPass does it automatically. That alone saves me an hour a week.',
     name: 'James K.',
     business: 'Happy Tails Austin',
     initials: 'JK',
     avatarBg: '#059669',
   },
   {
-    quote: 'Stripe payouts hit our account instantly. Setup took 20 minutes.',
+    quote: 'Setup was 20 minutes. Stripe was already connected when I checked the next morning.',
     name: 'Priya L.',
     business: 'Bark Ave NYC',
     initials: 'PL',
