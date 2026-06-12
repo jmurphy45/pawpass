@@ -19,7 +19,7 @@ class FeaturesServiceProvider extends ServiceProvider
         'recurring_checkout', 'vaccination_management',
         'advanced_credit_ops', 'boarding', 'addon_services',
         'broadcast_notifications', 'auto_replenish',
-        'manage_packages', 'manage_promotions',
+        'manage_packages', 'manage_promotions', 'parking_management',
     ];
 
     public function boot(): void

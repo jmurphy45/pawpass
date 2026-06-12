@@ -228,6 +228,16 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/qr-codes/{qrCode}/download', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'download'])->name('admin.qr-codes.download');
         Route::post('/qr-codes/{qrCode}/email', [\App\Http\Controllers\Web\Admin\QrCodeController::class, 'email'])->name('admin.qr-codes.email');
 
+        // Parking Spots
+        Route::middleware('plan:parking_management')->group(function () {
+            Route::get('/parking-spots', [\App\Http\Controllers\Web\Admin\ParkingSpotController::class, 'index'])->name('admin.parking-spots.index');
+            Route::post('/parking-spots', [\App\Http\Controllers\Web\Admin\ParkingSpotController::class, 'store'])->name('admin.parking-spots.store');
+            Route::patch('/parking-spots/{parkingSpot}', [\App\Http\Controllers\Web\Admin\ParkingSpotController::class, 'update'])->name('admin.parking-spots.update');
+            Route::delete('/parking-spots/{parkingSpot}', [\App\Http\Controllers\Web\Admin\ParkingSpotController::class, 'destroy'])->name('admin.parking-spots.destroy');
+            Route::get('/parking-spots/{parkingSpot}/qr-image', [\App\Http\Controllers\Web\Admin\ParkingSpotController::class, 'qrCodeImage'])->name('admin.parking-spots.qr-image');
+            Route::get('/parking-spots/{parkingSpot}/qr-download', [\App\Http\Controllers\Web\Admin\ParkingSpotController::class, 'qrCodeDownload'])->name('admin.parking-spots.qr-download');
+        });
+
         // Settings (business_owner only enforced in controller)
         Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings.index');
         Route::patch('/settings/business', [AdminSettingsController::class, 'updateBusiness'])->name('admin.settings.business');

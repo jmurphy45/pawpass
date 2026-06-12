@@ -79,6 +79,22 @@ export interface CreditLedger {
     created_at: string;
 }
 
+export interface ParkingSpot {
+    id: string;
+    spot_number: string;
+    name: string;
+    description: string | null;
+    location: string | null;
+    is_active: boolean;
+    sort_order: number;
+    qr_key: string;
+    qr_code: {
+        id: string;
+        stable_url: string;
+        scan_count: number;
+    } | null;
+}
+
 export interface PageProps {
     [key: string]: unknown;
     tenant: Tenant | null;

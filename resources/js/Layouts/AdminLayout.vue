@@ -205,6 +205,12 @@
                             QR Codes
                           </Link>
                         </li>
+                        <li v-if="hasParkingManagement">
+                          <Link :href="route('admin.parking-spots.index')" :class="[isActive('admin.parking-spots.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
+                            <Squares2X2Icon class="size-6 shrink-0" aria-hidden="true" />
+                            Parking Spots
+                          </Link>
+                        </li>
                         <li>
                           <Link :href="route('admin.settings.index')" :class="[isActive('admin.settings.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']" @click="sidebarOpen = false">
                             <Cog6ToothIcon class="size-6 shrink-0" aria-hidden="true" />
@@ -429,6 +435,12 @@
                     QR Codes
                   </Link>
                 </li>
+                <li v-if="hasParkingManagement">
+                  <Link :href="route('admin.parking-spots.index')" :class="[isActive('admin.parking-spots.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
+                    <Squares2X2Icon class="size-6 shrink-0" aria-hidden="true" />
+                    Parking Spots
+                  </Link>
+                </li>
                 <li>
                   <Link :href="route('admin.settings.index')" :class="[isActive('admin.settings.*') ? 'bg-indigo-950/25 text-white' : 'text-indigo-100 hover:bg-indigo-950/25 hover:text-white', 'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold']">
                     <Cog6ToothIcon class="size-6 shrink-0" aria-hidden="true" />
@@ -578,6 +590,7 @@ const hasVaccinationManagement = computed(() => hasFeature('vaccination_manageme
 const hasGroomingAppts = computed(() => hasFeature('grooming_appointments'));
 const hasVetAppts = computed(() => hasFeature('vet_appointments'));
 const hasDaycareBooking = computed(() => hasFeature('daycare_booking'));
+const hasParkingManagement = computed(() => hasFeature('parking_management'));
 const hasPimsIntegration = computed(() => isOwner.value && hasFeature('pims_integration'));
 
 const dismissedFlash = ref<Record<string, boolean>>({});

@@ -3,10 +3,10 @@
 namespace Tests\Feature\Mail;
 
 use App\Mail\CustomerWelcomeMail;
-use App\Models\QrCode;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class CustomerWelcomeMailTest extends TestCase
@@ -18,11 +18,8 @@ class CustomerWelcomeMailTest extends TestCase
         $tenant = Tenant::factory()->create(['slug' => 'testco', 'plan' => 'starter']);
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
 
-        QrCode::factory()->create([
-            'tenant_id' => $tenant->id,
-            'key' => 'portal',
-            'target_url' => '/my',
-        ]);
+        // Portal QR code is automatically created by ProvisionPortalQrCode job when tenant is created
+        // since queue is sync in tests, it should already exist
 
         $mailable = new CustomerWelcomeMail($user, $tenant, 'raw-token-123');
         $rendered = $mailable->render();
@@ -33,6 +30,8 @@ class CustomerWelcomeMailTest extends TestCase
 
     public function test_qr_code_section_absent_when_no_portal_qr(): void
     {
+        Queue::fake(); // Prevent ProvisionPortalQrCode job from creating portal QR
+
         $tenant = Tenant::factory()->create(['slug' => 'testco', 'plan' => 'starter']);
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
 
