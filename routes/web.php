@@ -195,6 +195,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::delete('/roster/attendances/{attendance}/addons/{addon}', [AdminRosterController::class, 'destroyAttendanceAddon'])->name('admin.roster.attendance-addons.destroy');
         Route::post('/roster/attendances/{attendance}/comments', [AdminRosterController::class, 'storeAttendanceComment'])->name('admin.roster.attendance-comments.store');
         Route::delete('/roster/attendances/{attendance}/comments/{comment}', [AdminRosterController::class, 'destroyAttendanceComment'])->name('admin.roster.attendance-comments.destroy');
+        Route::post('/roster/daycare/{appointment}/acknowledge-arrival', [AdminRosterController::class, 'acknowledgeDaycareArrival'])->name('admin.roster.daycare.acknowledge-arrival');
 
         // Credits
         Route::post('/dogs/{dog}/credits/goodwill', [AdminCreditController::class, 'goodwill'])->name('admin.credits.goodwill');
@@ -381,6 +382,7 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::get('/boarding/{id}', [PortalBoardingController::class, 'show'])->name('portal.boarding.show');
         Route::post('/boarding/{id}/cancel', [PortalBoardingController::class, 'cancel'])->name('portal.boarding.cancel');
         Route::post('/boarding/{id}/arrive', [ArrivalController::class, 'store'])->name('portal.boarding.arrive');
+        Route::post('/daycare/{id}/arrive', [ArrivalController::class, 'storeAppointment'])->name('portal.daycare.arrive');
 
         // Curbside arrival (QR code landing page)
         Route::get('/arrive/{tenantId}/{parkingSpotId}', [ArrivalController::class, 'show'])->name('portal.arrive.show');

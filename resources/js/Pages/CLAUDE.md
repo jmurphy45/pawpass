@@ -52,3 +52,7 @@ usePage().props.unreadCount      // number (notification bell)
 route('admin.dogs.show', { dog: dog.id })  // correct
 route('admin.dogs.show', dog.id)           // wrong
 ```
+
+## Feature-Gated Props
+
+When a prop is only relevant under a plan feature (e.g. `pendingArrivals` / `hasParkingManagement` on the boarding page), the controller passes an empty collection when the feature is inactive rather than omitting the prop. Always declare both props in `defineProps` so TypeScript doesn't complain on plans without the feature.

@@ -57,6 +57,7 @@ Packages are **archived, never deleted** — preserves FK integrity on historica
 - `users.role` and `users.status` — `text` with CHECK constraints (not PG enums — users migration runs before enum types migration)
 - `notifications` — standard Laravel schema + `tenant_id char(26) nullable`
 - `notification_logs.notification_id` — uuid (nullable, FK → notifications.id ON DELETE SET NULL)
+- `reservations.parking_spot_id` — nullable `char(26)` FK → `parking_spots.id ON DELETE SET NULL`; `arrived_at` and `arrival_acknowledged_at` are nullable `timestampTz` columns added for curbside arrival flow
 
 ## Factories
 

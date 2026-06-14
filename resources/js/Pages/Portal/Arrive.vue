@@ -16,28 +16,34 @@
         <p class="text-text-muted text-sm">We'll be right out to get {{ announcedDogName }}.</p>
       </AppCard>
 
-      <!-- No reservations -->
-      <AppCard v-else-if="reservations.length === 0" class="text-center space-y-2 py-6">
-        <p class="font-semibold text-text-body">No reservations found for today</p>
+      <!-- No reservations or appointments -->
+      <AppCard v-else-if="items.length === 0" class="text-center space-y-2 py-6">
+        <p class="font-semibold text-text-body">No visits found for today</p>
         <p class="text-text-muted text-sm">Please head inside or give us a call.</p>
       </AppCard>
 
-      <!-- Reservation picker -->
+      <!-- Picker -->
       <template v-else>
         <AppCard class="space-y-4">
-          <p class="text-sm text-text-muted">Select your boarding reservation:</p>
+          <p class="text-sm text-text-muted">Select your visit:</p>
 
           <div class="space-y-2">
             <label
-              v-for="r in reservations"
-              :key="r.id"
+              v-for="item in items"
+              :key="item.id"
               class="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer"
-              :class="selected === r.id ? 'border-primary bg-primary/5' : 'hover:bg-surface-muted'"
+              :class="selected === item.id ? 'border-primary bg-primary/5' : 'hover:bg-surface-muted'"
             >
-              <input type="radio" :value="r.id" v-model="selected" class="accent-primary" />
-              <div>
-                <p class="font-medium text-text-body">{{ r.dog?.name ?? 'Dog' }}</p>
-                <p class="text-xs text-text-muted">Check-in: {{ formatDate(r.starts_at) }}</p>
+              <input type="radio" :value="item.id" v-model="selected" class="accent-primary" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="font-medium text-text-body">{{ item.dog?.name ?? 'Dog' }}</p>
+                  <span
+                    class="text-xs font-medium px-1.5 py-0.5 rounded"
+                    :class="item.type === 'daycare' ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'"
+                  >{{ item.type === 'daycare' ? 'Daycare' : 'Boarding' }}</span>
+                </div>
+                <p class="text-xs text-text-muted">{{ formatDate(item.starts_at) }}</p>
               </div>
             </label>
           </div>
@@ -50,8 +56,8 @@
             {{ form.processing ? 'Notifying staff…' : "I'm here!" }}
           </AppButton>
 
-          <p v-if="form.errors.parking_spot_id" class="text-sm text-danger">
-            {{ form.errors.parking_spot_id }}
+          <p v-if="form.errors.spot_number" class="text-sm text-danger">
+            {{ form.errors.spot_number }}
           </p>
         </AppCard>
       </template>
@@ -61,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 
@@ -71,7 +77,22 @@ interface Spot {
   name: string;
 }
 
+interface VisitItem {
+  id: string;
+  type: 'boarding' | 'daycare';
+  starts_at: string | null;
+  ends_at: string | null;
+  dog: { id: string; name: string } | null;
+}
+
 interface ReservationItem {
+  id: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  dog: { id: string; name: string } | null;
+}
+
+interface AppointmentItem {
   id: string;
   starts_at: string | null;
   ends_at: string | null;
@@ -81,12 +102,18 @@ interface ReservationItem {
 interface PageProps {
   spot: Spot;
   reservations: ReservationItem[];
+  appointments: AppointmentItem[];
   [key: string]: unknown;
 }
 
 const props = defineProps<PageProps>();
 
-const selected = ref<string | null>(props.reservations.length === 1 ? props.reservations[0].id : null);
+const items = computed<VisitItem[]>(() => [
+  ...props.reservations.map((r) => ({ ...r, type: 'boarding' as const })),
+  ...props.appointments.map((a) => ({ ...a, type: 'daycare' as const })),
+]);
+
+const selected = ref<string | null>(items.value.length === 1 ? items.value[0].id : null);
 const announced = ref(false);
 const announcedDogName = ref('');
 
@@ -96,11 +123,15 @@ const form = useForm({
 
 function submit() {
   if (!selected.value) return;
-  const reservation = props.reservations.find(r => r.id === selected.value);
-  form.post(route('portal.boarding.arrive', { id: selected.value }), {
+  const item = items.value.find((i) => i.id === selected.value);
+  if (!item) return;
+
+  const routeName = item.type === 'daycare' ? 'portal.daycare.arrive' : 'portal.boarding.arrive';
+
+  form.post(route(routeName, { id: selected.value }), {
     onSuccess: () => {
       announced.value = true;
-      announcedDogName.value = reservation?.dog?.name ?? 'your dog';
+      announcedDogName.value = item.dog?.name ?? 'your dog';
     },
   });
 }

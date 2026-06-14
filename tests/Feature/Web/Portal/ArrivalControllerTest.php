@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Web\Portal;
 
+use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\ParkingSpot;
@@ -388,5 +389,259 @@ class ArrivalControllerTest extends TestCase
             ])
             ->assertRedirect()
             ->assertSessionHasErrors('spot_number');
+    }
+
+    // --- date-window fix: show() includes stay active today ---
+
+    public function test_show_includes_reservation_where_today_is_within_stay(): void
+    {
+        // starts_at was yesterday, ends_at is tomorrow — stay spans today
+        $reservation = Reservation::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'status' => 'confirmed',
+            'starts_at' => now()->subDay()->startOfDay(),
+            'ends_at' => now()->addDay()->startOfDay(),
+            'created_by' => $this->staffUser->id,
+        ]);
+
+        $response = $this->actingAs($this->customerUser)
+            ->get("/my/arrive/{$this->tenant->id}/{$this->spot->id}");
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->has('reservations', 1)
+                ->where('reservations.0.id', $reservation->id)
+            );
+    }
+
+    public function test_store_allows_arrival_on_last_day_of_stay(): void
+    {
+        Notification::fake();
+
+        $reservation = Reservation::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'status' => 'confirmed',
+            'starts_at' => now()->subDay()->startOfDay(),
+            'ends_at' => now()->endOfDay(),
+            'created_by' => $this->staffUser->id,
+        ]);
+
+        $this->actingAs($this->customerUser)
+            ->post("/my/boarding/{$reservation->id}/arrive", [
+                'spot_number' => $this->spot->spot_number,
+            ])
+            ->assertRedirect();
+
+        $this->assertNotNull($reservation->fresh()->arrived_at);
+    }
+
+    // --- daycare: show() ---
+
+    public function test_show_includes_todays_confirmed_daycare_appointments(): void
+    {
+        $appointment = Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'service_type' => 'daycare_booking',
+            'status' => 'confirmed',
+            'starts_at' => now()->setTime(7, 0),
+            'ends_at' => now()->setTime(18, 0),
+        ]);
+
+        $response = $this->actingAs($this->customerUser)
+            ->get("/my/arrive/{$this->tenant->id}/{$this->spot->id}");
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->has('appointments', 1)
+                ->where('appointments.0.id', $appointment->id)
+            );
+    }
+
+    public function test_show_excludes_daycare_appointments_not_today(): void
+    {
+        Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'service_type' => 'daycare_booking',
+            'status' => 'confirmed',
+            'starts_at' => now()->addDay()->setTime(7, 0),
+            'ends_at' => now()->addDay()->setTime(18, 0),
+        ]);
+
+        $response = $this->actingAs($this->customerUser)
+            ->get("/my/arrive/{$this->tenant->id}/{$this->spot->id}");
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->has('appointments', 0)
+            );
+    }
+
+    public function test_show_excludes_already_arrived_daycare_appointments(): void
+    {
+        Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'service_type' => 'daycare_booking',
+            'status' => 'confirmed',
+            'starts_at' => now()->setTime(7, 0),
+            'ends_at' => now()->setTime(18, 0),
+            'arrived_at' => now()->subMinutes(5),
+        ]);
+
+        $response = $this->actingAs($this->customerUser)
+            ->get("/my/arrive/{$this->tenant->id}/{$this->spot->id}");
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->has('appointments', 0)
+            );
+    }
+
+    // --- daycare: storeAppointment() ---
+
+    public function test_customer_can_announce_daycare_arrival(): void
+    {
+        Notification::fake();
+
+        $appointment = Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'service_type' => 'daycare_booking',
+            'status' => 'confirmed',
+            'starts_at' => now()->setTime(7, 0),
+            'ends_at' => now()->setTime(18, 0),
+        ]);
+
+        $this->actingAs($this->customerUser)
+            ->post("/my/daycare/{$appointment->id}/arrive", [
+                'spot_number' => $this->spot->spot_number,
+            ])
+            ->assertRedirect();
+
+        $appointment->refresh();
+        $this->assertNotNull($appointment->arrived_at);
+        $this->assertSame($this->spot->id, $appointment->parking_spot_id);
+    }
+
+    public function test_daycare_store_sends_notification_to_staff(): void
+    {
+        Notification::fake();
+
+        $appointment = Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'service_type' => 'daycare_booking',
+            'status' => 'confirmed',
+            'starts_at' => now()->setTime(7, 0),
+            'ends_at' => now()->setTime(18, 0),
+        ]);
+
+        $this->actingAs($this->customerUser)
+            ->post("/my/daycare/{$appointment->id}/arrive", [
+                'spot_number' => $this->spot->spot_number,
+            ]);
+
+        Notification::assertSentTo(
+            $this->staffUser,
+            PawPassNotification::class,
+            fn ($n) => $n->type === 'daycare.curbside_arrival'
+        );
+
+        Notification::assertSentTo(
+            $this->ownerUser,
+            PawPassNotification::class,
+            fn ($n) => $n->type === 'daycare.curbside_arrival'
+        );
+    }
+
+    public function test_daycare_store_rejects_non_confirmed_appointment(): void
+    {
+        $appointment = Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'service_type' => 'daycare_booking',
+            'status' => 'pending',
+            'starts_at' => now()->setTime(7, 0),
+            'ends_at' => now()->setTime(18, 0),
+        ]);
+
+        $this->actingAs($this->customerUser)
+            ->post("/my/daycare/{$appointment->id}/arrive", [
+                'spot_number' => $this->spot->spot_number,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_daycare_store_rejects_already_arrived_appointment(): void
+    {
+        $appointment = Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'service_type' => 'daycare_booking',
+            'status' => 'confirmed',
+            'starts_at' => now()->setTime(7, 0),
+            'ends_at' => now()->setTime(18, 0),
+            'arrived_at' => now()->subMinutes(5),
+        ]);
+
+        $this->actingAs($this->customerUser)
+            ->post("/my/daycare/{$appointment->id}/arrive", [
+                'spot_number' => $this->spot->spot_number,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_daycare_store_rejects_appointment_not_today(): void
+    {
+        $appointment = Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
+            'customer_id' => $this->customer->id,
+            'service_type' => 'daycare_booking',
+            'status' => 'confirmed',
+            'starts_at' => now()->addDay()->setTime(7, 0),
+            'ends_at' => now()->addDay()->setTime(18, 0),
+        ]);
+
+        $this->actingAs($this->customerUser)
+            ->post("/my/daycare/{$appointment->id}/arrive", [
+                'spot_number' => $this->spot->spot_number,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_daycare_store_rejects_other_customers_appointment(): void
+    {
+        $otherCustomer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $otherDog = Dog::factory()->forCustomer($otherCustomer)->create();
+
+        $appointment = Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $otherDog->id,
+            'customer_id' => $otherCustomer->id,
+            'service_type' => 'daycare_booking',
+            'status' => 'confirmed',
+            'starts_at' => now()->setTime(7, 0),
+            'ends_at' => now()->setTime(18, 0),
+        ]);
+
+        $this->actingAs($this->customerUser)
+            ->post("/my/daycare/{$appointment->id}/arrive", [
+                'spot_number' => $this->spot->spot_number,
+            ])
+            ->assertForbidden();
     }
 }

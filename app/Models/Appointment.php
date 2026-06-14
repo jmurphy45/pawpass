@@ -30,6 +30,9 @@ class Appointment extends Model
         'cancelled_at',
         'cancelled_by',
         'cancellation_reason',
+        'parking_spot_id',
+        'arrived_at',
+        'arrival_acknowledged_at',
     ];
 
     protected function casts(): array
@@ -39,6 +42,8 @@ class Appointment extends Model
             'ends_at' => 'immutable_datetime',
             'price_cents' => 'integer',
             'cancelled_at' => 'immutable_datetime',
+            'arrived_at' => 'immutable_datetime',
+            'arrival_acknowledged_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
         ];
@@ -146,5 +151,10 @@ class Appointment extends Model
     public function daycareBookingDetail(): HasOne
     {
         return $this->hasOne(DaycareBookingDetail::class);
+    }
+
+    public function parkingSpot(): BelongsTo
+    {
+        return $this->belongsTo(ParkingSpot::class);
     }
 }

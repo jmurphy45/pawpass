@@ -9,6 +9,7 @@ use App\Exceptions\CheckInException;
 use App\Http\Controllers\Controller;
 use App\Jobs\CancelPaymentIntentJob;
 use App\Models\AddonType;
+use App\Models\Appointment;
 use App\Models\Attendance;
 use App\Models\AttendanceAddon;
 use App\Models\AttendanceComment;
@@ -18,6 +19,7 @@ use App\Models\Tenant;
 use App\Services\AttendancePaymentService;
 use App\Services\CheckInService;
 use App\Services\OrderService;
+use App\Services\PlanFeatureCache;
 use App\Services\StripeService;
 use App\Services\TenantEventService;
 use Illuminate\Http\RedirectResponse;
@@ -34,6 +36,7 @@ class RosterController extends Controller
         private TenantEventService $events,
         private AttendancePaymentService $attendancePayments,
         private OrderService $orderService,
+        private PlanFeatureCache $planFeatureCache,
     ) {}
 
     public function index(): Response
@@ -76,12 +79,12 @@ class RosterController extends Controller
 
             $attendanceComments = $todayAttendance
                 ? $todayAttendance->comments->map(fn ($c) => [
-                    'id'         => $c->id,
-                    'body'       => $c->body,
-                    'is_public'  => $c->is_public,
+                    'id' => $c->id,
+                    'body' => $c->body,
+                    'is_public' => $c->is_public,
                     'created_at' => $c->created_at?->toIso8601String(),
                     'created_by' => [
-                        'id'   => $c->createdBy?->id,
+                        'id' => $c->createdBy?->id,
                         'name' => $c->createdBy?->name,
                     ],
                 ])->values()
@@ -110,12 +113,50 @@ class RosterController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'price_cents', 'context']);
 
+        $hasParkingManagement = $this->planFeatureCache->hasFeature($tenant?->plan ?? 'free', 'parking_management');
+
+        $pendingDaycareArrivals = $hasParkingManagement
+            ? Appointment::where('status', 'confirmed')
+                ->where('service_type', 'daycare_booking')
+                ->whereNotNull('arrived_at')
+                ->whereNull('arrival_acknowledged_at')
+                ->with('dog:id,name', 'customer:id,name', 'parkingSpot:id,spot_number')
+                ->get()
+                ->map(fn ($a) => [
+                    'id' => $a->id,
+                    'dog_name' => $a->dog?->name,
+                    'customer_name' => $a->customer?->name,
+                    'spot_number' => $a->parkingSpot?->spot_number,
+                    'arrived_at' => $a->arrived_at?->toIso8601String(),
+                ])
+                ->values()
+            : collect();
+
         return Inertia::render('Admin/Roster/Index', [
             'roster' => $roster,
             'addonTypes' => $addonTypes,
             'daily_dog_limit' => $tenant?->daily_dog_limit,
             'today_dog_count' => $todayDogCount,
+            'hasParkingManagement' => $hasParkingManagement,
+            'pendingDaycareArrivals' => $pendingDaycareArrivals,
         ]);
+    }
+
+    public function acknowledgeDaycareArrival(Appointment $appointment): RedirectResponse
+    {
+        $tenantId = app('current.tenant.id');
+        $tenant = Tenant::find($tenantId);
+
+        abort_if(
+            ! $this->planFeatureCache->hasFeature($tenant?->plan ?? 'free', 'parking_management'),
+            403
+        );
+
+        abort_if($appointment->arrived_at === null, 422, 'No pending arrival for this appointment.');
+
+        $appointment->update(['arrival_acknowledged_at' => now()]);
+
+        return back();
     }
 
     public function checkin(Request $request): RedirectResponse
@@ -262,10 +303,10 @@ class RosterController extends Controller
         ]);
 
         $attendance->comments()->create([
-            'tenant_id'  => app('current.tenant.id'),
+            'tenant_id' => app('current.tenant.id'),
             'created_by' => auth()->id(),
-            'body'       => $validated['body'],
-            'is_public'  => false,
+            'body' => $validated['body'],
+            'is_public' => false,
         ]);
 
         return back()->with('success', 'Comment added.');

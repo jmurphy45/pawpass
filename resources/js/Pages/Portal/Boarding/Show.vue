@@ -202,17 +202,22 @@ const hasCareInstructions = computed(() =>
   careFields.some((f) => !!(props.reservation as any)[f.key]),
 );
 
-const isCheckInToday = computed(() => {
-  if (!props.reservation.starts_at) return false;
-  const today = new Date().toDateString();
-  return new Date(props.reservation.starts_at).toDateString() === today;
+const isTodayWithinStay = computed(() => {
+  if (!props.reservation.starts_at || !props.reservation.ends_at) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(props.reservation.starts_at);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(props.reservation.ends_at);
+  end.setHours(0, 0, 0, 0);
+  return today >= start && today <= end;
 });
 
 const showArrivalCard = computed(() =>
   hasFeature('parking_management') &&
   props.reservation.status === 'confirmed' &&
   !props.reservation.arrived_at &&
-  isCheckInToday.value,
+  isTodayWithinStay.value,
 );
 
 function announceArrival() {

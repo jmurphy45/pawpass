@@ -10,6 +10,28 @@
         <AppBadge color="gray" class="self-start sm:self-auto">{{ todayLabel }}</AppBadge>
       </div>
 
+      <!-- Pending Daycare Curbside Arrivals -->
+      <div v-if="props.hasParkingManagement && props.pendingDaycareArrivals.length > 0" class="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
+        <div class="flex items-center gap-2 px-5 py-3 border-b border-amber-200">
+          <span class="relative flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+          </span>
+          <span class="text-sm font-semibold text-amber-900">Curbside Arrivals ({{ props.pendingDaycareArrivals.length }})</span>
+        </div>
+        <ul class="divide-y divide-amber-100">
+          <li v-for="arrival in props.pendingDaycareArrivals" :key="arrival.id" class="flex items-center justify-between gap-4 px-5 py-3">
+            <div>
+              <p class="text-sm font-medium text-text-body">{{ arrival.dog_name }} <span class="text-text-muted font-normal">· {{ arrival.customer_name }}</span></p>
+              <p class="text-xs text-text-muted">Spot {{ arrival.spot_number }} · {{ formatArrivalTime(arrival.arrived_at) }}</p>
+            </div>
+            <AppButton variant="secondary" class="text-xs shrink-0" @click="acknowledgeDaycareArrival(arrival.id)">
+              Acknowledge
+            </AppButton>
+          </li>
+        </ul>
+      </div>
+
       <!-- Capacity bar -->
       <div v-if="props.daily_dog_limit" class="bg-white rounded-xl border border-gray-200 px-5 py-4">
         <div class="flex items-center justify-between mb-2">
@@ -418,11 +440,21 @@ interface RosterDog {
   attendance_comments: CommentEntry[];
 }
 
+interface DaycareArrival {
+  id: string;
+  dog_name: string | null;
+  customer_name: string | null;
+  spot_number: string | null;
+  arrived_at: string | null;
+}
+
 const props = defineProps<{
   roster: RosterDog[];
   addonTypes: AddonType[];
   daily_dog_limit: number | null;
   today_dog_count: number;
+  hasParkingManagement: boolean;
+  pendingDaycareArrivals: DaycareArrival[];
 }>();
 
 const capacityPct = computed(() => props.daily_dog_limit ? Math.round((props.today_dog_count / props.daily_dog_limit) * 100) : 0);
@@ -478,7 +510,7 @@ const clockTimer = setInterval(() => { now.value = new Date(); }, 60_000);
 onUnmounted(() => clearInterval(clockTimer));
 
 // Auto-refresh roster every 60 seconds
-usePoll(60_000, { only: ['roster', 'addonTypes', 'today_dog_count'] });
+usePoll(60_000, { only: ['roster', 'addonTypes', 'today_dog_count', 'pendingDaycareArrivals'] });
 
 const tabs = [
   { value: 'all', label: 'All' },
@@ -517,6 +549,18 @@ function checkinDuration(checkedInAt: string): string {
   const mins = totalMins % 60;
   if (hours > 0) return `${hours}h ${mins}m`;
   return `${mins}m`;
+}
+
+function formatArrivalTime(iso: string | null): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function acknowledgeDaycareArrival(appointmentId: string) {
+  router.post(route('admin.roster.daycare.acknowledge-arrival', { appointment: appointmentId }), {}, {
+    only: ['pendingDaycareArrivals'],
+    preserveScroll: true,
+  });
 }
 
 function checkin(dog: RosterDog) {

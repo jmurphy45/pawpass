@@ -39,3 +39,18 @@ Required (UUID or ULID) on mutation endpoints:
 ## Web Controllers (Inertia)
 
 Return `Inertia::render('Admin/{Feature}/Index', ['prop' => $value])`. The page component path must exactly match the string passed to `render()`. Use `Redirect::route()` after mutations — never return Inertia responses for POST/PATCH/DELETE.
+
+## Curbside Arrival (`Web/Portal/ArrivalController`)
+
+- `show($tenantId, $parkingSpotId)` — the `$tenantId` URL segment is **ignored**; always uses `app('current.tenant.id')`. The param exists only so TenantMiddleware can resolve the subdomain from the encoded ID when scanning a QR code off-domain.
+- `store()` validates by `spot_number` (human-readable, e.g. "A3"), not by ULID: `Rule::exists('parking_spots', 'spot_number')->where('tenant_id', ...)->where('is_active', true)`.
+- Staff notifications use `Notification::sendNow($user, ...)` in a per-user loop — synchronous, not queued — so the arrival alert fires immediately.
+- `acknowledgeArrival()` returns **422** (not 404) when the reservation has no `arrived_at` set.
+
+## Parking Spot QR Target URL
+
+Parking spot QR codes use `target_url = "/my/arrive/{tenantId}/{spotId}"` — IDs encoded directly in the path so `QrRedirectController` needs no special routing logic. Don't revert to `/admin/parking-spots/{id}`.
+
+## Pending Arrivals Prop (Admin Boarding)
+
+`BoardingController::reservations()` includes `pendingArrivals` (confirmed reservations with `arrived_at != null` and `arrival_acknowledged_at = null`) **only** when the tenant has the `parking_management` feature; otherwise passes an empty collection. Tests must account for this gating.
