@@ -123,6 +123,42 @@
             </AppButton>
           </div>
           <p v-if="arrivalForm.errors.spot_number" class="text-sm text-red-600">{{ arrivalForm.errors.spot_number }}</p>
+
+          <div class="flex items-center gap-2">
+            <div class="h-px flex-1 bg-border-warm"></div>
+            <span class="text-xs text-text-muted">or</span>
+            <div class="h-px flex-1 bg-border-warm"></div>
+          </div>
+
+          <!-- QR scanner -->
+          <div v-if="scanning" class="space-y-2">
+            <div class="relative rounded-lg overflow-hidden bg-black aspect-video">
+              <video ref="videoEl" autoplay playsinline muted class="w-full h-full object-cover" />
+              <canvas ref="canvasEl" class="hidden" />
+              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="w-48 h-48 border-2 border-white/70 rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"></div>
+              </div>
+            </div>
+            <p class="text-xs text-text-muted text-center">Point your camera at the parking spot QR code</p>
+            <p v-if="scanError" class="text-sm text-red-600">{{ scanError }}</p>
+            <button
+              type="button"
+              class="w-full text-sm text-text-muted hover:text-text-body py-1"
+              @click="stopScanner"
+            >Cancel</button>
+          </div>
+
+          <button
+            v-else
+            type="button"
+            class="w-full flex items-center justify-center gap-2 rounded-lg border border-border-warm px-4 py-2 text-sm text-text-body hover:bg-surface-muted transition-colors"
+            @click="startScanner"
+          >
+            <svg class="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5ZM6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
+            </svg>
+            Scan parking spot QR code
+          </button>
         </div>
       </AppCard>
 
@@ -159,10 +195,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, onUnmounted, ref } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
 import { useFeatures } from '@/composables/useFeatures';
+import jsQR from 'jsqr';
 
 const props = defineProps<{
   reservation: {
@@ -219,6 +256,72 @@ const showArrivalCard = computed(() =>
   !props.reservation.arrived_at &&
   isTodayWithinStay.value,
 );
+
+const videoEl = ref<HTMLVideoElement | null>(null);
+const canvasEl = ref<HTMLCanvasElement | null>(null);
+const scanning = ref(false);
+const scanError = ref('');
+let mediaStream: MediaStream | null = null;
+let animFrame: number | null = null;
+
+async function startScanner() {
+  scanError.value = '';
+  scanning.value = true;
+  await nextTick();
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+    videoEl.value!.srcObject = mediaStream;
+    scanFrame();
+  } catch {
+    scanError.value = 'Camera access denied. Please allow camera access or type your spot number.';
+    scanning.value = false;
+  }
+}
+
+function scanFrame() {
+  const video = videoEl.value;
+  const canvas = canvasEl.value;
+  if (!video || !canvas || !scanning.value) return;
+
+  if (video.readyState < video.HAVE_ENOUGH_DATA) {
+    animFrame = requestAnimationFrame(scanFrame);
+    return;
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(video, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+
+  if (code?.data) {
+    try {
+      const url = new URL(code.data);
+      if (url.pathname.startsWith('/go/') || url.pathname.startsWith('/my/arrive/')) {
+        stopScanner();
+        window.location.href = code.data;
+        return;
+      }
+    } catch {
+      // Not a valid URL — keep scanning
+    }
+  }
+
+  animFrame = requestAnimationFrame(scanFrame);
+}
+
+function stopScanner() {
+  scanning.value = false;
+  mediaStream?.getTracks().forEach((t) => t.stop());
+  mediaStream = null;
+  if (animFrame !== null) {
+    cancelAnimationFrame(animFrame);
+    animFrame = null;
+  }
+}
+
+onUnmounted(stopScanner);
 
 function announceArrival() {
   arrivalForm.post(route('portal.boarding.arrive', { id: props.reservation.id }));
