@@ -29,18 +29,18 @@ class BoardingControllerTest extends TestCase
         parent::setUp();
 
         $this->tenant = Tenant::factory()->create([
-            'slug'          => 'boardingportal',
-            'status'        => 'active',
-            'plan'          => 'pro',
+            'slug' => 'boardingportal',
+            'status' => 'active',
+            'plan' => 'pro',
             'business_type' => 'kennel',
         ]);
         URL::forceRootUrl('http://boardingportal.pawpass.com');
 
         $this->customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $this->user = User::factory()->create([
-            'tenant_id'   => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'customer_id' => $this->customer->id,
-            'role'        => 'customer',
+            'role' => 'customer',
         ]);
         $this->customer->update(['user_id' => $this->user->id]);
 
@@ -50,10 +50,10 @@ class BoardingControllerTest extends TestCase
     public function test_index_renders_boarding_page(): void
     {
         Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $this->dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         $response = $this->actingAs($this->user)
@@ -83,10 +83,10 @@ class BoardingControllerTest extends TestCase
     public function test_show_renders_reservation_detail(): void
     {
         $reservation = Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $this->dog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $this->dog->id,
             'customer_id' => $this->customer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         $response = $this->actingAs($this->user)
@@ -104,10 +104,10 @@ class BoardingControllerTest extends TestCase
         $otherCustomer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
         $otherDog = Dog::factory()->forCustomer($otherCustomer)->create();
         $reservation = Reservation::factory()->create([
-            'tenant_id'   => $this->tenant->id,
-            'dog_id'      => $otherDog->id,
+            'tenant_id' => $this->tenant->id,
+            'dog_id' => $otherDog->id,
             'customer_id' => $otherCustomer->id,
-            'created_by'  => $this->user->id,
+            'created_by' => $this->user->id,
         ]);
 
         $this->actingAs($this->user)
@@ -118,5 +118,16 @@ class BoardingControllerTest extends TestCase
     public function test_unauthenticated_redirects_to_login(): void
     {
         $this->get('/my/boarding')->assertRedirect('/my/login');
+    }
+
+    public function test_store_rejects_past_starts_at(): void
+    {
+        $this->actingAs($this->user)
+            ->post('/my/boarding', [
+                'dog_id' => $this->dog->id,
+                'starts_at' => now()->subDay()->toDateString(),
+                'ends_at' => now()->addDay()->toDateString(),
+            ])
+            ->assertSessionHasErrors('starts_at');
     }
 }

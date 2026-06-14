@@ -36,6 +36,6 @@ class PasswordLoginController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('portal.dashboard');
+        return redirect()->intended(route('portal.dashboard'));
     }
 }

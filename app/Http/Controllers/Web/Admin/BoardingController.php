@@ -112,7 +112,7 @@ class BoardingController extends Controller
 
         $validated = $request->validate([
             'dog_id' => ['required', 'string', 'size:26', 'exists:dogs,id'],
-            'starts_at' => ['required', 'date'],
+            'starts_at' => ['required', 'date', 'after_or_equal:today'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
             'kennel_unit_id' => ['nullable', 'string', 'size:26', 'exists:kennel_units,id'],
             'nightly_rate_cents' => ['nullable', 'integer', 'min:0'],

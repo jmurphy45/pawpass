@@ -14,12 +14,12 @@ class CustomerPortalWebMiddleware
         $user = Auth::guard('web')->user();
 
         if (! $user || $user->role !== 'customer') {
-            return redirect()->route('portal.login');
+            return redirect()->guest(route('portal.login'));
         }
 
         $tenantId = app('current.tenant.id');
         if ($user->tenant_id !== $tenantId) {
-            return redirect()->route('portal.login');
+            return redirect()->guest(route('portal.login'));
         }
 
         if ($user->status !== 'active') {

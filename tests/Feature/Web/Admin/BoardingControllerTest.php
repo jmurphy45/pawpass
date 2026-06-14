@@ -673,4 +673,15 @@ class BoardingControllerTest extends TestCase
         $this->assertNotNull($order);
         $this->assertEquals(0.0, (float) $order->platform_fee_pct, 'Founders tenant under GMV cap should snapshot 0% fee');
     }
+
+    public function test_store_reservation_rejects_past_starts_at(): void
+    {
+        $this->actingAs($this->staff)
+            ->post('/admin/boarding/reservations', [
+                'dog_id' => $this->dog->id,
+                'starts_at' => now()->subDay()->toDateString(),
+                'ends_at' => now()->addDay()->toDateString(),
+            ])
+            ->assertSessionHasErrors('starts_at');
+    }
 }
