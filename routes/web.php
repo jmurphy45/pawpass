@@ -36,6 +36,7 @@ use App\Http\Controllers\Web\BoardingSearchController;
 use App\Http\Controllers\Web\DaycareDirectoryController;
 use App\Http\Controllers\Web\LeaderboardController;
 use App\Http\Controllers\Web\Portal\AccountController;
+use App\Http\Controllers\Web\Portal\ArrivalController;
 use App\Http\Controllers\Web\Portal\AttendanceController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
@@ -159,6 +160,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
             Route::post('/boarding/units', [AdminBoardingController::class, 'storeKennelUnit'])->name('admin.boarding.units.store');
             Route::patch('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'updateKennelUnit'])->name('admin.boarding.units.update');
             Route::delete('/boarding/units/{kennelUnit}', [AdminBoardingController::class, 'destroyKennelUnit'])->name('admin.boarding.units.destroy');
+            Route::post('/boarding/reservations/{reservation}/acknowledge-arrival', [AdminBoardingController::class, 'acknowledgeArrival'])->name('admin.boarding.reservations.acknowledge-arrival');
         });
 
         // Vet Appointments
@@ -378,6 +380,10 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::post('/boarding', [PortalBoardingController::class, 'store'])->name('portal.boarding.store');
         Route::get('/boarding/{id}', [PortalBoardingController::class, 'show'])->name('portal.boarding.show');
         Route::post('/boarding/{id}/cancel', [PortalBoardingController::class, 'cancel'])->name('portal.boarding.cancel');
+        Route::post('/boarding/{id}/arrive', [ArrivalController::class, 'store'])->name('portal.boarding.arrive');
+
+        // Curbside arrival (QR code landing page)
+        Route::get('/arrive/{tenantId}/{parkingSpotId}', [ArrivalController::class, 'show'])->name('portal.arrive.show');
 
         // Account
         Route::get('/account', [AccountController::class, 'index'])->name('portal.account');

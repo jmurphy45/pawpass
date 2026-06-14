@@ -76,11 +76,32 @@ class BoardingController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'nightly_rate_cents']);
 
+        $tenant = Tenant::find($tenantId);
+        $hasParkingManagement = $this->planFeatureCache->hasFeature($tenant?->plan ?? 'free', 'parking_management');
+
+        $pendingArrivals = $hasParkingManagement
+            ? Reservation::where('status', 'confirmed')
+                ->whereNotNull('arrived_at')
+                ->whereNull('arrival_acknowledged_at')
+                ->with(['dog:id,name', 'customer:id,name', 'parkingSpot:id,spot_number,name'])
+                ->orderBy('arrived_at')
+                ->get()
+                ->map(fn ($r) => [
+                    'id' => $r->id,
+                    'arrived_at' => $r->arrived_at?->toIso8601String(),
+                    'dog' => $r->dog ? ['id' => $r->dog->id, 'name' => $r->dog->name] : null,
+                    'customer' => $r->customer ? ['id' => $r->customer->id, 'name' => $r->customer->name] : null,
+                    'parking_spot' => $r->parkingSpot ? ['spot_number' => $r->parkingSpot->spot_number, 'name' => $r->parkingSpot->name] : null,
+                ])->values()
+            : collect();
+
         return Inertia::render('Admin/Boarding/Reservations', [
             'reservations' => $reservations,
             'filters' => $request->only('status', 'from', 'to'),
             'dogs' => $dogs,
             'kennelUnits' => $kennelUnits,
+            'pendingArrivals' => $pendingArrivals,
+            'hasParkingManagement' => $hasParkingManagement,
         ]);
     }
 
@@ -513,5 +534,18 @@ class BoardingController extends Controller
             'to' => $to,
             'view' => $view,
         ]);
+    }
+
+    public function acknowledgeArrival(Reservation $reservation): RedirectResponse
+    {
+        if (! $this->planFeatureCache->hasFeature(Tenant::find(app('current.tenant.id'))?->plan ?? 'free', 'parking_management')) {
+            abort(403);
+        }
+
+        abort_if($reservation->arrived_at === null, 422, 'This reservation has no pending arrival.');
+
+        $reservation->update(['arrival_acknowledged_at' => now()]);
+
+        return redirect()->back();
     }
 }

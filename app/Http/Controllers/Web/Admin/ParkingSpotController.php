@@ -144,7 +144,7 @@ class ParkingSpotController extends Controller
             'tenant_id' => $parkingSpot->tenant_id,
             'token' => $this->qrCodeService->generateToken(),
             'key' => $parkingSpot->qr_key,
-            'target_url' => "/admin/parking-spots/{$parkingSpot->id}",
+            'target_url' => "/my/arrive/{$parkingSpot->tenant_id}/{$parkingSpot->id}",
             'label' => "Parking Spot {$parkingSpot->spot_number}",
             'is_active' => true,
             'scan_count' => 0,

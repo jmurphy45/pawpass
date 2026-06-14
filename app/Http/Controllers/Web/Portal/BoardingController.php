@@ -28,13 +28,13 @@ class BoardingController extends Controller
 
         return Inertia::render('Portal/Boarding/Index', [
             'reservations' => $reservations->through(fn ($r) => [
-                'id'                 => $r->id,
-                'status'             => $r->status,
-                'starts_at'          => $r->starts_at?->toIso8601String(),
-                'ends_at'            => $r->ends_at?->toIso8601String(),
+                'id' => $r->id,
+                'status' => $r->status,
+                'starts_at' => $r->starts_at?->toIso8601String(),
+                'ends_at' => $r->ends_at?->toIso8601String(),
                 'nightly_rate_cents' => $r->nightly_rate_cents,
-                'dog'                => $r->dog ? ['id' => $r->dog->id, 'name' => $r->dog->name] : null,
-                'kennel_unit'        => $r->kennelUnit ? ['id' => $r->kennelUnit->id, 'name' => $r->kennelUnit->name] : null,
+                'dog' => $r->dog ? ['id' => $r->dog->id, 'name' => $r->dog->name] : null,
+                'kennel_unit' => $r->kennelUnit ? ['id' => $r->kennelUnit->id, 'name' => $r->kennelUnit->name] : null,
             ]),
         ]);
     }
@@ -51,32 +51,32 @@ class BoardingController extends Controller
         $availableUnits = [];
         if ($request->filled('starts_at') && $request->filled('ends_at')) {
             $startsAt = now()->parse($request->starts_at);
-            $endsAt   = now()->parse($request->ends_at);
+            $endsAt = now()->parse($request->ends_at);
             if ($endsAt->gt($startsAt)) {
                 $availableUnits = $availability->availableUnits(app('current.tenant.id'), $startsAt, $endsAt)
                     ->map(fn ($u) => [
-                        'id'                 => $u->id,
-                        'name'               => $u->name,
-                        'type'               => $u->type,
-                        'description'        => $u->description,
+                        'id' => $u->id,
+                        'name' => $u->name,
+                        'type' => $u->type,
+                        'description' => $u->description,
                         'nightly_rate_cents' => $u->nightly_rate_cents,
                     ])->values()->all();
             }
         }
 
         return Inertia::render('Portal/Boarding/Create', [
-            'dogs'           => $dogs,
+            'dogs' => $dogs,
             'availableUnits' => $availableUnits,
-            'selectedDates'  => [
+            'selectedDates' => [
                 'starts_at' => $request->starts_at ?? '',
-                'ends_at'   => $request->ends_at ?? '',
+                'ends_at' => $request->ends_at ?? '',
             ],
         ]);
     }
 
     public function store(StoreReservationRequest $request, KennelAvailabilityService $availability, VaccinationComplianceService $vaccination): RedirectResponse
     {
-        $tenantId   = app('current.tenant.id');
+        $tenantId = app('current.tenant.id');
         $customerId = Auth::user()->customer_id;
 
         $dog = Dog::findOrFail($request->dog_id);
@@ -86,7 +86,7 @@ class BoardingController extends Controller
         }
 
         $startsAt = now()->parse($request->starts_at);
-        $endsAt   = now()->parse($request->ends_at);
+        $endsAt = now()->parse($request->ends_at);
 
         $unit = null;
         if ($request->filled('kennel_unit_id')) {
@@ -102,20 +102,20 @@ class BoardingController extends Controller
         }
 
         $reservation = Reservation::create([
-            'tenant_id'          => $tenantId,
-            'dog_id'             => $dog->id,
-            'customer_id'        => $customerId,
-            'kennel_unit_id'     => $request->kennel_unit_id,
-            'status'             => 'pending',
-            'starts_at'          => $startsAt,
-            'ends_at'            => $endsAt,
+            'tenant_id' => $tenantId,
+            'dog_id' => $dog->id,
+            'customer_id' => $customerId,
+            'kennel_unit_id' => $request->kennel_unit_id,
+            'status' => 'pending',
+            'starts_at' => $startsAt,
+            'ends_at' => $endsAt,
             'nightly_rate_cents' => $unit?->nightly_rate_cents,
-            'notes'              => $request->notes,
-            'feeding_schedule'   => $request->feeding_schedule,
-            'medication_notes'   => $request->medication_notes,
-            'behavioral_notes'   => $request->behavioral_notes,
-            'emergency_contact'  => $request->emergency_contact,
-            'created_by'         => Auth::id(),
+            'notes' => $request->notes,
+            'feeding_schedule' => $request->feeding_schedule,
+            'medication_notes' => $request->medication_notes,
+            'behavioral_notes' => $request->behavioral_notes,
+            'emergency_contact' => $request->emergency_contact,
+            'created_by' => Auth::id(),
         ]);
 
         return redirect()->route('portal.boarding.show', $reservation->id);
@@ -134,7 +134,7 @@ class BoardingController extends Controller
         }
 
         $reservation->update([
-            'status'       => 'cancelled',
+            'status' => 'cancelled',
             'cancelled_at' => now(),
             'cancelled_by' => Auth::id(),
         ]);
@@ -148,34 +148,40 @@ class BoardingController extends Controller
 
         $reservation = Reservation::where('id', $id)
             ->where('customer_id', $customerId)
-            ->with(['dog', 'kennelUnit', 'reportCards'])
+            ->with(['dog', 'kennelUnit', 'reportCards', 'parkingSpot'])
             ->firstOrFail();
 
         return Inertia::render('Portal/Boarding/Show', [
             'reservation' => [
-                'id'                 => $reservation->id,
-                'status'             => $reservation->status,
-                'starts_at'          => $reservation->starts_at?->toIso8601String(),
-                'ends_at'            => $reservation->ends_at?->toIso8601String(),
+                'id' => $reservation->id,
+                'status' => $reservation->status,
+                'starts_at' => $reservation->starts_at?->toIso8601String(),
+                'ends_at' => $reservation->ends_at?->toIso8601String(),
                 'nightly_rate_cents' => $reservation->nightly_rate_cents,
-                'notes'              => $reservation->notes,
-                'feeding_schedule'   => $reservation->feeding_schedule,
-                'medication_notes'   => $reservation->medication_notes,
-                'behavioral_notes'   => $reservation->behavioral_notes,
-                'emergency_contact'  => $reservation->emergency_contact,
-                'dog'                => $reservation->dog ? [
-                    'id'   => $reservation->dog->id,
+                'notes' => $reservation->notes,
+                'feeding_schedule' => $reservation->feeding_schedule,
+                'medication_notes' => $reservation->medication_notes,
+                'behavioral_notes' => $reservation->behavioral_notes,
+                'emergency_contact' => $reservation->emergency_contact,
+                'arrived_at' => $reservation->arrived_at?->toIso8601String(),
+                'parking_spot' => $reservation->parkingSpot ? [
+                    'id' => $reservation->parkingSpot->id,
+                    'spot_number' => $reservation->parkingSpot->spot_number,
+                    'name' => $reservation->parkingSpot->name,
+                ] : null,
+                'dog' => $reservation->dog ? [
+                    'id' => $reservation->dog->id,
                     'name' => $reservation->dog->name,
                 ] : null,
                 'kennel_unit' => $reservation->kennelUnit ? [
-                    'id'   => $reservation->kennelUnit->id,
+                    'id' => $reservation->kennelUnit->id,
                     'name' => $reservation->kennelUnit->name,
                     'type' => $reservation->kennelUnit->type,
                 ] : null,
                 'report_cards' => $reservation->reportCards->map(fn ($rc) => [
-                    'id'          => $rc->id,
+                    'id' => $rc->id,
                     'report_date' => $rc->report_date,
-                    'notes'       => $rc->notes,
+                    'notes' => $rc->notes,
                 ])->values(),
                 'cancelled_at' => $reservation->cancelled_at?->toIso8601String(),
             ],

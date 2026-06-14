@@ -17,6 +17,33 @@
         </div>
       </div>
 
+      <!-- Pending Curbside Arrivals -->
+      <div v-if="hasParkingManagement && pendingArrivals.length > 0" class="space-y-2">
+        <h2 class="text-sm font-semibold text-text-body flex items-center gap-2">
+          <span class="relative flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+          </span>
+          Curbside Arrivals
+        </h2>
+        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            v-for="arrival in pendingArrivals"
+            :key="arrival.id"
+            class="flex items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3"
+          >
+            <div class="min-w-0">
+              <p class="font-semibold text-text-body text-sm truncate">{{ arrival.dog?.name ?? '—' }}</p>
+              <p class="text-xs text-text-muted">{{ arrival.customer?.name ?? '—' }} · Spot {{ arrival.parking_spot?.spot_number ?? '?' }}</p>
+              <p class="text-xs text-text-muted">Arrived {{ formatTime(arrival.arrived_at) }}</p>
+            </div>
+            <AppButton size="sm" variant="secondary" @click="acknowledge(arrival.id)" class="shrink-0">
+              Acknowledge
+            </AppButton>
+          </div>
+        </div>
+      </div>
+
       <!-- Create Reservation Modal -->
       <Teleport to="body">
         <div v-if="showCreate" class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -189,6 +216,14 @@ import { reactive, ref, computed } from 'vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
+interface PendingArrival {
+  id: string;
+  arrived_at: string;
+  dog: { id: string; name: string } | null;
+  customer: { id: string; name: string } | null;
+  parking_spot: { spot_number: string; name: string } | null;
+}
+
 const props = defineProps<{
   reservations: {
     data: Array<{
@@ -206,6 +241,8 @@ const props = defineProps<{
   filters: { status: string; from: string; to: string };
   dogs: Array<{ id: string; name: string; customer: { name: string } | null }>;
   kennelUnits: Array<{ id: string; name: string; nightly_rate_cents: number }>;
+  pendingArrivals: PendingArrival[];
+  hasParkingManagement: boolean;
 }>();
 
 const showCreate = ref(false);
@@ -261,6 +298,18 @@ function setStatus(value: string) {
 
 function applyFilters() {
   router.get(route('admin.boarding.reservations'), filters, { preserveState: true, replace: true });
+}
+
+function acknowledge(reservationId: string) {
+  router.post(route('admin.boarding.reservations.acknowledge-arrival', { reservation: reservationId }), {}, {
+    preserveScroll: true,
+    only: ['pendingArrivals'],
+  });
+}
+
+function formatTime(iso: string): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 function formatDate(iso: string) {

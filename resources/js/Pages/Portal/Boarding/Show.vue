@@ -80,6 +80,52 @@
         </div>
       </AppCard>
 
+      <!-- Curbside Arrival (already announced) -->
+      <AppCard v-if="reservation.arrived_at" class="overflow-hidden" style="border-top: 3px solid #16a34a;">
+        <div class="rs-card-head">
+          <div class="rs-card-icon" style="background:#dcfce7;color:#15803d;">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </div>
+          <span class="rs-card-title">Arrival Announced</span>
+        </div>
+        <div class="px-5 py-4 text-sm text-text-muted">
+          We've been notified you've arrived<span v-if="reservation.parking_spot"> at Spot <strong class="text-text-body">{{ reservation.parking_spot.spot_number }}</strong></span>. We'll be right out!
+        </div>
+      </AppCard>
+
+      <!-- Curbside Arrival (announce) -->
+      <AppCard v-else-if="showArrivalCard" class="overflow-hidden" style="border-top: 3px solid #4f46e5;">
+        <div class="rs-card-head">
+          <div class="rs-card-icon" style="background:#eef2ff;color:#4f46e5;">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+            </svg>
+          </div>
+          <span class="rs-card-title">Let us know you've arrived</span>
+        </div>
+        <div class="px-5 pb-5 pt-3 space-y-3">
+          <p class="text-sm text-text-muted">Pull up and enter your parking spot number. We'll come right out to you.</p>
+          <div class="flex gap-2">
+            <input
+              v-model="arrivalForm.spot_number"
+              type="text"
+              placeholder="e.g. A3"
+              maxlength="10"
+              class="w-32 rounded-lg border border-border-warm px-3 py-2 text-sm text-text-body focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            />
+            <AppButton
+              :disabled="!arrivalForm.spot_number.trim() || arrivalForm.processing"
+              @click="announceArrival"
+            >
+              {{ arrivalForm.processing ? 'Sending…' : "I'm here!" }}
+            </AppButton>
+          </div>
+          <p v-if="arrivalForm.errors.spot_number" class="text-sm text-red-600">{{ arrivalForm.errors.spot_number }}</p>
+        </div>
+      </AppCard>
+
       <!-- Cancel -->
       <AppCard v-if="reservation.status === 'pending'" class="overflow-hidden" style="border-top: 3px solid #ef4444;">
         <div class="rs-card-head">
@@ -113,9 +159,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Link, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 import PortalLayout from '@/Layouts/PortalLayout.vue';
+import { useFeatures } from '@/composables/useFeatures';
 
 const props = defineProps<{
   reservation: {
@@ -130,13 +177,18 @@ const props = defineProps<{
     behavioral_notes: string | null;
     emergency_contact: string | null;
     cancelled_at: string | null;
+    arrived_at: string | null;
+    parking_spot: { id: string; spot_number: string; name: string } | null;
     dog: { id: string; name: string } | null;
     kennel_unit: { id: string; name: string; type: string } | null;
     report_cards: Array<{ id: string; report_date: string; notes: string }>;
   };
 }>();
 
+const { hasFeature } = useFeatures();
+
 const cancelForm = useForm({});
+const arrivalForm = useForm({ spot_number: '' });
 
 const careFields = [
   { key: 'feeding_schedule', label: 'Feeding Schedule' },
@@ -149,6 +201,23 @@ const careFields = [
 const hasCareInstructions = computed(() =>
   careFields.some((f) => !!(props.reservation as any)[f.key]),
 );
+
+const isCheckInToday = computed(() => {
+  if (!props.reservation.starts_at) return false;
+  const today = new Date().toDateString();
+  return new Date(props.reservation.starts_at).toDateString() === today;
+});
+
+const showArrivalCard = computed(() =>
+  hasFeature('parking_management') &&
+  props.reservation.status === 'confirmed' &&
+  !props.reservation.arrived_at &&
+  isCheckInToday.value,
+);
+
+function announceArrival() {
+  arrivalForm.post(route('portal.boarding.arrive', { id: props.reservation.id }));
+}
 
 function formatDate(iso: string): string {
   if (!iso) return '—';

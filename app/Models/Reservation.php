@@ -19,12 +19,15 @@ class Reservation extends Model
         'dog_id',
         'customer_id',
         'kennel_unit_id',
+        'parking_spot_id',
         'appointment_id',
         'status',
         'starts_at',
         'ends_at',
         'nightly_rate_cents',
         'actual_checkout_at',
+        'arrived_at',
+        'arrival_acknowledged_at',
         'notes',
         'feeding_schedule',
         'medication_notes',
@@ -42,6 +45,8 @@ class Reservation extends Model
             'ends_at' => 'immutable_datetime',
             'nightly_rate_cents' => 'integer',
             'actual_checkout_at' => 'immutable_datetime',
+            'arrived_at' => 'immutable_datetime',
+            'arrival_acknowledged_at' => 'immutable_datetime',
             'cancelled_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
@@ -154,5 +159,10 @@ class Reservation extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
+    }
+
+    public function parkingSpot(): BelongsTo
+    {
+        return $this->belongsTo(ParkingSpot::class);
     }
 }

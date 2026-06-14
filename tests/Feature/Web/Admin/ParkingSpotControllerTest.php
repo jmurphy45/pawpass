@@ -129,7 +129,7 @@ class ParkingSpotControllerTest extends TestCase
         ]);
 
         $qrCode = QrCode::where('key', 'parking-C15')->firstOrFail();
-        $this->assertEquals("/admin/parking-spots/{$spot->id}", $qrCode->target_url);
+        $this->assertEquals("/my/arrive/{$this->tenant->id}/{$spot->id}", $qrCode->target_url);
     }
 
     public function test_staff_cannot_create_parking_spot(): void

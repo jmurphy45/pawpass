@@ -125,6 +125,7 @@ class PawPassNotification extends Notification implements ShouldQueue
             'vaccinations.expiring_soon', 'vaccinations.expiring_urgent' => '/dogs',
             'attendance.stale_checkins' => $this->data['checkout_url'] ?? null,
             'trial.expiring_soon' => $this->data['billing_url'] ?? null,
+            'boarding.curbside_arrival' => $this->data['action_url'] ?? '/admin/boarding/reservations',
             default => null,
         };
 
@@ -230,6 +231,10 @@ class PawPassNotification extends Notification implements ShouldQueue
             'onboarding.halfway_upgrade' => [
                 'Halfway through your trial',
                 'You\'ve made great progress in your first 10 days. Upgrade before your trial ends to keep all your data and continue accepting bookings without interruption.',
+            ],
+            'boarding.curbside_arrival' => [
+                'Curbside Arrival',
+                ($this->data['dog_name'] ?? 'A dog').' is in spot '.($this->data['spot_number'] ?? '?').' — '.($this->data['customer_name'] ?? 'A customer'),
             ],
             default => [$this->type, $this->type],
         };
