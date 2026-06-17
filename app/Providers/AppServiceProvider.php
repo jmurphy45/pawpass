@@ -90,13 +90,21 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(WebPushChannel::class, function () {
-            return new WebPushChannel(new \Minishlink\WebPush\WebPush([
-                'VAPID' => [
-                    'subject' => config('webpush.vapid.subject'),
-                    'publicKey' => config('webpush.vapid.public_key'),
-                    'privateKey' => config('webpush.vapid.private_key'),
-                ],
-            ]));
+            $publicKey = config('webpush.vapid.public_key');
+            $privateKey = config('webpush.vapid.private_key');
+
+            $webPush = null;
+            if (! empty($publicKey) && ! empty($privateKey)) {
+                $webPush = new \Minishlink\WebPush\WebPush([
+                    'VAPID' => [
+                        'subject' => config('webpush.vapid.subject'),
+                        'publicKey' => $publicKey,
+                        'privateKey' => $privateKey,
+                    ],
+                ]);
+            }
+
+            return new WebPushChannel($webPush);
         });
     }
 

@@ -9,10 +9,14 @@ use Minishlink\WebPush\WebPush;
 
 class WebPushChannel
 {
-    public function __construct(private WebPush $webPush) {}
+    public function __construct(private ?WebPush $webPush) {}
 
     public function send($notifiable, $notification): void
     {
+        if ($this->webPush === null) {
+            return;
+        }
+
         if (! $notification instanceof PawPassNotification) {
             return;
         }
