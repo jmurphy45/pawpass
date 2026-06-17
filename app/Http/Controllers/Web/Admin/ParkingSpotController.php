@@ -85,6 +85,7 @@ class ParkingSpotController extends Controller
                 $qrCode->update([
                     'key' => $parkingSpot->qr_key,
                     'label' => "Parking Spot {$parkingSpot->spot_number}",
+                    'target_url' => "/my/arrive/{$parkingSpot->tenant_id}/{$parkingSpot->id}",
                 ]);
             }
         }
