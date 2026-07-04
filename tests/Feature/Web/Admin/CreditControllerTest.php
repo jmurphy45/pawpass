@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Web\Admin;
 
-use App\Models\CreditLedger;
 use App\Models\Customer;
 use App\Models\Dog;
 use App\Models\Tenant;
@@ -32,7 +31,7 @@ class CreditControllerTest extends TestCase
 
         $this->staff = User::factory()->staff()->create([
             'tenant_id' => $this->tenant->id,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         $this->customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
@@ -45,15 +44,15 @@ class CreditControllerTest extends TestCase
 
         $response = $this->post("/admin/dogs/{$this->dog->id}/credits/goodwill", [
             'credits' => 3,
-            'note'    => 'Test goodwill',
+            'note' => 'Test goodwill',
         ]);
 
         $response->assertRedirect(route('admin.dogs.show', $this->dog));
         $response->assertSessionHas('success');
         $this->assertDatabaseHas('credit_ledger', [
             'dog_id' => $this->dog->id,
-            'type'   => 'goodwill',
-            'delta'  => 3,
+            'type' => 'goodwill',
+            'delta' => 3,
         ]);
     }
 
@@ -63,15 +62,15 @@ class CreditControllerTest extends TestCase
 
         $response = $this->post("/admin/dogs/{$this->dog->id}/credits/correction", [
             'delta' => -2,
-            'note'  => 'Correction note',
+            'note' => 'Correction note',
         ]);
 
         $response->assertRedirect(route('admin.dogs.show', $this->dog));
         $response->assertSessionHas('success');
         $this->assertDatabaseHas('credit_ledger', [
             'dog_id' => $this->dog->id,
-            'type'   => 'correction_remove',
-            'delta'  => -2,
+            'type' => 'correction_remove',
+            'delta' => -2,
         ]);
     }
 
@@ -94,7 +93,7 @@ class CreditControllerTest extends TestCase
 
         $response = $this->post("/admin/dogs/{$this->dog->id}/credits/transfer", [
             'to_dog_id' => $dog2->id,
-            'credits'   => 2,
+            'credits' => 2,
         ]);
 
         $response->assertRedirect(route('admin.dogs.show', $this->dog));
@@ -110,20 +109,49 @@ class CreditControllerTest extends TestCase
 
         $response = $this->post("/admin/dogs/{$this->dog->id}/credits/transfer", [
             'to_dog_id' => $otherDog->id,
-            'credits'   => 2,
+            'credits' => 2,
         ]);
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
     }
 
+    public function test_transfer_to_dog_in_different_tenant_is_not_found(): void
+    {
+        $otherTenant = Tenant::factory()->create(['status' => 'active', 'plan' => 'starter']);
+        $otherCustomer = Customer::factory()->create(['tenant_id' => $otherTenant->id]);
+        $otherDog = Dog::factory()->forCustomer($otherCustomer)->create(['tenant_id' => $otherTenant->id, 'credit_balance' => 0]);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->post("/admin/dogs/{$this->dog->id}/credits/transfer", [
+            'to_dog_id' => $otherDog->id,
+            'credits' => 2,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error', 'Target dog not found.');
+    }
+
+    public function test_goodwill_requires_positive_integer_credits(): void
+    {
+        $this->actingAs($this->staff);
+
+        $response = $this->post("/admin/dogs/{$this->dog->id}/credits/goodwill", [
+            'credits' => 0,
+            'note' => 'Not positive',
+        ]);
+
+        $response->assertSessionHasErrors('credits');
+    }
+
     public function test_customer_role_cannot_add_goodwill(): void
     {
         $customerUser = User::factory()->create([
-            'tenant_id'   => $this->tenant->id,
+            'tenant_id' => $this->tenant->id,
             'customer_id' => $this->customer->id,
-            'role'        => 'customer',
-            'status'      => 'active',
+            'role' => 'customer',
+            'status' => 'active',
         ]);
 
         $this->actingAs($customerUser);

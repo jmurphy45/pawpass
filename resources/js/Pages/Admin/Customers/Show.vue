@@ -169,6 +169,11 @@
           <h2 class="text-lg font-semibold text-text-body">Balance Ledger</h2>
           <div class="flex items-center gap-2">
             <button
+              v-if="customer.stripe_pm_last4 && packages.length > 0"
+              class="inline-flex items-center rounded-lg border border-border-warm bg-white px-3 py-1.5 text-xs font-medium text-text-body hover:bg-surface transition-colors"
+              @click="openSellPackageModal"
+            >Sell Package</button>
+            <button
               v-if="customer.has_portal"
               :disabled="notifyLoading || notifySent"
               class="inline-flex items-center rounded-lg border border-border-warm bg-white px-3 py-1.5 text-xs font-medium text-text-body hover:bg-surface disabled:opacity-60 transition-colors"
@@ -287,6 +292,43 @@
       </div>
     </Teleport>
   </AdminLayout>
+
+  <AppModal
+    :open="sellPackageModal.open"
+    title="Sell Package"
+    :danger="false"
+    confirm-label="Sell Package"
+    @confirm="submitSellPackage"
+    @cancel="sellPackageModal.open = false"
+  >
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Package</label>
+        <select v-model="sellPackageForm.package_id" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          <option value="" disabled>Select a package</option>
+          <option v-for="pkg in packages" :key="pkg.id" :value="pkg.id">
+            {{ pkg.name }} — {{ formatMoney(pkg.price) }}
+          </option>
+        </select>
+        <p v-if="sellPackageErrors.package_id" class="text-xs text-red-600 mt-1">{{ sellPackageErrors.package_id }}</p>
+      </div>
+
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Dog(s)</label>
+        <div class="space-y-1.5 max-h-40 overflow-y-auto">
+          <label v-for="dog in dogs.filter(d => !d.deleted_at)" :key="dog.id" class="flex items-center gap-2 text-sm text-text-body">
+            <input type="checkbox" :value="dog.id" v-model="sellPackageForm.dog_ids" />
+            {{ dog.name }} ({{ dog.credit_balance }} credits)
+          </label>
+        </div>
+        <p v-if="sellPackageErrors.dog_ids" class="text-xs text-red-600 mt-1">{{ sellPackageErrors.dog_ids }}</p>
+      </div>
+
+      <p class="text-xs text-text-muted">
+        Charges {{ capitalize(customer.stripe_pm_brand ?? '') }} ···· {{ customer.stripe_pm_last4 }} on file.
+      </p>
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -345,6 +387,7 @@ const props = defineProps<{
   };
   dogs: Dog[];
   orders: Order[];
+  packages: Array<{ id: string; name: string; price: number; credit_count: number | null; dog_limit: number | null; type: string }>;
 }>();
 
 const page = usePage<PageProps>();
@@ -504,6 +547,27 @@ function statusBadge(status: string): string {
 function typeBadge(type: string | null): string {
   if (type === 'subscription') return 'bg-indigo-50 text-indigo-700 ring-indigo-600/20';
   return 'bg-gray-50 text-gray-600 ring-gray-500/20';
+}
+
+const sellPackageModal = ref({ open: false });
+const sellPackageForm = ref<{ package_id: string; dog_ids: string[] }>({ package_id: '', dog_ids: [] });
+const sellPackageErrors = ref<Record<string, string>>({});
+
+function openSellPackageModal() {
+  sellPackageForm.value = { package_id: '', dog_ids: [] };
+  sellPackageErrors.value = {};
+  sellPackageModal.value.open = true;
+}
+
+function submitSellPackage() {
+  sellPackageErrors.value = {};
+  router.post(route('admin.customers.sell-package', props.customer.id), {
+    package_id: sellPackageForm.value.package_id,
+    dog_ids: sellPackageForm.value.dog_ids,
+  }, {
+    onSuccess: () => { sellPackageModal.value.open = false; },
+    onError: (e) => { sellPackageErrors.value = e; },
+  });
 }
 
 function orderStatusBadge(status: string): string {

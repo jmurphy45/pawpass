@@ -367,4 +367,68 @@ npm run build
 - [ ] Add `timezone` to `tenant` prop in `HandleInertiaRequests`
 - [ ] Add `timezone: string` to `Tenant` interface in `types/index.d.ts`
 - [ ] Update `formatDate` in 4 Vue pages to use `timeZone: tenant.timezone`
+
+---
+
+# Task: UX Audit P0 Fixes (subscription labeling, front-desk credit tools, password self-service)
+
+## Context
+A UX audit (owner + customer persona walkthrough) found three defects on the trust/revenue path: the tenant landing page advertised subscription packages that could never be sold as subscriptions; front-desk staff had no way to sell a package or adjust a dog's credit balance even though the backend for it already existed; and customers had no way to change or reset a forgotten password, even though the backend for password-change already existed.
+
+## Fix 1 — Subscription/one-time labeling mismatch
+- [x] `Home.vue` — collapsed the package type badge to `unlimited` vs `one-time` (dropped the `subscription` branch and its `/mo` suffix), since the team had already reverted real Stripe subscriptions in favor of auto-replenish (`packages.type` no longer creatable as `subscription`)
+  - Verification: display-only change, no backend/migration; manually verified against ShowcaseSeeder's legacy `subscription`-typed package
+
+## Fix 2 — Front-desk credit adjustment + package sale
+- [x] Added missing edge-case tests to `CreditControllerTest` (cross-tenant transfer, positive-integer goodwill validation)
+- [x] Added `siblingDogs` prop to `DogController::show()` (failing test first)
+- [x] Added "Adjust Credits" button + `AppModal` (goodwill/correction/transfer) to `Dogs/Show.vue`, wired to the existing `admin.credits.*` routes
+- [x] Deleted the dead `Credits/Adjust.vue` stub (zero references)
+- [x] Added `SellPackageTest` (charge success, no card, Stripe decline, dog-ownership validation, webhook idempotency) before implementing
+- [x] Added `CustomerController::sellPackage()` — off-session charge via `StripeService::createPaymentIntent` (metadata deliberately omits `charge_type` so the existing webhook's normal Order-crediting path stays idempotent against it), modeled on `PurchaseController::store()`/`confirm()`
+- [x] Added `admin.customers.sell-package` route and a "Sell Package" button + `AppModal` on `Customers/Show.vue`
+  - Verification: `SellPackageTest` (7 tests) includes a webhook-replay test proving credits are issued exactly once
+
+## Fix 3 — Customer password self-service
+- [x] Added `AccountPasswordTest` (change with/without existing password, wrong current password, confirmation mismatch) — backend (`AccountController::updatePassword`) already worked, this closed a test-coverage gap
+- [x] Rendered the password-change form in `Portal/Account.vue` (`hasPassword` prop was already passed but never used)
+- [x] Added `ForgotPasswordTest` / `ResetPasswordTest` for a new web-only flow, then implemented `Web/Portal/Auth/{ForgotPasswordController,ResetPasswordController}` mirroring the existing API-only implementation's token logic (custom `password_reset_tokens` table, not Laravel's stock broker), registered under the existing `/my` guest route group
+- [x] Added the missing `auth.password_reset` action-link branch in `PawPassNotification` (the email had no reset link at all before this)
+- [x] Added "Forgot password?" link in `Auth/Login.vue`'s password tab
+  - Verification: the two pre-existing `Auth/ForgotPassword.vue`/`ResetPassword.vue` Vue pages needed zero changes — they were already calling route names that simply didn't exist yet
+
+## Review
+
+### Summary of Changes
+- `resources/js/Pages/Home.vue` — package type label no longer implies unsellable subscriptions
+- `app/Http/Controllers/Web/Admin/DogController.php` — `siblingDogs` prop for the transfer picker
+- `resources/js/Pages/Admin/Dogs/Show.vue` — Adjust Credits modal (goodwill/correction/transfer)
+- `resources/js/Pages/Admin/Credits/Adjust.vue` — deleted (dead stub)
+- `app/Http/Controllers/Web/Admin/CustomerController.php` — `sellPackage()`, new `packages` prop on `show()`
+- `resources/js/Pages/Admin/Customers/Show.vue` — Sell Package button + modal
+- `routes/web.php` — `admin.customers.sell-package`, `portal.forgot-password[.store]`, `portal.reset-password[.store]`
+- `resources/js/Pages/Portal/Account.vue` — password-change section
+- `app/Http/Controllers/Web/Portal/Auth/ForgotPasswordController.php`, `ResetPasswordController.php` — new
+- `app/Notifications/PawPassNotification.php` — `auth.password_reset` action-link branch
+- `resources/js/Pages/Auth/Login.vue` — "Forgot password?" link
+
+### Tests Added or Updated
+- `tests/Feature/Web/Admin/CreditControllerTest.php` — 2 new edge-case tests (8 total)
+- `tests/Feature/Web/Admin/DogControllerTest.php` — 1 new test (`siblingDogs`)
+- `tests/Feature/Web/Admin/SellPackageTest.php` — new, 7 tests
+- `tests/Feature/Web/Portal/AccountPasswordTest.php` — new, 5 tests
+- `tests/Feature/Web/Portal/Auth/ForgotPasswordTest.php` — new, 4 tests
+- `tests/Feature/Web/Portal/Auth/ResetPasswordTest.php` — new, 6 tests
+- `tests/Unit/Notifications/PawPassNotificationTest.php` — 2 new tests (action-link present/absent)
+
+### Build Status
+- `php artisan test`: 1669 passed, 19 failed — all 19 failures confirmed pre-existing on the unmodified baseline (missing `imagick` PHP extension for QR/mail-attachment tests; stale hardcoded reservation-test dates now in the past relative to the container clock), verified via `git stash`/`stash pop` before and after
+- `npm run type-check`: no new errors introduced (baseline already has ~40 pre-existing `route()` typing errors unrelated to this work)
+- `npm run build`: succeeds
+- `./vendor/bin/pint --dirty`: clean (one pre-existing unused import + spacing fix auto-applied to a touched test file)
+
+### Notes
+- Deliberately did **not** revive the abandoned Stripe Subscriptions code path (`Portal/V1/SubscriptionController`, `StripeService::createSubscription`) — the team's own migration history shows this was intentionally scrapped in favor of auto-replenish; reviving it would fight the codebase's grain for no product benefit
+- Deliberately did **not** write a data migration for legacy `type=subscription` seeder rows (`DemoSeeder`/`ShowcaseSeeder`) — Fix 1 is presentation-only and those are demo fixtures
+- Per explicit user decision: Sell Package is card-only (no manual/cash grant path), and both new actions (Adjust Credits, Sell Package) are open to `staff`, not owner-only
   - Verification: `npm run build` passes; displayed dates respect tenant timezone

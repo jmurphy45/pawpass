@@ -17,7 +17,12 @@
       </div>
       <AppCard :padded="true" class="space-y-2">
         <p class="text-sm text-gray-600">Breed: {{ dog.breed ?? '—' }}</p>
-        <p class="text-sm text-gray-600">Credits: {{ dog.credit_balance }}</p>
+        <div class="flex items-center gap-3">
+          <p class="text-sm text-gray-600">Credits: {{ dog.credit_balance }}</p>
+          <button type="button" class="text-xs font-medium text-indigo-600 hover:underline" @click="openAdjustModal">
+            Adjust Credits
+          </button>
+        </div>
         <p class="text-sm text-gray-600">Owner: {{ dog.customer_name }}</p>
       </AppCard>
 
@@ -169,6 +174,62 @@
     </div>
   </AdminLayout>
   <AppModal :open="confirmModal.open" :title="confirmModal.title" :message="confirmModal.message" @confirm="handleConfirm" @cancel="handleCancel" />
+
+  <AppModal
+    :open="adjustModal.open"
+    title="Adjust Credits"
+    :danger="false"
+    confirm-label="Apply"
+    @confirm="submitAdjust"
+    @cancel="adjustModal.open = false"
+  >
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Adjustment type</label>
+        <select v-model="adjustForm.type" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          <option value="goodwill">Goodwill</option>
+          <option value="correction">Correction</option>
+          <option value="transfer" :disabled="siblingDogs.length === 0">Transfer to another dog</option>
+        </select>
+      </div>
+
+      <div v-if="adjustForm.type === 'goodwill'">
+        <label class="block text-xs text-gray-500 mb-1">Credits to add</label>
+        <input v-model.number="adjustForm.credits" type="number" min="1" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+        <p v-if="adjustErrors.credits" class="text-xs text-red-600 mt-1">{{ adjustErrors.credits }}</p>
+      </div>
+
+      <div v-else-if="adjustForm.type === 'correction'">
+        <label class="block text-xs text-gray-500 mb-1">Delta (positive to add, negative to remove)</label>
+        <input v-model.number="adjustForm.delta" type="number" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+        <p v-if="adjustErrors.delta" class="text-xs text-red-600 mt-1">{{ adjustErrors.delta }}</p>
+      </div>
+
+      <div v-else-if="adjustForm.type === 'transfer'">
+        <label class="block text-xs text-gray-500 mb-1">Transfer to</label>
+        <select v-model="adjustForm.to_dog_id" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          <option value="" disabled>Select a dog</option>
+          <option v-for="sibling in siblingDogs" :key="sibling.id" :value="sibling.id">
+            {{ sibling.name }} ({{ sibling.credit_balance }} credits)
+          </option>
+        </select>
+        <p v-if="adjustErrors.to_dog_id" class="text-xs text-red-600 mt-1">{{ adjustErrors.to_dog_id }}</p>
+        <label class="block text-xs text-gray-500 mb-1 mt-3">Credits to transfer</label>
+        <input v-model.number="adjustForm.credits" type="number" min="1" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+        <p v-if="adjustErrors.credits" class="text-xs text-red-600 mt-1">{{ adjustErrors.credits }}</p>
+      </div>
+
+      <div v-if="adjustForm.type !== 'correction'">
+        <label class="block text-xs text-gray-500 mb-1">Note (optional)</label>
+        <input v-model="adjustForm.note" type="text" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+      </div>
+      <div v-else>
+        <label class="block text-xs text-gray-500 mb-1">Note <span class="text-red-500">*</span></label>
+        <input v-model="adjustForm.note" type="text" class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" required />
+        <p v-if="adjustErrors.note" class="text-xs text-red-600 mt-1">{{ adjustErrors.note }}</p>
+      </div>
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -213,6 +274,7 @@ const props = defineProps<{
   attendance: Array<{ id: string; checked_in_at: string; checked_out_at: string | null }>;
   vaccinations: Vaccination[];
   comments: Comment[];
+  siblingDogs: Array<{ id: string; name: string; credit_balance: number }>;
 }>();
 
 const page = usePage<PageProps>();
@@ -290,5 +352,44 @@ function deleteVaccination(vaccinationId: string) {
     'This vaccination record will be permanently deleted.',
     () => router.delete(route('admin.dogs.vaccinations.destroy', { dog: props.dog.id, vaccination: vaccinationId })),
   );
+}
+
+type AdjustType = 'goodwill' | 'correction' | 'transfer';
+
+const adjustModal = ref({ open: false });
+const adjustForm = ref<{ type: AdjustType; credits: number | null; delta: number | null; note: string; to_dog_id: string }>({
+  type: 'goodwill', credits: null, delta: null, note: '', to_dog_id: '',
+});
+const adjustErrors = ref<Record<string, string>>({});
+
+function openAdjustModal() {
+  adjustForm.value = { type: 'goodwill', credits: null, delta: null, note: '', to_dog_id: '' };
+  adjustErrors.value = {};
+  adjustModal.value.open = true;
+}
+
+function submitAdjust() {
+  adjustErrors.value = {};
+
+  const routeName = {
+    goodwill: 'admin.credits.goodwill',
+    correction: 'admin.credits.correction',
+    transfer: 'admin.credits.transfer',
+  }[adjustForm.value.type];
+
+  const payload: Record<string, string | number | null> =
+    adjustForm.value.type === 'correction'
+      ? { delta: adjustForm.value.delta, note: adjustForm.value.note }
+      : adjustForm.value.type === 'transfer'
+        ? { to_dog_id: adjustForm.value.to_dog_id, credits: adjustForm.value.credits, note: adjustForm.value.note }
+        : { credits: adjustForm.value.credits, note: adjustForm.value.note };
+
+  router.post(route(routeName, { dog: props.dog.id }), payload, {
+    onSuccess: () => {
+      adjustModal.value.open = false;
+      router.reload({ only: ['ledger', 'dog'] });
+    },
+    onError: (e) => { adjustErrors.value = e; },
+  });
 }
 </script>

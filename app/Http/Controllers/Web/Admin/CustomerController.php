@@ -2,11 +2,19 @@
 
 namespace App\Http\Controllers\Web\Admin;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
 use App\Http\Controllers\Controller;
 use App\Mail\CustomerWelcomeMail;
 use App\Models\Customer;
+use App\Models\Order;
+use App\Models\OrderLineItem;
+use App\Models\OrderPayment;
+use App\Models\Package;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\DogCreditService;
 use App\Services\MagicLinkService;
 use App\Services\NotificationService;
 use App\Services\StripeService;
@@ -19,6 +27,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Stripe\Exception\ApiErrorException;
 
 class CustomerController extends Controller
 {
@@ -26,6 +35,7 @@ class CustomerController extends Controller
         private readonly StripeService $stripe,
         private readonly MagicLinkService $magicLink,
         private readonly NotificationService $notificationService,
+        private readonly DogCreditService $creditService,
     ) {}
 
     public function index(Request $request): Response
@@ -213,6 +223,7 @@ class CustomerController extends Controller
             ],
             'dogs' => $dogs,
             'orders' => $orders,
+            'packages' => Package::where('is_active', true)->orderBy('name')->get(['id', 'name', 'price', 'credit_count', 'dog_limit', 'type']),
         ]);
     }
 
@@ -279,6 +290,118 @@ class CustomerController extends Controller
         $customer->save();
 
         return back()->with('success', 'Charge initiated successfully.');
+    }
+
+    public function sellPackage(Request $request, Customer $customer): RedirectResponse
+    {
+        $request->validate([
+            'package_id' => ['required', 'string'],
+            'dog_ids' => ['required', 'array', 'min:1'],
+            'dog_ids.*' => ['required', 'string'],
+        ]);
+
+        $package = Package::findOrFail($request->package_id);
+        $dogs = collect($request->dog_ids)->map(fn ($id) => $customer->dogs()->findOrFail($id));
+
+        if (! $customer->stripe_payment_method_id || ! $customer->stripe_customer_id) {
+            return back()->with('error', 'No payment method on file.');
+        }
+
+        $tenant = Tenant::find(app('current.tenant.id'));
+
+        if (! $tenant?->stripe_account_id) {
+            return back()->with('error', 'Stripe not connected.');
+        }
+
+        $amountCents = (int) round((float) $package->price * 100);
+        $feePct = $tenant->effectivePlatformFeePct($amountCents);
+        $feeCents = (int) round($amountCents * $feePct / 100);
+
+        $order = DB::transaction(function () use ($tenant, $customer, $package, $dogs, $feePct, $feeCents, $amountCents) {
+            $order = Order::create([
+                'tenant_id' => $tenant->id,
+                'customer_id' => $customer->id,
+                'package_id' => $package->id,
+                'status' => 'pending',
+                'total_amount' => $package->price,
+                'subtotal_cents' => $amountCents,
+                'platform_fee_pct' => $feePct,
+                'platform_fee_amount_cents' => $feeCents,
+            ]);
+
+            foreach ($dogs as $dog) {
+                $order->orderDogs()->create([
+                    'dog_id' => $dog->id,
+                    'credits_issued' => 0,
+                ]);
+            }
+
+            OrderLineItem::create([
+                'tenant_id' => $tenant->id,
+                'order_id' => $order->id,
+                'description' => $package->name,
+                'quantity' => 1,
+                'unit_price_cents' => $amountCents,
+                'sort_order' => 0,
+            ]);
+
+            return $order;
+        });
+
+        try {
+            $intent = $this->stripe->createPaymentIntent(
+                amountCents: $amountCents,
+                currency: 'usd',
+                stripeAccountId: $tenant->stripe_account_id,
+                applicationFeeCents: $feeCents,
+                metadata: [
+                    'order_id' => $order->id,
+                    'tenant_id' => $tenant->id,
+                    'customer_id' => $customer->id,
+                    'package_id' => $package->id,
+                ],
+                stripeCustomerId: $customer->stripe_customer_id,
+                confirm: true,
+                offSession: true,
+                paymentMethodId: $customer->stripe_payment_method_id,
+                paymentMethodTypes: ['card'],
+            );
+        } catch (ApiErrorException $e) {
+            $order->transitionTo(OrderStatus::Canceled);
+
+            return back()->with('error', 'Charge failed: '.$e->getMessage());
+        }
+
+        OrderPayment::create([
+            'tenant_id' => $tenant->id,
+            'order_id' => $order->id,
+            'stripe_pi_id' => $intent->id,
+            'amount_cents' => $amountCents,
+            'type' => PaymentType::Full,
+            'status' => 'pending',
+        ]);
+
+        DB::transaction(function () use ($order, $package) {
+            $order = Order::lockForUpdate()->find($order->id);
+            if ($order->status === OrderStatus::Paid) {
+                return;
+            }
+
+            $order->transitionTo(OrderStatus::Paid);
+            OrderPayment::where('order_id', $order->id)->update(['status' => PaymentStatus::Paid->value, 'paid_at' => now()]);
+
+            $order->load('orderDogs.dog');
+            foreach ($order->orderDogs as $orderDog) {
+                if ($package->type === 'unlimited') {
+                    $this->creditService->issueUnlimitedPass($order, $orderDog->dog);
+                } else {
+                    $this->creditService->issueFromOrder($order, $orderDog->dog);
+                }
+            }
+        });
+
+        return redirect()->route('admin.customers.show', $customer)
+            ->with('success', 'Package sold — credits issued.');
     }
 
     public function setupPaymentMethod(Customer $customer): \Illuminate\Http\JsonResponse

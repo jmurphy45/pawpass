@@ -54,6 +54,60 @@
         </form>
       </AppCard>
 
+      <!-- Password -->
+      <AppCard class="overflow-hidden">
+        <div class="ac-section-head">
+          <div class="ac-section-icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+            </svg>
+          </div>
+          <span class="ac-section-title">Password</span>
+        </div>
+        <form @submit.prevent="savePassword" class="p-5 space-y-4">
+          <div v-if="hasPassword">
+            <label class="ac-label">Current Password</label>
+            <input
+              v-model="passwordForm.current_password"
+              type="password"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+              :class="{ 'border-red-500': passwordForm.errors.current_password }"
+            />
+            <p v-if="passwordForm.errors.current_password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.current_password }}</p>
+          </div>
+          <p v-else class="text-sm text-text-muted">
+            You currently sign in with an email link. Set a password below to also sign in that way.
+          </p>
+
+          <div>
+            <label class="ac-label">New Password</label>
+            <input
+              v-model="passwordForm.password"
+              type="password"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+              :class="{ 'border-red-500': passwordForm.errors.password }"
+            />
+            <p v-if="passwordForm.errors.password" class="mt-1 text-xs text-red-600">{{ passwordForm.errors.password }}</p>
+          </div>
+
+          <div>
+            <label class="ac-label">Confirm New Password</label>
+            <input
+              v-model="passwordForm.password_confirmation"
+              type="password"
+              class="w-full rounded-lg border border-border-warm px-3 py-2.5 text-sm bg-white text-text-body outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+            />
+          </div>
+
+          <AppButton
+            type="submit"
+            variant="primary"
+            :disabled="passwordForm.processing"
+            class="text-sm disabled:opacity-60"
+          >{{ passwordForm.processing ? 'Saving…' : hasPassword ? 'Change Password' : 'Set Password' }}</AppButton>
+        </form>
+      </AppCard>
+
       <!-- Notification preferences -->
       <AppCard class="overflow-hidden">
         <div class="ac-section-head">
@@ -164,6 +218,7 @@ interface NotifPref { type: string; channel: string; is_enabled: boolean; }
 
 const props = defineProps<{
   profile: Profile;
+  hasPassword: boolean;
   notifPrefs: NotifPref[];
   criticalTypes: string[];
   vapidPublicKey?: string | null;
@@ -181,6 +236,19 @@ const profileForm = useForm({
 
 function saveProfile() {
   profileForm.patch(route('portal.account.update'));
+}
+
+// Password form
+const passwordForm = useForm({
+  current_password: '',
+  password: '',
+  password_confirmation: '',
+});
+
+function savePassword() {
+  passwordForm.post(route('portal.account.password'), {
+    onSuccess: () => passwordForm.reset(),
+  });
 }
 
 // Notification prefs
