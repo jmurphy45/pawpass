@@ -141,7 +141,7 @@
           >
             <span class="self-start rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] mb-5"
               :style="{ borderColor: `${tenant.primary_color}35`, backgroundColor: `${tenant.primary_color}12`, color: tenant.primary_color }">
-              {{ pkg.type === 'one_time' ? 'One-time' : pkg.type === 'subscription' ? 'Monthly' : 'Unlimited' }}
+              {{ pkg.type === 'unlimited' ? 'Unlimited' : 'One-time' }}
             </span>
             <h3 class="tenant-serif text-xl font-bold text-stone-900 mb-2">{{ pkg.name }}</h3>
             <p v-if="pkg.description" class="text-sm text-stone-500 leading-relaxed flex-1 mb-5">{{ pkg.description }}</p>
@@ -152,7 +152,6 @@
                 <span class="text-4xl font-extrabold text-stone-900 tracking-tight">
                   ${{ pkg.price % 1 === 0 ? pkg.price.toFixed(0) : pkg.price.toFixed(2) }}
                 </span>
-                <span v-if="pkg.type === 'subscription'" class="text-sm text-stone-400 font-medium">/mo</span>
               </div>
               <span v-if="pkg.credit_count" class="text-sm font-semibold text-stone-400">{{ pkg.credit_count }} days</span>
               <span v-else class="text-sm font-semibold text-stone-400">Unlimited</span>

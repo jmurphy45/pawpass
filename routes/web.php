@@ -38,10 +38,12 @@ use App\Http\Controllers\Web\LeaderboardController;
 use App\Http\Controllers\Web\Portal\AccountController;
 use App\Http\Controllers\Web\Portal\ArrivalController;
 use App\Http\Controllers\Web\Portal\AttendanceController;
+use App\Http\Controllers\Web\Portal\Auth\ForgotPasswordController;
 use App\Http\Controllers\Web\Portal\Auth\LoginController;
 use App\Http\Controllers\Web\Portal\Auth\LogoutController;
 use App\Http\Controllers\Web\Portal\Auth\PasswordLoginController;
 use App\Http\Controllers\Web\Portal\Auth\RegisterController;
+use App\Http\Controllers\Web\Portal\Auth\ResetPasswordController;
 use App\Http\Controllers\Web\Portal\Auth\VerifyEmailController;
 use App\Http\Controllers\Web\Portal\AutoReplenishController;
 use App\Http\Controllers\Web\Portal\BoardingController as PortalBoardingController;
@@ -125,6 +127,7 @@ Route::middleware(['tenant'])->prefix('admin')->group(function () {
         Route::get('/customers/{customer}', [AdminCustomerController::class, 'show'])->name('admin.customers.show');
         Route::post('/customers/{customer}/request-payment-update', [AdminCustomerController::class, 'requestPaymentUpdate'])->name('admin.customers.request-payment-update');
         Route::post('/customers/{customer}/charge-balance', [AdminCustomerController::class, 'chargeBalance'])->name('admin.customers.charge-balance');
+        Route::post('/customers/{customer}/sell-package', [AdminCustomerController::class, 'sellPackage'])->name('admin.customers.sell-package');
         Route::post('/customers/{customer}/setup-payment-method', [AdminCustomerController::class, 'setupPaymentMethod'])->name('admin.customers.setup-payment-method');
         Route::post('/customers/{customer}/confirm-payment-method', [AdminCustomerController::class, 'confirmPaymentMethod'])->name('admin.customers.confirm-payment-method');
         Route::post('/customers/{customer}/suspend-portal', [AdminCustomerController::class, 'suspendPortalAccess'])->name('admin.customers.suspend-portal');
@@ -334,6 +337,11 @@ Route::middleware(['tenant'])->prefix('my')->group(function () {
         Route::post('/register', [RegisterController::class, 'store'])->name('portal.register.store');
 
         Route::get('/verify-email', [VerifyEmailController::class, 'show'])->name('portal.verify-email');
+
+        Route::get('/forgot-password', [ForgotPasswordController::class, 'show'])->name('portal.forgot-password');
+        Route::post('/forgot-password', [ForgotPasswordController::class, 'send'])->name('portal.forgot-password.store');
+        Route::get('/reset-password', [ResetPasswordController::class, 'show'])->name('portal.reset-password');
+        Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->name('portal.reset-password.store');
 
     });
 

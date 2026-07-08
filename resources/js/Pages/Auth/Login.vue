@@ -111,6 +111,9 @@
               <p v-if="passwordForm.errors.password" class="mt-1 text-xs text-red-600">
                 {{ passwordForm.errors.password }}
               </p>
+              <Link :href="route('portal.forgot-password')" class="mt-1.5 inline-block text-xs text-indigo-600 hover:underline">
+                Forgot password?
+              </Link>
             </div>
 
             <AppButton

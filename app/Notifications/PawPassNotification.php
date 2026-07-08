@@ -65,6 +65,10 @@ class PawPassNotification extends Notification implements ShouldQueue
             $message->action('Log In', $this->data['login_url']);
         }
 
+        if ($this->type === 'auth.password_reset' && isset($this->data['reset_url'])) {
+            $message->action('Reset Password', $this->data['reset_url']);
+        }
+
         if ($this->type === 'attendance.stale_checkins' && isset($this->data['checkout_url'])) {
             $message->action('Check Out All', $this->data['checkout_url']);
         }

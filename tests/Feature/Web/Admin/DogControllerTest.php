@@ -71,6 +71,28 @@ class DogControllerTest extends TestCase
         );
     }
 
+    public function test_show_includes_sibling_dogs_excluding_self(): void
+    {
+        $customer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        $dog = Dog::factory()->forCustomer($customer)->create(['name' => 'Buddy']);
+        $sibling = Dog::factory()->forCustomer($customer)->create(['name' => 'Rex', 'credit_balance' => 4]);
+
+        $otherCustomer = Customer::factory()->create(['tenant_id' => $this->tenant->id]);
+        Dog::factory()->forCustomer($otherCustomer)->create(['name' => 'Fido']);
+
+        $this->actingAs($this->staff);
+
+        $response = $this->get("/admin/dogs/{$dog->id}");
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Dogs/Show')
+            ->has('siblingDogs', 1)
+            ->where('siblingDogs.0.id', $sibling->id)
+            ->where('siblingDogs.0.name', 'Rex')
+            ->where('siblingDogs.0.credit_balance', 4)
+        );
+    }
+
     public function test_create_page_renders(): void
     {
         $this->actingAs($this->staff);

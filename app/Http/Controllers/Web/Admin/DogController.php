@@ -185,6 +185,9 @@ class DogController extends Controller
             'attendance' => $attendance,
             'vaccinations' => $vaccinations,
             'comments' => $comments,
+            'siblingDogs' => Dog::where('customer_id', $dog->customer_id)
+                ->where('id', '!=', $dog->id)
+                ->get(['id', 'name', 'credit_balance']),
         ]);
     }
 

@@ -71,6 +71,35 @@ class PawPassNotificationTest extends TestCase
         $this->assertSame('Payment Confirmed', $mail->subject);
     }
 
+    public function test_to_mail_includes_action_link_for_password_reset(): void
+    {
+        $notification = new PawPassNotification(
+            type: 'auth.password_reset',
+            tenantId: 'tenant123',
+            data: ['reset_url' => 'https://testco.pawpass.com/my/reset-password?token=abc'],
+            channels: ['mail'],
+        );
+
+        $mail = $notification->toMail(null);
+
+        $this->assertSame('Reset Password', $mail->actionText);
+        $this->assertSame('https://testco.pawpass.com/my/reset-password?token=abc', $mail->actionUrl);
+    }
+
+    public function test_to_mail_has_no_action_link_when_reset_url_missing(): void
+    {
+        $notification = new PawPassNotification(
+            type: 'auth.password_reset',
+            tenantId: 'tenant123',
+            data: [],
+            channels: ['mail'],
+        );
+
+        $mail = $notification->toMail(null);
+
+        $this->assertNull($mail->actionText);
+    }
+
     public function test_to_sms_returns_string(): void
     {
         $sms = $this->notification->toSms(null);
